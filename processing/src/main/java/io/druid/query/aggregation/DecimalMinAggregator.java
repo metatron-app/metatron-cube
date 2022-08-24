@@ -33,28 +33,17 @@ public abstract class DecimalMinAggregator implements Aggregator.Simple<BigDecim
       final ValueMatcher predicate
   )
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DecimalMinAggregator()
+    return new DecimalMinAggregator()
+    {
+      @Override
+      public BigDecimal aggregate(final BigDecimal current)
       {
-        @Override
-        public BigDecimal aggregate(final BigDecimal current)
-        {
+        if (predicate.matches()) {
           return _process(current, selector.get());
         }
-      };
-    } else {
-      return new DecimalMinAggregator()
-      {
-        @Override
-        public BigDecimal aggregate(final BigDecimal current)
-        {
-          if (predicate.matches()) {
-            return _process(current, selector.get());
-          }
-          return current;
-        }
-      };
-    }
+        return current;
+      }
+    };
   }
 
   private static BigDecimal _process(final BigDecimal current, final BigDecimal value)

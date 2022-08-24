@@ -26,7 +26,7 @@ import java.util.Comparator;
 
 /**
  */
-public class CountAggregator implements Aggregator<MutableLong>
+public class CountAggregator implements Aggregator.FromMutableLong
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -48,9 +48,16 @@ public class CountAggregator implements Aggregator<MutableLong>
   }
 
   @Override
-  public Object get(final MutableLong current)
+  public Long get(final MutableLong current)
   {
     return current == null ? 0L : current.longValue();
+  }
+
+  @Override
+  public boolean getLong(MutableLong current, MutableLong handover)
+  {
+    handover.setValue(current == null ? 0L : current.longValue());
+    return true;
   }
 
   @Override

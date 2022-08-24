@@ -29,7 +29,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class LongSumAggregator implements Aggregator<MutableLong>
+public abstract class LongSumAggregator implements Aggregator.FromMutableLong
 {
   static final Comparator COMPARATOR = Comparators.NULL_FIRST(
       (o1, o2) -> Long.compare(((Number) o1).longValue(), ((Number) o2).longValue())
@@ -45,49 +45,35 @@ public abstract class LongSumAggregator implements Aggregator<MutableLong>
   };
 
   @Override
-  public Object get(MutableLong current)
+  public Long get(MutableLong current)
   {
     return current == null ? 0L : current.longValue();
   }
 
+  @Override
+  public boolean getLong(MutableLong current, MutableLong handover)
+  {
+    handover.setValue(current == null ? 0L : current.longValue());
+    return true;
+  }
+
   public static LongSumAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new LongSumAggregator()
+    return new LongSumAggregator()
+    {
+      private final MutableLong handover = new MutableLong();
+
+      @Override
+      public MutableLong aggregate(final MutableLong current)
       {
-        @Override
-        public MutableLong aggregate(final MutableLong current)
-        {
-          final Long value = selector.get();
-          if (value == null) {
-            return current;
-          }
+        if (predicate.matches() && selector.getLong(handover)) {
           if (current == null) {
-            return new MutableLong(value);
+            return new MutableLong(handover.longValue());
           }
-          current.add(value);
-          return current;
+          current.add(handover.longValue());
         }
-      };
-    } else {
-      return new LongSumAggregator()
-      {
-        @Override
-        public MutableLong aggregate(final MutableLong current)
-        {
-          if (predicate.matches()) {
-            final Long value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return new MutableLong(value);
-            }
-            current.add(value);
-          }
-          return current;
-        }
-      };
-    }
+        return current;
+      }
+    };
   }
 }

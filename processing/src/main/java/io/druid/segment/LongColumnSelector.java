@@ -20,13 +20,32 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
+import org.apache.commons.lang.mutable.MutableLong;
+
+import java.io.Closeable;
 
 /**
+ *
  */
 public interface LongColumnSelector extends ObjectColumnSelector<Long>
 {
   default ValueDesc type()
   {
     return ValueDesc.LONG;
+  }
+
+  default boolean getLong(MutableLong handover)
+  {
+    Long lv = get();
+    if (lv == null) {
+      return false;
+    } else {
+      handover.setValue(lv.longValue());
+      return true;
+    }
+  }
+
+  interface WithBaggage extends LongColumnSelector, Closeable
+  {
   }
 }

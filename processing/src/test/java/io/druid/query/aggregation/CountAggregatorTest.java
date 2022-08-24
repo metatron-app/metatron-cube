@@ -35,17 +35,17 @@ public class CountAggregatorTest
     CountAggregator agg = new CountAggregator();
 
     MutableLong x = null;
-    Assert.assertEquals(0L, agg.get(x));
-    Assert.assertEquals(0L, agg.get(x));
-    Assert.assertEquals(0L, agg.get(x));
+    Assert.assertEquals(0L, agg.get(x).longValue());
+    Assert.assertEquals(0L, agg.get(x).longValue());
+    Assert.assertEquals(0L, agg.get(x).longValue());
     x = agg.aggregate(x);
-    Assert.assertEquals(1L, agg.get(x));
-    Assert.assertEquals(1L, agg.get(x));
-    Assert.assertEquals(1L, agg.get(x));
+    Assert.assertEquals(1L, agg.get(x).longValue());
+    Assert.assertEquals(1L, agg.get(x).longValue());
+    Assert.assertEquals(1L, agg.get(x).longValue());
     x = agg.aggregate(x);
-    Assert.assertEquals(2L, agg.get(x));
-    Assert.assertEquals(2L, agg.get(x));
-    Assert.assertEquals(2L, agg.get(x));
+    Assert.assertEquals(2L, agg.get(x).longValue());
+    Assert.assertEquals(2L, agg.get(x).longValue());
+    Assert.assertEquals(2L, agg.get(x).longValue());
   }
 
   @Test

@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.query.filter.ValueMatcher;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,27 +41,27 @@ public class LongSumAggregatorTest
   public void testAggregate()
   {
     final TestLongColumnSelector selector = new TestLongColumnSelector(new long[]{24L, 20L});
-    LongSumAggregator agg = LongSumAggregator.create(selector, null);
+    LongSumAggregator agg = LongSumAggregator.create(selector, ValueMatcher.TRUE);
 
     MutableLong aggregate = null;
-    Assert.assertEquals(0L, agg.get(aggregate));
-    Assert.assertEquals(0L, agg.get(aggregate));
-    Assert.assertEquals(0L, agg.get(aggregate));
+    Assert.assertEquals(0L, agg.get(aggregate).longValue());
+    Assert.assertEquals(0L, agg.get(aggregate).longValue());
+    Assert.assertEquals(0L, agg.get(aggregate).longValue());
     aggregate = aggregate(selector, agg, aggregate);
-    Assert.assertEquals(24L, agg.get(aggregate));
-    Assert.assertEquals(24L, agg.get(aggregate));
-    Assert.assertEquals(24L, agg.get(aggregate));
+    Assert.assertEquals(24L, agg.get(aggregate).longValue());
+    Assert.assertEquals(24L, agg.get(aggregate).longValue());
+    Assert.assertEquals(24L, agg.get(aggregate).longValue());
     aggregate = aggregate(selector, agg, aggregate);
-    Assert.assertEquals(44L, agg.get(aggregate));
-    Assert.assertEquals(44L, agg.get(aggregate));
-    Assert.assertEquals(44L, agg.get(aggregate));
+    Assert.assertEquals(44L, agg.get(aggregate).longValue());
+    Assert.assertEquals(44L, agg.get(aggregate).longValue());
+    Assert.assertEquals(44L, agg.get(aggregate).longValue());
   }
 
   @Test
   public void testComparator()
   {
     final TestLongColumnSelector selector = new TestLongColumnSelector(new long[]{18293L});
-    LongSumAggregator agg = LongSumAggregator.create(selector, null);
+    LongSumAggregator agg = LongSumAggregator.create(selector, ValueMatcher.TRUE);
 
     MutableLong aggregate = null;
     Object first = agg.get(aggregate);

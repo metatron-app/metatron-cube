@@ -27,6 +27,7 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -165,10 +166,11 @@ public class Aggregators
           @Override
           public Object aggregate(Object current)
           {
-            if (current != null) {
+            final Object update = selector.get();
+            if (update != null && current != null) {
               throw new IllegalStateException("cannot aggregate");
             }
-            return selector.get();
+            return update == null ? current : update;
           }
         };
       case FIRST:
@@ -226,12 +228,16 @@ public class Aggregators
       case TIME_MIN:
         return new Aggregator<TimeTagged>()
         {
-          final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
+          private final MutableLong handover = new MutableLong();
+          private final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
 
           @Override
           public TimeTagged aggregate(TimeTagged current)
           {
-            final long timestamp = timeSelector.get();
+            if (!timeSelector.getLong(handover)) {
+              return current; // possible?
+            }
+            final long timestamp = handover.longValue();
             if (current == null) {
               Object value = selector.get();
               if (value != null) {
@@ -256,12 +262,16 @@ public class Aggregators
       case TIME_MAX:
         return new Aggregator<TimeTagged>()
         {
-          final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
+          private final MutableLong handover = new MutableLong();
+          private final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
 
           @Override
           public TimeTagged aggregate(TimeTagged current)
           {
-            final long timestamp = timeSelector.get();
+            if (!timeSelector.getLong(handover)) {
+              return current; // possible?
+            }
+            final long timestamp = handover.longValue();
             if (current == null) {
               Object value = selector.get();
               if (value != null) {

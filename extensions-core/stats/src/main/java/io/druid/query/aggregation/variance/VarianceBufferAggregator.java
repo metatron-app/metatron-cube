@@ -25,10 +25,14 @@ import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.nio.ByteBuffer;
 
 /**
+ *
  */
 public abstract class VarianceBufferAggregator implements BufferAggregator
 {
@@ -61,49 +65,20 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     return holder;
   }
 
-  static BufferAggregator create(String name, final FloatColumnSelector selector, final ValueMatcher predicate)
+  static BufferAggregator create(final String name, final FloatColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return NULL;
     }
     return new VarianceBufferAggregator(name)
     {
-      @Override
-      public void aggregate(ByteBuffer buf, int position0, int position1)
-      {
-        if (predicate.matches()) {
-          final Float v = selector.get();
-          if (v != null) {
-            long count = buf.getLong(position1 + COUNT_OFFSET) + 1;
-            double sum = buf.getDouble(position1 + SUM_OFFSET) + v;
-            buf.putLong(position1, count);
-            buf.putDouble(position1 + SUM_OFFSET, sum);
-            if (count > 1) {
-              double t = count * v - sum;
-              double variance = buf.getDouble(position1 + NVARIANCE_OFFSET) + (t * t) / ((double) count * (count - 1));
-              buf.putDouble(position1 + NVARIANCE_OFFSET, variance);
-            }
-          }
-        }
-      }
-    };
-  }
+      private final MutableFloat handover = new MutableFloat();
 
-  static BufferAggregator create(String name, final DoubleColumnSelector selector, final ValueMatcher predicate)
-  {
-    if (selector == null) {
-      return NULL;
-    }
-    return new VarianceBufferAggregator(name)
-    {
       @Override
       public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        if (predicate.matches()) {
-          final Double v = selector.get();
-          if (v == null) {
-            return;
-          }
+        if (predicate.matches() && selector.getFloat(handover)) {
+          final float v = handover.floatValue();
           long count = buf.getLong(position1 + COUNT_OFFSET) + 1;
           double sum = buf.getDouble(position1 + SUM_OFFSET) + v;
           buf.putLong(position1, count);
@@ -118,35 +93,63 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     };
   }
 
-  static BufferAggregator create(String name, final LongColumnSelector selector, final ValueMatcher predicate)
+  static BufferAggregator create(final String name, final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return NULL;
     }
     return new VarianceBufferAggregator(name)
     {
+      private final MutableDouble handover = new MutableDouble();
+
       @Override
       public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        if (predicate.matches()) {
-          final Long v = selector.get();
-          if (v != null) {
-            long count = buf.getLong(position1 + COUNT_OFFSET) + 1;
-            double sum = buf.getDouble(position1 + SUM_OFFSET) + v;
-            buf.putLong(position1, count);
-            buf.putDouble(position1 + SUM_OFFSET, sum);
-            if (count > 1) {
-              double t = count * v - sum;
-              double variance = buf.getDouble(position1 + NVARIANCE_OFFSET) + (t * t) / ((double) count * (count - 1));
-              buf.putDouble(position1 + NVARIANCE_OFFSET, variance);
-            }
+        if (predicate.matches() && selector.getDouble(handover)) {
+          final double v = handover.doubleValue();
+          long count = buf.getLong(position1 + COUNT_OFFSET) + 1;
+          double sum = buf.getDouble(position1 + SUM_OFFSET) + v;
+          buf.putLong(position1, count);
+          buf.putDouble(position1 + SUM_OFFSET, sum);
+          if (count > 1) {
+            double t = count * v - sum;
+            double variance = buf.getDouble(position1 + NVARIANCE_OFFSET) + (t * t) / ((double) count * (count - 1));
+            buf.putDouble(position1 + NVARIANCE_OFFSET, variance);
           }
         }
       }
     };
   }
 
-  static BufferAggregator create(String name, final ObjectColumnSelector selector, final ValueMatcher predicate)
+  static BufferAggregator create(final String name, final LongColumnSelector selector, final ValueMatcher predicate)
+  {
+    if (selector == null) {
+      return NULL;
+    }
+    return new VarianceBufferAggregator(name)
+    {
+      private final MutableLong handover = new MutableLong();
+
+      @Override
+      public void aggregate(ByteBuffer buf, int position0, int position1)
+      {
+        if (predicate.matches() && selector.getLong(handover)) {
+          final long v = handover.longValue();
+          long count = buf.getLong(position1 + COUNT_OFFSET) + 1;
+          double sum = buf.getDouble(position1 + SUM_OFFSET) + v;
+          buf.putLong(position1, count);
+          buf.putDouble(position1 + SUM_OFFSET, sum);
+          if (count > 1) {
+            double t = count * v - sum;
+            double variance = buf.getDouble(position1 + NVARIANCE_OFFSET) + (t * t) / ((double) count * (count - 1));
+            buf.putDouble(position1 + NVARIANCE_OFFSET, variance);
+          }
+        }
+      }
+    };
+  }
+
+  static BufferAggregator create(final String name, final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return NULL;

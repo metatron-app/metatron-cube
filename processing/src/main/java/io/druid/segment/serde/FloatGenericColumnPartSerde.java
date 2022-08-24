@@ -37,6 +37,7 @@ import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 import it.unimi.dsi.fastutil.ints.Int2FloatFunction;
+import org.apache.commons.lang.mutable.MutableFloat;
 import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
@@ -155,6 +156,17 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                 public Float getValue(int rowNum)
                 {
                   return bitmap.get(rowNum) ? null : bufferToUse.get(rowNum);
+                }
+
+                @Override
+                public boolean getFloat(int rowNum, MutableFloat handover)
+                {
+                  if (bitmap.get(rowNum)) {
+                    return false;
+                  } else {
+                    handover.setValue(bufferToUse.get(rowNum));
+                    return true;
+                  }
                 }
 
                 @Override

@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.LongColumnSelector;
@@ -69,13 +70,13 @@ public class LongMinAggregatorFactory extends AggregatorFactory implements Aggre
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return LongMinAggregator.create(getLongColumnSelector(metricFactory), null);
+    return LongMinAggregator.create(getLongColumnSelector(metricFactory), ValueMatcher.TRUE);
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return LongMinBufferAggregator.create(getLongColumnSelector(metricFactory), null);
+    return LongMinBufferAggregator.create(getLongColumnSelector(metricFactory), ValueMatcher.TRUE);
   }
 
   private LongColumnSelector getLongColumnSelector(ColumnSelectorFactory metricFactory)

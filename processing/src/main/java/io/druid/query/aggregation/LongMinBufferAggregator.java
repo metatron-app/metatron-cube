@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.nio.ByteBuffer;
 
@@ -36,33 +37,18 @@ public abstract class LongMinBufferAggregator extends BufferAggregator.NullSuppo
 
   public static LongMinBufferAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new LongMinBufferAggregator()
+    return new LongMinBufferAggregator()
+    {
+      private final MutableLong handover = new MutableLong();
+
+      @Override
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          final Long current = selector.get();
-          if (current != null) {
-            _aggregate(buf, position1, current);
-          }
+        if (predicate.matches() && selector.getLong(handover)) {
+          _aggregate(buf, position1, handover.longValue());
         }
-      };
-    } else {
-      return new LongMinBufferAggregator()
-      {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          if (predicate.matches()) {
-            final Long current = selector.get();
-            if (current != null) {
-              _aggregate(buf, position1, current);
-            }
-          }
-        }
-      };
-    }
+      }
+    };
   }
 
   private static void _aggregate(final ByteBuffer buf, final int position, final long current)

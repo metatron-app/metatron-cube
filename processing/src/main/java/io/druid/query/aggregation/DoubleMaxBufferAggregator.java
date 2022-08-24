@@ -22,6 +22,8 @@ package io.druid.query.aggregation;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
 
 import java.nio.ByteBuffer;
 
@@ -37,64 +39,34 @@ public abstract class DoubleMaxBufferAggregator extends BufferAggregator.NullSup
 
   public static DoubleMaxBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DoubleMaxBufferAggregator()
+    return new DoubleMaxBufferAggregator()
+    {
+      private final MutableFloat handover = new MutableFloat();
+
+      @Override
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          final Float current = selector.get();
-          if (current != null) {
-            _aggregate(buf, position1, current);
-          }
+        if (predicate.matches() && selector.getFloat(handover)) {
+          _aggregate(buf, position1, handover.floatValue());
         }
-      };
-    } else {
-      return new DoubleMaxBufferAggregator()
-      {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          if (predicate.matches()) {
-            final Float current = selector.get();
-            if (current != null) {
-              _aggregate(buf, position1, current);
-            }
-          }
-        }
-      };
-    }
+      }
+    };
   }
 
   public static DoubleMaxBufferAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DoubleMaxBufferAggregator()
+    return new DoubleMaxBufferAggregator()
+    {
+      private final MutableDouble handover = new MutableDouble();
+
+      @Override
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          final Double current = selector.get();
-          if (current != null) {
-            _aggregate(buf, position1, current);
-          }
+        if (predicate.matches() && selector.getDouble(handover)) {
+          _aggregate(buf, position1, handover.doubleValue());
         }
-      };
-    } else {
-      return new DoubleMaxBufferAggregator()
-      {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          if (predicate.matches()) {
-            final Double current = selector.get();
-            if (current != null) {
-              _aggregate(buf, position1, current);
-            }
-          }
-        }
-      };
-    }
+      }
+    };
   }
 
   private static void _aggregate(final ByteBuffer buf, final int position, final double current)

@@ -22,13 +22,14 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedLongs;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 
 /**
  */
-public class IndexedLongsGenericColumn extends GenericColumn.LongType
+public final class IndexedLongsGenericColumn extends GenericColumn.LongType
 {
   private final IndexedLongs column;
   private final CompressionStrategy compressionType;
@@ -61,20 +62,29 @@ public class IndexedLongsGenericColumn extends GenericColumn.LongType
   @Override
   public Long getValue(final int rowNum)
   {
-    if (nulls.get(rowNum)) {
-      return null;
-    }
+    return nulls.get(rowNum) ? null : _getValue(rowNum);
+  }
+
+  private long _getValue(int rowNum)
+  {
     if (rowNum >= from && rowNum < to) {
       return buffered[rowNum - from];
     }
     final int loaded = column.fill(rowNum, buffered);
-    if (loaded == 0) {
-      from = to = -1;
-      return null;
-    }
     from = rowNum;
     to = rowNum + loaded;
     return buffered[0];
+  }
+
+  @Override
+  public boolean getLong(int rowNum, MutableLong handover)
+  {
+    if (nulls.get(rowNum)) {
+      return false;
+    } else {
+      handover.setValue(_getValue(rowNum));
+      return true;
+    }
   }
 
   @Override

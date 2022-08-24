@@ -27,7 +27,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class DoubleMinAggregator implements Aggregator<MutableDouble>
+public abstract class DoubleMinAggregator implements Aggregator.FromMutableDouble
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 
@@ -44,42 +44,21 @@ public abstract class DoubleMinAggregator implements Aggregator<MutableDouble>
 
   public static DoubleMinAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DoubleMinAggregator()
+    return new DoubleMinAggregator()
+    {
+      private final MutableDouble handover = new MutableDouble();
+
+      @Override
+      public MutableDouble aggregate(final MutableDouble current)
       {
-        @Override
-        public MutableDouble aggregate(final MutableDouble current)
-        {
-          final Double value = selector.get();
-          if (value == null) {
-            return current;
-          }
+        if (predicate.matches() && selector.getDouble(handover)) {
           if (current == null) {
-            return new MutableDouble(value);
+            return new MutableDouble(handover.doubleValue());
           }
-          current.setValue(Math.min(current.doubleValue(), value));
-          return current;
+          current.setValue(Math.min(current.doubleValue(), handover.doubleValue()));
         }
-      };
-    } else {
-      return new DoubleMinAggregator()
-      {
-        @Override
-        public MutableDouble aggregate(MutableDouble current)
-        {
-          if (predicate.matches()) {
-            final Double value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return new MutableDouble(value);
-            }
-            current.setValue(Math.min(current.doubleValue(), value));
-          }
-          return current;
-        }
-      };
-    }
+        return current;
+      }
+    };
   }
 }

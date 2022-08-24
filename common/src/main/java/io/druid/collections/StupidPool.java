@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  */
@@ -37,6 +38,7 @@ public class StupidPool<T>
   private final Supplier<T> generator;
 
   private final Queue<T> objects = new ConcurrentLinkedQueue<>();
+  private final AtomicInteger counter = new AtomicInteger();
 
   //note that this is just the max entries in the cache, pool can still create as many buffers as needed.
   private final int objectsCacheMaxCount;
@@ -57,7 +59,9 @@ public class StupidPool<T>
   public ResourceHolder<T> take()
   {
     T obj = objects.poll();
-    if (obj == null) {
+    if (obj != null) {
+      counter.decrementAndGet();
+    } else {
       obj = generator.get();
       if (++createdObjects > objectsCacheMaxCount) {
         log.warn("creating [%d] for max cache [%d].. leak?", createdObjects, objectsCacheMaxCount);
@@ -74,6 +78,7 @@ public class StupidPool<T>
   public void clear()
   {
     objects.clear();
+    counter.set(0);
   }
 
   protected class ObjectResourceHolder implements ResourceHolder<T>
@@ -105,9 +110,9 @@ public class StupidPool<T>
         log.warn(new ISE("Already Closed!"), "Already closed");
         return;
       }
-      if (objects.size() < objectsCacheMaxCount) {
-        if (!objects.offer(object)) {
-          log.warn(new ISE("Queue offer failed"), "Could not offer object [%s] back into the queue", object);
+      if (counter.get() < objectsCacheMaxCount) {
+        if (objects.offer(object)) {
+          counter.incrementAndGet();
         }
       } else {
         log.debug("cache num entries is exceeding max limit [%s]", objectsCacheMaxCount);

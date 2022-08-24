@@ -20,6 +20,9 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
+import org.apache.commons.lang.mutable.MutableFloat;
+
+import java.io.Closeable;
 
 /**
  * An object that gets a metric value.  Metric values are always floats and there is an assumption that the
@@ -31,5 +34,20 @@ public interface FloatColumnSelector extends ObjectColumnSelector<Float>
   default ValueDesc type()
   {
     return ValueDesc.FLOAT;
+  }
+
+  default boolean getFloat(MutableFloat handover)
+  {
+    Float fv = get();
+    if (fv == null) {
+      return false;
+    } else {
+      handover.setValue(fv.floatValue());
+      return true;
+    }
+  }
+
+  interface WithBaggage extends FloatColumnSelector, Closeable
+  {
   }
 }

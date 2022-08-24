@@ -28,7 +28,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class FloatMaxAggregator implements Aggregator<MutableFloat>
+public abstract class FloatMaxAggregator implements Aggregator.FromMutableFloat
 {
   static final Comparator COMPARATOR = Comparators.NULL_FIRST(
       (Object o1, Object o2) -> Float.compare(((Number) o1).floatValue(), ((Number) o2).floatValue())
@@ -47,42 +47,21 @@ public abstract class FloatMaxAggregator implements Aggregator<MutableFloat>
 
   public static FloatMaxAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new FloatMaxAggregator()
+    return new FloatMaxAggregator()
+    {
+      private final MutableFloat handover = new MutableFloat();
+
+      @Override
+      public MutableFloat aggregate(final MutableFloat current)
       {
-        @Override
-        public MutableFloat aggregate(final MutableFloat current)
-        {
-          final Float value = selector.get();
-          if (value == null) {
-            return current;
-          }
+        if (predicate.matches() && selector.getFloat(handover)) {
           if (current == null) {
-            return new MutableFloat(value);
+            return new MutableFloat(handover.floatValue());
           }
-          current.setValue(Math.max(current.floatValue(), value));
-          return current;
+          current.setValue(Math.max(current.floatValue(), handover.floatValue()));
         }
-      };
-    } else {
-      return new FloatMaxAggregator()
-      {
-        @Override
-        public MutableFloat aggregate(MutableFloat current)
-        {
-          if (predicate.matches()) {
-            final Float value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return new MutableFloat(value);
-            }
-            current.setValue(Math.max(current.floatValue(), value));
-          }
-          return current;
-        }
-      };
-    }
+        return current;
+      }
+    };
   }
 }

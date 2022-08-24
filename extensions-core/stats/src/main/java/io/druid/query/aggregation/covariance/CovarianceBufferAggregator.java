@@ -23,6 +23,7 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 import java.nio.ByteBuffer;
 
@@ -63,7 +64,7 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
   }
 
   static BufferAggregator create(
-      String name,
+      final String name,
       final DoubleColumnSelector selector1,
       final DoubleColumnSelector selector2,
       final ValueMatcher predicate
@@ -74,22 +75,20 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
     }
     return new CovarianceBufferAggregator(name)
     {
+      private final MutableDouble handover1 = new MutableDouble();
+      private final MutableDouble handover2 = new MutableDouble();
+
       @Override
       public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        if (predicate.matches()) {
-          final Double v1 = selector1.get();
-          final Double v2 = selector2.get();
-          if (v1 == null || v2 == null) {
-            return;
-          }
+        if (predicate.matches() && selector1.getDouble(handover1) && selector2.getDouble(handover2)) {
           long count = buf.getLong(position1 + COUNT_OFFSET);
           double xavg = buf.getDouble(position1 + XAVG_OFFSET);
           double yavg = buf.getDouble(position1 + YAVG_OFFSET);
           double covar = buf.getDouble(position1 + COVAR_OFFSET);
 
-          final double vx = v1;
-          final double vy = v2;
+          final double vx = handover1.doubleValue();
+          final double vy = handover2.doubleValue();
           final double deltaX = vx - xavg;
           final double deltaY = vy - yavg;
           count++;

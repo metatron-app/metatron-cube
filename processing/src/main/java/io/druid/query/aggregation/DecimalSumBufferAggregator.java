@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 
 /**
+ *
  */
 public abstract class DecimalSumBufferAggregator extends DecimalBufferAggregator
 {
@@ -35,12 +36,12 @@ public abstract class DecimalSumBufferAggregator extends DecimalBufferAggregator
       final DecimalMetricSerde metric
   )
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DecimalSumBufferAggregator(metric)
+    return new DecimalSumBufferAggregator(metric)
+    {
+      @Override
+      public final void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
-        {
+        if (predicate.matches()) {
           final BigDecimal decimal = selector.get();
           if (decimal != null) {
             final BigDecimal current = read(buf, position1);
@@ -51,27 +52,8 @@ public abstract class DecimalSumBufferAggregator extends DecimalBufferAggregator
             }
           }
         }
-      };
-    } else {
-      return new DecimalSumBufferAggregator(metric)
-      {
-        @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          if (predicate.matches()) {
-            final BigDecimal decimal = selector.get();
-            if (decimal != null) {
-              final BigDecimal current = read(buf, position1);
-              if (current == null) {
-                write(buf, position1, decimal);
-              } else {
-                write(buf, position1, current.add(decimal));
-              }
-            }
-          }
-        }
-      };
-    }
+      }
+    };
   }
 
   DecimalSumBufferAggregator(DecimalMetricSerde metric)

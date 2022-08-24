@@ -25,12 +25,13 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
 
 import java.util.Comparator;
 
 /**
  */
-public abstract class DoubleSumAggregator implements Aggregator<MutableDouble>
+public abstract class DoubleSumAggregator implements Aggregator.FromMutableDouble
 {
   static final Comparator COMPARATOR = Comparators.NULL_FIRST(
       (o1, o2) -> Double.compare(((Number) o1).doubleValue(), ((Number) o2).doubleValue())
@@ -46,90 +47,55 @@ public abstract class DoubleSumAggregator implements Aggregator<MutableDouble>
   };
 
   @Override
-  public Object get(MutableDouble current)
+  public Double get(MutableDouble current)
   {
     return current == null ? 0D : current.doubleValue();
   }
 
+  @Override
+  public boolean getDouble(MutableDouble current, MutableDouble handover)
+  {
+    handover.setValue(current == null ? 0D : current.doubleValue());
+    return true;
+  }
+
   public static DoubleSumAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DoubleSumAggregator()
+    return new DoubleSumAggregator()
+    {
+      private final MutableFloat handover = new MutableFloat();
+
+      @Override
+      public MutableDouble aggregate(final MutableDouble current)
       {
-        @Override
-        public MutableDouble aggregate(final MutableDouble current)
-        {
-          final Float value = selector.get();
-          if (value == null) {
-            return current;
-          }
+        if (predicate.matches() && selector.getFloat(handover)) {
           if (current == null) {
-            return new MutableDouble(value);
+            return new MutableDouble(handover.floatValue());
           }
-          current.add(value);
-          return current;
+          current.add(handover.floatValue());
         }
-      };
-    } else {
-      return new DoubleSumAggregator()
-      {
-        @Override
-        public MutableDouble aggregate(final MutableDouble current)
-        {
-          if (predicate.matches()) {
-            final Float value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return new MutableDouble(value);
-            }
-            current.add(value);
-          }
-          return current;
-        }
-      };
-    }
+        return current;
+      }
+    };
   }
 
   public static DoubleSumAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DoubleSumAggregator()
+    return new DoubleSumAggregator()
+    {
+      private final MutableDouble handover = new MutableDouble();
+
+      @Override
+      public MutableDouble aggregate(final MutableDouble current)
       {
-        @Override
-        public MutableDouble aggregate(final MutableDouble current)
-        {
-          final Double value = selector.get();
-          if (value == null) {
-            return current;
-          }
+        if (predicate.matches() && selector.getDouble(handover)) {
           if (current == null) {
-            return new MutableDouble(value);
+            return new MutableDouble(handover.doubleValue());
           }
-          current.add(value);
-          return current;
+          current.add(handover.doubleValue());
         }
-      };
-    } else {
-      return new DoubleSumAggregator()
-      {
-        @Override
-        public MutableDouble aggregate(final MutableDouble current)
-        {
-          if (predicate.matches()) {
-            final Double value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return new MutableDouble(value);
-            }
-            current.add(value);
-          }
-          return current;
-        }
-      };
-    }
+        return current;
+      }
+    };
   }
 }

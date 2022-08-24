@@ -23,6 +23,7 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 import java.nio.ByteBuffer;
 
@@ -66,7 +67,7 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
   }
 
   static BufferAggregator create(
-      String name,
+      final String name,
       final DoubleColumnSelector selector,
       final ValueMatcher predicate
   )
@@ -76,21 +77,19 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
     }
     return new KurtosisBufferAggregator(name)
     {
+      private final MutableDouble handover = new MutableDouble();
+
       @Override
       public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        if (predicate.matches()) {
-          final Double v = selector.get();
-          if (v == null) {
-            return;
-          }
+        if (predicate.matches() && selector.getDouble(handover)) {
           long n = buf.getLong(position1 + COUNT_OFFSET);
           double mean = buf.getDouble(position1 + MEAN_OFFSET);
           double M2 = buf.getDouble(position1 + M2_OFFSET);
           double M3 = buf.getDouble(position1 + M3_OFFSET);
           double M4 = buf.getDouble(position1 + M4_OFFSET);
 
-          final double x = v;
+          final double x = handover.doubleValue();
           final long n1 = n;
           n = n + 1;
           final double delta = x - mean;

@@ -23,6 +23,7 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 /**
  */
@@ -32,17 +33,16 @@ public abstract class KurtosisAggregator implements Aggregator.Simple<KurtosisAg
   {
     return new KurtosisAggregator()
     {
+      private final MutableDouble handover = new MutableDouble();
+
       @Override
       public KurtosisAggregatorCollector aggregate(KurtosisAggregatorCollector current)
       {
-        if (predicate.matches()) {
-          final Double v = selector.get();
-          if (v != null) {
-            if (current == null) {
-              current = new KurtosisAggregatorCollector();
-            }
-            return current.add(v);
+        if (predicate.matches() && selector.getDouble(handover)) {
+          if (current == null) {
+            current = new KurtosisAggregatorCollector();
           }
+          return current.add(handover.doubleValue());
         }
         return current;
       }

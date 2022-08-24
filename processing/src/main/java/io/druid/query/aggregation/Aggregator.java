@@ -19,6 +19,10 @@
 
 package io.druid.query.aggregation;
 
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
+
 /**
  * An Aggregator is an object that can aggregate metrics.  Its aggregation-related methods (namely, aggregate() and get())
  * do not take any arguments as the assumption is that the Aggregator was given something in its constructor that
@@ -52,6 +56,66 @@ public interface Aggregator<T>
   interface Estimable<T> extends Aggregator<T>
   {
     int estimateOccupation(T current);
+  }
+
+  interface LongType<T> extends Aggregator<T>
+  {
+    Long get(T current);
+
+    boolean getLong(T current, MutableLong handover);
+  }
+
+  interface FromMutableLong extends LongType<MutableLong>
+  {
+    @Override
+    default boolean getLong(MutableLong current, MutableLong handover)
+    {
+      if (current != null) {
+        handover.setValue(current.longValue());
+        return true;
+      }
+      return false;
+    }
+  }
+
+  interface FloatType<T> extends Aggregator<T>
+  {
+    Float get(T current);
+
+    boolean getFloat(T current, MutableFloat handover);
+  }
+
+  interface FromMutableFloat extends FloatType<MutableFloat>
+  {
+    @Override
+    default boolean getFloat(MutableFloat current, MutableFloat handover)
+    {
+      if (current != null) {
+        handover.setValue(current.floatValue());
+        return true;
+      }
+      return false;
+    }
+  }
+
+  interface DoubleType<T> extends Aggregator<T>
+  {
+    Double get(T current);
+
+    boolean getDouble(T current, MutableDouble handover);
+  }
+
+  interface FromMutableDouble extends DoubleType<MutableDouble>
+  {
+    @Override
+    default boolean getDouble(MutableDouble current, MutableDouble handover)
+    {
+      if (current != null) {
+        handover.setValue(current.doubleValue());
+        return true;
+      }
+      return false;
+    }
   }
 
   Aggregator NULL = new Aggregator()

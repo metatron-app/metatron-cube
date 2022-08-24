@@ -27,7 +27,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class FloatMinAggregator implements Aggregator<MutableFloat>
+public abstract class FloatMinAggregator implements Aggregator.FromMutableFloat
 {
   static final Comparator COMPARATOR = FloatMaxAggregator.COMPARATOR;
 
@@ -44,42 +44,21 @@ public abstract class FloatMinAggregator implements Aggregator<MutableFloat>
 
   public static FloatMinAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new FloatMinAggregator()
+    return new FloatMinAggregator()
+    {
+      private final MutableFloat handover = new MutableFloat();
+
+      @Override
+      public MutableFloat aggregate(final MutableFloat current)
       {
-        @Override
-        public MutableFloat aggregate(final MutableFloat current)
-        {
-          final Float value = selector.get();
-          if (value == null) {
-            return current;
-          }
+        if (predicate.matches() && selector.getFloat(handover)) {
           if (current == null) {
-            return new MutableFloat(value);
+            return new MutableFloat(handover.floatValue());
           }
-          current.setValue(Math.min(current.floatValue(), value));
-          return current;
+          current.setValue(Math.min(current.floatValue(), handover.floatValue()));
         }
-      };
-    } else {
-      return new FloatMinAggregator()
-      {
-        @Override
-        public MutableFloat aggregate(MutableFloat current)
-        {
-          if (predicate.matches()) {
-            final Float value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return new MutableFloat(value);
-            }
-            current.setValue(Math.min(current.floatValue(), value));
-          }
-          return current;
-        }
-      };
-    }
+        return current;
+      }
+    };
   }
 }

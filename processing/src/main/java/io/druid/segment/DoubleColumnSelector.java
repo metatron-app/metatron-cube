@@ -20,13 +20,32 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
+import org.apache.commons.lang.mutable.MutableDouble;
+
+import java.io.Closeable;
 
 /**
+ *
  */
 public interface DoubleColumnSelector extends ObjectColumnSelector<Double>
 {
   default ValueDesc type()
   {
     return ValueDesc.DOUBLE;
+  }
+
+  default boolean getDouble(MutableDouble handover)
+  {
+    Double dv = get();
+    if (dv == null) {
+      return false;
+    } else {
+      handover.setValue(dv.doubleValue());
+      return true;
+    }
+  }
+
+  interface WithBaggage extends DoubleColumnSelector, Closeable
+  {
   }
 }

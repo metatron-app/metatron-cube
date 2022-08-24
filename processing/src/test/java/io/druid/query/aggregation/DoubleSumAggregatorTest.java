@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.query.filter.ValueMatcher;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.junit.Assert;
 import org.junit.Test;
@@ -41,15 +42,15 @@ public class DoubleSumAggregatorTest
   {
     final float[] values = {0.15f, 0.27f};
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
-    DoubleSumAggregator agg = DoubleSumAggregator.create(selector, null);
+    DoubleSumAggregator agg = DoubleSumAggregator.create(selector, ValueMatcher.TRUE);
 
-    double expectedFirst = new Double(values[0]).doubleValue();
-    double expectedSecond = new Double(values[1]).doubleValue() + expectedFirst;
+    Double expectedFirst = new Double(values[0]).doubleValue();
+    Double expectedSecond = new Double(values[1]).doubleValue() + expectedFirst;
 
     MutableDouble aggregate = null;
-    Assert.assertEquals(0.0d, agg.get(aggregate));
-    Assert.assertEquals(0.0d, agg.get(aggregate));
-    Assert.assertEquals(0.0d, agg.get(aggregate));
+    Assert.assertEquals(Double.valueOf(0), agg.get(aggregate));
+    Assert.assertEquals(Double.valueOf(0), agg.get(aggregate));
+    Assert.assertEquals(Double.valueOf(0), agg.get(aggregate));
     aggregate = aggregate(selector, agg, aggregate);
     Assert.assertEquals(expectedFirst, agg.get(aggregate));
     Assert.assertEquals(expectedFirst, agg.get(aggregate));
@@ -64,7 +65,7 @@ public class DoubleSumAggregatorTest
   public void testComparator()
   {
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(new float[]{0.15f, 0.27f});
-    DoubleSumAggregator agg = DoubleSumAggregator.create(selector, null);
+    DoubleSumAggregator agg = DoubleSumAggregator.create(selector, ValueMatcher.TRUE);
 
     MutableDouble aggregate = null;
     Object first = agg.get(aggregate);

@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.FloatColumnSelector;
+import org.apache.commons.lang.mutable.MutableFloat;
 
 import java.nio.ByteBuffer;
 
@@ -36,33 +37,18 @@ public abstract class FloatMaxBufferAggregator extends BufferAggregator.NullSupp
 
   public static FloatMaxBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new FloatMaxBufferAggregator()
+    return new FloatMaxBufferAggregator()
+    {
+      private final MutableFloat handover = new MutableFloat();
+
+      @Override
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          final Float current = selector.get();
-          if (current != null) {
-            _aggregate(buf, position1, current);
-          }
+        if (predicate.matches() && selector.getFloat(handover)) {
+          _aggregate(buf, position1, handover.floatValue());
         }
-      };
-    } else {
-      return new FloatMaxBufferAggregator()
-      {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          if (predicate.matches()) {
-            final Float current = selector.get();
-            if (current != null) {
-              _aggregate(buf, position1, current);
-            }
-          }
-        }
-      };
-    }
+      }
+    };
   }
 
   private static void _aggregate(final ByteBuffer buf, final int position, final float current)

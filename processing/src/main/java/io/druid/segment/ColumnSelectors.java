@@ -24,7 +24,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import io.druid.common.IntTagged;
-import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
@@ -37,6 +36,9 @@ import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.util.Arrays;
 import java.util.List;
@@ -53,6 +55,12 @@ public class ColumnSelectors
     {
       return null;
     }
+
+    @Override
+    public boolean getFloat(MutableFloat handover)
+    {
+      return false;
+    }
   };
 
   public static final DoubleColumnSelector DOUBLE_NULL = new DoubleColumnSelector()
@@ -61,6 +69,12 @@ public class ColumnSelectors
     public Double get()
     {
       return null;
+    }
+
+    @Override
+    public boolean getDouble(MutableDouble handover)
+    {
+      return false;
     }
   };
 
@@ -71,10 +85,67 @@ public class ColumnSelectors
     {
       return null;
     }
+
+    @Override
+    public boolean getLong(MutableLong handover)
+    {
+      return false;
+    }
   };
 
   public static FloatColumnSelector asFloat(final ObjectColumnSelector selector)
   {
+    if (selector instanceof FloatColumnSelector) {
+      return (FloatColumnSelector) selector;
+    }
+    if (selector instanceof LongColumnSelector) {
+      return new FloatColumnSelector()
+      {
+        private final MutableLong lv = new MutableLong();
+        private final LongColumnSelector delegate = (LongColumnSelector) selector;
+
+        @Override
+        public Float get()
+        {
+          Long lv = delegate.get();
+          return lv == null ? null : lv.floatValue();
+        }
+
+        @Override
+        public boolean getFloat(MutableFloat handover)
+        {
+          if (delegate.getLong(lv)) {
+            handover.setValue(lv.floatValue());
+            return true;
+          }
+          return false;
+        }
+      };
+    }
+    if (selector instanceof DoubleColumnSelector) {
+      return new FloatColumnSelector()
+      {
+        private final MutableDouble dv = new MutableDouble();
+        private final DoubleColumnSelector delegate = (DoubleColumnSelector) selector;
+
+        @Override
+        public Float get()
+        {
+          Double dv = delegate.get();
+          return dv == null ? null : dv.floatValue();
+        }
+
+        @Override
+        public boolean getFloat(MutableFloat handover)
+        {
+          if (delegate.getDouble(dv)) {
+            handover.setValue(dv.floatValue());
+            return true;
+          }
+          return false;
+        }
+      };
+    }
     return new FloatColumnSelector()
     {
       @Override
@@ -87,6 +158,57 @@ public class ColumnSelectors
 
   public static DoubleColumnSelector asDouble(final ObjectColumnSelector selector)
   {
+    if (selector instanceof DoubleColumnSelector) {
+      return (DoubleColumnSelector) selector;
+    }
+    if (selector instanceof LongColumnSelector) {
+      return new DoubleColumnSelector()
+      {
+        private final MutableLong lv = new MutableLong();
+        private final LongColumnSelector delegate = (LongColumnSelector) selector;
+
+        @Override
+        public Double get()
+        {
+          Long lv = delegate.get();
+          return lv == null ? null : lv.doubleValue();
+        }
+
+        @Override
+        public boolean getDouble(MutableDouble handover)
+        {
+          if (delegate.getLong(lv)) {
+            handover.setValue(lv.doubleValue());
+            return true;
+          }
+          return false;
+        }
+      };
+    }
+    if (selector instanceof FloatColumnSelector) {
+      return new DoubleColumnSelector()
+      {
+        private final MutableFloat fv = new MutableFloat();
+        private final FloatColumnSelector delegate = (FloatColumnSelector) selector;
+
+        @Override
+        public Double get()
+        {
+          Float fv = delegate.get();
+          return fv == null ? null : fv.doubleValue();
+        }
+
+        @Override
+        public boolean getDouble(MutableDouble handover)
+        {
+          if (delegate.getFloat(fv)) {
+            handover.setValue(fv.doubleValue());
+            return true;
+          }
+          return false;
+        }
+      };
+    }
     return new DoubleColumnSelector()
     {
       @Override
@@ -99,66 +221,63 @@ public class ColumnSelectors
 
   public static LongColumnSelector asLong(final ObjectColumnSelector selector)
   {
+    if (selector instanceof LongColumnSelector) {
+      return (LongColumnSelector) selector;
+    }
+    if (selector instanceof FloatColumnSelector) {
+      return new LongColumnSelector()
+      {
+        private final MutableFloat fv = new MutableFloat();
+        private final FloatColumnSelector delegate = (FloatColumnSelector) selector;
+
+        @Override
+        public Long get()
+        {
+          Float fv = delegate.get();
+          return fv == null ? null : fv.longValue();
+        }
+
+        @Override
+        public boolean getLong(MutableLong handover)
+        {
+          if (delegate.getFloat(fv)) {
+            handover.setValue(fv.longValue());
+            return true;
+          }
+          return false;
+        }
+      };
+    }
+    if (selector instanceof DoubleColumnSelector) {
+      return new LongColumnSelector()
+      {
+        private final MutableDouble dv = new MutableDouble();
+        private final DoubleColumnSelector delegate = (DoubleColumnSelector) selector;
+
+        @Override
+        public Long get()
+        {
+          Double dv = delegate.get();
+          return dv == null ? null : dv.longValue();
+        }
+
+        @Override
+        public boolean getLong(MutableLong handover)
+        {
+          if (delegate.getDouble(dv)) {
+            handover.setValue(dv.longValue());
+            return true;
+          }
+          return false;
+        }
+      };
+    }
     return new LongColumnSelector()
     {
       @Override
       public Long get()
       {
         return Rows.parseLong(selector.get());
-      }
-    };
-  }
-
-  public static DSuppliers.TypedSupplier<Float> asSupplier(final FloatColumnSelector selector)
-  {
-    return new DSuppliers.TypedSupplier<Float>()
-    {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.FLOAT;
-      }
-
-      @Override
-      public Float get()
-      {
-        return selector.get();
-      }
-    };
-  }
-
-  public static DSuppliers.TypedSupplier<Double> asSupplier(final DoubleColumnSelector selector)
-  {
-    return new DSuppliers.TypedSupplier<Double>()
-    {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.DOUBLE;
-      }
-
-      @Override
-      public Double get()
-      {
-        return selector.get();
-      }
-    };
-  }
-
-  public static DSuppliers.TypedSupplier<Long> asSupplier(final LongColumnSelector selector)
-  {
-    return new DSuppliers.TypedSupplier<Long>()
-    {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.LONG;
-      }
-
-      @Override
-      public Long get()
-      {
-        return selector.get();
       }
     };
   }
@@ -295,11 +414,6 @@ public class ColumnSelectors
       return metricFactory.makePredicateMatcher(new MathExprFilter(expression));
     }
     return ValueMatcher.TRUE;
-  }
-
-  public static ObjectColumnSelector asStringSelector(final ExprEvalColumnSelector selector)
-  {
-    return asSelector(ValueDesc.STRING, () -> selector.get().asString());
   }
 
   public static <I, O> ObjectColumnSelector<O> map(

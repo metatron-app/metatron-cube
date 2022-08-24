@@ -64,6 +64,9 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.incremental.IncrementalIndex.TimeAndDims;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
@@ -330,7 +333,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
 
                 if (dimension.equals(Column.TIME_COLUMN_NAME)) {
-                  LongColumnSelector selector = makeLongColumnSelector(dimension);
+                  LongColumnSelector selector = makeTimeSelector();
                   if (extractionFn != null) {
                     return new SingleScanTimeDimSelector(selector, extractionFn, descending);
                   }
@@ -488,7 +491,30 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
 
                 final int metricIndex = metricIndexInt;
+                return toFloatColumnSelector(metricIndexInt);
+              }
+
+              private FloatColumnSelector toFloatColumnSelector(final int metricIndex)
+              {
                 final Aggregator aggregator = index.getAggregators()[metricIndex];
+                if (aggregator instanceof Aggregator.FloatType) {
+                  return new FloatColumnSelector()
+                  {
+                    private final Aggregator.FloatType floatType = (Aggregator.FloatType) aggregator;
+
+                    @Override
+                    public Float get()
+                    {
+                      return floatType.get(currEntry.getValue()[metricIndex]);
+                    }
+
+                    @Override
+                    public boolean getFloat(MutableFloat handover)
+                    {
+                      return floatType.getFloat(currEntry.getValue()[metricIndex], handover);
+                    }
+                  };
+                }
                 return new FloatColumnSelector()
                 {
                   @Override
@@ -519,8 +545,30 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return ColumnSelectors.DOUBLE_NULL;
                 }
 
-                final int metricIndex = metricIndexInt;
+                return toDoubleColumnSelector(metricIndexInt);
+              }
+
+              private DoubleColumnSelector toDoubleColumnSelector(final int metricIndex)
+              {
                 final Aggregator aggregator = index.getAggregators()[metricIndex];
+                if (aggregator instanceof Aggregator.DoubleType) {
+                  return new DoubleColumnSelector()
+                  {
+                    private final Aggregator.DoubleType doubleType = (Aggregator.DoubleType) aggregator;
+
+                    @Override
+                    public Double get()
+                    {
+                      return doubleType.get(currEntry.getValue()[metricIndex]);
+                    }
+
+                    @Override
+                    public boolean getDouble(MutableDouble handover)
+                    {
+                      return doubleType.getDouble(currEntry.getValue()[metricIndex], handover);
+                    }
+                  };
+                }
                 return new DoubleColumnSelector()
                 {
                   @Override
@@ -535,14 +583,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               public LongColumnSelector makeLongColumnSelector(String columnName)
               {
                 if (columnName.equals(Column.TIME_COLUMN_NAME)) {
-                  return new LongColumnSelector()
-                  {
-                    @Override
-                    public Long get()
-                    {
-                      return currEntry.getKey().getTimestamp();
-                    }
-                  };
+                  return makeTimeSelector();
                 }
                 final int metricIndexInt = index.getMetricIndex(columnName);
                 if (metricIndexInt < 0) {
@@ -561,8 +602,30 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return ColumnSelectors.LONG_NULL;
                 }
 
-                final int metricIndex = metricIndexInt;
+                return toLongColumnSelector(metricIndexInt);
+              }
+
+              private LongColumnSelector toLongColumnSelector(final int metricIndex)
+              {
                 final Aggregator aggregator = index.getAggregators()[metricIndex];
+                if (aggregator instanceof Aggregator.LongType) {
+                  return new LongColumnSelector()
+                  {
+                    private final Aggregator.LongType longType = (Aggregator.LongType) aggregator;
+
+                    @Override
+                    public Long get()
+                    {
+                      return longType.get(currEntry.getValue()[metricIndex]);
+                    }
+
+                    @Override
+                    public boolean getLong(MutableLong handover)
+                    {
+                      return longType.getLong(currEntry.getValue()[metricIndex], handover);
+                    }
+                  };
+                }
                 return new LongColumnSelector()
                 {
                   @Override
@@ -573,29 +636,42 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 };
               }
 
+              private LongColumnSelector makeTimeSelector()
+              {
+                return new LongColumnSelector()
+                {
+                  @Override
+                  public Long get()
+                  {
+                    return currEntry.getKey().getTimestamp();
+                  }
+
+                  @Override
+                  public boolean getLong(MutableLong handover)
+                  {
+                    handover.setValue(currEntry.getKey().getTimestamp());
+                    return true;
+                  }
+                };
+              }
+
               @Override
               public ObjectColumnSelector makeObjectColumnSelector(String column)
               {
                 if (column.equals(Column.TIME_COLUMN_NAME)) {
-                  return new ObjectColumnSelector<Long>()
-                  {
-                    @Override
-                    public ValueDesc type()
-                    {
-                      return ValueDesc.LONG;
-                    }
-
-                    @Override
-                    public Long get()
-                    {
-                      return currEntry.getKey().getTimestamp();
-                    }
-                  };
+                  return makeTimeSelector();
                 }
-
                 final int metricIndex = index.getMetricIndex(column);
                 if (metricIndex >= 0) {
                   final ValueDesc valueType = index.getMetricType(column);
+                  switch (valueType.type()) {
+                    case FLOAT:
+                      return toFloatColumnSelector(metricIndex);
+                    case DOUBLE:
+                      return toDoubleColumnSelector(metricIndex);
+                    case LONG:
+                      return toLongColumnSelector(metricIndex);
+                  }
                   final Aggregator aggregator = index.getAggregators()[metricIndex];
                   return new ObjectColumnSelector()
                   {

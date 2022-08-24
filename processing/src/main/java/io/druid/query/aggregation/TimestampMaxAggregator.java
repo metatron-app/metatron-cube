@@ -27,7 +27,7 @@ import org.joda.time.DateTime;
 import java.sql.Timestamp;
 import java.util.Comparator;
 
-public class TimestampMaxAggregator implements Aggregator<MutableLong>
+public class TimestampMaxAggregator implements Aggregator.FromMutableLong
 {
   static final Comparator COMPARATOR = LongMaxAggregator.COMPARATOR;
 

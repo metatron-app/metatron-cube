@@ -65,6 +65,9 @@ import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
@@ -666,9 +669,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public FloatColumnSelector makeFloatColumnSelector(String columnName)
                     {
-                      GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
+                      GenericColumn column = genericColumnCache.get(columnName);
 
-                      if (cachedMetricVals == null) {
+                      if (column == null) {
                         Column holder = index.getColumn(columnName);
                         if (holder == null) {
                           VirtualColumn vc = resolver.getVirtualColumn(columnName);
@@ -677,22 +680,36 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           }
                         }
                         if (holder != null && holder.getCapabilities().getType().isNumeric()) {
-                          cachedMetricVals = holder.getGenericColumn();
-                          genericColumnCache.put(columnName, cachedMetricVals);
+                          genericColumnCache.put(columnName, column = holder.getGenericColumn());
                         }
                       }
 
-                      if (cachedMetricVals == null) {
+                      return toFloatColumnSelector(column);
+                    }
+
+                    private FloatColumnSelector toFloatColumnSelector(final GenericColumn column)
+                    {
+                      if (column == null) {
                         return ColumnSelectors.FLOAT_NULL;
                       }
-
-                      final GenericColumn metricVals = cachedMetricVals;
-                      return new FloatColumnSelector()
+                      return new FloatColumnSelector.WithBaggage()
                       {
+                        @Override
+                        public void close() throws IOException
+                        {
+                          column.close();
+                        }
+
                         @Override
                         public Float get()
                         {
-                          return metricVals.getFloat(cursorOffset.getOffset());
+                          return column.getFloat(cursorOffset.getOffset());
+                        }
+
+                        @Override
+                        public boolean getFloat(MutableFloat handover)
+                        {
+                          return column.getFloat(cursorOffset.getOffset(), handover);
                         }
                       };
                     }
@@ -700,9 +717,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
                     {
-                      GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
+                      GenericColumn column = genericColumnCache.get(columnName);
 
-                      if (cachedMetricVals == null) {
+                      if (column == null) {
                         Column holder = index.getColumn(columnName);
                         if (holder == null) {
                           VirtualColumn vc = resolver.getVirtualColumn(columnName);
@@ -711,22 +728,36 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           }
                         }
                         if (holder != null && holder.getCapabilities().getType().isNumeric()) {
-                          cachedMetricVals = holder.getGenericColumn();
-                          genericColumnCache.put(columnName, cachedMetricVals);
+                          genericColumnCache.put(columnName, column = holder.getGenericColumn());
                         }
                       }
 
-                      if (cachedMetricVals == null) {
+                      return toDoubleColumnSelector(column);
+                    }
+
+                    private DoubleColumnSelector toDoubleColumnSelector(final GenericColumn column)
+                    {
+                      if (column == null) {
                         return ColumnSelectors.DOUBLE_NULL;
                       }
-
-                      final GenericColumn metricVals = cachedMetricVals;
-                      return new DoubleColumnSelector()
+                      return new DoubleColumnSelector.WithBaggage()
                       {
+                        @Override
+                        public void close() throws IOException
+                        {
+                          column.close();
+                        }
+
                         @Override
                         public Double get()
                         {
-                          return metricVals.getDouble(cursorOffset.getOffset());
+                          return column.getDouble(cursorOffset.getOffset());
+                        }
+
+                        @Override
+                        public boolean getDouble(MutableDouble handover)
+                        {
+                          return column.getDouble(cursorOffset.getOffset(), handover);
                         }
                       };
                     }
@@ -734,9 +765,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public LongColumnSelector makeLongColumnSelector(String columnName)
                     {
-                      GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
+                      GenericColumn column = genericColumnCache.get(columnName);
 
-                      if (cachedMetricVals == null) {
+                      if (column == null) {
                         Column holder = index.getColumn(columnName);
                         if (holder == null) {
                           VirtualColumn vc = resolver.getVirtualColumn(columnName);
@@ -745,58 +776,58 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           }
                         }
                         if (holder != null && holder.getCapabilities().getType().isNumeric()) {
-                          cachedMetricVals = holder.getGenericColumn();
-                          genericColumnCache.put(columnName, cachedMetricVals);
+                          genericColumnCache.put(columnName, column = holder.getGenericColumn());
                         }
                       }
 
-                      if (cachedMetricVals == null) {
+                      return toLongColumnSelector(column);
+                    }
+
+                    private LongColumnSelector toLongColumnSelector(final GenericColumn column)
+                    {
+                      if (column == null) {
                         return ColumnSelectors.LONG_NULL;
                       }
-
-                      final GenericColumn metricVals = cachedMetricVals;
-                      return new LongColumnSelector()
+                      return new LongColumnSelector.WithBaggage()
                       {
+                        @Override
+                        public void close() throws IOException
+                        {
+                          column.close();
+                        }
+
                         @Override
                         public Long get()
                         {
-                          return metricVals.getLong(cursorOffset.getOffset());
+                          return column.getLong(cursorOffset.getOffset());
+                        }
+
+                        @Override
+                        public boolean getLong(MutableLong handover)
+                        {
+                          return column.getLong(cursorOffset.getOffset(), handover);
                         }
                       };
                     }
 
                     @Override
-                    public ObjectColumnSelector makeObjectColumnSelector(String column)
+                    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
                     {
-                      if (Column.TIME_COLUMN_NAME.equals(column)) {
-                        final LongColumnSelector selector = makeLongColumnSelector(column);
-                        return new ObjectColumnSelector()
-                        {
-                          @Override
-                          public ValueDesc type()
-                          {
-                            return ValueDesc.LONG;
-                          }
-
-                          @Override
-                          public Object get()
-                          {
-                            return selector.get();
-                          }
-                        };
+                      if (Column.TIME_COLUMN_NAME.equals(columnName)) {
+                        return makeLongColumnSelector(columnName);
                       }
 
-                      ObjectColumnSelector cachedColumnVals = objectColumnCache.get(column);
-                      if (cachedColumnVals != null) {
-                        return cachedColumnVals;
+                      ObjectColumnSelector cachedSelector = objectColumnCache.get(columnName);
+                      if (cachedSelector != null) {
+                        return cachedSelector;
                       }
 
-                      Column holder = index.getColumn(column);
+                      Column holder = index.getColumn(columnName);
                       if (holder == null) {
-                        VirtualColumn vc = resolver.getVirtualColumn(column);
+                        VirtualColumn vc = resolver.getVirtualColumn(columnName);
                         if (vc != null) {
-                          objectColumnCache.put(column, cachedColumnVals = vc.asMetric(column, this));
-                          return cachedColumnVals;
+                          objectColumnCache.put(columnName, cachedSelector = vc.asMetric(columnName, this));
+                          return cachedSelector;
                         }
                         return null;
                       }
@@ -806,7 +837,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (capabilities.isDictionaryEncoded()) {
                         final DictionaryEncodedColumn columnVals = holder.getDictionaryEncoding();
                         if (columnVals.hasMultipleValues()) {
-                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Object>()
+                          cachedSelector = new ObjectColumnSelector.WithBaggage<Object>()
                           {
                             @Override
                             public void close() throws IOException
@@ -839,7 +870,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         } else {
-                          cachedColumnVals = new ObjectColumnSelector.WithRawAccess<String>()
+                          cachedSelector = new ObjectColumnSelector.WithRawAccess<String>()
                           {
                             private final Dictionary<String> dictionary = columnVals.dictionary();
 
@@ -885,7 +916,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         final ValueDesc valueType = columnVals.getType();
                         if (columnVals instanceof ColumnAccess.WithRawAccess) {
                           final ColumnAccess.WithRawAccess rawAccess = (ColumnAccess.WithRawAccess) columnVals;
-                          cachedColumnVals = new ObjectColumnSelector.WithRawAccess<Object>()
+                          cachedSelector = new ObjectColumnSelector.WithRawAccess<Object>()
                           {
                             @Override
                             public ValueDesc type()
@@ -924,7 +955,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         } else {
-                          cachedColumnVals = new ObjectColumnSelector.WithBaggage()
+                          cachedSelector = new ObjectColumnSelector.WithBaggage()
                           {
                             @Override
                             public void close() throws IOException
@@ -950,70 +981,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         final ValueType type = columnVals.getType().type();
 
                         if (type == ValueType.FLOAT) {
-                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Float>()
-                          {
-                            @Override
-                            public void close() throws IOException
-                            {
-                              columnVals.close();
-                            }
-
-                            @Override
-                            public ValueDesc type()
-                            {
-                              return ValueDesc.FLOAT;
-                            }
-
-                            @Override
-                            public Float get()
-                            {
-                              return columnVals.getFloat(cursorOffset.getOffset());
-                            }
-                          };
+                          cachedSelector = toFloatColumnSelector(columnVals);
                         } else if (type == ValueType.LONG) {
-                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Long>()
-                          {
-                            @Override
-                            public void close() throws IOException
-                            {
-                              columnVals.close();
-                            }
-
-                            @Override
-                            public ValueDesc type()
-                            {
-                              return ValueDesc.LONG;
-                            }
-
-                            @Override
-                            public Long get()
-                            {
-                              return columnVals.getLong(cursorOffset.getOffset());
-                            }
-                          };
+                          cachedSelector = toLongColumnSelector(columnVals);
                         } else if (type == ValueType.DOUBLE) {
-                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Double>()
-                          {
-                            @Override
-                            public void close() throws IOException
-                            {
-                              columnVals.close();
-                            }
-
-                            @Override
-                            public ValueDesc type()
-                            {
-                              return ValueDesc.DOUBLE;
-                            }
-
-                            @Override
-                            public Double get()
-                            {
-                              return columnVals.getDouble(cursorOffset.getOffset());
-                            }
-                          };
+                          cachedSelector = toDoubleColumnSelector(columnVals);
                         } else if (type == ValueType.STRING) {
-                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<String>()
+                          cachedSelector = new ObjectColumnSelector.WithBaggage<String>()
                           {
                             @Override
                             public void close() throws IOException
@@ -1034,7 +1008,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         } else if (type == ValueType.BOOLEAN) {
-                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Boolean>()
+                          cachedSelector = new ObjectColumnSelector.WithBaggage<Boolean>()
                           {
                             @Override
                             public void close() throws IOException
@@ -1056,10 +1030,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           };
                         }
                       }
-                      if (cachedColumnVals != null) {
-                        objectColumnCache.put(column, cachedColumnVals);
+                      if (cachedSelector != null) {
+                        objectColumnCache.put(columnName, cachedSelector);
                       }
-                      return cachedColumnVals;
+                      return cachedSelector;
                     }
 
                     @Override

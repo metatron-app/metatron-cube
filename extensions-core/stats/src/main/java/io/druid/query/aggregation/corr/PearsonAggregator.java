@@ -23,8 +23,10 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
 
 /**
+ *
  */
 public abstract class PearsonAggregator implements Aggregator.Simple<PearsonAggregatorCollector>
 {
@@ -36,18 +38,17 @@ public abstract class PearsonAggregator implements Aggregator.Simple<PearsonAggr
   {
     return new PearsonAggregator()
     {
+      private final MutableDouble handover1 = new MutableDouble();
+      private final MutableDouble handover2 = new MutableDouble();
+
       @Override
       public PearsonAggregatorCollector aggregate(PearsonAggregatorCollector current)
       {
-        if (predicate.matches()) {
-          final Double v1 = selector1.get();
-          final Double v2 = selector2.get();
-          if (v1 != null && v2 != null) {
-            if (current == null) {
-              current = new PearsonAggregatorCollector();
-            }
-            current.add(v1, v2);
+        if (predicate.matches() && selector1.getDouble(handover1) && selector2.getDouble(handover2)) {
+          if (current == null) {
+            current = new PearsonAggregatorCollector();
           }
+          current.add(handover1.doubleValue(), handover1.doubleValue());
         }
         return current;
       }

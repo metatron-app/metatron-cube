@@ -28,7 +28,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class LongMinAggregator implements Aggregator<MutableLong>
+public abstract class LongMinAggregator implements Aggregator.FromMutableLong
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -49,42 +49,21 @@ public abstract class LongMinAggregator implements Aggregator<MutableLong>
 
   public static LongMinAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new LongMinAggregator()
+    return new LongMinAggregator()
+    {
+      private final MutableLong handover = new MutableLong();
+
+      @Override
+      public MutableLong aggregate(final MutableLong current)
       {
-        @Override
-        public MutableLong aggregate(final MutableLong current)
-        {
-          final Long value = selector.get();
-          if (value == null) {
-            return current;
-          }
+        if (predicate.matches() && selector.getLong(handover)) {
           if (current == null) {
-            return new MutableLong(value);
+            return new MutableLong(handover.longValue());
           }
-          current.setValue(Math.min(current.longValue(), value));
-          return current;
+          current.setValue(Math.min(current.longValue(), handover.longValue()));
         }
-      };
-    } else {
-      return new LongMinAggregator()
-      {
-        @Override
-        public MutableLong aggregate(MutableLong current)
-        {
-          if (predicate.matches()) {
-            final Long value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return new MutableLong(value);
-            }
-            current.setValue(Math.min(current.longValue(), value));
-          }
-          return current;
-        }
-      };
-    }
+        return current;
+      }
+    };
   }
 }

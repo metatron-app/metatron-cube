@@ -25,6 +25,9 @@ import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 
 /**
  */
@@ -34,17 +37,16 @@ public abstract class VarianceAggregator implements Aggregator.Simple<VarianceAg
   {
     return new VarianceAggregator()
     {
+      private final MutableFloat handover = new MutableFloat();
+
       @Override
       public VarianceAggregatorCollector aggregate(VarianceAggregatorCollector current)
       {
-        if (predicate.matches()) {
-          final Float v = selector.get();
-          if (v != null) {
-            if (current == null) {
-              current = new VarianceAggregatorCollector();
-            }
-            return current.add(v);
+        if (predicate.matches() && selector.getFloat(handover)) {
+          if (current == null) {
+            current = new VarianceAggregatorCollector();
           }
+          current.add(handover.floatValue());
         }
         return current;
       }
@@ -55,17 +57,16 @@ public abstract class VarianceAggregator implements Aggregator.Simple<VarianceAg
   {
     return new VarianceAggregator()
     {
+      private final MutableDouble handover = new MutableDouble();
+
       @Override
       public VarianceAggregatorCollector aggregate(VarianceAggregatorCollector current)
       {
-        if (predicate.matches()) {
-          final Double v = selector.get();
-          if (v != null) {
-            if (current == null) {
-              current = new VarianceAggregatorCollector();
-            }
-            return current.add(v);
+        if (predicate.matches() && selector.getDouble(handover)) {
+          if (current == null) {
+            current = new VarianceAggregatorCollector();
           }
+          current.add(handover.doubleValue());
         }
         return current;
       }
@@ -76,17 +77,16 @@ public abstract class VarianceAggregator implements Aggregator.Simple<VarianceAg
   {
     return new VarianceAggregator()
     {
+      private final MutableLong handover = new MutableLong();
+
       @Override
       public VarianceAggregatorCollector aggregate(VarianceAggregatorCollector current)
       {
-        if (predicate.matches()) {
-          final Long v = selector.get();
-          if (v != null) {
-            if (current == null) {
-              current = new VarianceAggregatorCollector();
-            }
-            return current.add(v);
+        if (predicate.matches() && selector.getLong(handover)) {
+          if (current == null) {
+            current = new VarianceAggregatorCollector();
           }
+          current.add(handover.longValue());
         }
         return current;
       }

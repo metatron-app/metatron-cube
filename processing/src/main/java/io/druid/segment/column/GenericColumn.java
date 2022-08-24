@@ -27,7 +27,9 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricSerde;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
@@ -47,9 +49,42 @@ public interface GenericColumn extends ComplexColumn
 
   default Float getFloat(int rowNum) { throw new UnsupportedOperationException();}
 
+  default boolean getFloat(int rowNum, MutableFloat handover)
+  {
+    Float fv = getFloat(rowNum);
+    if (fv == null) {
+      return false;
+    } else {
+      handover.setValue(fv.floatValue());
+      return true;
+    }
+  }
+
   default Long getLong(int rowNum) { throw new UnsupportedOperationException();}
 
+  default boolean getLong(int rowNum, MutableLong handover)
+  {
+    Long lv = getLong(rowNum);
+    if (lv == null) {
+      return false;
+    } else {
+      handover.setValue(lv.longValue());
+      return true;
+    }
+  }
+
   default Double getDouble(int rowNum) { throw new UnsupportedOperationException();}
+
+  default boolean getDouble(int rowNum, MutableDouble handover)
+  {
+    Double dv = getDouble(rowNum);
+    if (dv == null) {
+      return false;
+    } else {
+      handover.setValue(dv.doubleValue());
+      return true;
+    }
+  }
 
   default Boolean getBoolean(int rowNum) { throw new UnsupportedOperationException();}
 

@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 
 /**
+ *
  */
 public abstract class DecimalMinBufferAggregator extends DecimalBufferAggregator
 {
@@ -35,37 +36,20 @@ public abstract class DecimalMinBufferAggregator extends DecimalBufferAggregator
       final DecimalMetricSerde metric
   )
   {
-    if (predicate == null || predicate == ValueMatcher.TRUE) {
-      return new DecimalMinBufferAggregator(metric)
+    return new DecimalMinBufferAggregator(metric)
+    {
+      @Override
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          final BigDecimal decimal = selector.get();
-          if (decimal != null) {
-            final BigDecimal current = read(buf, position1);
-            if (current == null || decimal.compareTo(current) < 0) {
-              write(buf, position1, decimal);
-            }
+        final BigDecimal decimal = selector.get();
+        if (decimal != null && predicate.matches()) {
+          final BigDecimal current = read(buf, position1);
+          if (current == null || decimal.compareTo(current) < 0) {
+            write(buf, position1, decimal);
           }
         }
-      };
-    } else {
-      return new DecimalMinBufferAggregator(metric)
-      {
-        @Override
-        public void aggregate(ByteBuffer buf, int position0, int position1)
-        {
-          final BigDecimal decimal = selector.get();
-          if (decimal != null && predicate.matches()) {
-            final BigDecimal current = read(buf, position1);
-            if (current == null || decimal.compareTo(current) < 0) {
-              write(buf, position1, decimal);
-            }
-          }
-        }
-      };
-    }
+      }
+    };
   }
 
   DecimalMinBufferAggregator(DecimalMetricSerde metric)

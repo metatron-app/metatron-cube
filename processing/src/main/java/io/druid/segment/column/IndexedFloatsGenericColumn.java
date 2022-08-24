@@ -22,13 +22,14 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedFloats;
+import org.apache.commons.lang.mutable.MutableFloat;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 
 /**
 */
-public class IndexedFloatsGenericColumn extends GenericColumn.FloatType
+public final class IndexedFloatsGenericColumn extends GenericColumn.FloatType
 {
   private final IndexedFloats column;
   private final CompressionStrategy compressionType;
@@ -61,20 +62,29 @@ public class IndexedFloatsGenericColumn extends GenericColumn.FloatType
   @Override
   public Float getValue(final int rowNum)
   {
-    if (nulls.get(rowNum)) {
-      return null;
-    }
+    return nulls.get(rowNum) ? null : _getValue(rowNum);
+  }
+
+  private float _getValue(int rowNum)
+  {
     if (rowNum >= from && rowNum < to) {
       return buffered[rowNum - from];
     }
     final int loaded = column.fill(rowNum, buffered);
-    if (loaded == 0) {
-      from = to = -1;
-      return null;
-    }
     from = rowNum;
     to = rowNum + loaded;
     return buffered[0];
+  }
+
+  @Override
+  public boolean getFloat(int rowNum, MutableFloat handover)
+  {
+    if (nulls.get(rowNum)) {
+      return false;
+    } else {
+      handover.setValue(_getValue(rowNum));
+      return true;
+    }
   }
 
   @Override
