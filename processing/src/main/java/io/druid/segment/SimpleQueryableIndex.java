@@ -47,12 +47,14 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -130,19 +132,23 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public Iterable<String> getAvailableMetrics()
   {
-    return Sets.difference(Sets.newHashSet(columnNames), Sets.newHashSet(availableDimensions));
+    final Set<String> columns = Sets.newHashSet(getColumnNames());
+    for (String dimension : getAvailableDimensions()) {
+      columns.remove(dimension);
+    }
+    return columns;
   }
 
   @Override
   public Indexed<String> getColumnNames()
   {
-    return columnNames;
+    return GenericIndexed.asSingleThreaded(columnNames);
   }
 
   @Override
   public Indexed<String> getAvailableDimensions()
   {
-    return availableDimensions;
+    return GenericIndexed.asSingleThreaded(availableDimensions);
   }
 
   @Override

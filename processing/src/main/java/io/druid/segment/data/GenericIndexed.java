@@ -53,6 +53,11 @@ import java.util.Iterator;
  */
 public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Serializer
 {
+  public static <T> Indexed<T> asSingleThreaded(Indexed<T> indexed)
+  {
+    return indexed instanceof GenericIndexed ? ((GenericIndexed<T>) indexed).asSingleThreaded() : indexed;
+  }
+
   public static final byte version = 0x1;   // don't change this
 
   enum Feature
