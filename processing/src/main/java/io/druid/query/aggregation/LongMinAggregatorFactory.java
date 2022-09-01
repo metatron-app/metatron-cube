@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.math.expr.Parser;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -91,10 +92,9 @@ public class LongMinAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<Number> combiner()
+  public BinaryFn.Identical<Number> combiner()
   {
-    return LongMinAggregator.COMBINER;
+    return (param1, param2) -> Math.min(param1.longValue(), param2.longValue());
   }
 
   @Override

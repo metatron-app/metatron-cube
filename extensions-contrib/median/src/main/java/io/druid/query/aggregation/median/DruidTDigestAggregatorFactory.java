@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -79,18 +80,9 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical<DruidTDigest> combiner()
   {
-    return new Combiner.Abstract<DruidTDigest>() {
-
-      @Override
-      protected final DruidTDigest _combine(DruidTDigest param1, DruidTDigest param2)
-      {
-        param1.add(param2);
-        return param1;
-      }
-    };
+    return (param1, param2) -> param1.add(param2);
   }
 
   @Override

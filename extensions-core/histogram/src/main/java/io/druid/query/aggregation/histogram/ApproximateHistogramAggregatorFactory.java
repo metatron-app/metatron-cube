@@ -27,6 +27,7 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -132,17 +133,9 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<ApproximateHistogramHolder> combiner()
+  public BinaryFn.Identical<ApproximateHistogramHolder> combiner()
   {
-    return new Combiner<ApproximateHistogramHolder>()
-    {
-      @Override
-      public ApproximateHistogramHolder combine(ApproximateHistogramHolder param1, ApproximateHistogramHolder param2)
-      {
-        return param1.foldFast(param2);
-      }
-    };
+    return (param1, param2) -> param1.foldFast(param2);
   }
 
   @Override

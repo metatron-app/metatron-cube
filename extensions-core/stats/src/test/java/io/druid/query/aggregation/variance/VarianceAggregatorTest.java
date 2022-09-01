@@ -130,7 +130,7 @@ public class VarianceAggregatorTest
     VarianceAggregatorCollector holder2 = new VarianceAggregatorCollector().add(3.5f).add(1.3f);
     VarianceAggregatorCollector expected = new VarianceAggregatorCollector(4, 8.6d, 3.95d);
     Assert.assertTrue(expected.equalsWithEpsilon(
-        (VarianceAggregatorCollector) aggFactory.combiner().combine(holder1, holder2), 0.00001)
+        aggFactory.combiner().apply(holder1, holder2), 0.00001)
     );
   }
 

@@ -87,7 +87,7 @@ public class LongMinAggregationTest
   @Test
   public void testCombine()
   {
-    Assert.assertEquals(-9223372036854775803L, longMinAggFactory.combiner().combine(-9223372036854775800L, -9223372036854775803L));
+    Assert.assertEquals(-9223372036854775803L, longMinAggFactory.combiner().apply(-9223372036854775800L, -9223372036854775803L));
   }
 
   @Test

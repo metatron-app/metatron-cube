@@ -22,9 +22,9 @@ package io.druid.query.search;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.Result;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchSortSpec;
@@ -37,8 +37,7 @@ import java.util.List;
 
 /**
  */
-public class SearchBinaryFn
-    implements BinaryFn<Result<SearchResultValue>, Result<SearchResultValue>, Result<SearchResultValue>>
+public class SearchBinaryFn implements BinaryFn.Identical<Result<SearchResultValue>>
 {
   private final Comparator<SearchHit> comparator;
   private final Granularity gran;

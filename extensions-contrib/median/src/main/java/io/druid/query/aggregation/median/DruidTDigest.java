@@ -60,12 +60,13 @@ public class DruidTDigest {
     digest.add(x, w);
   }
 
-  public synchronized void add(DruidTDigest other)
+  public synchronized DruidTDigest add(DruidTDigest other)
   {
     if (other.size() > 0)
     {
       digest.add(other.digest);
     }
+    return this;
   }
 
   public static DruidTDigest merge(double compression, Iterable<DruidTDigest> subData) {

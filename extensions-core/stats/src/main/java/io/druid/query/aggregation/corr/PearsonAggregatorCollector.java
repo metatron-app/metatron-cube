@@ -89,15 +89,11 @@ public class PearsonAggregatorCollector
     }
   };
 
-  static PearsonAggregatorCollector combineValues(Object lhs, Object rhs)
+  static PearsonAggregatorCollector combineValues(
+      final PearsonAggregatorCollector holder1,
+      final PearsonAggregatorCollector holder2
+  )
   {
-    final PearsonAggregatorCollector holder1 = (PearsonAggregatorCollector) lhs;
-    final PearsonAggregatorCollector holder2 = (PearsonAggregatorCollector) rhs;
-
-    if (holder2 == null || holder2.count == 0) {
-      return holder1;
-    }
-
     if (holder1.count == 0) {
       holder1.count = holder2.count;
       holder1.xavg = holder2.xavg;

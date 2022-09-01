@@ -20,7 +20,6 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
@@ -34,6 +33,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.MVIteratingSelector;
@@ -77,6 +77,30 @@ public abstract class AggregatorFactory implements Cacheable
     return Comparators.toComparator(finalizedType());
   }
 
+  public static interface FinalizingCombinerFactory
+  {
+    Combiner.Finalizing build();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> Combiner<T> combiner(AggregatorFactory factory, boolean finalize)
+  {
+    if (finalize && factory instanceof FinalizingCombinerFactory) {
+      return ((FinalizingCombinerFactory) factory).build();
+    }
+    final BinaryFn.Identical<T> combiner = factory.combiner();
+    return (param1, param2) ->
+    {
+      if (param1 == null) {
+        return param2;
+      } else if (param2 == null) {
+        return param1;
+      } else {
+        return combiner.apply(param1, param2);
+      }
+    };
+  }
+
   /**
    * A method that knows how to combine the outputs of the getIntermediate() method from the Aggregators
    * produced via factorize().  Note, even though this is called combine, this method's contract *does*
@@ -85,12 +109,9 @@ public abstract class AggregatorFactory implements Cacheable
    * <p>
    * Mostly, it's not dependent to inner state of AggregatorFactory. So I've changed to return function
    *
-   * @param lhs The left-hand side of the combine
-   * @param rhs The right-hand side of the combine
-   *
    * @return an object representing the combination of lhs and rhs, this can be a new object or a mutation of the inputs
    */
-  public abstract <T> Combiner<T> combiner();
+  public abstract BinaryFn.Identical combiner();
 
   /**
    * Returns an AggregatorFactory that can be used to combine the output of aggregators from this factory.  This
@@ -364,23 +385,23 @@ public abstract class AggregatorFactory implements Cacheable
   {
     AggregatorFactory.Combiner[] combiners = new AggregatorFactory.Combiner[aggregators.length];
     for (int i = 0; i < aggregators.length; i++) {
-      combiners[i] = aggregators[i].combiner();
+      combiners[i] = AggregatorFactory.combiner(aggregators[i], false);
     }
     return combiners;
   }
 
-  public static List<AggregatorFactory.Combiner> toCombiner(Iterable<AggregatorFactory> aggregators)
+  public static AggregatorFactory.Combiner[] toCombiner(Iterable<AggregatorFactory> aggregators)
   {
-    List<AggregatorFactory.Combiner> combiners = Lists.newArrayList();
+    return toCombiner(aggregators, false);
+  }
+
+  public static AggregatorFactory.Combiner[] toCombiner(Iterable<AggregatorFactory> aggregators, boolean finalize)
+  {
+    List<Combiner> combiners = Lists.newArrayList();
     for (AggregatorFactory aggregator : aggregators) {
-      combiners.add(aggregator.combiner());
+      combiners.add(AggregatorFactory.combiner(aggregator, finalize));
     }
-    return combiners;
-  }
-
-  public static AggregatorFactory.Combiner[] toCombinerArray(Iterable<AggregatorFactory> aggregators)
-  {
-    return toCombiner(aggregators).toArray(new Combiner[0]);
+    return combiners.toArray(new Combiner[0]);
   }
 
   public static List<AggregatorFactory> toRelay(Iterable<Pair<String, ValueDesc>> metricAndTypes)
@@ -392,17 +413,6 @@ public abstract class AggregatorFactory implements Cacheable
     return relay;
   }
 
-  public static Aggregator[] toAggregatorsAsArray(ColumnSelectorFactory cursor, List<AggregatorFactory> aggregatorSpecs)
-  {
-    Aggregator[] aggregators = new Aggregator[aggregatorSpecs.size()];
-    int aggregatorIndex = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      aggregators[aggregatorIndex] = spec.factorize(cursor);
-      ++aggregatorIndex;
-    }
-    return aggregators;
-  }
-
   public static boolean isCountAll(AggregatorFactory factory)
   {
     if (factory instanceof CountAggregatorFactory) {
@@ -412,48 +422,19 @@ public abstract class AggregatorFactory implements Cacheable
     return false;
   }
 
-  public static Function<AggregatorFactory, Pair<String, ValueDesc>> NAME_TYPE =
-      new Function<AggregatorFactory, Pair<String, ValueDesc>>()
-      {
-        @Override
-        public Pair<String, ValueDesc> apply(AggregatorFactory input)
-        {
-          return Pair.of(input.getName(), input.getOutputType());
-        }
-      };
-
-  public static <T> Combiner<T> nullHandling(Combiner<T> combiner)
-  {
-    return (p1, p2) -> {
-      if (p1 == null) {
-        return p2;
-      } else if (p2 == null) {
-        return p1;
-      } else {
-        return combiner.combine(p1, p2);
-      }
-    };
-  }
-
   public static interface Combiner<T>
   {
+    /**
+     * @param lhs The left-hand side of the combine
+     * @param rhs The right-hand side of the combine
+     *
+     * @return an object representing the combination of lhs and rhs, this can be a new object or a mutation of the inputs
+     */
     T combine(T param1, T param2);
 
-    abstract class Abstract<T> implements Combiner<T>
+    interface Finalizing<T> extends Combiner<T>
     {
-      @Override
-      public T combine(T param1, T param2)
-      {
-        if (param1 == null) {
-          return param2;
-        } else if (param2 == null) {
-          return param1;
-        } else {
-          return _combine(param1, param2);
-        }
-      }
-
-      protected abstract T _combine(T param1, T param2);
+      Object finalize(T object);
     }
   }
 

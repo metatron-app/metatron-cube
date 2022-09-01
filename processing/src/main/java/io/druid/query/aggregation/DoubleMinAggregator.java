@@ -31,17 +31,6 @@ public abstract class DoubleMinAggregator implements Aggregator.FromMutableDoubl
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 
-  static double combineValues(Object lhs, Object rhs)
-  {
-    return Math.min(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
-  }
-
-  @Override
-  public Double get(MutableDouble current)
-  {
-    return current == null ? null : current.doubleValue();
-  }
-
   public static DoubleMinAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
     return new DoubleMinAggregator()

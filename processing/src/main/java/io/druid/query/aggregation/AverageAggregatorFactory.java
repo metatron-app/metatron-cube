@@ -29,6 +29,8 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DoubleColumnSelector;
@@ -41,7 +43,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("avg")
-public class AverageAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class AverageAggregatorFactory extends AggregatorFactory implements CubeSupport
 {
   private static final byte[] CACHE_KEY = new byte[]{0x0F};
   private final String name;
@@ -92,27 +94,11 @@ public class AverageAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<long[]> combiner()
+  public BinaryFn.Identical<long[]> combiner()
   {
-    return new Combiner<long[]>()
-    {
-      @Override
-      public long[] combine(long[] param1, long[] param2)
-      {
-        if (param1 == null) {
-          return param2;
-        }
-        if (param2 == null) {
-          return param1;
-        }
-        return new long[]{
-            param1[0] + param2[0],
-            Double.doubleToLongBits(
-                Double.longBitsToDouble(param1[1]) + Double.longBitsToDouble(param2[1])
-            )
-        };
-      }
+    return (param1, param2) -> new long[]{
+        param1[0] + param2[0],
+        Double.doubleToLongBits(Double.longBitsToDouble(param1[1]) + Double.longBitsToDouble(param2[1]))
     };
   }
 

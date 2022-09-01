@@ -20,7 +20,7 @@
 package io.druid.query.aggregation;
 
 import io.druid.common.guava.Comparators;
-import io.druid.query.aggregation.AggregatorFactory.Combiner;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -35,14 +35,7 @@ public abstract class LongSumAggregator implements Aggregator.FromMutableLong
       (o1, o2) -> Long.compare(((Number) o1).longValue(), ((Number) o2).longValue())
   );
 
-  static final Combiner<Number> COMBINER = new Combiner<Number>()
-  {
-    @Override
-    public Number combine(Number lhs, Number rhs)
-    {
-      return (lhs == null ? 0L : lhs.longValue()) + (rhs == null ? 0L : rhs.longValue());
-    }
-  };
+  static final BinaryFn.Identical<Number> COMBINER = (lhs, rhs) -> lhs.longValue() + rhs.longValue();
 
   @Override
   public Long get(MutableLong current)

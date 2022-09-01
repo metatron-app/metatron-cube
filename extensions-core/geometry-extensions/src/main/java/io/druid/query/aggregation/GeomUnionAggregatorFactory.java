@@ -29,6 +29,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.GeomUtils;
 import io.druid.query.GeometryDeserializer;
 import io.druid.segment.ColumnSelectorFactory;
@@ -116,23 +117,18 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public <T> Combiner<T> combiner()
+  public BinaryFn.Identical combiner()
   {
-    return new Combiner()
+    return (param1, param2) ->
     {
-      @Override
-      public Object combine(Object param1, Object param2)
-      {
-        Geometry geom1 = GeomUtils.toGeometry(param1);
-        Geometry geom2 = GeomUtils.toGeometry(param2);
-        if (geom1 == null) {
-          return geom2;
-        } else if (geom2 == null) {
-          return geom1;
-        }
-        return geom1.union(geom2);
+      Geometry geom1 = GeomUtils.toGeometry(param1);
+      Geometry geom2 = GeomUtils.toGeometry(param2);
+      if (geom1 == null) {
+        return geom2;
+      } else if (geom2 == null) {
+        return geom1;
       }
+      return geom1.union(geom2);
     };
   }
 

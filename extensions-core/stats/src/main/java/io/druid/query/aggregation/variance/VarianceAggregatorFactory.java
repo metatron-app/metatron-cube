@@ -28,8 +28,10 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.SQLSupport;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.GenericAggregatorFactory;
 import io.druid.segment.ColumnSelectorFactory;
@@ -43,7 +45,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("variance")
-public class VarianceAggregatorFactory extends GenericAggregatorFactory implements AggregatorFactory.SQLSupport
+public class VarianceAggregatorFactory extends GenericAggregatorFactory implements SQLSupport
 {
   protected static final byte CACHE_TYPE_ID = 16;
 
@@ -228,17 +230,9 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical<VarianceAggregatorCollector> combiner()
   {
-    return new Combiner<Object>()
-    {
-      @Override
-      public Object combine(Object param1, Object param2)
-      {
-        return VarianceAggregatorCollector.combineValues(param1, param2);
-      }
-    };
+    return (param1, param2) -> VarianceAggregatorCollector.combineValues(param1, param2);
   }
 
   @Override

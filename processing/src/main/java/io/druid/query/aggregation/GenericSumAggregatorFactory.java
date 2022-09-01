@@ -26,6 +26,7 @@ import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.serde.ComplexMetrics;
@@ -205,8 +206,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public final Combiner combiner()
+  public final BinaryFn.Identical combiner()
   {
     switch (outputType.type()) {
       case FLOAT:
@@ -216,12 +216,12 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
         return LongSumAggregator.COMBINER;
       case COMPLEX:
         if (outputType.isDecimal()) {
-          return new Combiner.Abstract<BigDecimal>()
+          return new BinaryFn.Identical<BigDecimal>()
           {
             @Override
-            protected BigDecimal _combine(BigDecimal param1, BigDecimal param2)
+            public BigDecimal apply(BigDecimal arg1, BigDecimal arg2)
             {
-              return param1.add(param2);
+              return arg1.add(arg2);
             }
           };
         }

@@ -61,7 +61,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
     return new ResultMergeQueryRunner<Object[]>(runner)
     {
       @Override
-      protected BinaryFn<Object[], Object[], Object[]> createMergeFn(Query<Object[]> input)
+      protected BinaryFn.Identical<Object[]> createMergeFn(Query<Object[]> input)
       {
         final SketchQuery sketch = (SketchQuery) input;
         return new SketchBinaryFn(sketch.getSketchParamWithDefault(), sketch.getSketchOp().handler());

@@ -30,6 +30,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.GeomUtils;
 import io.druid.query.GeometryDeserializer;
 import io.druid.segment.ColumnSelectorFactory;
@@ -136,24 +137,9 @@ public class GeomCollectPointAggregatorFactory extends AggregatorFactory impleme
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public <T> Combiner<T> combiner()
+  public BinaryFn.Identical<Geometry> combiner()
   {
-    return new Combiner()
-    {
-      @Override
-      public Object combine(Object param1, Object param2)
-      {
-        MultiPoint geom1 = (MultiPoint) param1;
-        MultiPoint geom2 = (MultiPoint) param2;
-        if (geom1 == null) {
-          return geom2;
-        } else if (geom2 == null) {
-          return geom1;
-        }
-        return geom1.union(geom2);
-      }
-    };
+    return (param1, param2) -> param1.union(param2);
   }
 
   @Override

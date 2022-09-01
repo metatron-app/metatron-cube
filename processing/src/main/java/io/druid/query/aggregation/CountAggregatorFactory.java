@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatchers;
 import io.druid.segment.ColumnSelectorFactory;
@@ -109,8 +110,7 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<Number> combiner()
+  public BinaryFn.Identical<Number> combiner()
   {
     return LongSumAggregator.COMBINER;
   }

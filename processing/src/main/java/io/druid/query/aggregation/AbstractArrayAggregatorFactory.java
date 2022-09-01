@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.Comparators;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.logger.Logger;
 
 import java.util.Comparator;
@@ -77,19 +78,20 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Combiner<List<Object>> combiner()
+  public BinaryFn.Identical<List<Object>> combiner()
   {
-    return new Combiner<List<Object>>()
+    return new BinaryFn.Identical<List<Object>>()
     {
-      final Combiner<Object> combinder = delegate.combiner();
+      final BinaryFn.Identical combiner = delegate.combiner();
 
       @Override
-      public List<Object> combine(final List<Object> left, final List<Object> right)
+      @SuppressWarnings("unchecked")
+      public List<Object> apply(final List<Object> left, final List<Object> right)
       {
         int min = Math.min(left.size(), right.size());
         int i = 0;
         for (; i < min; i++) {
-          left.set(i, combinder.combine(left.get(i), right.get(i)));
+          left.set(i, combiner.apply(left.get(i), right.get(i)));
         }
         for (; i < right.size(); i++) {
           left.add(right.get(i));

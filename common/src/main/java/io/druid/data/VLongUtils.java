@@ -244,23 +244,41 @@ public class VLongUtils
     return value | b << i;
   }
 
-  public static int readUnsignedVarInt(ByteBuffer buffer, int offset)
+  public static int __readUnsignedVarInt(ByteBuffer buffer, int offset)
   {
-    int b1 = buffer.get(offset++) & 0xff;
+    final int b1 = buffer.get(offset++) & 0xff;
     if ((b1 & N_MASK) == 0) {
       return b1;
     }
-    int b2 = buffer.get(offset++) & 0xff;
+    final int b2 = buffer.get(offset++) & 0xff;
     if ((b2 & N_MASK) == 0) {
       return b2 << 7 | b1 & V_MASK;
     }
-    int value = (b2 & V_MASK) << 7 | b1 & V_MASK;
-    int i;
-    int b;
-    for (i = 14; ((b = buffer.get(offset) & 0xff) & N_MASK) != 0; i += 7, offset++) {
-      value |= (b & V_MASK) << i;
+    final int b3 = buffer.get(offset++) & 0xff;
+    if ((b3 & N_MASK) == 0) {
+      return b3 << 14 | (b2 & V_MASK) << 7 | b1 & V_MASK;
     }
-    return value | b << i;
+    final int b4 = buffer.get(offset++) & 0xff;
+    if ((b4 & N_MASK) == 0) {
+      return b4 << 21 | (b3 & V_MASK) << 14 | (b2 & V_MASK) << 7 | b1 & V_MASK;
+    }
+    int b5 = buffer.get(offset) & 0xff;
+    return b5 << 28 | (b4 & V_MASK) << 21 | (b3 & V_MASK) << 14 | (b2 & V_MASK) << 7 | b1 & V_MASK;
+  }
+
+  public static int readUnsignedVarInt(ByteBuffer buffer, int offset)
+  {
+    return _readUnsignedVarInt(buffer, offset, 0);
+  }
+
+  private static int _readUnsignedVarInt(ByteBuffer buffer, int offset, int shift)
+  {
+    final int b = buffer.get(offset) & 0xff;
+    if ((b & N_MASK) != 0) {
+      return _readUnsignedVarInt(buffer, offset + 1, shift + 7) | (b & V_MASK) << shift;
+    } else {
+      return b << shift;
+    }
   }
 
   /**

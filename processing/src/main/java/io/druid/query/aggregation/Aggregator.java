@@ -68,6 +68,12 @@ public interface Aggregator<T>
   interface FromMutableLong extends LongType<MutableLong>
   {
     @Override
+    default Long get(MutableLong current)
+    {
+      return current == null ? null : current.longValue();
+    }
+
+    @Override
     default boolean getLong(MutableLong current, MutableLong handover)
     {
       if (current != null) {
@@ -88,6 +94,12 @@ public interface Aggregator<T>
   interface FromMutableFloat extends FloatType<MutableFloat>
   {
     @Override
+    default Float get(MutableFloat current)
+    {
+      return current == null ? null : current.floatValue();
+    }
+
+    @Override
     default boolean getFloat(MutableFloat current, MutableFloat handover)
     {
       if (current != null) {
@@ -107,6 +119,12 @@ public interface Aggregator<T>
 
   interface FromMutableDouble extends DoubleType<MutableDouble>
   {
+    @Override
+    default Double get(MutableDouble current)
+    {
+      return current == null ? null : current.doubleValue();
+    }
+
     @Override
     default boolean getDouble(MutableDouble current, MutableDouble handover)
     {

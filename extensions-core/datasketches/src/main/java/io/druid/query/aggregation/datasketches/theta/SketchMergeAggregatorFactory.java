@@ -32,6 +32,7 @@ import com.yahoo.sketches.theta.Union;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -142,28 +143,23 @@ public class SketchMergeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical combiner()
   {
-    return new Combiner()
+    return (lhs, rhs) ->
     {
-      @Override
-      public Object combine(Object lhs, Object rhs)
-      {
-        final Union union;
-        if (lhs instanceof Union) {
-          union = (Union) lhs;
-          updateUnion(union, rhs);
-        } else if (rhs instanceof Union) {
-          union = (Union) rhs;
-          updateUnion(union, lhs);
-        } else {
-          union = (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION);
-          updateUnion(union, lhs);
-          updateUnion(union, rhs);
-        }
-        return union;
+      final Union union;
+      if (lhs instanceof Union) {
+        union = (Union) lhs;
+        updateUnion(union, rhs);
+      } else if (rhs instanceof Union) {
+        union = (Union) rhs;
+        updateUnion(union, lhs);
+      } else {
+        union = (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION);
+        updateUnion(union, lhs);
+        updateUnion(union, rhs);
       }
+      return union;
     };
   }
 

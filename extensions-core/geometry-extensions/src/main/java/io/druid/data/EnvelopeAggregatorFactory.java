@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.GeomUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -194,29 +195,24 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<List> combiner()
+  public BinaryFn.Identical<List> combiner()
   {
-    return new Combiner.Abstract<List>()
+    return (param1, param2) ->
     {
-      @Override
-      protected final List _combine(List param1, List param2)
-      {
-        final double minX1 = ((Number) param1.get(0)).doubleValue();
-        final double maxX1 = ((Number) param1.get(1)).doubleValue();
-        final double minY1 = ((Number) param1.get(2)).doubleValue();
-        final double maxY1 = ((Number) param1.get(3)).doubleValue();
-        final double minX2 = ((Number) param2.get(0)).doubleValue();
-        final double maxX2 = ((Number) param2.get(1)).doubleValue();
-        final double minY2 = ((Number) param2.get(2)).doubleValue();
-        final double maxY2 = ((Number) param2.get(3)).doubleValue();
-        return Arrays.asList(
-            minX1 < minX2 ? minX1 : minX2,
-            maxX1 > maxX2 ? maxX1 : maxX2,
-            minY1 < minY2 ? minY1 : minY2,
-            maxY1 > maxY2 ? maxY1 : maxY2
-        );
-      }
+      final double minX1 = ((Number) param1.get(0)).doubleValue();
+      final double maxX1 = ((Number) param1.get(1)).doubleValue();
+      final double minY1 = ((Number) param1.get(2)).doubleValue();
+      final double maxY1 = ((Number) param1.get(3)).doubleValue();
+      final double minX2 = ((Number) param2.get(0)).doubleValue();
+      final double maxX2 = ((Number) param2.get(1)).doubleValue();
+      final double minY2 = ((Number) param2.get(2)).doubleValue();
+      final double maxY2 = ((Number) param2.get(3)).doubleValue();
+      return Arrays.asList(
+          minX1 < minX2 ? minX1 : minX2,
+          maxX1 > maxX2 ? maxX1 : maxX2,
+          minY1 < minY2 ? minY1 : minY2,
+          maxY1 > maxY2 ? maxY1 : maxY2
+      );
     };
   }
 

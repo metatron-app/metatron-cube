@@ -26,6 +26,8 @@ import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.nio.ByteBuffer;
@@ -34,7 +36,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-public class HistogramAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class HistogramAggregatorFactory extends AggregatorFactory implements CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 0x7;
 
@@ -88,17 +90,9 @@ public class HistogramAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<Histogram> combiner()
+  public BinaryFn.Identical<Histogram> combiner()
   {
-    return new Combiner<Histogram>()
-    {
-      @Override
-      public Histogram combine(Histogram param1, Histogram param2)
-      {
-        return param1.fold(param2);
-      }
-    };
+    return (param1, param2) -> param1.fold(param2);
   }
 
   @Override

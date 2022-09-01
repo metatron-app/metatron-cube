@@ -77,13 +77,14 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
                 Functions.compose(toPostAggregator(aggregation), aggregation.compactToMap(sequence.columns())));
             return Sequences.map(sequence, function);
           }
-          sequence = CombiningSequence.create(sequence, getMergeOrdering(aggregation), getMergeFn(aggregation));
+          boolean finalize = BaseQuery.isFinalize(query);
+          sequence = CombiningSequence.create(sequence, getMergeOrdering(aggregation), getMergeFn(aggregation, finalize));
           sequence = postAggregation(aggregation, Sequences.map(sequence, aggregation.compactToMap(sequence.columns())));
           return sequence;
         }
         Sequence<Row> sequence = runner.run(aggregation, responseContext);
         if (aggregation instanceof TimeseriesQuery && !BaseQuery.isBySegment(aggregation)) {
-          sequence = CombiningSequence.create(sequence, getMergeOrdering(aggregation), getMergeFn(aggregation));
+          sequence = CombiningSequence.create(sequence, getMergeOrdering(aggregation), getMergeFn(aggregation, false));
         }
         return sequence;
       }
@@ -92,9 +93,9 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
 
   protected abstract Comparator<Row> getMergeOrdering(final T aggregation);
 
-  protected BinaryFn getMergeFn(T aggregation)
+  protected BinaryFn.Identical<Row> getMergeFn(T aggregation, boolean finalize)
   {
-    return new AggregationQueryBinaryFn(aggregation);
+    return AggregationQueryBinaryFn.of(aggregation, finalize);
   }
 
   protected Sequence<Row> postAggregation(final T query, final Sequence<Row> sequence)
@@ -254,7 +255,6 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public CacheStrategy<Row, Object[], T> getCacheStrategy(final T query)
   {
     return new CacheStrategy<Row, Object[], T>()
@@ -396,7 +396,6 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         columns, sequence, new Function<Row, Sequence<Row>>()
         {
           @Override
-          @SuppressWarnings("unchecked")
           public Sequence<Row> apply(Row input)
           {
             final DateTime timestamp = input.getTimestamp();

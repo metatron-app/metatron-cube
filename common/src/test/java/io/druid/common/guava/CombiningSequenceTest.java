@@ -228,21 +228,17 @@ public class CombiningSequenceTest
         new CombiningSequence<>(
             Sequences.withBaggage(Sequences.simple(pairs), closeable),
             Ordering.natural().onResultOf(Pair.<Integer, Integer>lhsFn()),
-            new BinaryFn<Pair<Integer, Integer>, Pair<Integer, Integer>, Pair<Integer, Integer>>()
+            new BinaryFn.Identical<Pair<Integer, Integer>>()
             {
               @Override
-              public Pair<Integer, Integer> apply(
-                  Pair<Integer, Integer> lhs, Pair<Integer, Integer> rhs
-              )
+              public Pair<Integer, Integer> apply(Pair<Integer, Integer> lhs, Pair<Integer, Integer> rhs)
               {
                 if (lhs == null) {
                   return rhs;
                 }
-
                 if (rhs == null) {
                   return lhs;
                 }
-
                 return Pair.of(lhs.lhs, lhs.rhs + rhs.rhs);
               }
             }

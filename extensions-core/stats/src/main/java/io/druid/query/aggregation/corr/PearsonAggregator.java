@@ -55,7 +55,7 @@ public abstract class PearsonAggregator implements Aggregator.Simple<PearsonAggr
     };
   }
 
-  public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
+  public static Aggregator create(final ObjectColumnSelector<PearsonAggregatorCollector> selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return NULL;

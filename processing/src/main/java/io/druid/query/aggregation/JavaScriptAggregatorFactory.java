@@ -29,6 +29,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.js.JavaScriptConfig;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -135,18 +136,10 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<Number> combiner()
+  public BinaryFn.Identical<Number> combiner()
   {
     final JavaScriptAggregator.ScriptAggregator compiledScript = getCompiledScript();
-    return new Combiner<Number>()
-    {
-      @Override
-      public Number combine(Number param1, Number param2)
-      {
-        return compiledScript.combine(param1.doubleValue(), param2.doubleValue());
-      }
-    };
+    return (param1, param2) -> compiledScript.combine(param1.doubleValue(), param2.doubleValue());
   }
 
   @Override
@@ -170,12 +163,6 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
     if (object instanceof String) {
       return Double.parseDouble((String) object);
     }
-    return object;
-  }
-
-  @Override
-  public Object finalizeComputation(Object object)
-  {
     return object;
   }
 

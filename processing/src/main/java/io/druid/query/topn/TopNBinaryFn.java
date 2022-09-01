@@ -20,9 +20,9 @@
 package io.druid.query.topn;
 
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -38,7 +38,7 @@ import java.util.Map;
 
 /**
  */
-public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<TopNResultValue>, Result<TopNResultValue>>
+public class TopNBinaryFn implements BinaryFn.Identical<Result<TopNResultValue>>
 {
   private final TopNResultMerger merger;
   private final DimensionSpec dimSpec;
@@ -70,7 +70,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
     this.threshold = threshold;
     this.aggregations = aggregatorSpecs;
     this.metrics = AggregatorFactory.toNamesAsArray(aggregatorSpecs);
-    this.combiners = AggregatorFactory.toCombinerArray(aggregatorSpecs);
+    this.combiners = AggregatorFactory.toCombiner(aggregatorSpecs);
     this.postAggregations = PostAggregators.decorate(
         AggregatorUtil.pruneDependentPostAgg(
             postAggregatorSpecs,

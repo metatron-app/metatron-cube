@@ -25,6 +25,8 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DefaultTimestampSpec;
+import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.segment.ColumnSelectorFactory;
 import org.joda.time.DateTime;
 
@@ -33,7 +35,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-public class TimestampMaxAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class TimestampMaxAggregatorFactory extends AggregatorFactory implements CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 31;
 
@@ -78,17 +80,9 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory implements 
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<Number> combiner()
+  public BinaryFn.Identical<Number> combiner()
   {
-    return new Combiner.Abstract<Number>()
-    {
-      @Override
-      protected final Number _combine(Number param1, Number param2)
-      {
-        return Math.max(param1.longValue(), param2.longValue());
-      }
-    };
+    return (param1, param2) -> Math.max(param1.longValue(), param2.longValue());
   }
 
   @Override

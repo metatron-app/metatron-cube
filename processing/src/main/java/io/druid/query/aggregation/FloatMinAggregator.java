@@ -31,17 +31,6 @@ public abstract class FloatMinAggregator implements Aggregator.FromMutableFloat
 {
   static final Comparator COMPARATOR = FloatMaxAggregator.COMPARATOR;
 
-  static float combineValues(Object lhs, Object rhs)
-  {
-    return Math.min(((Number) lhs).floatValue(), ((Number) rhs).floatValue());
-  }
-
-  @Override
-  public Float get(MutableFloat current)
-  {
-    return current == null ? null : current.floatValue();
-  }
-
   public static FloatMinAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
     return new FloatMinAggregator()

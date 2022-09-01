@@ -72,13 +72,13 @@ public class SelectMetaQueryToolChest
       }
 
       @Override
-      protected BinaryFn<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, Result<SelectMetaResultValue>> createMergeFn(
+      protected BinaryFn.Identical<Result<SelectMetaResultValue>> createMergeFn(
           Query<Result<SelectMetaResultValue>> input
       )
       {
         SelectMetaQuery query = (SelectMetaQuery) input;
         final Granularity gran = query.getGranularity();
-        return new BinaryFn<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, Result<SelectMetaResultValue>>()
+        return new BinaryFn.Identical<Result<SelectMetaResultValue>>()
         {
           @Override
           public Result<SelectMetaResultValue> apply(

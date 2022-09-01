@@ -29,6 +29,7 @@ import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
@@ -205,8 +206,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public <T> Combiner<T> combiner()
+  public BinaryFn.Identical combiner()
   {
     return Aggregators.relayCombiner(relayType);
   }

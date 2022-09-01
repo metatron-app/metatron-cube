@@ -27,6 +27,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -113,10 +114,9 @@ public class DimensionAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<IntList> combiner()
+  public BinaryFn.Identical<IntList> combiner()
   {
-    return nullHandling((l1, l2) -> l1.concat(l2));
+    return (param1, param2) -> param1.concat(param2);
   }
 
   @Override

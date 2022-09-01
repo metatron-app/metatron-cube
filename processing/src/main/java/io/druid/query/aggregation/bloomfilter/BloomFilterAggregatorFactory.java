@@ -27,6 +27,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -136,23 +137,9 @@ public class BloomFilterAggregatorFactory extends HashAggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<BloomKFilter> combiner()
+  public BinaryFn.Identical<BloomKFilter> combiner()
   {
-    return new Combiner<BloomKFilter>()
-    {
-      @Override
-      public BloomKFilter combine(BloomKFilter param1, BloomKFilter param2)
-      {
-        if (param1 == null) {
-          return param2;
-        }
-        if (param2 == null) {
-          return param1;
-        }
-        return param1.merge(param2);
-      }
-    };
+    return (param1, param2) -> param1.merge(param2);
   }
 
   @Override

@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -73,17 +74,9 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical combiner()
   {
-    return new Combiner()
-    {
-      @Override
-      public Object combine(Object param1, Object param2)
-      {
-        return MetricAreaAggregator.combine(param1, param2);
-      }
-    };
+    return (param1, param2) -> MetricAreaAggregator.combine(param1, param2);
   }
 
   @Override

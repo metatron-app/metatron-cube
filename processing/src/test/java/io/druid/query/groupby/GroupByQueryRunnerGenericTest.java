@@ -6990,7 +6990,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         createExpectedRow("2011-04-02", "alias", "upfront", "rows", 2L, "numVals", 1.0002442201269182d)
     );
 
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
+    List<Row> results = runQuery(query, true);
+    for (Row r : results) {
+      System.out.println(r);
+    }
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test

@@ -19,6 +19,7 @@
 
 package io.druid.query.groupby;
 
+import io.druid.collections.IntList;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.nary.BinaryFn;
@@ -28,19 +29,40 @@ import io.druid.query.aggregation.AggregatorFactory.Combiner;
 
 import java.util.Arrays;
 
-public class AggregationQueryBinaryFn implements BinaryFn<Row, Row, Row>
+@SuppressWarnings("unchecked")
+public class AggregationQueryBinaryFn implements BinaryFn.Identical<Row>
 {
-  private final int start;
-  private final Combiner[] combiners;
-
-  public AggregationQueryBinaryFn(BaseAggregationQuery query)
+  public static AggregationQueryBinaryFn of(BaseAggregationQuery query, boolean finalize)
   {
-    start = query.getDimensions().size() + 1;
-    combiners = AggregatorFactory.toCombinerArray(query.getAggregatorSpecs());
+    Combiner[] combiners = AggregatorFactory.toCombiner(query.getAggregatorSpecs(), finalize);
+    int[] finalizing = IntList.collect(combiners, c -> c instanceof Combiner.Finalizing).array();
+    if (finalizing.length == 0) {
+      return new AggregationQueryBinaryFn(query.getDimensions().size() + 1, combiners);
+    }
+    return new AggregationQueryBinaryFn(query.getDimensions().size() + 1, combiners)
+    {
+      @Override
+      public Row done(Row arg)
+      {
+        final Object[] values = ((CompactRow) arg).getValues();
+        for (int ix : finalizing) {
+          values[start + ix] = ((Combiner.Finalizing) combiners[ix]).finalize(values[start + ix]);
+        }
+        return arg;
+      }
+    };
+  }
+
+  final int start;
+  final Combiner[] combiners;
+
+  private AggregationQueryBinaryFn(int start, Combiner[] combiners)
+  {
+    this.start = start;
+    this.combiners = combiners;
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Row apply(final Row arg1, final Row arg2)
   {
     if (arg1 == null) {

@@ -85,15 +85,11 @@ public class KurtosisAggregatorCollector
     }
   };
 
-  static KurtosisAggregatorCollector combineValues(Object lhs, Object rhs)
+  static KurtosisAggregatorCollector combineValues(
+      final KurtosisAggregatorCollector holder1,
+      final KurtosisAggregatorCollector holder2
+  )
   {
-    final KurtosisAggregatorCollector holder1 = (KurtosisAggregatorCollector) lhs;
-    final KurtosisAggregatorCollector holder2 = (KurtosisAggregatorCollector) rhs;
-
-    if (holder2 == null || holder2.n == 0) {
-      return holder1;
-    }
-
     final long n1 = holder1.n;
     final long n2 = holder2.n;
 

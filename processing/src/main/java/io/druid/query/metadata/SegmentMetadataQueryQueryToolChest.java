@@ -118,18 +118,10 @@ public class SegmentMetadataQueryQueryToolChest
       }
 
       @Override
-      protected BinaryFn<SegmentAnalysis, SegmentAnalysis, SegmentAnalysis> createMergeFn(final Query<SegmentAnalysis> inQ)
+      protected BinaryFn.Identical<SegmentAnalysis> createMergeFn(final Query<SegmentAnalysis> inQ)
       {
-        return new BinaryFn<SegmentAnalysis, SegmentAnalysis, SegmentAnalysis>()
-        {
-          private final boolean lenient = ((SegmentMetadataQuery) inQ).isLenientAggregatorMerge();
-
-          @Override
-          public SegmentAnalysis apply(SegmentAnalysis arg1, SegmentAnalysis arg2)
-          {
-            return mergeAnalyses(arg1, arg2, lenient);
-          }
-        };
+        final boolean lenient = ((SegmentMetadataQuery) inQ).isLenientAggregatorMerge();
+        return (arg1, arg2) -> mergeAnalyses(arg1, arg2, lenient);
       }
     };
   }

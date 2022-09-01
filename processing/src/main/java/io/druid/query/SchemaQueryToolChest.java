@@ -59,9 +59,9 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
       }
 
       @Override
-      protected BinaryFn<Schema, Schema, Schema> createMergeFn(Query<Schema> input)
+      protected BinaryFn.Identical<Schema> createMergeFn(Query<Schema> input)
       {
-        return new BinaryFn<Schema, Schema, Schema>()
+        return new BinaryFn.Identical<Schema>()
         {
           @Override
           public Schema apply(Schema arg1, Schema arg2)

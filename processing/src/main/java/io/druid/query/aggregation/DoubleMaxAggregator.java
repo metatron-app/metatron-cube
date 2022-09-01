@@ -33,17 +33,6 @@ public abstract class DoubleMaxAggregator implements Aggregator.FromMutableDoubl
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 
-  static double combineValues(Object lhs, Object rhs)
-  {
-    return Math.max(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
-  }
-
-  @Override
-  public Double get(MutableDouble current)
-  {
-    return current == null ? null : current.doubleValue();
-  }
-
   public static DoubleMaxAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
     return new DoubleMaxAggregator()

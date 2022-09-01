@@ -27,23 +27,13 @@ import org.apache.commons.lang.mutable.MutableFloat;
 import java.util.Comparator;
 
 /**
+ *
  */
 public abstract class FloatMaxAggregator implements Aggregator.FromMutableFloat
 {
   static final Comparator COMPARATOR = Comparators.NULL_FIRST(
       (Object o1, Object o2) -> Float.compare(((Number) o1).floatValue(), ((Number) o2).floatValue())
   );
-
-  static float combineValues(Object lhs, Object rhs)
-  {
-    return Math.max(((Number) lhs).floatValue(), ((Number) rhs).floatValue());
-  }
-
-  @Override
-  public Float get(MutableFloat current)
-  {
-    return current == null ? null : current.floatValue();
-  }
 
   public static FloatMaxAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {

@@ -22,7 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
-import io.druid.query.aggregation.AggregatorFactory.Combiner;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.LongColumnSelector;
@@ -411,91 +411,42 @@ public class Aggregators
   }
 
   @SuppressWarnings("unchecked")
-  public static Combiner relayCombiner(String type)
+  public static BinaryFn.Identical relayCombiner(String type)
   {
     switch (RELAY_TYPE.fromString(type)) {
       case ONLY_ONE:
-        return new Combiner.Abstract()
-        {
-          @Override
-          public Object _combine(Object param1, Object param2)
-          {
-            throw new UnsupportedOperationException("cannot combine");
-          }
+        return (param1, param2) -> {
+          throw new UnsupportedOperationException("cannot combine");
         };
       case FIRST:
-        return new Combiner()
-        {
-          @Override
-          public Object combine(Object param1, Object param2)
-          {
-            return param1 == null ? param2 : param1;
-          }
-        };
+        return (param1, param2) -> param1 == null ? param2 : param1;
       case LAST:
-        return new Combiner()
-        {
-          @Override
-          public Object combine(Object param1, Object param2)
-          {
-            return param2 == null ? param1 : param2;
-          }
-        };
+        return (param1, param2) -> param2 == null ? param1 : param2;
       case MIN:
-        return new Combiner()
-        {
-          @Override
-          public Object combine(Object param1, Object param2)
-          {
-            return GuavaUtils.NULL_FIRST_NATURAL.compare(param1, param2) < 0 ? param1 : param2;
-          }
-        };
+        return (param1, param2) -> GuavaUtils.NULL_FIRST_NATURAL.compare(param1, param2) < 0 ? param1 : param2;
       case MAX:
-        return new Combiner()
-        {
-          @Override
-          public Object combine(Object param1, Object param2)
-          {
-            return GuavaUtils.NULL_FIRST_NATURAL.compare(param1, param2) > 0 ? param1 : param2;
-          }
-        };
+        return (param1, param2) -> GuavaUtils.NULL_FIRST_NATURAL.compare(param1, param2) > 0 ? param1 : param2;
       case TIME_MIN:
-        return new Combiner.Abstract()
-        {
-          @Override
-          public Object _combine(Object param1, Object param2)
-          {
-            final Number time1 = (Number) ((List) param1).get(0);
-            final Number time2 = (Number) ((List) param2).get(0);
-            return time1.longValue() < time2.longValue() ? param1 : param2;
-          }
+        return (param1, param2) -> {
+          final Number time1 = (Number) ((List) param1).get(0);
+          final Number time2 = (Number) ((List) param2).get(0);
+          return time1.longValue() < time2.longValue() ? param1 : param2;
         };
       case TIME_MAX:
-        return new Combiner.Abstract()
-        {
-          @Override
-          public Object _combine(Object param1, Object param2)
-          {
-            final Number time1 = (Number) ((List) param1).get(0);
-            final Number time2 = (Number) ((List) param2).get(0);
-            return time1.longValue() > time2.longValue() ? param1 : param2;
-          }
+        return (param1, param2) -> {
+          final Number time1 = (Number) ((List) param1).get(0);
+          final Number time2 = (Number) ((List) param2).get(0);
+          return time1.longValue() > time2.longValue() ? param1 : param2;
         };
       default:
         throw new IllegalArgumentException("invalid type " + type);
     }
   }
 
-  public static <T> Aggregator<T> asAggregator(final Combiner<T> combiner, final ObjectColumnSelector<T> selector)
+  @SuppressWarnings("unchecked")
+  public static Aggregator.Simple asAggregator(final BinaryFn.Identical combiner, final ObjectColumnSelector selector)
   {
-    return new Aggregator.Simple<T>()
-    {
-      @Override
-      public T aggregate(T current)
-      {
-        return combiner.combine(selector.get(), current);
-      }
-    };
+    return current -> combiner.apply(current, selector.get());
   }
 
   public static <T> Aggregator<T> wrap(ValueMatcher matcher, Aggregator<T> aggregator)

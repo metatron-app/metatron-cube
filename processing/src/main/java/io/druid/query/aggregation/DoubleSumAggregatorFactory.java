@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -102,8 +103,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<Number> combiner()
+  public BinaryFn.Identical<Number> combiner()
   {
     return DoubleSumAggregator.COMBINER;
   }

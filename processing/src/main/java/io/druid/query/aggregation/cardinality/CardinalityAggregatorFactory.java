@@ -26,8 +26,11 @@ import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
+import io.druid.query.aggregation.AggregatorFactory.FinalizingCombinerFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.HashAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
@@ -45,8 +48,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-public class CardinalityAggregatorFactory extends HashAggregatorFactory
-    implements AggregatorFactory.CubeSupport
+public class CardinalityAggregatorFactory extends HashAggregatorFactory implements CubeSupport, FinalizingCombinerFactory
 {
   public static AggregatorFactory fields(String name, List<String> fieldNames, GroupingSetSpec groupingSets)
   {
@@ -136,15 +138,28 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical<HyperLogLogCollector> combiner()
   {
-    return new Combiner.Abstract<HyperLogLogCollector>()
+    return (param1, param2) -> param1.fold(param2);
+  }
+
+  @Override
+  public Combiner.Finalizing<HyperLogLogCollector> build()
+  {
+    return new Combiner.Finalizing<HyperLogLogCollector>()
     {
+      private final HyperLogLogCollector HLL = HyperLogLogCollector.makeLatestCollector(b);
+
       @Override
-      public HyperLogLogCollector _combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
+      public HyperLogLogCollector combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
       {
-        return param1.fold(param2);
+        return (param1 == HLL ? HLL : HLL.overwrite(param1)).fold(param2);
+      }
+
+      @Override
+      public Object finalize(HyperLogLogCollector collector)
+      {
+        return finalizeComputation(collector);
       }
     };
   }

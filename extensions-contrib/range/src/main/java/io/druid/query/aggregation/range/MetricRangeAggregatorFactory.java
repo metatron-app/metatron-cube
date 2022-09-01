@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 
@@ -34,7 +36,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public class MetricRangeAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class MetricRangeAggregatorFactory extends AggregatorFactory implements CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 0x32;
   protected final String name;
@@ -73,17 +75,9 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory implements A
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical<MetricRange> combiner()
   {
-    return new Combiner()
-    {
-      @Override
-      public Object combine(Object param1, Object param2)
-      {
-        return MetricRangeAggregator.combine(param1, param2);
-      }
-    };
+    return (param1, param2) -> MetricRangeAggregator.combine(param1, param2);
   }
 
   @Override

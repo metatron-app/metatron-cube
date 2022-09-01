@@ -29,8 +29,11 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
+import io.druid.query.aggregation.AggregatorFactory.SQLSupport;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -44,8 +47,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("kurtosis")
-public class KurtosisAggregatorFactory extends AggregatorFactory
-    implements AggregatorFactory.SQLSupport, AggregatorFactory.CubeSupport
+public class KurtosisAggregatorFactory extends AggregatorFactory implements SQLSupport, CubeSupport
 {
   protected static final byte CACHE_TYPE_ID = 23;
 
@@ -183,17 +185,9 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical<KurtosisAggregatorCollector> combiner()
   {
-    return new Combiner()
-    {
-      @Override
-      public Object combine(Object param1, Object param2)
-      {
-        return KurtosisAggregatorCollector.combineValues(param1, param2);
-      }
-    };
+    return (param1, param2) -> KurtosisAggregatorCollector.combineValues(param1, param2);
   }
 
   @Override

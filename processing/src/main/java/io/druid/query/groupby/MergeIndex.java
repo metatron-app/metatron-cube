@@ -57,7 +57,7 @@ public interface MergeIndex<T> extends Closeable
     GroupByMerge(GroupByQuery groupBy)
     {
     this.groupBy = groupBy;
-    this.metrics = AggregatorFactory.toCombinerArray(groupBy.getAggregatorSpecs());
+    this.metrics = AggregatorFactory.toCombiner(groupBy.getAggregatorSpecs());
     this.metricStart = groupBy.getDimensions().size() + 1;
       final int[][] groupings = groupBy.getGroupings();
       if (groupings.length == 0) {

@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.serde.ComplexMetrics;
@@ -201,16 +202,9 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public final Combiner combiner()
+  public BinaryFn.Identical combiner()
   {
-    return new Combiner.Abstract<Object>()
-    {
-      @Override
-      protected Object _combine(Object lhs, Object rhs)
-      {
-        return comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
-      }
-    };
+    return (param1, param2) -> comparator.compare(param1, param2) < 0 ? param1 : param2;
   }
 
   @Override

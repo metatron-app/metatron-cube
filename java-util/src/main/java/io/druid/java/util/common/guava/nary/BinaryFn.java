@@ -20,5 +20,8 @@ public interface BinaryFn<Type1, Type2, OutType>
 {
   OutType apply(Type1 arg1, Type2 arg2);
 
-  interface Identical<T> extends BinaryFn<T, T, T> { }
+  interface Identical<T> extends BinaryFn<T, T, T>
+  {
+    default T done(T ret) {return ret;}
+  }
 }

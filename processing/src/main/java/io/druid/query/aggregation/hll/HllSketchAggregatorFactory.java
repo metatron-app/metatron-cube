@@ -25,6 +25,7 @@ import com.yahoo.sketches.hll.TgtHllType;
 import com.yahoo.sketches.hll.Union;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.Comparators;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import javax.annotation.Nullable;
@@ -104,19 +105,14 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<HllSketch> combiner()
+  public BinaryFn.Identical<HllSketch> combiner()
   {
-    return new Combiner<HllSketch>()
+    return (param1, param2) ->
     {
-      @Override
-      public HllSketch combine(HllSketch param1, HllSketch param2)
-      {
-        final Union union = new Union(lgK);
-        union.update(param1);
-        union.update(param2);
-        return union.getResult(tgtHllType);
-      }
+      final Union union = new Union(lgK);
+      union.update(param1);
+      union.update(param2);
+      return union.getResult(tgtHllType);
     };
   }
 

@@ -108,7 +108,7 @@ public class SearchQueryQueryToolChest
       }
 
       @Override
-      protected BinaryFn<Result<SearchResultValue>, Result<SearchResultValue>, Result<SearchResultValue>> createMergeFn(
+      protected BinaryFn.Identical<Result<SearchResultValue>> createMergeFn(
           Query<Result<SearchResultValue>> input
       )
       {

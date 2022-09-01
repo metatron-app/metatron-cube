@@ -54,7 +54,7 @@ public abstract class CovarianceAggregator implements Aggregator.Simple<Covarian
     };
   }
 
-  public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
+  public static Aggregator create(final ObjectColumnSelector<CovarianceAggregatorCollector> selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return NULL;

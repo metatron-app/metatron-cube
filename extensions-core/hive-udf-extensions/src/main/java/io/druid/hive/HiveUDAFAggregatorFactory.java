@@ -32,9 +32,12 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.SQLSupport;
+import io.druid.query.aggregation.AggregatorFactory.TypeResolving;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
@@ -59,8 +62,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @JsonTypeName("hive.udaf")
-public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
-    implements AggregatorFactory.SQLSupport
+public class HiveUDAFAggregatorFactory extends TypeResolving implements SQLSupport
 {
   private static final Logger LOG = new Logger(HiveUDAFAggregatorFactory.class);
 
@@ -177,15 +179,15 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
     return finalizedType;
   }
 
-  private Combiner<Object> combiner;
+  private BinaryFn.Identical combiner;
 
   @Override
   public Object finalizeComputation(Object object)
   {
-    return getFinalizer().combine(null, object);
+    return getFinalizer().apply(null, object);
   }
 
-  private synchronized Combiner<Object> getFinalizer()
+  private synchronized BinaryFn.Identical getFinalizer()
   {
     if (combiner == null) {
       combiner = toCombiner(Mode.FINAL);
@@ -311,30 +313,26 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
 
   @Override
   @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical combiner()
   {
     return toCombiner(Mode.PARTIAL2);
   }
 
-  private Combiner<Object> toCombiner(Mode mode)
+  private BinaryFn.Identical toCombiner(Mode mode)
   {
     try (EvalInspector prepared = withMerge(true).prepare(mode, true)) {
       final GenericUDAFEvaluator evaluator = prepared.evaluator();
       final ObjectInspector outputOI = prepared.outputOI();
-      return new Combiner<Object>()
+      return (param1, param2) ->
       {
-        @Override
-        public Object combine(final Object param1, final Object param2)
-        {
-          try {
-            final AggregationBuffer buffer = evaluator.getNewAggregationBuffer();
-            evaluator.merge(buffer, param1);
-            evaluator.merge(buffer, param2);
-            return ObjectInspectors.evaluate(outputOI, evaluator.evaluate(buffer));
-          }
-          catch (HiveException e) {
-            throw Throwables.propagate(e);
-          }
+        try {
+          final AggregationBuffer buffer = evaluator.getNewAggregationBuffer();
+          evaluator.merge(buffer, param1);
+          evaluator.merge(buffer, param2);
+          return ObjectInspectors.evaluate(outputOI, evaluator.evaluate(buffer));
+        }
+        catch (HiveException e) {
+          throw Throwables.propagate(e);
         }
       };
     }

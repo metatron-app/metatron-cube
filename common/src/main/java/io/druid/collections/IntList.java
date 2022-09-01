@@ -22,6 +22,8 @@ package io.druid.collections;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.primitives.Ints;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntIterators;
@@ -37,6 +39,17 @@ import java.util.stream.IntStream;
  */
 public class IntList implements Iterable<Integer>, IntConsumer
 {
+  public static <T> IntList collect(T[] sources, Predicate<T> predicate)
+  {
+    IntList ixs = new IntList();
+    for (int i = 0; i < sources.length; i++) {
+      if (predicate.apply(sources[i])) {
+        ixs.add(i);
+      }
+    }
+    return ixs;
+  }
+
   @JsonCreator
   public static IntList of(int... values)
   {

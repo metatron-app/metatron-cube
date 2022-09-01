@@ -26,7 +26,7 @@ import java.util.Objects;
 
 /**
  */
-public class SketchBinaryFn implements BinaryFn<Object[], Object[], Object[]>
+public class SketchBinaryFn implements BinaryFn.Identical<Object[]>
 {
   private final int nomEntries;
   private final SketchHandler handler;
@@ -40,6 +40,9 @@ public class SketchBinaryFn implements BinaryFn<Object[], Object[], Object[]>
   @Override
   public Object[] apply(Object[] value1, Object[] value2)
   {
+    if (value1 == null) {
+      return value2;
+    }
     if (value2 == null) {
       return value1;
     }

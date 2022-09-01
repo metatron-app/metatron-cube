@@ -52,7 +52,7 @@ public abstract class ResultMergeQueryRunner<T> extends BySegmentSkippingQueryRu
     return query.getMergeOrdering(null);
   }
 
-  protected abstract BinaryFn<T, T, T> createMergeFn(Query<T> query);
+  protected abstract BinaryFn.Identical<T> createMergeFn(Query<T> query);
 
   public static abstract class MergeAll<T> extends ResultMergeQueryRunner<T>
   {

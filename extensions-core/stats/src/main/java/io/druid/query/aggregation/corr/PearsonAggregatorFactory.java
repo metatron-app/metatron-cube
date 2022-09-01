@@ -28,8 +28,10 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.SQLSupport;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -43,7 +45,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("pearson")
-public class PearsonAggregatorFactory extends AggregatorFactory implements AggregatorFactory.SQLSupport
+public class PearsonAggregatorFactory extends AggregatorFactory implements SQLSupport
 {
   protected static final byte CACHE_TYPE_ID = 21;
 
@@ -183,17 +185,9 @@ public class PearsonAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical<PearsonAggregatorCollector> combiner()
   {
-    return new Combiner()
-    {
-      @Override
-      public Object combine(Object param1, Object param2)
-      {
-        return PearsonAggregatorCollector.combineValues(param1, param2);
-      }
-    };
+    return (param1, param2) -> PearsonAggregatorCollector.combineValues(param1, param2);
   }
 
   @Override

@@ -74,15 +74,11 @@ public class CovarianceAggregatorCollector
     }
   };
 
-  static CovarianceAggregatorCollector combineValues(Object lhs, Object rhs)
+  static CovarianceAggregatorCollector combineValues(
+      final CovarianceAggregatorCollector holder1,
+      final CovarianceAggregatorCollector holder2
+  )
   {
-    final CovarianceAggregatorCollector holder1 = (CovarianceAggregatorCollector) lhs;
-    final CovarianceAggregatorCollector holder2 = (CovarianceAggregatorCollector) rhs;
-
-    if (holder2 == null || holder2.count == 0) {
-      return holder1;
-    }
-
     if (holder1.count == 0) {
       holder1.count = holder2.count;
       holder1.xavg = holder2.xavg;

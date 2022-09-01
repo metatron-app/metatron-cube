@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.math.expr.Parser;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -92,17 +93,9 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<Number> combiner()
+  public BinaryFn.Identical<Number> combiner()
   {
-    return new Combiner.Abstract<Number>()
-    {
-      @Override
-      protected Number _combine(Number param1, Number param2)
-      {
-        return Math.min(param1.doubleValue(), param2.doubleValue());
-      }
-    };
+    return (param1, param2) -> Math.min(param1.doubleValue(), param2.doubleValue());
   }
 
   @Override

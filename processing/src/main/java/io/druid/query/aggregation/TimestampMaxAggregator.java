@@ -46,12 +46,6 @@ public class TimestampMaxAggregator implements Aggregator.FromMutableLong
   }
 
   @Override
-  public Long get(MutableLong current)
-  {
-    return current == null ? null : current.longValue();
-  }
-
-  @Override
   public MutableLong aggregate(MutableLong current)
   {
     final Object o = selector.get();

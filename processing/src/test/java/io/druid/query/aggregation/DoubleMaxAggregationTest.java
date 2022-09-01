@@ -87,7 +87,7 @@ public class DoubleMaxAggregationTest
   @Test
   public void testCombine()
   {
-    Assert.assertEquals(3.4d, doubleMaxAggFactory.combiner().combine(1.2, 3.4).doubleValue(), 0.0001);
+    Assert.assertEquals(3.4d, ((Double)doubleMaxAggFactory.combiner().apply(1.2, 3.4)).doubleValue(), 0.0001);
   }
 
   @Test

@@ -20,7 +20,7 @@
 package io.druid.query.aggregation;
 
 import io.druid.common.guava.Comparators;
-import io.druid.query.aggregation.AggregatorFactory.Combiner;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -37,14 +37,7 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
       (o1, o2) -> Double.compare(((Number) o1).doubleValue(), ((Number) o2).doubleValue())
   );
 
-  static final Combiner<Number> COMBINER = new Combiner.Abstract<Number>()
-  {
-    @Override
-    protected Number _combine(Number param1, Number param2)
-    {
-      return param1.doubleValue() + param2.doubleValue();
-    }
-  };
+  static final BinaryFn.Identical<Number> COMBINER = (param1, param2) -> param1.doubleValue() + param2.doubleValue();
 
   @Override
   public Double get(MutableDouble current)

@@ -33,8 +33,11 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
+import io.druid.query.aggregation.AggregatorFactory.TypeResolving;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -58,8 +61,7 @@ import java.util.List;
 import java.util.Objects;
 
 @JsonTypeName("sketch")
-public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolving
-    implements AggregatorFactory.CubeSupport
+public class GenericSketchAggregatorFactory extends TypeResolving implements CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 24;
 
@@ -449,26 +451,22 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
 
   @Override
   @SuppressWarnings("unchecked")
-  public Combiner<TypedSketch> combiner()
+  public BinaryFn.Identical<TypedSketch> combiner()
   {
-    return new Combiner<TypedSketch>()
+    return (param1, param2) ->
     {
-      @Override
-      public TypedSketch combine(TypedSketch param1, TypedSketch param2)
-      {
-        Preconditions.checkArgument(
-            param1.type().equals(param2.type()),
-            "Type mismatch.. %s with %s", param1.type(), param2.type()
-        );
-        // hack to get consistent sketch from cached segment
-        ItemsSketch.rand.setSeed(0);
+      Preconditions.checkArgument(
+          param1.type().equals(param2.type()),
+          "Type mismatch.. %s with %s", param1.type(), param2.type()
+      );
+      // hack to get consistent sketch from cached segment
+      ItemsSketch.rand.setSeed(0);
 //    ItemsSketch.rand.get().setSeed(0);    // pending PR (https://github.com/DataSketches/sketches-core/pull/190)
-        SketchHandler<?> handler = sketchOp.handler();
-        TypedSketch union = handler.newUnion(sketchParam, param1.type(), sourceComparator());
-        handler.updateWithSketch(union, param1.value());
-        handler.updateWithSketch(union, param2.value());
-        return handler.toSketch(union);
-      }
+      SketchHandler<?> handler = sketchOp.handler();
+      TypedSketch union = handler.newUnion(sketchParam, param1.type(), sourceComparator());
+      handler.updateWithSketch(union, param1.value());
+      handler.updateWithSketch(union, param2.value());
+      return handler.toSketch(union);
     };
   }
 

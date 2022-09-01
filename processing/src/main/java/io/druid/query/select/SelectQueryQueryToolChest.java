@@ -121,7 +121,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       }
 
       @Override
-      protected BinaryFn<Result<SelectResultValue>, Result<SelectResultValue>, Result<SelectResultValue>> createMergeFn(
+      protected BinaryFn.Identical<Result<SelectResultValue>> createMergeFn(
           Query<Result<SelectResultValue>> input
       )
       {

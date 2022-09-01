@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
@@ -289,29 +290,19 @@ public class ListAggregatorFactory extends AggregatorFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public Combiner<List> combiner()
+  public BinaryFn.Identical<List> combiner()
   {
-    return new Combiner<List>()
-    {
-      @Override
-      public List combine(List param1, List param2)
-      {
-        if (param1 == null) {
-          return param2;
-        }
-        if (param2 == null) {
-          return param1;
-        }
-        if (dedup) {
-          Set set = Sets.newHashSet();
-          set.addAll(param1);
-          set.addAll(param2);
-          return finalizeCollection(set);
-        } else {
-          param1.addAll(param2);
-          return finalizeCollection(param1);
-        }
-      }
+    if (dedup) {
+      return (param1, param2) -> {
+        Set set = Sets.newHashSet();
+        set.addAll(param1);
+        set.addAll(param2);
+        return finalizeCollection(set);
+      };
+    }
+    return (param1, param2) -> {
+      param1.addAll(param2);
+      return finalizeCollection(param1);
     };
   }
 

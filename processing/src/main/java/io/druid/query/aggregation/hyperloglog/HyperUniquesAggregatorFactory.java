@@ -27,8 +27,10 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -42,7 +44,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("hyperUnique")
-public class HyperUniquesAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class HyperUniquesAggregatorFactory extends AggregatorFactory implements CubeSupport
 {
   public static AggregatorFactory of(String name, String fieldName) {
     return new HyperUniquesAggregatorFactory(name, fieldName, null, true, 0);
@@ -51,6 +53,9 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   {
     if (object == null) {
       return round ? 0L : 0D;
+    }
+    if (object instanceof Number) {
+      return round ? ((Number) object).longValue() : ((Number) object).doubleValue();
     }
 
     final HyperLogLogCollector collector = (HyperLogLogCollector) object;
@@ -141,17 +146,9 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public BinaryFn.Identical<HyperLogLogCollector> combiner()
   {
-    return new Combiner.Abstract<HyperLogLogCollector>()
-    {
-      @Override
-      protected final HyperLogLogCollector _combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
-      {
-        return param1.fold(param2);
-      }
-    };
+    return (param1, param2) -> param1.fold(param2);
   }
 
   @Override

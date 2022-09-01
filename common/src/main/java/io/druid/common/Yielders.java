@@ -32,7 +32,7 @@ import java.io.IOException;
  */
 public class Yielders
 {
-    public static <T> Yielder<T> each(final Sequence<T> sequence)
+  public static <T> Yielder<T> each(final Sequence<T> sequence)
   {
     return sequence.toYielder(null, new Yielders.Yielding<T>());
   }

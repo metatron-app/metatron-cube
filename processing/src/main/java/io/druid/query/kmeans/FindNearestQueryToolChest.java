@@ -65,24 +65,11 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
       }
 
       @Override
-      protected BinaryFn<CentroidDesc, CentroidDesc, CentroidDesc> createMergeFn(
+      protected BinaryFn.Identical<CentroidDesc> createMergeFn(
           Query<CentroidDesc> input
       )
       {
-        return new BinaryFn<CentroidDesc, CentroidDesc, CentroidDesc>()
-        {
-          @Override
-          public CentroidDesc apply(CentroidDesc arg1, CentroidDesc arg2)
-          {
-            if (arg1 == null) {
-              return arg2;
-            }
-            if (arg2 == null) {
-              return arg1;
-            }
-            return arg1.merge(arg2);
-          }
-        };
+        return (arg1, arg2) -> arg1 == null ? arg2 : arg2 == null ? arg1 : arg1.merge(arg2);
       }
     };
   }

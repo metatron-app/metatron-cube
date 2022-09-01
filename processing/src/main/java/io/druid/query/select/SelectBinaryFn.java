@@ -19,9 +19,9 @@
 
 package io.druid.query.select;
 
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.Result;
 import org.joda.time.DateTime;
 
@@ -29,8 +29,7 @@ import java.util.List;
 
 /**
  */
-public class SelectBinaryFn
-    implements BinaryFn<Result<SelectResultValue>, Result<SelectResultValue>, Result<SelectResultValue>>
+public class SelectBinaryFn implements BinaryFn.Identical<Result<SelectResultValue>>
 {
   private final Granularity gran;
   private final PagingSpec pagingSpec;

@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -105,23 +106,9 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<Number> combiner()
+  public BinaryFn.Identical<Number> combiner()
   {
-    return new Combiner<Number>()
-    {
-      @Override
-      public Number combine(Number param1, Number param2)
-      {
-        if (param1 == null) {
-          return param2;
-        }
-        if (param2 == null) {
-          return param1;
-        }
-        return param1.longValue() + param2.longValue();
-      }
-    };
+    return (param1, param2) -> param1.longValue() + param2.longValue();
   }
 
   @Override

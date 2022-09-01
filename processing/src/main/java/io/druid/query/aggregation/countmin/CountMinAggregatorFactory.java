@@ -28,6 +28,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
@@ -132,23 +133,9 @@ public class CountMinAggregatorFactory extends HashAggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Combiner<CountMinSketch> combiner()
+  public BinaryFn.Identical<CountMinSketch> combiner()
   {
-    return new Combiner<CountMinSketch>()
-    {
-      @Override
-      public CountMinSketch combine(CountMinSketch param1, CountMinSketch param2)
-      {
-        if (param1 == null) {
-          return param2;
-        }
-        if (param2 == null) {
-          return param1;
-        }
-        return param1.merge(param2);
-      }
-    };
+    return (p1, p2) -> p1.merge(p2);
   }
 
   @Override
