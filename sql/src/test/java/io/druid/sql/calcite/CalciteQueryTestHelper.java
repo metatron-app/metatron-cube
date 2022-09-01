@@ -398,7 +398,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     String explain = null;
     if (withExplain) {
       try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {
-        PlannerResult plan = planner.plan("EXPLAIN PLAN FOR " + sql, null);
+        PlannerResult plan = planner.plan("EXPLAIN PLAN WITH TYPE FOR " + sql, null);
         explain = Objects.toString(Sequences.only(plan.run(parameters))[0], null);
       }
     }

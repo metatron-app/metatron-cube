@@ -202,7 +202,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     );
 
     if (source.getKind() == SqlKind.EXPLAIN) {
-      return handleExplain(druidRel, (SqlExplain) source);
+      return handleExplain(root.rel, druidRel, (SqlExplain) source);
     } else if (source.getKind() == SqlKind.CREATE_TABLE) {
       return handleCTAS(Utils.getFieldNames(root), druidRel, (SqlCreateTable) source);
     } else if (source instanceof SqlInsertDirectory) {
@@ -270,7 +270,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     }
   }
 
-  private PlannerResult handleExplain(final RelNode rel, final SqlExplain explain)
+  private PlannerResult handleExplain(final RelNode source, final RelNode rel, final SqlExplain explain)
   {
     final String explanation;
     if (explain.withImplementation() && rel instanceof DruidRel) {
@@ -282,8 +282,10 @@ public class DruidPlanner implements Closeable, ForwardConstants
       catch (JsonProcessingException e) {
         throw QueryException.wrapIfNeeded(e);
       }
-    } else {
+    } else if (explain.withType()) {
       explanation = RelOptUtil.dumpPlan("", rel, explain.getFormat(), explain.getDetailLevel());
+    } else {
+      explanation = RelOptUtil.dumpPlan("", source, explain.getFormat(), explain.getDetailLevel());
     }
     final RelDataTypeFactory typeFactory = rel.getCluster().getTypeFactory();
     final RelDataType resultType = typeFactory.createStructType(

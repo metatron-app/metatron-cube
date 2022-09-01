@@ -346,7 +346,7 @@ public class SqlResourceTest extends CalciteTestBase
   {
     Map<String, Object> queryContext = ImmutableMap.of(Query.QUERYID, DUMMY_QUERY_ID);
     final List<Map<String, Object>> rows = doPost(
-        new SqlQuery("EXPLAIN PLAN FOR SELECT COUNT(*) AS cnt FROM druid.foo", ResultFormat.OBJECT.INSTANCE, false, queryContext)
+        new SqlQuery("EXPLAIN PLAN WITH TYPE FOR SELECT COUNT(*) AS cnt FROM druid.foo", ResultFormat.OBJECT.INSTANCE, false, queryContext)
     ).rhs;
 
     Assert.assertEquals(

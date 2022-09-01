@@ -286,7 +286,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainSelectConstantExpression() throws Exception
   {
     testQuery(
-        "EXPLAIN PLAN FOR SELECT 1 + 1",
+        "EXPLAIN PLAN WITH TYPE FOR SELECT 1 + 1",
         new Object[]{"DruidValuesRel\n"}
     );
   }
@@ -436,14 +436,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "  DruidValuesRel(table=[INFORMATION_SCHEMA.COLUMNS])\n"
     };
     testQuery(
-        "EXPLAIN PLAN FOR\n"
+        "EXPLAIN PLAN WITH TYPE FOR\n"
         + "SELECT COLUMN_NAME, DATA_TYPE\n"
         + "FROM INFORMATION_SCHEMA.COLUMNS\n"
         + "WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME = 'foo'",
         explanation
     );
     testQuery(
-        "EXPLAIN PLAN FOR\n"
+        "EXPLAIN PLAN WITH TYPE FOR\n"
         + "SELECT COLUMN_NAME, DATA_TYPE\n"
         + "FROM INFORMATION_SCHEMA.COLUMNS\n"
         + "WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME LIKE 'foo%'",
@@ -459,7 +459,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "  DruidValuesRel(table=[INFORMATION_SCHEMA.COLUMNS])\n";
 
     testQuery(
-        "EXPLAIN PLAN FOR\n"
+        "EXPLAIN PLAN WITH TYPE FOR\n"
         + "SELECT COLUMN_NAME, DATA_TYPE\n"
         + "FROM INFORMATION_SCHEMA.COLUMNS\n"
         + "ORDER BY COLUMN_NAME",
@@ -526,7 +526,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainSelectStar() throws Exception
   {
     testQuery(
-        "EXPLAIN PLAN FOR SELECT * FROM druid.foo",
+        "EXPLAIN PLAN WITH TYPE FOR SELECT * FROM druid.foo",
         new Object[]{
             "DruidQueryRel(table=[druid.foo])\n"
         }
@@ -1677,7 +1677,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "EXPR$0=[COUNT()])\n";
 
     testQuery(
-        "EXPLAIN PLAN FOR SELECT COUNT(*) FROM aview WHERE dim1_firstchar <> 'z'",
+        "EXPLAIN PLAN WITH TYPE FOR SELECT COUNT(*) FROM aview WHERE dim1_firstchar <> 'z'",
         new Object[]{explanation}
     );
 
@@ -3157,7 +3157,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "  DruidQueryRel(table=[druid.foo], scanProject=[$2, $3], group=[{1}], cnt=[COUNT()], aggregateProject=[$1])\n";
 
     testQuery(
-        "EXPLAIN PLAN FOR SELECT SUM(cnt), COUNT(*) FROM (\n"
+        "EXPLAIN PLAN WITH TYPE FOR SELECT SUM(cnt), COUNT(*) FROM (\n"
         + "  SELECT dim2, SUM(t1.cnt) cnt FROM (\n"
         + "    SELECT\n"
         + "      dim1,\n"
@@ -3606,7 +3606,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
 
     testQuery(
         PLANNER_CONFIG_DEFAULT,
-        "EXPLAIN PLAN FOR SELECT COUNT(*)\n"
+        "EXPLAIN PLAN WITH TYPE FOR SELECT COUNT(*)\n"
         + "FROM (\n"
         + "  SELECT DISTINCT dim2\n"
         + "  FROM druid.foo\n"
