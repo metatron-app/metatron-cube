@@ -312,7 +312,10 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
                 .itemIf("outputColumns", StringUtils.join(outputColumns, ", "), outputColumns != null);
   }
 
-  private static final double BLOOM_FILTER_REDUCTION = 0.8;
+  private static final double JOIN_MULTIPLIER = 3.0;
+
+  private static final double BLOOM_FILTER_REDUCTION = 0.66;
+  private static final double HASH_JOIN_REDUCTION = 0.33;
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
@@ -328,11 +331,17 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
     if (rm.right.isInfinite()) {
       return rm.right;
     }
-    final double lc = lm.right.getRows() + 1;
-    final double rc = rm.right.getRows() + 1;
+
+    final double lrow = lm.right.getRows();
+    final double rrow = rm.right.getRows();
+
+    double lc = lrow + 2;
+    double rc = rrow + 2;
+
+    boolean crossJoin = leftExpressions.isEmpty();
 
     double estimate;
-    if (leftExpressions.isEmpty()) {
+    if (crossJoin) {
       estimate = lc * rc;
     } else if (joinType == JoinRelType.LEFT) {
       estimate = lc;
@@ -343,17 +352,32 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
     } else {
       // prefer larger difference
       estimate = Math.min(Math.max(lc, rc), Math.min(lc, rc) * 4) * Math.pow(0.6, leftExpressions.size());
-      if (lm.left.hasFilter() && rm.right instanceof DruidQueryRel ||
-          rm.left.hasFilter() && lm.right instanceof DruidQueryRel) {
-        estimate *= BLOOM_FILTER_REDUCTION;
+    }
+
+    if (!crossJoin) {
+      if (joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT) {
+        if (lm.left.hasFilter() && rm.right instanceof DruidQueryRel) {
+          rc *= BLOOM_FILTER_REDUCTION;
+        }
+        if (lc > rc * 10) {
+          rc *= HASH_JOIN_REDUCTION;
+        }
+      }
+      if (joinType == JoinRelType.INNER || joinType == JoinRelType.RIGHT) {
+        if (rm.left.hasFilter() && lm.right instanceof DruidQueryRel) {
+          lc *= BLOOM_FILTER_REDUCTION;
+        }
+        if (rc > lc * 10) {
+          lc *= HASH_JOIN_REDUCTION;
+        }
       }
     }
+    double cost = (crossJoin ? lc * rc : lc + rc) * JOIN_MULTIPLIER;
     if (lc > rc) {
-      estimate *= 0.999; // for deterministic plan
+      cost *= 0.999; // for deterministic plan
     }
-//    if (Iterables.getFirst(visited, null) == this) {
-//      System.out.println(String.format("> %s + %s : %f + %f => %f", lm.left.getDataSource(), rm.left.getDataSource(), lc, rc, estimate));
-//    }
-    return planner.getCostFactory().makeCost(estimate, 0, 0);
+//    String n = crossJoin ? "CROSS" : joinType.name();
+//    System.out.printf(">>>:%s %s + %s => %.2f (%.2f + %.2f = %.2f)%n", n, lm.left.getDataSource(), rm.left.getDataSource(), cost, lrow, rrow, estimate);
+    return planner.getCostFactory().makeCost(estimate, cost, 0);
   }
 }

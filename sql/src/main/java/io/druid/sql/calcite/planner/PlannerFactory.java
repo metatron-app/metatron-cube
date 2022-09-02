@@ -29,6 +29,7 @@ import io.druid.server.QueryManager;
 import io.druid.server.security.AuthenticationResult;
 import io.druid.server.security.AuthorizerMapper;
 import io.druid.sql.calcite.rel.QueryMaker;
+import io.druid.sql.calcite.rule.DruidCost;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.parser.impl.SqlParserImpl;
@@ -131,6 +132,7 @@ public class PlannerFactory
     final FrameworkConfig frameworkConfig = Frameworks
         .newConfigBuilder()
         .parserConfig(PARSER_CONFIG)
+        .costFactory(DruidCost.FACTORY)
         .traitDefs(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE)
         .convertletTable(new DruidConvertletTable(plannerContext))
         .operatorTable(operatorTable)

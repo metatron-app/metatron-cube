@@ -32,6 +32,7 @@ import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
@@ -42,6 +43,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -226,7 +228,20 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
-    return planner.getCostFactory().makeCost(rels.stream().mapToDouble(mq::getRowCount).sum(), 0, 0);
+    if (!visited.add(this)) {
+      return planner.getCostFactory().makeInfiniteCost();
+    }
+    double rowCount = 0;
+    double cpu = 0;
+    for (RelNode sourceRel : rels) {
+      final Pair<DruidRel, RelOptCost> m = Utils.getMinimumCost(sourceRel, planner, mq, visited);
+      if (m.right == null || m.right.isInfinite()) {
+        return planner.getCostFactory().makeInfiniteCost();
+      }
+      rowCount += m.right.getRows();
+      cpu += m.right.getCpu();
+    }
+    return planner.getCostFactory().makeCost(rowCount, cpu, 0);
   }
 
   public int getLimit()

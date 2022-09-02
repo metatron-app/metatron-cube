@@ -97,9 +97,9 @@ public class DruidValuesRel extends DruidRel
   {
     if (source != leaf) {
       // filterable or projectable
-      return planner.getCostFactory().makeCost(0.000001, 0, 0);
+      return planner.getCostFactory().makeCost(1, 0.000001, 0);
     } else {
-      return planner.getCostFactory().makeCost(0.0001, 0, 0);
+      return planner.getCostFactory().makeCost(1, 0.0001, 0);
     }
   }
 

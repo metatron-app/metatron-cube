@@ -881,11 +881,18 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
     JoinQuery that = (JoinQuery) o;
 
-    if (!Objects.equals(dataSources, that.dataSources)) {
-      return false;
-    }
     if (!Objects.equals(elements, that.elements)) {
       return false;
+    }
+    String left = elements.get(0).getLeftAlias();
+    if (!Objects.equals(dataSources.get(left), that.dataSources.get(left))) {
+      return false;
+    }
+    for (int i = 0; i < elements.size(); i++) {
+      String right = elements.get(i).getRightAlias();
+      if (!Objects.equals(dataSources.get(right), that.dataSources.get(right))) {
+        return false;
+      }
     }
     if (prefixAlias != that.prefixAlias) {
       return false;

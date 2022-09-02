@@ -160,6 +160,9 @@ public class DruidQueryRel extends DruidRel
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
-    return planner.getCostFactory().makeCost(partialQuery.cost(druidTable), 1, 0);
+    double row = druidTable.getStatistic().getRowCount();
+    RelOptCost cost = partialQuery.cost(druidTable, planner.getCostFactory());
+//    System.out.printf("--> %s (%.2f) => %.2f (%.2f) : (%s)%n", druidTable.getDataSource(), row, cost.getCpu(), cost.getRows(), partialQuery);
+    return cost;
   }
 }

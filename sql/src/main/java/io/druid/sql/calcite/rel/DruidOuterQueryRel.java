@@ -214,10 +214,8 @@ public class DruidOuterQueryRel extends DruidRel
       return m.right;
     }
     final double count = m.right.getRows();
-    final double estimate = partialQuery.cost(count);
-//    if (Iterables.getFirst(visited, null) == this) {
-//      System.out.println(String.format("> %s : %f => %f", m.left.getDataSourceNames(), count, estimate));
-//    }
-    return planner.getCostFactory().makeCost(estimate, 0, 0);
+    final RelOptCost estimate = partialQuery.cost(count * 1.1, planner.getCostFactory());
+//    System.out.printf(">>> %s (%.2f) => %.2f (%.2f) : (%s)%n", m.left.getDataSource(), count, estimate.getCpu(), estimate.getRows(), partialQuery);
+    return estimate;
   }
 }

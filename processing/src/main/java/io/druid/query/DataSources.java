@@ -142,7 +142,7 @@ public class DataSources
       }
       if (query instanceof Query.LastProjectionSupport) {
         return QueryDataSource.of(
-            ((Query.LastProjectionSupport) query).withOutputColumns(projection),
+            ((Query.LastProjectionSupport<?>) query).withOutputColumns(projection),
             schema == null ? null : schema.retain(projection)
         );
       }
@@ -291,5 +291,11 @@ public class DataSources
       return ((ViewDataSource) dataSource).getColumns();
     }
     return null;
+  }
+
+  public static String getMetricName(DataSource dataSource)
+  {
+    final List<String> names = dataSource.getNames();
+    return names.size() == 1 ? names.get(0) : names.toString();
   }
 }

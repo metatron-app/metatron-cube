@@ -1113,9 +1113,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new TopNQueryBuilder()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim1", "d0"))
-            .postAggregators(EXPR_POST_AGG("s0", "substring(d0, 1, -1)"))
+            .postAggregators(EXPR_POST_AGG("p0", "substring(d0, 1, -1)"))
             .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
-            .outputColumns("d0", "s0")
+            .outputColumns("d0", "p0")
             .threshold(10)
             .build(),
         new Object[]{"", ""},
@@ -5799,7 +5799,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         DefaultDimensionSpec.of("m2", "d1"),
                         DefaultDimensionSpec.of("dim1", "d2")
                     )
-                    .outputColumns("d0", "d1", "d2")
+                    .outputColumns("d0", "d2", "d1")
                     .build()
             )
             .dimensions(
@@ -6039,7 +6039,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           .streaming()
                       )
                       .element(JoinElement.inner("foo.v0 = foo$.d0"))
-                      .outputColumns("dim2", "d0")
+                      .outputColumns()
                       .build()
               )
               .aggregators(CountAggregatorFactory.of("a0"))

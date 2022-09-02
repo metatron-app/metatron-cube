@@ -44,7 +44,6 @@ import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -351,45 +350,36 @@ public class Utils
     return Ints.toArray(indices);
   }
 
-  public static double estimateFilteredRow(Filter filter, double numRows)
-  {
-    return filter == null ? numRows : estimateFilteredRow(filter.getCondition(), numRows);
-  }
-
-  public static double estimateFilteredRow(RexNode condition, double numRows)
+  public static double estimateFilteredRow(RexNode condition)
   {
     final double estimate;
     switch (condition.getKind()) {
       case AND:
-        estimate = ((RexCall) condition).getOperands().stream()
-                                        .mapToDouble(op -> estimateFilteredRow(op, numRows)).min().orElse(-1);
-        break;
+        return ((RexCall) condition).getOperands().stream()
+                                    .mapToDouble(op -> estimateFilteredRow(op)).min().orElse(1);
       case OR:
-        estimate = ((RexCall) condition).getOperands().stream()
-                                        .mapToDouble(op -> estimateFilteredRow(op, numRows)).sum();
-        break;
+        return Math.max(1, ((RexCall) condition).getOperands().stream()
+                                                .mapToDouble(op -> estimateFilteredRow(op)).sum());
       case NOT:
-        estimate = numRows - estimateFilteredRow(((RexCall) condition).getOperands().get(0), numRows);
-        break;
+        return 1 - estimateFilteredRow(((RexCall) condition).getOperands().get(0));
       case BETWEEN:
-        estimate = numRows * 0.4;
-        break;
+        return 0.3;
+      case GREATER_THAN:
+      case GREATER_THAN_OR_EQUAL:
+      case LESS_THAN:
+      case LESS_THAN_OR_EQUAL:
+        return 0.5;
       case EQUALS:
-        estimate = numRows * 0.05;
-        break;
+        return 0.05;
       case NOT_EQUALS:
-        estimate = numRows * 0.95;
-        break;
+        return 0.95;
       case IS_NULL:
-        estimate = numRows * 0.01;
-        break;
+        return 0.02;
       case IS_NOT_NULL:
-        estimate = numRows * 0.99;
-        break;
+        return 0.98;
       default:
-        estimate = numRows * 0.8;
+        return 0.8;
     }
-    return estimate < 0 ? 0 : Math.min(numRows, estimate);
   }
 
   public static List<RexNode> decomposeOnAnd(RexNode rexNode)

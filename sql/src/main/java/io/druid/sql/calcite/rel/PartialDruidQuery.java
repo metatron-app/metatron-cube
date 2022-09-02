@@ -28,6 +28,8 @@ import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.rel.RelCollationTraitDef;
@@ -44,6 +46,8 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexShuttle;
@@ -51,7 +55,6 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Util;
 import org.apache.commons.lang.StringUtils;
 
@@ -660,94 +663,115 @@ public class PartialDruidQuery
 
   // Factors used for computing cost (see computeSelfCost). These are intended to encourage pushing down filters
   // and limits through stacks of nested queries when possible.
-  private static final double TABLESCAN_PROJECT_BASE = 0.5;
-  private static final double SCAN_PROJECT_BASE = 0.5;
-  private static final double SCAN_PROJECT_BASE_OUTER = 0.9;
-  private static final double SCAN_FILTER_BASE = 0.5;
-  private static final double SCAN_FILTER_BASE_OUTER = 0.9;
-  private static final double TIMESERIES_MULTIPLIER = 0.2;
-  private static final double GROUPBY_MULTIPLIER = 1.6;
-  private static final double AGGR_PER_COLUMN = 0.1;
-  private static final double AGGR_PROJECT_BASE = 0.8;
-  private static final double AGGR_PROJECT_BASE_OUTER = 0.96;
-  private static final double REF_PER_COLUMN = 0.0002;
-  private static final double EXPR_PER_COLUMN = 0.04;
-  private static final double WINDOW_MULTIPLIER = 3.0;
-  private static final double SORT_MULTIPLIER = 2.0;
-  private static final double LIMIT_MULTIPLIER = 0.5;
-  private static final double HAVING_MULTIPLIER = 0.9;
+  private static final double PROJECT_BASE = 0.2;
+  private static final double PROJECT_BASE_OUTER = 0.7;
+  private static final double PROJECT_BASE_REMAIN = 0.99;
 
-  public double cost(DruidTable table)
+  private static final double AGGR_PER_COLUMN = 0.1;
+
+  private static final double WINDOW_MULTIPLIER = 3.0;
+  private static final double DIST_SORT_MULTIPLIER = 1.2;
+  private static final double SORT_MULTIPLIER = 2.0;
+
+  public RelOptCost cost(DruidTable table, RelOptCostFactory factory)
   {
-    return cost(table.getStatistic().getRowCount());
+    return cost(table.getStatistic().getRowCount(), factory);
   }
 
-  public double cost(double base)
+  public RelOptCost cost(double base, RelOptCostFactory factory)
   {
     boolean tableScan = scan instanceof TableScan;
     double numColumns = scan.getRowType().getFieldCount();
-    if (tableScan) {
-      base *= TABLESCAN_PROJECT_BASE * (1 + numColumns / 10d);   // normalize
-    }
+
+    double cost = base / 2;
+    double estimate = base;
 
     if (scanFilter != null) {
-      base = Utils.estimateFilteredRow(scanFilter.getCondition(), base);
+      RexNode condition = scanFilter.getCondition();
+      cost += estimate * rexEvalCost(condition);
+      estimate *= Utils.estimateFilteredRow(condition);
     }
 
     if (scanProject != null) {
       List<RexNode> rexNodes = scanProject.getChildExps();
-      double ratio = tableScan ? SCAN_PROJECT_BASE : SCAN_PROJECT_BASE_OUTER;
-      base *= ratio + (1 - ratio) * rexNodes.size() / numColumns;
-      base *= 1 + rexEvalCost(rexNodes, 0);
+      cost += estimate * (0.0001 + rexEvalCost(rexNodes));
+      double ratio = tableScan ? PROJECT_BASE : PROJECT_BASE_OUTER;
+      estimate *= ratio + (1 - ratio) * (rexNodes.size() / numColumns + 0.001);
       numColumns = rexNodes.size();
     }
 
     if (aggregate != null) {
-      ImmutableBitSet grouping = aggregate.getGroupSet();
-      int cardinality = grouping.cardinality();
+      int groupings = aggregate.getGroupSets().size();
+      int cardinality = aggregate.getGroupSet().cardinality();
       int aggregations = aggregate.getAggCallList().size();
-      base *= cardinality == 0 ? TIMESERIES_MULTIPLIER : Math.pow(GROUPBY_MULTIPLIER, Math.min(3, cardinality));
-      base *= (1 + AGGR_PER_COLUMN * aggregations);
-      base *= Math.max(1, aggregate.getGroupSets().size());
-      numColumns += aggregations;
+      double overhead = cardinality == 0
+                 ? aggregations * AGGR_PER_COLUMN
+                 : Math.pow(1.2, cardinality + aggregations * AGGR_PER_COLUMN) * groupings;
+      cost += estimate * overhead;
+      estimate *= cardinality == 0 ? 0.01 : Math.min(1, Math.pow(1.4, cardinality) - 1) * groupings;
+      numColumns += cardinality;
     }
 
     if (aggregateProject != null) {
       List<RexNode> rexNodes = aggregateProject.getChildExps();
-      double ratio = tableScan ? AGGR_PROJECT_BASE : AGGR_PROJECT_BASE_OUTER;
-      base *= ratio + (1 - ratio) * rexNodes.size() / numColumns;
-      base *= 1 + rexEvalCost(rexNodes, 0.01);
+      cost += estimate * (0.0001 + rexEvalCost(rexNodes));
+      estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns + 0.001);
+      numColumns = rexNodes.size();
     }
 
     if (aggregateFilter != null) {
-      base = Utils.estimateFilteredRow(aggregateFilter.getCondition(), base);
+      RexNode condition = aggregateFilter.getCondition();
+      cost += estimate * rexEvalCost(condition);
+      estimate *= Utils.estimateFilteredRow(condition);
     }
 
     if (window != null) {
-      base *= WINDOW_MULTIPLIER * window.groups.size();
+      cost += estimate * WINDOW_MULTIPLIER * window.groups.size();
     }
 
     if (sort != null) {
-      base *= SORT_MULTIPLIER;
-      if (sort.fetch != null) {
-        base *= LIMIT_MULTIPLIER;
+      cost += estimate * (tableScan && aggregate == null && window == null ? DIST_SORT_MULTIPLIER : SORT_MULTIPLIER);
+      final Integer limit = sort.fetch instanceof RexLiteral ? RexLiteral.intValue(sort.fetch) : null;
+      if (limit != null) {
+        estimate = Math.max(1, Math.min(estimate - 1, limit));
+        cost -= 0.1;
       }
     }
 
     if (sortProject != null) {
-      base *= 1 + rexEvalCost(sortProject.getChildExps(), 0);
+      List<RexNode> rexNodes = sortProject.getChildExps();
+      cost += estimate * (0.0001 + rexEvalCost(rexNodes));
+      estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns + 0.001);
     }
 
-    return base;
+    return factory.makeCost(estimate, cost, 0);
   }
 
-  private double rexEvalCost(List<RexNode> rexNodes, double base)
+  private static double rexEvalCost(List<RexNode> rexNodes)
   {
-    double ratio = base;
+    double ratio = 0;
     for (RexNode rex : rexNodes) {
-      ratio += Utils.isInputRef(rex) ? REF_PER_COLUMN : EXPR_PER_COLUMN;
+      ratio += rexEvalCost(rex);
     }
     return ratio;
+  }
+
+  private static final double REF_PER_COLUMN = 0.001;
+  private static final double EXPR_PER_COLUMN = 0.01;
+  private static final double LIKE_PER_COLUMN = 0.05;
+
+  private static double rexEvalCost(RexNode rexNode)
+  {
+    switch (rexNode.getKind()) {
+      case INPUT_REF:
+        return REF_PER_COLUMN;
+      case LIKE:
+        return LIKE_PER_COLUMN;
+      case AND: case OR:
+        return rexEvalCost(((RexCall) rexNode).getOperands());
+      default:
+        return EXPR_PER_COLUMN;
+    }
   }
 
   @Override
@@ -790,16 +814,38 @@ public class PartialDruidQuery
   @Override
   public String toString()
   {
-    return "PartialDruidQuery{" +
-           "scan=" + scan +
-           (scanFilter == null ? "" : ", scanFilter=" + scanFilter) +
-           (scanProject == null ? "" : ", scanProject=" + scanProject) +
-           (aggregate == null ? "" : ", aggregate=" + aggregate) +
-           (aggregateFilter == null ? "" : ", aggregateFilter=" + aggregateFilter) +
-           (aggregateProject == null ? "" : ", aggregateProject=" + aggregateProject) +
-           (window == null ? "" : ", window=" + window) +
-           (sort == null ? "" : ", sort=" + sort) +
-           (sortProject == null ? "" : ", sortProject=" + sortProject) +
-           '}';
+    StringBuilder builder = new StringBuilder();
+    if (scanFilter != null) {
+      builder.append("scanFilter=").append(scanFilter.getCondition());
+    }
+    if (scanProject != null) {
+      if (builder.length() > 0) builder.append(", ");
+      builder.append("scanProject=").append(scanProject.getProjects());
+    }
+    if (aggregate != null) {
+      if (builder.length() > 0) builder.append(", ");
+      builder.append("aggregate=").append(aggregate);
+    }
+    if (aggregateFilter != null) {
+      if (builder.length() > 0) builder.append(", ");
+      builder.append("aggregateFilter=").append(aggregateFilter.getCondition());
+    }
+    if (aggregateProject != null) {
+      if (builder.length() > 0) builder.append(", ");
+      builder.append("aggregateProject=").append(aggregateProject.getProjects());
+    }
+    if (window != null) {
+      if (builder.length() > 0) builder.append(", ");
+      builder.append("window=").append(window);
+    }
+    if (sort != null) {
+      if (builder.length() > 0) builder.append(", ");
+      builder.append("sort=").append(sort);
+    }
+    if (sortProject != null) {
+      if (builder.length() > 0) builder.append(", ");
+      builder.append("sortProject=").append(sortProject.getProjects());
+    }
+    return builder.toString();
   }
 }

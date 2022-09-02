@@ -57,7 +57,7 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
   @Override
   public void dataSource(QueryType query)
   {
-    builder.setDimension(DruidMetrics.DATASOURCE, DataSourceUtil.getMetricName(query.getDataSource()));
+    builder.setDimension(DruidMetrics.DATASOURCE, DataSources.getMetricName(query.getDataSource()));
   }
 
   @Override
