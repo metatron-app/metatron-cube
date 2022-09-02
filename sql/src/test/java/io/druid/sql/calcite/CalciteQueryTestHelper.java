@@ -611,6 +611,11 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     return CardinalityAggregatorFactory.dimensions(name, Arrays.asList(dimensions), GroupingSetSpec.EMPTY);
   }
 
+  protected static AggregatorFactory CARDINALITY(String name, String... fields)
+  {
+    return CardinalityAggregatorFactory.fields(name, Arrays.asList(fields), GroupingSetSpec.EMPTY);
+  }
+
   protected static AggregatorFactory HYPERUNIQUE(String name, String fieldName)
   {
     return HyperUniquesAggregatorFactory.of(name, fieldName);

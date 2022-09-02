@@ -203,7 +203,13 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
   @Override
   public String getFieldName()
   {
-    return fieldNames != null ? Iterables.getOnlyElement(fieldNames, null) : null;
+    if (fieldNames != null) {
+      return Iterables.getOnlyElement(fieldNames, null);
+    }
+    if (fields.size() == 1 && fields.get(0) instanceof DefaultDimensionSpec) {
+      return fields.get(0).getDimension();
+    }
+    return null;
   }
 
   @Override

@@ -921,7 +921,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
-            .aggregators(CARDINALITY("a0", DefaultDimensionSpec.of("m1")))
+            .aggregators(CARDINALITY("a0", "m1"))
             .havingSpec(EXPR_HAVING("(a0 > 1)"))
             .outputColumns("d0", "a0")
             .build(),
@@ -1470,8 +1470,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     testQuery(queries.get(0), new Object[] {6L, 3L});
     hook.verifyHooked(
-        "mayT7gQzfjxKVUPK53S6oQ==",
-        "TimeseriesQuery{dataSource='foo', aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}, CardinalityAggregatorFactory{name='a1', fields=[DefaultDimensionSpec{dimension='dim2', outputName='dim2'}], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[a0, a1]}"
+        "1lAQJ5+VVyCJK6ioAq5Vqw==",
+        "TimeseriesQuery{dataSource='foo', aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fieldNames=[dim1], groupingSets=Noop, byRow=true, round=true, b=11}, CardinalityAggregatorFactory{name='a1', fieldNames=[dim2], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[a0, a1]}"
     );
     testQuery(
         queries.get(1),
@@ -1483,8 +1483,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{"def", 1L, 1L}
     );
     hook.verifyHooked(
-        "i7XDgZhwwCmjqiAs1+RfIg==",
-        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}, CardinalityAggregatorFactory{name='a1', fields=[DefaultDimensionSpec{dimension='dim2', outputName='dim2'}], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[d0, a0, a1]}"
+        "tTNHO4jIZURZegMs0XhiYQ==",
+        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fieldNames=[dim1], groupingSets=Noop, byRow=true, round=true, b=11}, CardinalityAggregatorFactory{name='a1', fieldNames=[dim2], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[d0, a0, a1]}"
     );
     testQuery(queries.get(2), new Object[] {6L});
     hook.verifyHooked(
@@ -2923,7 +2923,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(
                   GenericSumAggregatorFactory.ofLong("a0", "cnt"),
-                  CARDINALITY("a1", DefaultDimensionSpec.of("dim2", null)),
+                  CARDINALITY("a1", "dim2"),
                   HYPERUNIQUE("a2", "unique_dim1")
               )
               .outputColumns("a0", "a1", "a2")
@@ -2945,11 +2945,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(
                   new FilteredAggregatorFactory(
-                      CARDINALITY("a0", DefaultDimensionSpec.of("m1")),
+                      CARDINALITY("a0", "m1"),
                       BOUND("m1", "4", null, false, false, null, StringComparators.NUMERIC_NAME)
                   ),
                   new FilteredAggregatorFactory(
-                      CARDINALITY("a1", DefaultDimensionSpec.of("dim1")),
+                      CARDINALITY("a1", "dim1"),
                       BOUND("m1", "4", null, false, false, null, StringComparators.NUMERIC_NAME)
                   ),
                   new FilteredAggregatorFactory(
@@ -2997,7 +2997,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT APPROX_COUNT_DISTINCT(dim2) FROM druid.foo",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .aggregators(CARDINALITY("a0", DefaultDimensionSpec.of("dim2")))
+              .aggregators(CARDINALITY("a0", "dim2"))
               .outputColumns("a0")
               .build(),
         new Object[]{3L}
@@ -3056,9 +3056,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               )
               .aggregators(
                   GenericSumAggregatorFactory.ofLong("a0", "cnt"),
-                  CARDINALITY("a1", DefaultDimensionSpec.of("dim2", "dim2")),
+                  CARDINALITY("a1", "dim2"),
                   new FilteredAggregatorFactory(
-                      CARDINALITY("a2", DefaultDimensionSpec.of("dim2", "dim2")),
+                      CARDINALITY("a2", "dim2"),
                       NOT(SELECTOR("dim2", ""))
                   ),
                   CARDINALITY("a3", EXTRACT_SUBSTRING("dim2", "dim2", 0, 1)),
@@ -3259,7 +3259,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   Druids.newTimeseriesQueryBuilder()
                         .dataSource(CalciteTests.DATASOURCE1)
                         .granularity(Granularities.DAY)
-                        .aggregators(CARDINALITY("a0:a", DefaultDimensionSpec.of("cnt")))
+                        .aggregators(CARDINALITY("a0:a", "cnt"))
                         .postAggregators(
                             EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')"),
                             new HyperUniqueFinalizingPostAggregator("a0", "a0:a", true)
@@ -3729,7 +3729,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               )
               .aggregators(
                   CountAggregatorFactory.of("a0"),
-                  CARDINALITY("a1", DefaultDimensionSpec.of("d0", null))
+                  CARDINALITY("a1", "d0")
               )
               .postAggregators(EXPR_POST_AGG("p0", "((1F - (a1 / a0)) * 100)"))
               .outputColumns("a0", "a1", "p0")
@@ -3812,7 +3812,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(
                   GenericSumAggregatorFactory.ofLong("a0", "cnt"),
-                  CARDINALITY("a1", DefaultDimensionSpec.of("dim2", null))
+                  CARDINALITY("a1", "dim2")
               )
               .postAggregators(
                   EXPR_POST_AGG("p0", "CAST(a1, 'FLOAT')"),
@@ -5579,7 +5579,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 .build()
         )
         .granularity(Granularities.MONTH)
-        .aggregators(CARDINALITY("a0", DefaultDimensionSpec.of("dim1")))
+        .aggregators(CARDINALITY("a0", "dim1"))
         .postAggregators(EXPR_POST_AGG("d0", "timestamp_extract('MONTH',__time,'UTC')"))
         .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
         .outputColumns("a0", "d0")
@@ -5592,9 +5592,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{1L, 1L}
     );
     hook.verifyHooked(
-        "02yK5ZZzc0X2/uOqkqDNAA==",
+        "GOnSnpM/3R+52nr099bcTw==",
         "TimeseriesQuery{dataSource='foo', filter=dim1=='def', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
-        "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}, GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', outputColumns=[d0], $hash=true}], timeColumnName=__time}'PeriodGranularity{period=P1M, timeZone=UTC}, limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_extract('MONTH',__time,'UTC')', finalize=true}], outputColumns=[a0, d0]}",
+        "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}, GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', outputColumns=[d0], $hash=true}], timeColumnName=__time}'PeriodGranularity{period=P1M, timeZone=UTC}, limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fieldNames=[dim1], groupingSets=Noop, byRow=true, round=true, b=11}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_extract('MONTH',__time,'UTC')', finalize=true}], outputColumns=[a0, d0]}",
         "StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}",
         "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', outputColumns=[d0], $hash=true}"
     );
@@ -5607,10 +5607,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{1L, 1L}
     );
     hook.verifyHooked(
-        "sk0oZqKCT/ig2AqFnT/2aw==",
+        "TZeR0m29PZtpwynRHqgi+A==",
         "TimeseriesQuery{dataSource='foo', filter=dim1=='def', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
         "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', outputColumns=[d0]}",
-        "TimeseriesQuery{dataSource='StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[__time, dim1]}'PeriodGranularity{period=P1M, timeZone=UTC}, limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_extract('MONTH',__time,'UTC')', finalize=true}], outputColumns=[a0, d0]}",
+        "TimeseriesQuery{dataSource='StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[__time, dim1]}'PeriodGranularity{period=P1M, timeZone=UTC}, limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fieldNames=[dim1], groupingSets=Noop, byRow=true, round=true, b=11}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_extract('MONTH',__time,'UTC')', finalize=true}], outputColumns=[a0, d0]}",
         "StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[__time, dim1]}"
     );
   }

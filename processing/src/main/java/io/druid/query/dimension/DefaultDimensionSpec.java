@@ -28,6 +28,7 @@ import io.druid.common.KeyBuilder;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
@@ -142,17 +143,18 @@ public class DefaultDimensionSpec implements DimensionSpec
 
     DefaultDimensionSpec that = (DefaultDimensionSpec) o;
 
-    if (dimension != null ? !dimension.equals(that.dimension) : that.dimension != null) return false;
-    if (outputName != null ? !outputName.equals(that.outputName) : that.outputName != null) return false;
-
+    if (!Objects.equals(dimension, that.dimension)) {
+      return false;
+    }
+    if (!Objects.equals(outputName, that.outputName)) {
+      return false;
+    }
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    int result = dimension != null ? dimension.hashCode() : 0;
-    result = 31 * result + (outputName != null ? outputName.hashCode() : 0);
-    return result;
+    return Objects.hash(dimension, outputName);
   }
 }

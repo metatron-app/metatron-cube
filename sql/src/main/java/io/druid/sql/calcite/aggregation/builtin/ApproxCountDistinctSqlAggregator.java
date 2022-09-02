@@ -19,6 +19,8 @@
 
 package io.druid.sql.calcite.aggregation.builtin;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -95,10 +97,11 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     if (args.size() == 1 && first.isDirectColumnAccess() &&
         HyperLogLogCollector.HLL_TYPE.equals(rowSignature.resolve(first.getDirectColumn()))) {
       factory = HyperUniquesAggregatorFactory.of(aggregatorName, first.getDirectColumn());
+    } else if (Iterables.all(args, DruidExpression::isDirectColumnAccess)) {
+      List<String> fields = ImmutableList.copyOf(Iterables.transform(args, DruidExpression::getDirectColumn));
+      factory = CardinalityAggregatorFactory.fields(aggregatorName, fields, GroupingSetSpec.EMPTY);
     } else {
-
-      final List<DimensionSpec> dimensions = Lists.newArrayListWithCapacity(args.size());
-
+      List<DimensionSpec> dimensions = Lists.newArrayListWithCapacity(args.size());
       for (DruidExpression arg : args) {
         if (arg.isSimpleExtraction()) {
           dimensions.add(arg.getSimpleExtraction().toDimensionSpec(null));
@@ -109,7 +112,6 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
           dimensions.add(DefaultDimensionSpec.of(vc.getOutputName()));
         }
       }
-
       factory = CardinalityAggregatorFactory.dimensions(aggregatorName, dimensions, GroupingSetSpec.EMPTY);
     }
 
