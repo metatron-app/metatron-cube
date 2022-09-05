@@ -43,6 +43,7 @@ import io.druid.data.ValueDesc;
 import io.druid.indexer.TaskStatusPlus;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.java.util.http.client.Request;
+import io.druid.java.util.http.client.response.InputStreamResponseHandler;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunners;
 import io.druid.query.jmx.JMXQuery;
@@ -180,21 +181,21 @@ public class SystemSchema extends AbstractSchema
   @Inject
   public SystemSchema(
       final TimelineServerView serverView,
-      final CoordinatorClient coordinatorDruidLeaderClient,
-      final IndexingServiceClient overlordDruidLeaderClient,
+      final CoordinatorClient coordinatorClient,
+      final IndexingServiceClient overlordClient,
       final DruidOperatorTable operatorTable,
       final ObjectMapper jsonMapper
   )
   {
     Preconditions.checkNotNull(serverView, "serverView");
     tableMap = ImmutableMap.<String, Table>builder()
-        .put(SEGMENTS_TABLE, new SegmentsTable(SEGMENTS_SIGNATURE, serverView, jsonMapper))
+        .put(SEGMENTS_TABLE, new SegmentsTable(SEGMENTS_SIGNATURE, serverView))
         .put(SERVERS_TABLE, new ServersTable(SERVERS_SIGNATURE, serverView))
         .put(SERVERS_EXTENDED_TABLE, new ServersExtendedTable(SERVERS_EXTENDED_SIGNATURE, serverView))
         .put(SERVER_SEGMENTS_TABLE, new ServerSegmentsTable(SERVER_SEGMENTS_SIGNATURE, serverView))
-        .put(TASKS_TABLE, new TasksTable(TASKS_SIGNATURE, overlordDruidLeaderClient, new BytesAccumulatingResponseHandler(), jsonMapper))
-        .put(LOCKS_TABLE, new LocksTable(LOCKS_SIGNATURE, overlordDruidLeaderClient, jsonMapper))
-        .put(FUNCTIONS_TABLE, new FunctionsTable(FUNCTIONS_SIGNATURE, operatorTable, jsonMapper))
+        .put(TASKS_TABLE, new TasksTable(TASKS_SIGNATURE, overlordClient, jsonMapper))
+        .put(LOCKS_TABLE, new LocksTable(LOCKS_SIGNATURE, overlordClient))
+        .put(FUNCTIONS_TABLE, new FunctionsTable(FUNCTIONS_SIGNATURE, operatorTable))
         .build();
   }
 
@@ -226,13 +227,11 @@ public class SystemSchema extends AbstractSchema
   static class SegmentsTable extends SystemTable implements FilterableTable
   {
     private final TimelineServerView serverView;
-    private final ObjectMapper jsonMapper;
 
-    public SegmentsTable(RowSignature signature, TimelineServerView serverView, ObjectMapper jsonMapper)
+    public SegmentsTable(RowSignature signature, TimelineServerView serverView)
     {
       super(signature);
       this.serverView = serverView;
-      this.jsonMapper = jsonMapper;
     }
 
     @Override
@@ -326,8 +325,8 @@ public class SystemSchema extends AbstractSchema
           server -> new Object[]{
               server.getHost(),
               extractHost(server.getHost()),
-              (long) extractPort(server.getHostAndPort()),
-              (long) extractPort(server.getHostAndTlsPort()),
+              extractPort(server.getHostAndPort()),
+              extractPort(server.getHostAndTlsPort()),
               Objects.toString(server.getType(), null),
               server.getTier(),
               server.getCurrSize(),
@@ -375,8 +374,8 @@ public class SystemSchema extends AbstractSchema
             return new Object[]{
                 server.getHost(),
                 extractHost(server.getHost()),
-                (long) extractPort(server.getHostAndPort()),
-                (long) extractPort(server.getHostAndTlsPort()),
+                extractPort(server.getHostAndPort()),
+                extractPort(server.getHostAndTlsPort()),
                 Objects.toString(server.getType(), null),
                 server.getTier(),
                 server.getCurrSize(),
@@ -453,21 +452,26 @@ public class SystemSchema extends AbstractSchema
 
   static class TasksTable extends SystemTable
   {
-    private final IndexingServiceClient druidLeaderClient;
+    private final IndexingServiceClient overlordClient;
     private final ObjectMapper jsonMapper;
-    private final BytesAccumulatingResponseHandler responseHandler;
+    private final InputStreamResponseHandler responseHandler;
 
     public TasksTable(
         RowSignature signature,
-        IndexingServiceClient druidLeaderClient,
-        BytesAccumulatingResponseHandler responseHandler,
+        IndexingServiceClient overlordClient,
+        InputStreamResponseHandler responseHandler,
         ObjectMapper jsonMapper
     )
     {
       super(signature);
-      this.druidLeaderClient = druidLeaderClient;
+      this.overlordClient = overlordClient;
       this.responseHandler = responseHandler;
       this.jsonMapper = jsonMapper;
+    }
+
+    public TasksTable(RowSignature tasksSignature, IndexingServiceClient overlordClient, ObjectMapper jsonMapper)
+    {
+      this(tasksSignature, overlordClient, new BytesAccumulatingResponseHandler(), jsonMapper);
     }
 
     @Override
@@ -571,7 +575,7 @@ public class SystemSchema extends AbstractSchema
         }
       }
 
-      return new TasksEnumerable(getTasks(druidLeaderClient, jsonMapper, responseHandler));
+      return new TasksEnumerable(getTasks(overlordClient, jsonMapper, responseHandler));
     }
 
     private CloseableIterator<TaskStatusPlus> getAuthorizedTasks(
@@ -587,7 +591,7 @@ public class SystemSchema extends AbstractSchema
   private static JsonParserIterator<TaskStatusPlus> getTasks(
       IndexingServiceClient serviceClient,
       ObjectMapper jsonMapper,
-      BytesAccumulatingResponseHandler responseHandler
+      InputStreamResponseHandler responseHandler
   )
   {
     Request request = serviceClient.makeRequest(HttpMethod.GET, StringUtils.format("/tasks"));
@@ -638,14 +642,12 @@ public class SystemSchema extends AbstractSchema
 
   static class LocksTable extends SystemTable
   {
-    private final IndexingServiceClient druidLeaderClient;
-    private final ObjectMapper jsonMapper;
+    private final IndexingServiceClient overlordClient;
 
-    public LocksTable(RowSignature signature, IndexingServiceClient druidLeaderClient, ObjectMapper jsonMapper)
+    public LocksTable(RowSignature signature, IndexingServiceClient overlordClient)
     {
       super(signature);
-      this.druidLeaderClient = druidLeaderClient;
-      this.jsonMapper = jsonMapper;
+      this.overlordClient = overlordClient;
     }
 
     @Override
@@ -653,7 +655,7 @@ public class SystemSchema extends AbstractSchema
     {
       List<String> columns = LOCKS_SIGNATURE.getColumnNames();
       List<Object[]> rows = Lists.newArrayList();
-      for (Map<String, Object> row : druidLeaderClient.execute(HttpMethod.GET, "locks/_/_", ROWS)) {
+      for (Map<String, Object> row : overlordClient.execute(HttpMethod.GET, "locks/_/_", ROWS)) {
         Object[] array = new Object[columns.size()];
         for (int i = 0; i < array.length; i++) {
           array[i] = row.get(columns.get(i));
@@ -667,13 +669,11 @@ public class SystemSchema extends AbstractSchema
   static class FunctionsTable extends SystemTable
   {
     private final DruidOperatorTable operatorTable;
-    private final ObjectMapper jsonMapper;
 
-    public FunctionsTable(RowSignature signature, DruidOperatorTable operatorTable, ObjectMapper jsonMapper)
+    public FunctionsTable(RowSignature signature, DruidOperatorTable operatorTable)
     {
       super(signature);
       this.operatorTable = operatorTable;
-      this.jsonMapper = jsonMapper;
     }
 
     @Override
@@ -704,19 +704,11 @@ public class SystemSchema extends AbstractSchema
   @Nullable
   private static String extractHost(@Nullable final String hostAndPort)
   {
-    if (hostAndPort == null) {
-      return null;
-    }
-
-    return HostAndPort.fromString(hostAndPort).getHostText();
+    return hostAndPort == null ? null : HostAndPort.fromString(hostAndPort).getHostText();
   }
 
-  private static int extractPort(@Nullable final String hostAndPort)
+  private static long extractPort(@Nullable final String hostAndPort)
   {
-    if (hostAndPort == null) {
-      return -1;
-    }
-
-    return HostAndPort.fromString(hostAndPort).getPortOrDefault(-1);
+    return hostAndPort == null ? -1 : HostAndPort.fromString(hostAndPort).getPortOrDefault(-1);
   }
 }

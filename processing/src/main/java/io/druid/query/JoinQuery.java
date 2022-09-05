@@ -130,6 +130,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
   static Map<String, DataSource> normalize(Map<String, DataSource> dataSources)
   {
+    if (!Iterables.any(dataSources.values(), d -> d instanceof TableDataSource)) {
+      return dataSources;
+    }
     Map<String, DataSource> validated = Maps.newHashMap();
     for (Map.Entry<String, DataSource> entry : dataSources.entrySet()) {
       DataSource dataSource = entry.getValue();

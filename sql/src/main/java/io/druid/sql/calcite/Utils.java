@@ -44,6 +44,7 @@ import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -53,6 +54,7 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -379,6 +381,65 @@ public class Utils
         return 0.98;
       default:
         return 0.8;
+    }
+  }
+
+  private static final double REF_PER_COLUMN = 0.001;
+  private static final double EXPR_PER_COLUMN = 0.01;
+  private static final double LIKE_PER_COLUMN = 0.05;
+
+  public static double rexEvalCost(List<RexNode> rexNodes)
+  {
+    return rexNodes.stream().mapToDouble(Utils::rexEvalCost).sum();
+  }
+
+  public static double rexEvalCost(RexNode rexNode)
+  {
+    if (rexNode instanceof RexCall) {
+      return rexEvalCost(((RexCall) rexNode).getOperands());
+    }
+    switch (rexNode.getKind()) {
+      case INPUT_REF:
+        return REF_PER_COLUMN;
+      case LIKE:
+        return LIKE_PER_COLUMN;
+      default:
+        return EXPR_PER_COLUMN;
+    }
+  }
+
+  public static double aggregationCost(List<AggregateCall> aggregations)
+  {
+    return aggregations.stream().mapToDouble(Utils::aggregationCost).sum();
+  }
+
+  public static double aggregationCost(AggregateCall aggregation)
+  {
+    if (aggregation.isDistinct()) {
+      return 0.5;
+    }
+    SqlAggFunction function = aggregation.getAggregation();
+    switch (function.getName().toLowerCase()) {
+      case "any":
+        return 0.01;
+      case "count":
+        return aggregation.getArgList().isEmpty() ? 0.02 : 0.06;
+      case "min":
+      case "max":
+      case "sum":
+      case "avg":
+        return 0.08;
+      case "firstof":
+      case "lastof":
+      case "earliest":
+      case "latest":
+      case "minof":
+      case "maxof":
+        return 0.12;
+      case "approx_count_distinct":
+        return 0.5;
+      default:
+        return 0.1;   // stats
     }
   }
 

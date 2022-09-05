@@ -64,13 +64,11 @@ import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterMergeRule;
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
-import org.apache.calcite.rel.rules.FilterTableScanRule;
 import org.apache.calcite.rel.rules.IntersectToDistinctRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
 import org.apache.calcite.rel.rules.MatchRule;
-import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
@@ -113,15 +111,15 @@ public class Rules
 //          TableScanRule.INSTANCE,
 //          CalciteSystemProperty.COMMUTE.value() ? JoinAssociateRule.INSTANCE :
           ProjectMergeRule.INSTANCE,
-          FilterTableScanRule.INSTANCE,
-          ProjectFilterTransposeRule.INSTANCE,
-          FilterProjectTransposeRule.INSTANCE,
-          FilterJoinRule.FILTER_ON_JOIN,
+//          FilterTableScanRule.INSTANCE,
+//          ProjectFilterTransposeRule.INSTANCE,
+//          FilterProjectTransposeRule.INSTANCE,
+//          FilterJoinRule.FILTER_ON_JOIN,
           JoinPushExpressionsRule.INSTANCE,
 //          AggregateExpandDistinctAggregatesRule.INSTANCE,
 //          AggregateCaseToFilterRule.INSTANCE,
 //          AggregateReduceFunctionsRule.INSTANCE,
-          FilterAggregateTransposeRule.INSTANCE,
+//          FilterAggregateTransposeRule.INSTANCE,
           ProjectWindowTransposeRule.INSTANCE,
           MatchRule.INSTANCE,
 //          JoinCommuteRule.INSTANCE,
@@ -160,8 +158,8 @@ public class Rules
   // RelOptRules.ABSTRACT_RELATIONAL_RULES
   private static final List<RelOptRule> ABSTRACT_RELATIONAL_RULES =
       ImmutableList.of(
-          FilterJoinRule.FILTER_ON_JOIN,
-          FilterJoinRule.JOIN,
+//          FilterJoinRule.FILTER_ON_JOIN,
+//          FilterJoinRule.JOIN,
           AbstractConverter.ExpandConversionRule.INSTANCE,
 //          JoinCommuteRule.INSTANCE,
 //          SemiJoinRule.PROJECT,
@@ -226,7 +224,11 @@ public class Rules
     programs.add(createHepProgram(PreFilteringRule.instance()));
 
     programs.add(createHepProgram(
-        FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE
+        FilterProjectTransposeRule.INSTANCE,
+        FilterAggregateTransposeRule.INSTANCE,
+        FilterJoinRule.FILTER_ON_JOIN,
+        FilterJoinRule.JOIN,
+        JoinPushTransitivePredicatesRule.INSTANCE
     ));
     programs.add(createHepProgram(
         new ProjectJoinTransposeRule(expr -> Utils.isInputRef(expr), RelFactories.LOGICAL_BUILDER))

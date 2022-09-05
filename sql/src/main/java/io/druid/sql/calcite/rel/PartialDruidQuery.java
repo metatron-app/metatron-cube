@@ -46,7 +46,6 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
@@ -663,15 +662,15 @@ public class PartialDruidQuery
 
   // Factors used for computing cost (see computeSelfCost). These are intended to encourage pushing down filters
   // and limits through stacks of nested queries when possible.
-  private static final double PROJECT_BASE = 0.2;
-  private static final double PROJECT_BASE_OUTER = 0.7;
-  private static final double PROJECT_BASE_REMAIN = 0.99;
+  private static final double PROJECT_BASE = 0.4;
+  private static final double PROJECT_BASE_OUTER = 0.8;
+  private static final double PROJECT_BASE_REMAIN = 0.9;
 
   private static final double AGGR_PER_COLUMN = 0.1;
 
   private static final double WINDOW_MULTIPLIER = 3.0;
   private static final double DIST_SORT_MULTIPLIER = 1.2;
-  private static final double SORT_MULTIPLIER = 2.0;
+  private static final double SORT_MULTIPLIER = 2.5;
 
   public RelOptCost cost(DruidTable table, RelOptCostFactory factory)
   {
@@ -683,18 +682,18 @@ public class PartialDruidQuery
     boolean tableScan = scan instanceof TableScan;
     double numColumns = scan.getRowType().getFieldCount();
 
-    double cost = base / 2;
+    double cost = base;
     double estimate = base;
 
     if (scanFilter != null) {
       RexNode condition = scanFilter.getCondition();
-      cost += estimate * rexEvalCost(condition);
+      cost += estimate * Utils.rexEvalCost(condition);
       estimate *= Utils.estimateFilteredRow(condition);
     }
 
     if (scanProject != null) {
       List<RexNode> rexNodes = scanProject.getChildExps();
-      cost += estimate * (0.0001 + rexEvalCost(rexNodes));
+      cost += estimate * (0.0001 + Utils.rexEvalCost(rexNodes));
       double ratio = tableScan ? PROJECT_BASE : PROJECT_BASE_OUTER;
       estimate *= ratio + (1 - ratio) * (rexNodes.size() / numColumns + 0.001);
       numColumns = rexNodes.size();
@@ -703,25 +702,22 @@ public class PartialDruidQuery
     if (aggregate != null) {
       int groupings = aggregate.getGroupSets().size();
       int cardinality = aggregate.getGroupSet().cardinality();
-      int aggregations = aggregate.getAggCallList().size();
-      double overhead = cardinality == 0
-                 ? aggregations * AGGR_PER_COLUMN
-                 : Math.pow(1.2, cardinality + aggregations * AGGR_PER_COLUMN) * groupings;
-      cost += estimate * overhead;
+      List<AggregateCall> calls = aggregate.getAggCallList();
+      cost += estimate * Math.pow(1.2, cardinality + Utils.aggregationCost(calls)) * groupings;
       estimate *= cardinality == 0 ? 0.01 : Math.min(1, Math.pow(1.4, cardinality) - 1) * groupings;
       numColumns += cardinality;
     }
 
     if (aggregateProject != null) {
       List<RexNode> rexNodes = aggregateProject.getChildExps();
-      cost += estimate * (0.0001 + rexEvalCost(rexNodes));
+      cost += estimate * (0.0001 + Utils.rexEvalCost(rexNodes));
       estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns + 0.001);
       numColumns = rexNodes.size();
     }
 
     if (aggregateFilter != null) {
       RexNode condition = aggregateFilter.getCondition();
-      cost += estimate * rexEvalCost(condition);
+      cost += estimate * Utils.rexEvalCost(condition);
       estimate *= Utils.estimateFilteredRow(condition);
     }
 
@@ -740,38 +736,11 @@ public class PartialDruidQuery
 
     if (sortProject != null) {
       List<RexNode> rexNodes = sortProject.getChildExps();
-      cost += estimate * (0.0001 + rexEvalCost(rexNodes));
+      cost += estimate * (0.0001 + Utils.rexEvalCost(rexNodes));
       estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns + 0.001);
     }
 
     return factory.makeCost(estimate, cost, 0);
-  }
-
-  private static double rexEvalCost(List<RexNode> rexNodes)
-  {
-    double ratio = 0;
-    for (RexNode rex : rexNodes) {
-      ratio += rexEvalCost(rex);
-    }
-    return ratio;
-  }
-
-  private static final double REF_PER_COLUMN = 0.001;
-  private static final double EXPR_PER_COLUMN = 0.01;
-  private static final double LIKE_PER_COLUMN = 0.05;
-
-  private static double rexEvalCost(RexNode rexNode)
-  {
-    switch (rexNode.getKind()) {
-      case INPUT_REF:
-        return REF_PER_COLUMN;
-      case LIKE:
-        return LIKE_PER_COLUMN;
-      case AND: case OR:
-        return rexEvalCost(((RexCall) rexNode).getOperands());
-      default:
-        return EXPR_PER_COLUMN;
-    }
   }
 
   @Override

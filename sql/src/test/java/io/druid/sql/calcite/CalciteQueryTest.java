@@ -1113,9 +1113,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new TopNQueryBuilder()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim1", "d0"))
-            .postAggregators(EXPR_POST_AGG("p0", "substring(d0, 1, -1)"))
+            .postAggregators(EXPR_POST_AGG("s0", "substring(d0, 1, -1)"))
             .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
-            .outputColumns("d0", "p0")
+            .outputColumns("d0", "s0")
             .threshold(10)
             .build(),
         new Object[]{"", ""},
@@ -1671,10 +1671,12 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   @Test
   public void testExplainCountStarOnView() throws Exception
   {
+    // #4103 moved some rules to hep program. so view cannot exploit them.
+    // we don't use views. who cares
     String explanation =
         "DruidQueryRel(table=[druid.foo], "
-        + "scanFilter=[AND(=($3, 'a'), <>(SUBSTRING($2, 1, 1), 'z'))], scanProject=[$2], "
-        + "EXPR$0=[COUNT()])\n";
+        + "scanFilter=[AND(=($3, 'a'), <>(SUBSTRING($2, 1, 1), 'z'))], "
+        + "scanProject=[SUBSTRING($2, 1, 1)], EXPR$0=[COUNT()])\n";
 
     testQuery(
         "EXPLAIN PLAN WITH TYPE FOR SELECT COUNT(*) FROM aview WHERE dim1_firstchar <> 'z'",

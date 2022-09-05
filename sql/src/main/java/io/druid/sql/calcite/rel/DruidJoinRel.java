@@ -312,10 +312,10 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
                 .itemIf("outputColumns", StringUtils.join(outputColumns, ", "), outputColumns != null);
   }
 
-  private static final double JOIN_MULTIPLIER = 3.0;
+  private static final double JOIN_MULTIPLIER = 4.0;
 
-  private static final double BLOOM_FILTER_REDUCTION = 0.66;
-  private static final double HASH_JOIN_REDUCTION = 0.33;
+  private static final double BLOOM_FILTER_REDUCTION = 0.7;
+  private static final double HASH_JOIN_REDUCTION = 0.2;
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
@@ -360,7 +360,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
           rc *= BLOOM_FILTER_REDUCTION;
         }
         if (lc > rc * 10) {
-          rc *= HASH_JOIN_REDUCTION;
+          lc *= HASH_JOIN_REDUCTION;
         }
       }
       if (joinType == JoinRelType.INNER || joinType == JoinRelType.RIGHT) {
@@ -368,7 +368,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
           lc *= BLOOM_FILTER_REDUCTION;
         }
         if (rc > lc * 10) {
-          lc *= HASH_JOIN_REDUCTION;
+          rc *= HASH_JOIN_REDUCTION;
         }
       }
     }
