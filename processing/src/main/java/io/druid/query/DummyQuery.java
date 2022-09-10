@@ -100,13 +100,13 @@ public class DummyQuery<T> extends BaseQuery<T> implements QueryRunner<T>
   }
 
   @Override
-  public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> responseContext)
+  public QueryRunner<T> makeQueryRunner(QuerySegmentWalker walker)
   {
     QueryRunner<T> runner = this;
     if (walker instanceof ForwardingSegmentWalker) {
       runner = ((ForwardingSegmentWalker) walker).handle(this, runner);
     }
-    return runner.run(this, responseContext);
+    return runner;
   }
 
   @Override

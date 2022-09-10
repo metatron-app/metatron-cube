@@ -1258,7 +1258,7 @@ public class Druids
 
     public JoinQueryBuilder dataSources(Map<String, DataSource> dataSources)
     {
-      this.dataSources = dataSources;
+      this.dataSources = Maps.newHashMap(dataSources);
       return this;
     }
 

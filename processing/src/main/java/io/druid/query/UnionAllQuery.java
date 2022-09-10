@@ -76,7 +76,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   @SuppressWarnings("unchecked")
   public static UnionAllQuery union(List<Query> queries, int limit, int parallelism, Map<String, Object> context)
   {
-    return new UnionAllQuery(null, queries, false, limit, -1, context != null ? context : Maps.newHashMap());
+    return new UnionAllQuery(null, queries, false, limit, parallelism, context != null ? context : Maps.newHashMap());
   }
 
   @SuppressWarnings("unchecked")

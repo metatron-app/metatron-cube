@@ -39,6 +39,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -324,7 +325,7 @@ public class JoinElement
       }
       if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
         if (DataSources.isFilterSupport(dataSource) && DataSources.isFilterableOn(dataSource, sortColumns)) {
-          query = ((Query.OrderingSupport) query).withResultOrdering(OrderByColumnSpec.ascending(sortColumns));
+          query = ((Query.OrderingSupport<?>) query).withResultOrdering(OrderByColumnSpec.ascending(sortColumns));
         }
       }
       return (ArrayOutputSupport) query;
@@ -438,40 +439,31 @@ public class JoinElement
 
     JoinElement element = (JoinElement) o;
 
-    if (expression != null ? !expression.equals(element.expression) : element.expression != null) {
-      return false;
-    }
     if (joinType != element.joinType) {
       return false;
     }
-    if (leftAlias != null ? !leftAlias.equals(element.leftAlias) : element.leftAlias != null) {
+    if (!Objects.equals(expression, element.expression)) {
       return false;
     }
-    if (leftJoinColumns != null ? !leftJoinColumns.equals(element.leftJoinColumns) : element.leftJoinColumns != null) {
+    if (!Objects.equals(leftAlias, element.leftAlias)) {
       return false;
     }
-    if (rightAlias != null ? !rightAlias.equals(element.rightAlias) : element.rightAlias != null) {
+    if (!Objects.equals(leftJoinColumns, element.leftJoinColumns)) {
       return false;
     }
-    if (rightJoinColumns != null
-        ? !rightJoinColumns.equals(element.rightJoinColumns)
-        : element.rightJoinColumns != null) {
+    if (!Objects.equals(rightAlias, element.rightAlias)) {
       return false;
     }
-
+    if (!Objects.equals(rightJoinColumns, element.rightJoinColumns)) {
+      return false;
+    }
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    int result = joinType != null ? joinType.hashCode() : 0;
-    result = 31 * result + (leftAlias != null ? leftAlias.hashCode() : 0);
-    result = 31 * result + (leftJoinColumns != null ? leftJoinColumns.hashCode() : 0);
-    result = 31 * result + (rightAlias != null ? rightAlias.hashCode() : 0);
-    result = 31 * result + (rightJoinColumns != null ? rightJoinColumns.hashCode() : 0);
-    result = 31 * result + (expression != null ? expression.hashCode() : 0);
-    return result;
+    return Objects.hash(joinType, leftAlias, leftJoinColumns, rightAlias, rightJoinColumns, expression);
   }
 
   @Override

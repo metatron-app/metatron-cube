@@ -125,7 +125,7 @@ public class DruidOuterQueryRel extends DruidRel
     }
 
     return partialQuery.build(
-        QueryDataSource.of(subQuery.getQuery()),
+        QueryDataSource.of(subQuery.getQuery(), subQuery.getOutputRowSignature()),
         subQuery.getOutputRowSignature(),
         getPlannerContext(),
         getCluster().getRexBuilder(),

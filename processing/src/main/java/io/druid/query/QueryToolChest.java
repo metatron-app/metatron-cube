@@ -334,7 +334,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @SuppressWarnings("unchecked")
-    protected IncrementalIndex accumulate(Query<ResultType> query, Map<String, Object> responseContext)
+    private IncrementalIndex accumulate(Query<ResultType> query, Map<String, Object> responseContext)
     {
       long start = System.currentTimeMillis();
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();

@@ -40,6 +40,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -382,8 +383,10 @@ public class QueryRunners
       {
         QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
         Query subQuery = toolChest.prepareSubQuery(query, dataSource.getQuery());
-        if (dataSource.getSchema() == null) {
-          query = query.withDataSource(QueryDataSource.of(subQuery, Queries.relaySchema(subQuery, segmentWalker)));
+        if (dataSource.getQuery() != subQuery || dataSource.getSchema() == null) {
+          RowSignature schema = Optional.ofNullable(dataSource.getSchema())
+                                        .orElseGet(() -> Queries.relaySchema(subQuery, segmentWalker));
+          query = query.withDataSource(QueryDataSource.of(subQuery, schema));
         }
         query = QueryUtils.resolve(query, segmentWalker);
         query = QueryUtils.rewrite(query, segmentWalker, config);

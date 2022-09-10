@@ -369,12 +369,18 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> responseContext)
   {
+    return makeQueryRunner(walker).run(this, assertContext(responseContext));
+  }
+
+  @Override
+  public QueryRunner<T> makeQueryRunner(QuerySegmentWalker walker)
+  {
     QuerySegmentSpec spec = querySegmentSpec == null ? QuerySegmentSpec.ETERNITY : querySegmentSpec;
     QueryRunner<T> runner = spec.lookup(this, walker);
     if (walker instanceof ForwardingSegmentWalker) {
       runner = ((ForwardingSegmentWalker) walker).handle(this, runner);
     }
-    return runner.run(this, assertContext(responseContext));
+    return runner;
   }
 
   public Map<String, Object> assertContext(Map<String, Object> context)

@@ -112,6 +112,8 @@ public interface Query<T> extends QueryContextKeys
 
   Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context);
 
+  QueryRunner<T> makeQueryRunner(QuerySegmentWalker walker);
+
   List<Interval> getIntervals();
 
   QuerySegmentSpec getQuerySegmentSpec();
