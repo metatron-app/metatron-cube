@@ -45,4 +45,3 @@ public class TpchTestHelper extends CalciteQueryTestHelper
     return walker;
   }
 }
-

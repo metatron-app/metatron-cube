@@ -30,9 +30,7 @@ public class PlannerConfig
 {
   public static final String CTX_KEY_USE_APPROXIMATE_COUNT_DISTINCT = "useApproximateCountDistinct";
   public static final String CTX_KEY_USE_APPROXIMATE_TOPN = "useApproximateTopN";
-  public static final String CTX_KEY_USE_JOIN_COMMUTE = "useJoinCommute";
   public static final String CTX_KEY_USE_JOIN_REORDERING = "useJoinReordering";
-  public static final String CTX_KEY_USE_JOIN_REORDERING_BUSH = "useJoinReorderingBush";
   public static final String CTX_KEY_DUMP_PLAN = "dumpPlan";
 
   @JsonProperty
@@ -51,13 +49,16 @@ public class PlannerConfig
   private boolean useApproximateTopN = true;
 
   @JsonProperty
+  private boolean useJoinReordering = false;
+
+  @JsonProperty
   private boolean requireTimeCondition = false;
 
   @JsonProperty
-  private DateTimeZone sqlTimeZone = DateTimeZone.UTC;
+  private boolean dumpPlan = false;
 
   @JsonProperty
-  private boolean dumpPlan = false;
+  private DateTimeZone sqlTimeZone = DateTimeZone.UTC;
 
   public int getMaxTopNLimit()
   {
@@ -82,6 +83,11 @@ public class PlannerConfig
   public boolean isUseApproximateTopN()
   {
     return useApproximateTopN;
+  }
+
+  public boolean isUseJoinReordering()
+  {
+    return useJoinReordering;
   }
 
   public boolean isRequireTimeCondition()
@@ -119,6 +125,7 @@ public class PlannerConfig
         CTX_KEY_USE_APPROXIMATE_TOPN,
         isUseApproximateTopN()
     );
+    newConfig.useJoinReordering = getContextBoolean(context, CTX_KEY_USE_JOIN_REORDERING, isUseJoinReordering());
     newConfig.dumpPlan = getContextBoolean(context, CTX_KEY_DUMP_PLAN, isDumpPlan());
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
@@ -158,6 +165,7 @@ public class PlannerConfig
            selectThreshold == that.selectThreshold &&
            useApproximateCountDistinct == that.useApproximateCountDistinct &&
            useApproximateTopN == that.useApproximateTopN &&
+           useJoinReordering == that.useJoinReordering &&
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone);
@@ -172,6 +180,7 @@ public class PlannerConfig
         selectThreshold,
         useApproximateCountDistinct,
         useApproximateTopN,
+        useJoinReordering,
         requireTimeCondition,
         dumpPlan,
         sqlTimeZone
@@ -187,6 +196,7 @@ public class PlannerConfig
            ", selectThreshold=" + selectThreshold +
            ", useApproximateCountDistinct=" + useApproximateCountDistinct +
            ", useApproximateTopN=" + useApproximateTopN +
+           ", useJoinReordering=" + useJoinReordering +
            ", requireTimeCondition=" + requireTimeCondition +
            ", dumpPlan=" + dumpPlan +
            ", sqlTimeZone=" + sqlTimeZone +

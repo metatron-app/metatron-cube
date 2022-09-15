@@ -6037,7 +6037,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           .dataSource("foo")
                           .intervals(interval)
                           .virtualColumns(EXPR_VC("v0", "substring(dim2, 0, 1)"))
-                          .columns("dim2", "v0")
+                          .columns("v0")
                           .streaming()
                       )
                       .element(JoinElement.inner("foo.v0 = foo$.d0"))

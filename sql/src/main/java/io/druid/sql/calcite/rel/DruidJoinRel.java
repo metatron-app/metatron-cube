@@ -376,8 +376,10 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
     if (lc > rc) {
       cost *= 0.999; // for deterministic plan
     }
-//    String n = crossJoin ? "CROSS" : joinType.name();
-//    System.out.printf(">>>:%s %s + %s => %.2f (%.2f + %.2f = %.2f)%n", n, lm.left.getDataSource(), rm.left.getDataSource(), cost, lrow, rrow, estimate);
+//    if (visited.size() == 1) {
+//      String n = crossJoin ? "CROSS" : joinType.name();
+//      System.out.printf(">>>:%s %s + %s => %.2f (%.2f + %.2f = %.2f)%n", n, lm.left.getDataSource(), rm.left.getDataSource(), cost, lrow, rrow, estimate);
+//    }
     return planner.getCostFactory().makeCost(estimate, cost, 0);
   }
 }

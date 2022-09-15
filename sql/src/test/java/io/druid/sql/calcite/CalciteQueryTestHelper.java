@@ -142,6 +142,12 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     public boolean isRequireTimeCondition() { return true;}
   };
 
+  protected static final PlannerConfig PLANNER_JOIN_REORDERING = new PlannerConfig()
+  {
+    @Override
+    public boolean isUseJoinReordering() { return true;}
+  };
+
   protected static final List<Object> NO_PARAM = Collections.emptyList();
 
   protected static final Map<String, Object> QUERY_CONTEXT_DEFAULT = ImmutableMap.<String, Object>of(
@@ -251,10 +257,10 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, NO_PARAM, null, null, Arrays.asList(expectedResults));
   }
 
-  protected void testQuery(PlannerConfig plannerConfig, String sql, String expectedQuery, Object[]... expectedResults)
+  protected void testQuery(PlannerConfig plannerConfig, String sql, String expectedExplain, Object[]... expectedResults)
       throws Exception
   {
-    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, NO_PARAM, expectedQuery, null, Arrays.asList(expectedResults));
+    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, NO_PARAM, expectedExplain, null, Arrays.asList(expectedResults));
   }
 
   protected void testQuery(PlannerConfig plannerConfig, String sql, Query expectedQuery, Object[]... expectedResults)

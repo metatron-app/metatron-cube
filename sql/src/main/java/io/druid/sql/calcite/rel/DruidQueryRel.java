@@ -162,7 +162,9 @@ public class DruidQueryRel extends DruidRel
   {
     double row = druidTable.getStatistic().getRowCount();
     RelOptCost cost = partialQuery.cost(druidTable, planner.getCostFactory());
-//    System.out.printf("--> %s (%.2f) => %.2f (%.2f) : (%s)%n", druidTable.getDataSource(), row, cost.getCpu(), cost.getRows(), partialQuery);
+//    if (visited.isEmpty()) {
+//      System.out.printf("--> %s (%.2f) => %.2f (%.2f) : (%s)%n", druidTable.getDataSource(), row, cost.getCpu(), cost.getRows(), partialQuery);
+//    }
     return cost;
   }
 }

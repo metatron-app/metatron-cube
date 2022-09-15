@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.Utils;
@@ -40,6 +41,7 @@ import org.apache.calcite.plan.RelOptLattice;
 import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepMatchOrder;
@@ -47,7 +49,9 @@ import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
 import org.apache.calcite.rel.rules.AggregateCaseToFilterRule;
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
@@ -68,6 +72,8 @@ import org.apache.calcite.rel.rules.IntersectToDistinctRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
+import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
+import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
 import org.apache.calcite.rel.rules.MatchRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
@@ -86,6 +92,7 @@ import org.apache.calcite.rel.rules.UnionMergeRule;
 import org.apache.calcite.rel.rules.UnionPullUpConstantsRule;
 import org.apache.calcite.rel.rules.UnionToDistinctRule;
 import org.apache.calcite.rel.rules.ValuesReduceRule;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.Program;
@@ -103,6 +110,18 @@ public class Rules
 
   public static final int DRUID_CONVENTION_RULES = 0;
 
+  public static final RelOptRule REDUCE_EXPR_PROJECT_INSTANCE =
+      new ReduceExpressionsRule.ProjectReduceExpressionsRule(LogicalProject.class, true, RelFactories.LOGICAL_BUILDER)
+      {
+        public void onMatch(RelOptRuleCall call)
+        {
+          final Project project = call.rel(0);
+          if (Iterables.any(project.getProjects(), expr -> !expr.isA(SqlKind.INPUT_REF))) {
+            super.onMatch(call);
+          }
+        }
+      };
+
   // RelOptRules.BASE_RULES
   private static final List<RelOptRule> DEFAULT_RULES =
       ImmutableList.of(
@@ -115,7 +134,7 @@ public class Rules
 //          ProjectFilterTransposeRule.INSTANCE,
 //          FilterProjectTransposeRule.INSTANCE,
 //          FilterJoinRule.FILTER_ON_JOIN,
-          JoinPushExpressionsRule.INSTANCE,
+//          JoinPushExpressionsRule.INSTANCE,
 //          AggregateExpandDistinctAggregatesRule.INSTANCE,
 //          AggregateCaseToFilterRule.INSTANCE,
 //          AggregateReduceFunctionsRule.INSTANCE,
@@ -144,7 +163,7 @@ public class Rules
   // RelOptRules.CONSTANT_REDUCTION_RULES
   private static final List<RelOptRule> CONSTANT_REDUCTION_RULES =
       ImmutableList.of(
-          ReduceExpressionsRule.PROJECT_INSTANCE,
+          REDUCE_EXPR_PROJECT_INSTANCE,
           ReduceExpressionsRule.FILTER_INSTANCE,
           ReduceExpressionsRule.CALC_INSTANCE,
           ReduceExpressionsRule.WINDOW_INSTANCE,
@@ -205,7 +224,6 @@ public class Rules
 
   private static final boolean DAG = false;
   private static final boolean NO_DAG = true;
-  private static final int MIN_JOIN_REORDER = 6;
 
   public static List<Program> programs(QueryMaker queryMaker)
   {
@@ -221,46 +239,49 @@ public class Rules
     programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
-    programs.add(createHepProgram(PreFilteringRule.instance()));
+    programs.add(hepProgram(PreFilteringRule.instance()));
 
-    programs.add(createHepProgram(
+    programs.add(hepProgram(
         FilterProjectTransposeRule.INSTANCE,
         FilterAggregateTransposeRule.INSTANCE,
         FilterJoinRule.FILTER_ON_JOIN,
         FilterJoinRule.JOIN,
+        JoinPushExpressionsRule.INSTANCE,
         JoinPushTransitivePredicatesRule.INSTANCE
     ));
-    programs.add(createHepProgram(
-        new ProjectJoinTransposeRule(expr -> Utils.isInputRef(expr), RelFactories.LOGICAL_BUILDER))
-    );
-
-    programs.add(createHepProgram(ProjectMergeRule.INSTANCE, FilterMergeRule.INSTANCE));
+    if (config.isUseJoinReordering()) {
+      // from Programs.heuristicJoinOrder
+      Program program = Programs.sequence(
+          hepProgram(HepMatchOrder.BOTTOM_UP, JoinToMultiJoinRule.INSTANCE), hepProgram(LoptOptimizeJoinRule.INSTANCE)
+      );
+      programs.add((planner, rel, traits, materializations, lattices) ->
+        RelOptUtil.countJoins(rel) > 1 ? program.run(planner, rel, traits, materializations, lattices) : rel
+      );
+    }
+    programs.add(hepProgram(
+        ProjectMergeRule.INSTANCE, FilterMergeRule.INSTANCE,
+        new ProjectJoinTransposeRule(expr -> Utils.isInputRef(expr), RelFactories.LOGICAL_BUILDER)
+    ));
 
     programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
 
-    // way better to be hep program in compile speed rather than be a rule in volcano
-    programs.add(createHepProgram(DruidJoinProjectRule.INSTANCE));
+    programs.add(hepProgram(DruidJoinProjectRule.INSTANCE));
 
     Program program = Programs.sequence(programs.toArray(new Program[0]));
     return config.isDumpPlan() ? Dump.wrap(program) : program;
   }
 
-  private static Program createHepProgram(RelOptRule... rules)
+  private static Program hepProgram(RelOptRule... rules)
   {
-    return createHepProgram(Arrays.asList(rules));
+    return hepProgram(HepMatchOrder.TOP_DOWN, rules);
   }
 
-  private static Program createHepProgram(List<RelOptRule> rules)
-  {
-    return createHepProgram(HepMatchOrder.TOP_DOWN, rules);
-  }
-
-  private static Program createHepProgram(HepMatchOrder order, List<RelOptRule> rules)
+  private static Program hepProgram(HepMatchOrder order, RelOptRule... rules)
   {
     return Programs.of(
         new HepProgramBuilder()
             .addMatchOrder(order)
-            .addRuleCollection(rules)
+            .addRuleCollection(Arrays.asList(rules))
             .build(),
         DAG, DefaultRelMetadataProvider.INSTANCE
     );
@@ -354,6 +375,10 @@ public class Rules
       // We'll need this to expand COUNT DISTINCTs.
       // Avoid AggregateExpandDistinctAggregatesRule.INSTANCE; it uses grouping sets and we don't support those.
       rules.add(AggregateExpandDistinctAggregatesRule.JOIN);
+    }
+    if (plannerConfig.isUseJoinReordering()) {
+      rules.remove(JoinPushThroughJoinRule.RIGHT);
+      rules.remove(JoinPushThroughJoinRule.LEFT);
     }
 
     rules.add(SortCollapseRule.instance());
