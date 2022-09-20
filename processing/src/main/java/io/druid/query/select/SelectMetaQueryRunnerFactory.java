@@ -19,6 +19,7 @@
 
 package io.druid.query.select;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 
 import io.druid.common.guava.Sequence;
@@ -30,7 +31,6 @@ import io.druid.query.Result;
 import io.druid.segment.Segment;
 
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -51,7 +51,7 @@ public class SelectMetaQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<SelectMetaResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<SelectMetaResultValue>> _createRunner(final Segment segment, Supplier<Object> optimizer)
   {
     return new QueryRunner<Result<SelectMetaResultValue>>()
     {

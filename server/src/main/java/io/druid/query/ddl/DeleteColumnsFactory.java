@@ -20,6 +20,7 @@
 package io.druid.query.ddl;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -36,7 +37,6 @@ import io.druid.timeline.DataSegment;
 
 import java.io.File;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  *
@@ -65,7 +65,7 @@ public class DeleteColumnsFactory extends QueryRunnerFactory.Abstract<DDLResult,
   }
 
   @Override
-  public QueryRunner<DDLResult> _createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<DDLResult> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     return new QueryRunner<DDLResult>()
     {

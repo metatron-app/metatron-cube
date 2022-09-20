@@ -19,6 +19,7 @@
 
 package io.druid.query.timeseries;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.yahoo.sketches.quantiles.ItemsSketch;
@@ -35,7 +36,6 @@ import io.druid.segment.Segment;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  *
@@ -49,7 +49,7 @@ public class HistogramQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row
   }
 
   @Override
-  public QueryRunner<Row> _createRunner(Segment segment, Future<Object> optimizer)
+  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer)
   {
     return new QueryRunner<Row>()
     {

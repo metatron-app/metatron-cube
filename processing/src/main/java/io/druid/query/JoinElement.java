@@ -27,10 +27,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.SemiJoinFactory;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.StreamQuery;
@@ -46,6 +51,8 @@ import java.util.Set;
  */
 public class JoinElement
 {
+  private static final Logger LOG = new Logger(JoinQuery.class);
+
   public static JoinElement inner(String expression)
   {
     return new JoinElement(JoinType.INNER, expression);
@@ -400,8 +407,25 @@ public class JoinElement
       if (query instanceof BaseAggregationQuery) {
         BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
         estimated = Queries.estimateCardinality(aggregation.withHavingSpec(null), segmentWalker, config);
-        if (estimated[0] > 0 && aggregation.getHavingSpec() != null) {
-          estimated[0] = Math.max(1, estimated[0] >>> 1);    // half
+        long cardinality = estimated[0];
+        if (cardinality > 0 && aggregation.getHavingSpec() != null) {
+          List<DimensionSpec> dimensions = aggregation.getDimensions();
+          int threshold = config.getJoin().anyMinThreshold() << 1;
+          if (threshold > 0 && cardinality > threshold && DimensionSpecs.isAllDefault(dimensions)) {
+            DimensionSamplingQuery sampling = aggregation.toSampling(200);
+            DimFilter filter = SemiJoinFactory.from(
+                DimensionSpecs.toInputNames(dimensions), sampling.run(segmentWalker, null)
+            );
+            Query<Row> sampler = aggregation.prepend(filter)
+                                            .withOverriddenContext(Query.GBY_LOCAL_SPLIT_CARDINALITY, -1)
+                                            .withOverriddenContext("$skip", true);   // for test hook
+            int size = SemiJoinFactory.sizeOf(filter);
+            int filtered = Sequences.size(QueryUtils.resolve(sampler, segmentWalker).run(segmentWalker, null));
+            estimated[0] = Math.max(1, cardinality * filtered / size);
+            LOG.info("--- %s is estimated to %d by sampling %d rows from %d rows", aggregation.getDataSource(), estimated[0], size, cardinality);
+          } else {
+            estimated[0] = Math.max(1, estimated[0] >>> 1);    // half
+          }
         }
         return applyLimit(query, estimated);
       }

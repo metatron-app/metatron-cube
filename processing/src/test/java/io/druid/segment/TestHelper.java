@@ -47,6 +47,9 @@ import io.druid.jackson.ObjectMappers;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DefaultQueryMetrics;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
+import io.druid.query.DimensionSamplingQuery;
+import io.druid.query.DimensionSamplingQueryRunnerFactory;
+import io.druid.query.DimensionSamplingQueryToolChest;
 import io.druid.query.FilterMetaQuery;
 import io.druid.query.FilterMetaQueryRunnerFactory;
 import io.druid.query.FilterMetaQueryToolChest;
@@ -121,7 +124,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -255,6 +257,13 @@ public class TestHelper
                 )
             )
             .put(
+                DimensionSamplingQuery.class,
+                new DimensionSamplingQueryRunnerFactory(
+                    new DimensionSamplingQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
                 SchemaQuery.class,
                 new SchemaQueryRunnerFactory(
                     new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
@@ -312,19 +321,19 @@ public class TestHelper
   public static class TestQueryRunnerFactory implements QueryRunnerFactory
   {
     @Override
-    public Future<Object> preFactoring(Query query, List list, Supplier resolver, ExecutorService exec)
+    public Supplier<Object> preFactoring(Query query, List list, Supplier resolver, ExecutorService exec)
     {
       return null;
     }
 
     @Override
-    public QueryRunner _createRunner(Segment segment, Future optimizer)
+    public QueryRunner _createRunner(Segment segment, Supplier optimizer)
     {
       return null;
     }
 
     @Override
-    public QueryRunner mergeRunners(Query query, ExecutorService queryExecutor, Iterable iterable, Future optimizer)
+    public QueryRunner mergeRunners(Query query, ExecutorService queryExecutor, Iterable iterable, Supplier optimizer)
     {
       return null;
     }

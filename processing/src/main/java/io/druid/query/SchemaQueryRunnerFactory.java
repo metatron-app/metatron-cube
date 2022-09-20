@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 
 import io.druid.common.guava.Sequence;
@@ -26,7 +27,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.segment.Segment;
 
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -39,7 +39,7 @@ public class SchemaQueryRunnerFactory extends QueryRunnerFactory.Abstract<Schema
   }
 
   @Override
-  public QueryRunner<Schema> _createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Schema> _createRunner(final Segment segment, Supplier<Object> optimizer)
   {
     return new QueryRunner<Schema>()
     {

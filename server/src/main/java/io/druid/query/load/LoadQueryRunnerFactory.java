@@ -19,6 +19,7 @@
 
 package io.druid.query.load;
 
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -35,7 +36,6 @@ import io.druid.segment.Segment;
 import io.druid.server.FileLoadSpec;
 
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -55,7 +55,7 @@ public class LoadQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Stri
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     return new QueryRunner<Map<String, Object>>()
     {

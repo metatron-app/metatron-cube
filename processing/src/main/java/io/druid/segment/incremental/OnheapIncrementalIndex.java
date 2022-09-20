@@ -149,7 +149,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   }
 
   @Override
-  public Iterable<Map.Entry<TimeAndDims, Object[]>> getRangeOf(long from, long to, Boolean timeDescending)
+  public Map<TimeAndDims, Object[]> getRangeOf(long from, long to, Boolean timeDescending)
   {
     return getFacts(facts, from, to, timeDescending);
   }

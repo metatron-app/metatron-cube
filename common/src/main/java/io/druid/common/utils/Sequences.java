@@ -51,6 +51,7 @@ import io.druid.concurrent.Execs;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.mutable.MutableInt;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -158,6 +159,15 @@ public class Sequences
   public static <T> Sequence<T> withBaggage(Sequence<T> sequence, Closeable baggage)
   {
     return new ResourceClosingSequence<>(sequence, baggage);
+  }
+
+  public static <T> int size(Sequence<T> sequence)
+  {
+    Accumulator<MutableInt, T> outTypeTAccumulator = (counter, row) -> {
+      counter.increment();
+      return counter;
+    };
+    return sequence.accumulate(new MutableInt(), outTypeTAccumulator).intValue();
   }
 
   public static <T> List<T> toList(Sequence<T> sequence)

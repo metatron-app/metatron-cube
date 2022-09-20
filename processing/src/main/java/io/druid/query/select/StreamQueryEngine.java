@@ -20,11 +20,11 @@
 package io.druid.query.select;
 
 import com.google.common.base.Function;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.common.util.concurrent.Futures;
 import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -56,7 +56,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -68,12 +67,11 @@ public class StreamQueryEngine
       final StreamQuery query,
       final QueryConfig config,
       final Segment segment,
-      final Future optimizer,
+      final Supplier optimizer,
       final Cache cache
   )
   {
-    @SuppressWarnings("unchecked")
-    final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
+    final MutableInt counter = (MutableInt) optimizer.get();
     return QueryRunnerHelper.makeCursorBasedQueryConcat(
         segment,
         query,

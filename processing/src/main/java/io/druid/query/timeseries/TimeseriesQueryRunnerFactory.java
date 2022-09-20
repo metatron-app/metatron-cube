@@ -19,6 +19,7 @@
 
 package io.druid.query.timeseries;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
@@ -32,7 +33,6 @@ import io.druid.segment.Cuboids;
 import io.druid.segment.Segment;
 
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -55,7 +55,7 @@ public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Ro
   }
 
   @Override
-  public QueryRunner<Row> _createRunner(Segment segment, Future<Object> optimizer)
+  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer)
   {
     return new TimeseriesQueryRunner(segment, engine, config, cache);
   }

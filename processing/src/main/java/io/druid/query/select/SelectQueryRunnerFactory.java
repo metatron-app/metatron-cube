@@ -20,8 +20,8 @@
 package io.druid.query.select;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -67,7 +66,7 @@ public class SelectQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(
+  public Supplier<Object> preFactoring(
       SelectQuery query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
@@ -97,7 +96,7 @@ public class SelectQueryRunnerFactory
                 (segments.size() - targets.size()),
                 segments.size()
             );
-            return Futures.<Object>immediateFuture(targets);
+            return Suppliers.ofInstance(targets);
           }
         }
       }
@@ -107,10 +106,9 @@ public class SelectQueryRunnerFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner<Result<SelectResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<SelectResultValue>> _createRunner(final Segment segment, Supplier<Object> optimizer)
   {
-    if (optimizer == null ||
-        ((Set<String>) Futures.getUnchecked(optimizer)).contains(segment.getIdentifier())) {
+    if (optimizer == null || ((Set<String>) optimizer.get()).contains(segment.getIdentifier())) {
       return new SelectQueryRunner(engine, config, segment, cache);
     }
     return NoopQueryRunner.instance();

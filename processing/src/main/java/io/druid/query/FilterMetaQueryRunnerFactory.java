@@ -19,10 +19,9 @@
 
 package io.druid.query;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.segment.Segment;
-
-import java.util.concurrent.Future;
 
 /**
  */
@@ -35,7 +34,7 @@ public class FilterMetaQueryRunnerFactory extends QueryRunnerFactory.Abstract<lo
   }
 
   @Override
-  public QueryRunner<long[]> _createRunner(Segment segment, Future<Object> optimizer)
+  public QueryRunner<long[]> _createRunner(Segment segment, Supplier<Object> optimizer)
   {
     return (query, responseContext) -> FilterMetaQueryEngine.process((FilterMetaQuery) query, segment, cache);
   }

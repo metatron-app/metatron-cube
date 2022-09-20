@@ -108,7 +108,6 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -455,7 +454,7 @@ public class AppenderatorImpl implements Appenderator
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
     final Query<T> resolved = query.resolveQuery(resolver, true);
-    final Future<Object> optimizer = factory.preFactoring(resolved, segments, resolver, queryExecutorService);
+    final Supplier<Object> optimizer = factory.preFactoring(resolved, segments, resolver, queryExecutorService);
 
     final List<Pair<SegmentDescriptor, Sink>> targets = GuavaUtils.zip(descriptors, sinks);
 

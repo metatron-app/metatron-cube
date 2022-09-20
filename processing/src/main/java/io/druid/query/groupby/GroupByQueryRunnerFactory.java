@@ -20,9 +20,9 @@
 package io.druid.query.groupby;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
@@ -69,7 +69,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -99,7 +98,7 @@ public class GroupByQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(
+  public Supplier<Object> preFactoring(
       GroupByQuery query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
@@ -128,14 +127,14 @@ public class GroupByQueryRunnerFactory
         throw new ISE("cannot group-by on non-primitive type %s [%s]", type, dimensionSpec);
       }
     }
-    return Futures.<Object>immediateFuture(types);
+    return Suppliers.ofInstance(types);
   }
 
   @Override
   public List<List<Segment>> splitSegments(
       GroupByQuery query,
       List<Segment> segments,
-      Future<Object> optimizer,
+      Supplier<Object> optimizer,
       Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker
   )
@@ -228,7 +227,7 @@ public class GroupByQueryRunnerFactory
   public List<GroupByQuery> splitQuery(
       GroupByQuery query,
       List<Segment> segments,
-      Future<Object> optimizer,
+      Supplier<Object> optimizer,
       Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker
   )
@@ -321,7 +320,7 @@ public class GroupByQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Row> _createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Row> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     return new GroupByQueryRunner(segment, engine, config, cache);
   }
@@ -331,7 +330,7 @@ public class GroupByQueryRunnerFactory
       final Query<Row> query,
       final ExecutorService exec,
       final Iterable<QueryRunner<Row>> queryRunners,
-      final Future<Object> optimizer
+      final Supplier<Object> optimizer
   )
   {
     // mergeRunners should take ListeningExecutorService at some point

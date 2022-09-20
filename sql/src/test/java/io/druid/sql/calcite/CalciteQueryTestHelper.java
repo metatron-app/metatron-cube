@@ -698,7 +698,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     @Override
     public void accept(Query<?> query)
     {
-      if (!SKIP.contains(query.getType())) {
+      if (!SKIP.contains(query.getType()) && !query.getContextBoolean("$skip", false)) {
         hooked.add(Queries.iterate(query, q -> q.withOverriddenContext(REMOVER)));
       }
     }

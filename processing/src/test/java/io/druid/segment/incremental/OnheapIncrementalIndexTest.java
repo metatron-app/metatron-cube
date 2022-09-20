@@ -84,7 +84,7 @@ public class OnheapIncrementalIndexTest
       {
         final Aggregator[] aggregators = index.getAggregators();
         while (!Thread.interrupted()) {
-          for (Map.Entry<IncrementalIndex.TimeAndDims, Object[]> row : index.getAll()) {
+          for (Map.Entry<IncrementalIndex.TimeAndDims, Object[]> row : index.getAll().entrySet()) {
             if ((Long) aggregators[0].get(row.getValue()[0]) != 1) {
               checkFailedCount.addAndGet(1);
             }

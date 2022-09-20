@@ -32,6 +32,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
@@ -76,6 +77,7 @@ import java.util.Set;
     @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_DELEGATE, value = SelectForwardQuery.class),
     @JsonSubTypes.Type(name = Query.FILTER_META, value = FilterMetaQuery.class),
+    @JsonSubTypes.Type(name = Query.DIMENSION_SAMPLING, value = DimensionSamplingQuery.class),
     @JsonSubTypes.Type(name = "kmeans", value = KMeansQuery.class),
     @JsonSubTypes.Type(name = "kmeans.nearest", value = FindNearestQuery.class),
     @JsonSubTypes.Type(name = "kmeans.tagging", value = KMeansTaggingQuery.class),
@@ -98,7 +100,8 @@ public interface Query<T> extends QueryContextKeys
   String DATASOURCE_METADATA = "dataSourceMetadata";
   String UNION_ALL = "unionAll";
   String JOIN = "join";
-  String FILTER_META = "filter.meta";
+  String FILTER_META = "$filter.meta";    // internal query
+  String DIMENSION_SAMPLING = "$dimension.sampling";  // internal query
 
   DataSource getDataSource();
 
@@ -229,6 +232,11 @@ public interface Query<T> extends QueryContextKeys
     AggregationsSupport<T> withPostAggregatorSpecs(List<PostAggregator> metrics);
 
     AggregationsSupport<T> withFilter(DimFilter filter);
+
+    default AggregationsSupport<T> prepend(DimFilter filter)
+    {
+      return withFilter(DimFilters.and(filter, getFilter()));
+    }
 
     AggregationsSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
 

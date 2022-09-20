@@ -27,6 +27,12 @@ public interface Offset extends ReadableOffset
 {
   boolean increment();
 
+  default int incrementN(int n)
+  {
+    for (; n > 0 && increment(); n--) ;
+    return n;
+  }
+
   boolean withinBounds();
 
   Offset clone();

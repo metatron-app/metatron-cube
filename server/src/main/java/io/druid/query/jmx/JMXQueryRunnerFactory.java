@@ -20,6 +20,7 @@
 package io.druid.query.jmx;
 
 import com.google.common.base.Functions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -46,7 +47,6 @@ import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -66,7 +66,7 @@ public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Strin
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     return new QueryRunner<Map<String, Object>>()
     {

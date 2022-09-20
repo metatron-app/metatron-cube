@@ -19,15 +19,14 @@
 
 package io.druid.query;
 
+import com.google.common.base.Supplier;
 import io.druid.common.guava.Sequence;
-import io.druid.java.util.common.guava.CloseQuietly;
-
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ReferenceCountingSegment;
 
 import java.io.Closeable;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -36,13 +35,13 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
   private final QueryRunnerFactory<T, Query<T>> factory;
   private final ReferenceCountingSegment adapter;
   private final SegmentDescriptor descriptor;
-  private final Future<Object> optimizer;
+  private final Supplier<Object> optimizer;
 
   public ReferenceCountingSegmentQueryRunner(
       QueryRunnerFactory<T, Query<T>> factory,
       ReferenceCountingSegment adapter,
       SegmentDescriptor descriptor,
-      Future<Object> optimizer
+      Supplier<Object> optimizer
   )
   {
     this.factory = factory;

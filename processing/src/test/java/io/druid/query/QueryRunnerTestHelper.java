@@ -70,7 +70,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -541,7 +540,7 @@ public class QueryRunnerTestHelper extends TestHelper
             // this should be done at the most outer side (see server manager).. but who cares?
             final Supplier<RowResolver> resolver = RowResolver.supplier(Arrays.asList(segment), query);
             final QueryType resolved = (QueryType) query.resolveQuery(resolver, true);
-            final Future<Object> optimizer = factory.preFactoring(
+            final Supplier<Object> optimizer = factory.preFactoring(
                 resolved,
                 Arrays.asList(segment),
                 resolver,

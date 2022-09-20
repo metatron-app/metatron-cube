@@ -19,6 +19,7 @@
 
 package io.druid.query.metadata;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import io.druid.common.guava.Sequence;
@@ -44,7 +45,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 public class SegmentMetadataQueryRunnerFactory
     extends QueryRunnerFactory.Abstract<SegmentAnalysis, SegmentMetadataQuery>
@@ -61,7 +61,7 @@ public class SegmentMetadataQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<SegmentAnalysis> _createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<SegmentAnalysis> _createRunner(final Segment segment, Supplier<Object> optimizer)
   {
     return new QueryRunner<SegmentAnalysis>()
     {
@@ -146,7 +146,7 @@ public class SegmentMetadataQueryRunnerFactory
       Query<SegmentAnalysis> query,
       ExecutorService exec,
       Iterable<QueryRunner<SegmentAnalysis>> queryRunners,
-      Future<Object> optimizer
+      Supplier<Object> optimizer
   )
   {
     return new QueryRunner<SegmentAnalysis>()

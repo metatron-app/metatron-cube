@@ -28,11 +28,18 @@ import java.util.function.IntFunction;
  */
 public interface Cursor extends ColumnSelectorFactory
 {
+  default int size()
+  {
+    return -1;
+  }
+
   long getStartTime();
   long getRowTimestamp();
   int offset();
   void advance();
-  void advanceTo(int skip);    // it's not offset
+  void advanceWithoutMatcher();
+  default int advanceN(int n) {for (; n > 0 && !isDone(); n--) advance(); return n;}
+  default int advanceNWithoutMatcher(int n) {for (; n > 0 && !isDone(); n--) advanceWithoutMatcher(); return n;}
   boolean isDone();
   void reset();
 

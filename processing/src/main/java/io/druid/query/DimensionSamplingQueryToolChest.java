@@ -17,54 +17,43 @@
  * under the License.
  */
 
-package io.druid.segment.data;
+package io.druid.query;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.inject.Inject;
 
 /**
+ *
  */
-public class ArrayBasedOffset implements Offset
+public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[], DimensionSamplingQuery>
 {
-  private final int[] ints;
-  private int currIndex;
-
-  public ArrayBasedOffset(
-      int[] ints
-  )
+  public static final TypeReference<Object[]> TYPE_REFERENCE = new TypeReference<Object[]>()
   {
-    this(ints, 0);
-  }
+  };
 
-  public ArrayBasedOffset(
-      int[] ints,
-      int startIndex
-  )
+  private final GenericQueryMetricsFactory metricsFactory;
+
+  @Inject
+  public DimensionSamplingQueryToolChest(GenericQueryMetricsFactory metricsFactory)
   {
-    this.ints = ints;
-    this.currIndex = startIndex;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
-  public int getOffset()
+  public QueryRunner<Object[]> mergeResults(QueryRunner<Object[]> runner)
   {
-    return ints[currIndex];
+    return runner;  // nothing
   }
 
   @Override
-  public boolean increment()
+  public QueryMetrics<? super DimensionSamplingQuery> makeMetrics(DimensionSamplingQuery query)
   {
-    return ++currIndex < ints.length;
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public boolean withinBounds()
+  protected TypeReference<Object[]> getResultTypeReference(DimensionSamplingQuery query)
   {
-    return currIndex < ints.length;
-  }
-
-  @Override
-  public Offset clone()
-  {
-    final ArrayBasedOffset retVal = new ArrayBasedOffset(ints);
-    retVal.currIndex = currIndex;
-    return retVal;
+    return TYPE_REFERENCE;
   }
 }

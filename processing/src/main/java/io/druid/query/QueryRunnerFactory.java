@@ -28,7 +28,6 @@ import io.druid.segment.Segment;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  * An interface that defines the nitty gritty implementation details of a Query on a Segment
@@ -36,8 +35,9 @@ import java.util.concurrent.Future;
 public interface QueryRunnerFactory<T, QueryType extends Query<T>>
 {
   /**
+   * @return
    */
-  default Future<Object> preFactoring(
+  default Supplier<Object> preFactoring(
       QueryType query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
@@ -57,9 +57,9 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    * @param optimizer optimization object
    * @return A QueryRunner that, when asked, will generate a Sequence of results based on the given segment
    */
-  QueryRunner<T> _createRunner(Segment segment, Future<Object> optimizer);
+  QueryRunner<T> _createRunner(Segment segment, Supplier<Object> optimizer);
 
-  default QueryRunner<T> createRunner(final Segment segment, final Future<Object> optimizer)
+  default QueryRunner<T> createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     final QueryRunner<T> runner = _createRunner(segment, optimizer);    // eager instantiate
     return (query, responseContext) -> runner.run(BaseQuery.optimize(query, segment), responseContext);
@@ -89,7 +89,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
       Query<T> query,
       ExecutorService queryExecutor,
       Iterable<QueryRunner<T>> queryRunners,
-      Future<Object> optimizer
+      Supplier<Object> optimizer
   );
 
   /**
@@ -104,7 +104,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
     List<List<Segment>> splitSegments(
         QueryType query,
         List<Segment> targets,
-        Future<Object> optimizer,
+        Supplier<Object> optimizer,
         Supplier<RowResolver> resolver,
         QuerySegmentWalker segmentWalker
     );
@@ -112,7 +112,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
     List<QueryType> splitQuery(
         QueryType query,
         List<Segment> targets,
-        Future<Object> optimizer,
+        Supplier<Object> optimizer,
         Supplier<RowResolver> resolver,
         QuerySegmentWalker segmentWalker
     );
@@ -138,7 +138,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
         final Query<T> query,
         final ExecutorService queryExecutor,
         final Iterable<QueryRunner<T>> runners,
-        final Future<Object> optimizer
+        final Supplier<Object> optimizer
     )
     {
       return QueryRunners.executeParallel(query, queryExecutor, Lists.newArrayList(runners), queryWatcher);

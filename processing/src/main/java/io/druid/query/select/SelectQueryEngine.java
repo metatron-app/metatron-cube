@@ -103,7 +103,7 @@ public class SelectQueryEngine
 
             final PagingOffset offset = query.getPagingOffset(segmentId);
 
-            cursor.advanceTo(offset.startDelta());
+            cursor.advanceN(offset.startDelta());
 
             int lastOffset = offset.startOffset();
             for (; !cursor.isDone() && offset.hasNext(); cursor.advance(), offset.next()) {

@@ -239,8 +239,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
             final long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
             final long timeEnd = Math.min(interval.getEndMillis(), actualInterval.getEndMillis());
 
-            final Iterable<Map.Entry<TimeAndDims, Object[]>> cursorMap =
-                index.getRangeOf(timeStart, timeEnd, descending);
+            final Map<TimeAndDims, Object[]> rows = index.getRangeOf(timeStart, timeEnd, descending);
 
             return new Cursor.ExprSupport()
             {
@@ -252,6 +251,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               {
                 filterMatcher = filter == null ? ValueMatcher.TRUE : filter.toFilter(resolver).makeMatcher(null, this);
                 reset();
+              }
+
+              @Override
+              public int size()
+              {
+                return rows.size();
               }
 
               @Override
@@ -291,12 +296,13 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
-              public void advanceTo(int skip)
+              public void advanceWithoutMatcher()
               {
-                int count = 0;
-                while (count < skip && !isDone()) {
-                  advance();
-                  count++;
+                if (baseIter.hasNext()) {
+                  offset++;
+                  currEntry.set(baseIter.next());
+                } else {
+                  done = true;
                 }
               }
 
@@ -311,7 +317,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               {
                 done = false;
                 offset = -1;
-                baseIter = cursorMap.iterator();
+                baseIter = rows.entrySet().iterator();
                 advance();
               }
 

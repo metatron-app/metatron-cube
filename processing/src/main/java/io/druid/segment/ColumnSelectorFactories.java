@@ -155,12 +155,6 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public void advanceTo(int skip)
-    {
-      throw new UnsupportedOperationException("advanceTo");
-    }
-
-    @Override
     public long getStartTime()
     {
       throw new UnsupportedOperationException("getTime");
@@ -763,6 +757,12 @@ public class ColumnSelectorFactories
                 if (!termIterator.hasNext()) {
                   done = true;
                 }
+              }
+
+              @Override
+              public void advanceWithoutMatcher()
+              {
+                advance();  // todo
               }
 
               @Override

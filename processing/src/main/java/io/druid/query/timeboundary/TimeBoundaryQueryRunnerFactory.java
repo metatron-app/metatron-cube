@@ -19,6 +19,7 @@
 
 package io.druid.query.timeboundary;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.common.guava.BaseSequence;
 import io.druid.common.guava.Sequence;
@@ -35,7 +36,6 @@ import org.joda.time.Interval;
 
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -49,7 +49,7 @@ public class TimeBoundaryQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<TimeBoundaryResultValue>> _createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Result<TimeBoundaryResultValue>> _createRunner(final Segment segment, Supplier<Object> optimizer)
   {
     return new TimeBoundaryQueryRunner(segment);
   }

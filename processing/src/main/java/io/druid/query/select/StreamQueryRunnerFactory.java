@@ -20,8 +20,8 @@
 package io.druid.query.select;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
@@ -58,7 +58,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -80,21 +79,21 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(
+  public Supplier<Object> preFactoring(
       StreamQuery query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
   )
   {
-    return Futures.<Object>immediateFuture(new MutableInt(0));
+    return Suppliers.ofInstance(new MutableInt(0));
   }
 
   @Override
   public List<List<Segment>> splitSegments(
       StreamQuery query,
       List<Segment> targets,
-      Future<Object> optimizer,
+      Supplier<Object> optimizer,
       Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker
   )
@@ -111,7 +110,7 @@ public class StreamQueryRunnerFactory
   public List<StreamQuery> splitQuery(
       StreamQuery query,
       List<Segment> segments,
-      Future<Object> optimizer,
+      Supplier<Object> optimizer,
       Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker
   )
@@ -210,7 +209,7 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Object[]> _createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Object[]> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     return new QueryRunner<Object[]>()
     {

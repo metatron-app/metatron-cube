@@ -105,7 +105,7 @@ public class SelectMetaQueryEngine
               return context.targetNumRows();
             }
             int row = 0;
-            for (cursor.advanceTo(offset.startDelta()); !cursor.isDone(); cursor.advance(), row++) {}
+            for (cursor.advanceN(offset.startDelta()); !cursor.isDone(); cursor.advance(), row++) {}
             return row;
           }
         }

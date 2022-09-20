@@ -100,7 +100,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -617,7 +616,7 @@ public class BrokerServerView implements TimelineServerView
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver, true);
 
-    final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
+    final Supplier<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
     final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<>(toolChest, emitter);
 
     final Iterable<QueryRunner<T>> queryRunners = Iterables.transform(
@@ -660,7 +659,7 @@ public class BrokerServerView implements TimelineServerView
       final QueryRunnerFactory<T, Query<T>> factory,
       final LocalSegment segment,
       final SegmentDescriptor descriptor,
-      final Future<Object> optimizer,
+      final Supplier<Object> optimizer,
       final CPUTimeMetricBuilder<T> reporter
   )
   {

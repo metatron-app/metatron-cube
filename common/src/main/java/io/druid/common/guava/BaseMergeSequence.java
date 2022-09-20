@@ -14,17 +14,13 @@
 
 package io.druid.common.guava;
 
-import com.google.common.primitives.Ints;
 import io.druid.common.Yielders;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeaps;
-import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet;
 
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
-import java.util.PriorityQueue;
-import java.util.Random;
 
 /**
  */

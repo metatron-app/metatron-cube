@@ -69,6 +69,15 @@ public class BitmapOffset implements Offset
   }
 
   @Override
+  public int incrementN(int n)
+  {
+    for (; n > 0 && itr.hasNext(); n--) {
+      val = itr.next();
+    }
+    return n;
+  }
+
+  @Override
   public boolean withinBounds()
   {
     return val > INVALID_VALUE;

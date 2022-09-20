@@ -38,7 +38,6 @@ import io.druid.server.DruidNode;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -61,7 +60,7 @@ public class ConfigQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<St
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     return new QueryRunner<Map<String, Object>>()
     {

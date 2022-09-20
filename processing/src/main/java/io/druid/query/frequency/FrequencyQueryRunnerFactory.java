@@ -21,9 +21,9 @@ package io.druid.query.frequency;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.Sequence;
@@ -50,7 +50,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -63,25 +62,25 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
   }
 
   @Override
-  public Future<Object> preFactoring(
+  public Supplier<Object> preFactoring(
       FrequencyQuery query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
   )
   {
-    return Futures.<Object>immediateFuture(CountMinSketch.fromCompressedBytes(query.getSketch()));
+    return Suppliers.ofInstance(CountMinSketch.fromCompressedBytes(query.getSketch()));
   }
 
   @Override
-  public QueryRunner<Object[]> _createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Object[]> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     return new QueryRunner<Object[]>()
     {
       @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
-        final CountMinSketch sketch = (CountMinSketch) Futures.getUnchecked(optimizer);
+        final CountMinSketch sketch = (CountMinSketch) optimizer.get();
         return QueryRunnerHelper.makeCursorBasedQueryConcat(
             segment,
             query,

@@ -347,6 +347,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
+                    public int size()
+                    {
+                      return context.targetNumRows();
+                    }
+
+                    @Override
                     public long getStartTime()
                     {
                       return interval.getStartMillis();
@@ -355,7 +361,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public long getRowTimestamp()
                     {
-                      return timestamps.getLong(cursorOffset.getOffset());
+                      return timestamps.getLong(offset());
                     }
 
                     @Override
@@ -376,13 +382,15 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public void advanceTo(int skip)
+                    public void advanceWithoutMatcher()
                     {
-                      int count = 0;
-                      while (count < skip && !isDone()) {
-                        advance();
-                        count++;
-                      }
+                      cursorOffset.increment();
+                    }
+
+                    @Override
+                    public int advanceNWithoutMatcher(int n)
+                    {
+                      return cursorOffset.incrementN(n);
                     }
 
                     @Override
@@ -460,7 +468,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public IndexedInts getRow()
                             {
-                              return column.getMultiValueRow(cursorOffset.getOffset());
+                              return column.getMultiValueRow(offset());
                             }
 
                             @Override
@@ -501,7 +509,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public IndexedInts getRow()
                             {
-                              return column.getMultiValueRow(cursorOffset.getOffset());
+                              return column.getMultiValueRow(offset());
                             }
 
                             @Override
@@ -550,7 +558,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       } else {
                         // using an anonymous class is faster than creating a class that stores a copy of the value
                         final IndexedInts row = IndexedInts.from(
-                            () -> column.getSingleValueRow(cursorOffset.getOffset())
+                            () -> column.getSingleValueRow(offset())
                         );
                         if (extractionFn != null) {
                           return new DimensionSelector()
@@ -703,13 +711,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         @Override
                         public Float get()
                         {
-                          return column.getFloat(cursorOffset.getOffset());
+                          return column.getFloat(offset());
                         }
 
                         @Override
                         public boolean getFloat(MutableFloat handover)
                         {
-                          return column.getFloat(cursorOffset.getOffset(), handover);
+                          return column.getFloat(offset(), handover);
                         }
                       };
                     }
@@ -751,13 +759,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         @Override
                         public Double get()
                         {
-                          return column.getDouble(cursorOffset.getOffset());
+                          return column.getDouble(offset());
                         }
 
                         @Override
                         public boolean getDouble(MutableDouble handover)
                         {
-                          return column.getDouble(cursorOffset.getOffset(), handover);
+                          return column.getDouble(offset(), handover);
                         }
                       };
                     }
@@ -799,13 +807,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         @Override
                         public Long get()
                         {
-                          return column.getLong(cursorOffset.getOffset());
+                          return column.getLong(offset());
                         }
 
                         @Override
                         public boolean getLong(MutableLong handover)
                         {
-                          return column.getLong(cursorOffset.getOffset(), handover);
+                          return column.getLong(offset(), handover);
                         }
                       };
                     }
@@ -854,7 +862,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Object get()
                             {
-                              final IndexedInts multiValueRow = columnVals.getMultiValueRow(cursorOffset.getOffset());
+                              final IndexedInts multiValueRow = columnVals.getMultiValueRow(offset());
                               final int length = multiValueRow.size();
                               if (length == 0) {
                                 return null;
@@ -889,25 +897,25 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public String get()
                             {
-                              return dictionary.get(columnVals.getSingleValueRow(cursorOffset.getOffset()));
+                              return dictionary.get(columnVals.getSingleValueRow(offset()));
                             }
 
                             @Override
                             public byte[] getAsRaw()
                             {
-                              return dictionary.getAsRaw(columnVals.getSingleValueRow(cursorOffset.getOffset()));
+                              return dictionary.getAsRaw(columnVals.getSingleValueRow(offset()));
                             }
 
                             @Override
                             public BufferRef getAsRef()
                             {
-                              return dictionary.getAsRef(columnVals.getSingleValueRow(cursorOffset.getOffset()));
+                              return dictionary.getAsRef(columnVals.getSingleValueRow(offset()));
                             }
 
                             @Override
                             public <R> R apply(Tools.Function<R> function)
                             {
-                              return dictionary.apply(cursorOffset.getOffset(), function);
+                              return dictionary.apply(offset(), function);
                             }
                           };
                         }
@@ -927,25 +935,25 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Object get()
                             {
-                              return rawAccess.getValue(cursorOffset.getOffset());
+                              return rawAccess.getValue(offset());
                             }
 
                             @Override
                             public byte[] getAsRaw()
                             {
-                              return rawAccess.getAsRaw(cursorOffset.getOffset());
+                              return rawAccess.getAsRaw(offset());
                             }
 
                             @Override
                             public BufferRef getAsRef()
                             {
-                              return rawAccess.getAsRef(cursorOffset.getOffset());
+                              return rawAccess.getAsRef(offset());
                             }
 
                             @Override
                             public <R> R apply(Tools.Function<R> function)
                             {
-                              return rawAccess.apply(cursorOffset.getOffset(), function);
+                              return rawAccess.apply(offset(), function);
                             }
 
                             @Override
@@ -972,7 +980,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Object get()
                             {
-                              return columnVals.getValue(cursorOffset.getOffset());
+                              return columnVals.getValue(offset());
                             }
                           };
                         }
@@ -1004,7 +1012,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public String get()
                             {
-                              return columnVals.getString(cursorOffset.getOffset());
+                              return columnVals.getString(offset());
                             }
                           };
                         } else if (type == ValueType.BOOLEAN) {
@@ -1025,7 +1033,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Boolean get()
                             {
-                              return columnVals.getBoolean(cursorOffset.getOffset());
+                              return columnVals.getBoolean(offset());
                             }
                           };
                         }
@@ -1052,10 +1060,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
                       final IntPredicate predicate = Filters.toMatcher(bitmap, descending);
                       if (holder.exact()) {
-                        return () -> predicate.apply(cursorOffset.getOffset());
+                        return () -> predicate.apply(offset());
                       }
                       final ValueMatcher valueMatcher = super.makePredicateMatcher(filter);
-                      return () -> predicate.apply(cursorOffset.getOffset()) && valueMatcher.matches();
+                      return () -> predicate.apply(offset()) && valueMatcher.matches();
                     }
 
                     @Override
@@ -1073,20 +1081,21 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   };
                 }
 
-                private Offset toBaseOffset(long timeStart, long timeEnd)
+                private Offset toBaseOffset(final long timeStart, final long timeEnd)
                 {
                   if (!offset.withinBounds() || Filters.matchNone(filter)) {
                     return Offset.EMPTY;
                   }
+                  final MutableLong handover = new MutableLong();
                   if (descending) {
                     for (; offset.withinBounds(); offset.increment()) {
-                      if (timestamps.getLong(offset.getOffset()) < timeEnd) {
+                      if (timestamps.getLong(offset.getOffset(), handover) && handover.longValue() < timeEnd) {
                         break;
                       }
                     }
                   } else {
                     for (; offset.withinBounds(); offset.increment()) {
-                      if (timestamps.getLong(offset.getOffset()) >= timeStart) {
+                      if (timestamps.getLong(offset.getOffset(), handover) && handover.longValue() >= timeStart) {
                         break;
                       }
                     }
@@ -1132,6 +1141,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     protected final Offset baseOffset;
     protected final GenericColumn timestamps;
     protected final long timeLimit;
+    protected final MutableLong handover = new MutableLong();
 
     public TimestampCheckingOffset(Offset baseOffset, GenericColumn timestamps, long timeLimit)
     {
@@ -1147,17 +1157,15 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     @Override
-    public boolean withinBounds()
-    {
-      return baseOffset.withinBounds() && timeInRange(timestamps.getLong(baseOffset.getOffset()));
-    }
-
-    protected abstract boolean timeInRange(long current);
-
-    @Override
     public boolean increment()
     {
       return baseOffset.increment();
+    }
+
+    @Override
+    public int incrementN(int n)
+    {
+      return baseOffset.incrementN(n);
     }
 
     @Override
@@ -1172,9 +1180,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     @Override
-    protected boolean timeInRange(long current)
+    public boolean withinBounds()
     {
-      return current < timeLimit;
+      return baseOffset.withinBounds() &&
+             timestamps.getLong(baseOffset.getOffset(), handover) &&
+             handover.longValue() < timeLimit;
     }
 
     @Override
@@ -1199,9 +1209,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     @Override
-    protected boolean timeInRange(long current)
+    public boolean withinBounds()
     {
-      return current >= timeLimit;
+      return baseOffset.withinBounds() &&
+             timestamps.getLong(baseOffset.getOffset(), handover) &&
+             handover.longValue() >= timeLimit;
     }
 
     @Override
@@ -1234,6 +1246,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     public boolean increment()
     {
       return ++currentOffset < rowCount;
+    }
+
+    @Override
+    public int incrementN(int n)
+    {
+      final int delta = Math.min(rowCount - currentOffset, n);
+      currentOffset+= delta;
+      return n - delta;
     }
 
     @Override
@@ -1276,6 +1296,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     public boolean increment()
     {
       return ++currentOffset < rowCount;
+    }
+
+    @Override
+    public int incrementN(int n)
+    {
+      final int delta = Math.min(rowCount - currentOffset, n);
+      currentOffset+= delta;
+      return n - delta;
     }
 
     @Override

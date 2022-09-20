@@ -540,7 +540,7 @@ public class ServerManagerTest
     }
 
     @Override
-    public QueryRunner<Result<SearchResultValue>> _createRunner(Segment adapter, Future<Object> optimizer)
+    public QueryRunner<Result<SearchResultValue>> _createRunner(Segment adapter, Supplier<Object> optimizer)
     {
       final ReferenceCountingSegment segment = (ReferenceCountingSegment) adapter;
 
@@ -557,7 +557,7 @@ public class ServerManagerTest
         Query<Result<SearchResultValue>> query,
         ExecutorService queryExecutor,
         Iterable<QueryRunner<Result<SearchResultValue>>> queryRunners,
-        Future<Object> optimizer
+        Supplier<Object> optimizer
     )
     {
       return new ConcatQueryRunner<Result<SearchResultValue>>(Sequences.simple(queryRunners));
@@ -570,7 +570,7 @@ public class ServerManagerTest
     }
 
     @Override
-    public Future<Object> preFactoring(
+    public Supplier<Object> preFactoring(
         SearchQuery query,
         List<Segment> segments,
         Supplier<RowResolver> resolver,

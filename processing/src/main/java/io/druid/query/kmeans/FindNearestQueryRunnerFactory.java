@@ -20,7 +20,7 @@
 package io.druid.query.kmeans;
 
 import com.google.common.base.Supplier;
-import com.google.common.util.concurrent.Futures;
+import com.google.common.base.Suppliers;
 import com.google.inject.Inject;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
@@ -40,7 +40,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -64,18 +63,18 @@ public class FindNearestQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(
+  public Supplier<Object> preFactoring(
       FindNearestQuery query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
   )
   {
-    return Futures.<Object>immediateFuture(new MutableInt(0));
+    return Suppliers.ofInstance(new MutableInt(0));
   }
 
   @Override
-  public QueryRunner<CentroidDesc> _createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<CentroidDesc> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     return new QueryRunner<CentroidDesc>()
     {

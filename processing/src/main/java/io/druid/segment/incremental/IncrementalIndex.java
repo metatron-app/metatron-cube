@@ -603,15 +603,15 @@ public abstract class IncrementalIndex implements Closeable
     return columnDescriptors == null ? null : columnDescriptors.get(column);
   }
 
-  public Iterable<Map.Entry<TimeAndDims, Object[]>> getAll()
+  public Map<TimeAndDims, Object[]> getAll()
   {
     return getRangeOf(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT, null);
   }
 
-  public abstract Iterable<Map.Entry<TimeAndDims, Object[]>> getRangeOf(long from, long to, Boolean timeDescending);
+  public abstract Map<TimeAndDims, Object[]> getRangeOf(long from, long to, Boolean timeDescending);
 
   @SuppressWarnings("unchecked")
-  protected Iterable<Map.Entry<TimeAndDims, Object[]>> getFacts(
+  protected Map<TimeAndDims, Object[]> getFacts(
       final NavigableMap facts,
       final long from,
       final long to,
@@ -628,7 +628,7 @@ public abstract class IncrementalIndex implements Closeable
     if (timeDescending != null && timeDescending) {
       sortedMap = sortedMap.descendingMap();
     }
-    return sortedMap.entrySet();
+    return sortedMap;
   }
 
   public Metadata getMetadata()
@@ -639,7 +639,7 @@ public abstract class IncrementalIndex implements Closeable
   @VisibleForTesting
   public Iterator<Row> iterator()
   {
-    return Iterators.transform(getAll().iterator(), rowFunction());
+    return Iterators.transform(getAll().entrySet().iterator(), rowFunction());
   }
 
   @SuppressWarnings("unchecked")

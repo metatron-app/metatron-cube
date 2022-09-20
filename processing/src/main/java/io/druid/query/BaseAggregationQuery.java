@@ -459,6 +459,19 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     return result;
   }
 
+  public DimensionSamplingQuery toSampling(int samplePerNode)
+  {
+    return new DimensionSamplingQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getFilter(),
+        getVirtualColumns(),
+        getDimensions(),
+        samplePerNode,
+        copyContextForMeta(context)
+    );
+  }
+
   public static abstract class Builder<T extends BaseAggregationQuery>
   {
     protected DataSource dataSource;

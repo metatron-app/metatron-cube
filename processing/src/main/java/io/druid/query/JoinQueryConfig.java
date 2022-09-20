@@ -91,6 +91,21 @@ public class JoinQueryConfig
     this.broadcastJoinThreshold = broadcastJoinThreshold;
   }
 
+  public int anyMinThreshold()
+  {
+    int threshold = -1;
+    if (hashJoinThreshold > 0) {
+      threshold = hashJoinThreshold;
+    }
+    if (semiJoinThreshold > 0) {
+      threshold = threshold < 0 ? semiJoinThreshold : Math.min(threshold, semiJoinThreshold);
+    }
+    if (broadcastJoinThreshold > 0) {
+      threshold = threshold < 0 ? broadcastJoinThreshold : Math.min(threshold, broadcastJoinThreshold);
+    }
+    return threshold;
+  }
+
   public int getBloomFilterThreshold()
   {
     return bloomFilterThreshold;

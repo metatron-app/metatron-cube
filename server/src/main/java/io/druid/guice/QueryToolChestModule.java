@@ -25,6 +25,10 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.multibindings.MapBinder;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
+import io.druid.query.DimensionSamplingQuery;
+import io.druid.query.DimensionSamplingQueryToolChest;
+import io.druid.query.FilterMetaQuery;
+import io.druid.query.FilterMetaQueryToolChest;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.JoinQueryConfig;
 import io.druid.query.MapQueryToolChestWarehouse;
@@ -34,8 +38,6 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.SchemaQuery;
 import io.druid.query.SchemaQueryToolChest;
-import io.druid.query.FilterMetaQuery;
-import io.druid.query.FilterMetaQueryToolChest;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceQueryQueryToolChest;
 import io.druid.query.frequency.FrequencyQuery;
@@ -99,6 +101,7 @@ public class QueryToolChestModule implements Module
                   .put(GroupByQuery.class, GroupByQueryQueryToolChest.class)
                   .put(SelectMetaQuery.class, SelectMetaQueryToolChest.class)
                   .put(FilterMetaQuery.class, FilterMetaQueryToolChest.class)
+                  .put(DimensionSamplingQuery.class, DimensionSamplingQueryToolChest.class)
                   .put(SchemaQuery.class, SchemaQueryToolChest.class)
                   .put(SelectQuery.class, SelectQueryQueryToolChest.class)
                   .put(StreamQuery.class, StreamQueryToolChest.class)

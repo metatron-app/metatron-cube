@@ -110,7 +110,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 /**
@@ -713,7 +712,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver, true);
-    final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, executor);
+    final Supplier<Object> optimizer = factory.preFactoring(resolved, targets, resolver, executor);
 
     final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
     {

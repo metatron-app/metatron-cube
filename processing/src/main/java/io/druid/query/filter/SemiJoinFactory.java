@@ -86,6 +86,16 @@ public class SemiJoinFactory
     }
   }
 
+  public static int sizeOf(DimFilter filter)
+  {
+    if (filter instanceof InDimFilter) {
+      return ((InDimFilter) filter).getValues().size();
+    } else if (filter instanceof InDimsFilter) {
+      return ((InDimsFilter) filter).getValues().get(0).size();
+    }
+    return -1;
+  }
+
   public static Pair<DimFilter, RowExploder> extract(
       List<String> fieldNames, Sequence<Object[]> sequence, boolean allowDuplication
   )

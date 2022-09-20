@@ -88,7 +88,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -445,7 +444,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver, true);
 
-    final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
+    final Supplier<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
     final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<T>(toolChest, emitter);
@@ -513,7 +512,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
 
   private <T> Function<Segment, QueryRunner<T>> buildAndDecorateQueryRunner(
       final QueryRunnerFactory<T, Query<T>> factory,
-      final Future<Object> optimizer,
+      final Supplier<Object> optimizer,
       final CPUTimeMetricBuilder<T> reporter
   )
   {
