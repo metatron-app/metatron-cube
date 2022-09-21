@@ -52,7 +52,6 @@ import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
@@ -499,13 +498,13 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   }
 
   @Override
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     GroupByQuery query = this;
     if (query.getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
       return query;
     }
-    GroupByQueryConfig groupByConfig = queryConfig.getGroupBy();
+    GroupByQueryConfig groupByConfig = segmentWalker.getGroupByConfig();
     if (query.getContextBoolean(GBY_PRE_ORDERING, groupByConfig.isPreOrdering())) {
       query = query.tryPreOrdering();
     }
@@ -519,7 +518,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
       }
     }
     if (query.getContextBoolean(GBY_CONVERT_FREQUENCY, groupByConfig.isConvertFrequency())) {
-      Query converted = query.tryConvertToFrequency(segmentWalker, queryConfig);
+      Query converted = query.tryConvertToFrequency(segmentWalker);
       if (converted != null) {
         return converted;
       }
@@ -613,13 +612,10 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
 
   private Query tryConvertToTimeseries(ObjectMapper jsonMapper)
   {
-    if (!dimensions.isEmpty()) {
-      return null;
-    }
-    return Druids.newTimeseriesQueryBuilder().copy(this).build();
+    return dimensions.isEmpty() ? Druids.newTimeseriesQueryBuilder().copy(this).build() : null;
   }
 
-  private Query tryConvertToFrequency(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  private Query tryConvertToFrequency(QuerySegmentWalker segmentWalker)
   {
     if (!Granularities.ALL.equals(granularity) || lateralView != null || havingSpec != null) {
       return null;
@@ -664,10 +660,10 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         null,
         BaseQuery.copyContextForMeta(this)
     );
-    Row result = QueryRunners.only(meta, segmentWalker);
-    Number cardinality = (Number) result.getRaw("$v");
-    if (cardinality == null || cardinality.longValue() < queryConfig.getGroupBy().getConvertFrequencyCardinality()) {
-      return null;  // group by is faster
+    GroupByQueryConfig config = segmentWalker.getGroupByConfig();
+    Number cardinality = (Number) QueryRunners.only(meta, segmentWalker).getRaw("$v");
+    if (cardinality == null || cardinality.longValue() < config.getConvertFrequencyCardinality()) {
+      return null;  // group by would be faster
     }
     int value = cardinality.intValue();
     BigInteger prime = BigInteger.valueOf(value).nextProbablePrime();
@@ -685,7 +681,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         newLimitSpec,
         null,
         getContext()
-    ).rewriteQuery(segmentWalker, queryConfig);
+    ).rewriteQuery(segmentWalker);
 
     return PostProcessingOperators.prepend(
         query,
@@ -916,7 +912,17 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     );
   }
 
-  public Query<Row> toCardinalityEstimator(QueryConfig config, ObjectMapper mapper, boolean throwException)
+  @SuppressWarnings("unchecked")
+  public Query<Row> toCardinalityEstimator(QuerySegmentWalker walker)
+  {
+    Query<Row> rewritten = toCardinalityEstimator(walker.getMapper(), true);
+    if (rewritten instanceof Query.RewritingQuery) {
+      rewritten = ((Query.RewritingQuery) rewritten).rewriteQuery(walker);
+    }
+    return rewritten;
+  }
+
+  private Query<Row> toCardinalityEstimator(ObjectMapper mapper, boolean throwException)
   {
     GroupByQuery query = this;
     if (query.getLateralView() != null ||

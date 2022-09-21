@@ -35,6 +35,7 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.SegmentDescriptor;
 import io.druid.segment.incremental.IndexSizeExceededException;
@@ -424,6 +425,12 @@ public class AppenderatorDriverFailTest
     public void closeNow()
     {
 
+    }
+
+    @Override
+    public QueryConfig getConfig()
+    {
+      return null;
     }
 
     @Override

@@ -34,7 +34,6 @@ import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -127,10 +126,10 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public FrequencyQuery rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public FrequencyQuery rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     int newDepth = depth > 0 ? depth :
-                   getContextInt(FREQUENCY_SKETCH_DEPTH, queryConfig.getFrequency().getSketchDepth());
+                   getContextInt(FREQUENCY_SKETCH_DEPTH, segmentWalker.getFrequencyConfig().getSketchDepth());
     if (width > 0 && sketch != null) {
       if (depth > 0) {
         return this;

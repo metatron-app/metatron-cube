@@ -78,6 +78,12 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
   }
 
   @Override
+  public QueryConfig getConfig()
+  {
+    return queryConfig;
+  }
+
+  @Override
   public ExecutorService getExecutor()
   {
     return exec;

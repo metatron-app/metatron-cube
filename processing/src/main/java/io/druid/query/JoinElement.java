@@ -405,8 +405,23 @@ public class JoinElement
         return new long[]{Queries.NOT_EVALUATED, Queries.NOT_EVALUATED};  // see later
       }
       if (query instanceof BaseAggregationQuery) {
+        long[] selectivity = new long[]{Queries.NOT_EVALUATED, Queries.NOT_EVALUATED};
         BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
         estimated = Queries.estimateCardinality(aggregation.withHavingSpec(null), segmentWalker, config);
+        if (aggregation.getFilter() != null) {
+          selectivity = Queries.estimateCardinality(
+              aggregation.getDataSource(),
+              aggregation.getQuerySegmentSpec(),
+              aggregation.getFilter(),
+              BaseQuery.copyContextForMeta(aggregation),
+              segmentWalker
+          );
+        }
+        if (selectivity[0] > 0 && selectivity[1] > 0) {
+          estimated[1] = estimated[0] * selectivity[1] / selectivity[0];
+        } else {
+          estimated[1] = estimated[0];
+        }
         long cardinality = estimated[0];
         if (cardinality > 0 && aggregation.getHavingSpec() != null) {
           List<DimensionSpec> dimensions = aggregation.getDimensions();

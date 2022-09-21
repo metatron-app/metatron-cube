@@ -19,7 +19,6 @@
 
 package io.druid.server;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -78,7 +77,7 @@ public class QueryResourceTest
 
   private static final ExecutorService executorService = Executors.newSingleThreadExecutor();
   private static final ObjectMapper jsonMapper = new DefaultObjectMapper();
-  public static final ServerConfig serverConfig = new ServerConfig()
+  private static final ServerConfig serverConfig = new ServerConfig()
   {
     @Override
     public int getNumThreads()
@@ -92,9 +91,15 @@ public class QueryResourceTest
       return Period.seconds(1);
     }
   };
-  private final HttpServletRequest testServletRequest = EasyMock.createMock(HttpServletRequest.class);
+  private static final QueryConfig config = new QueryConfig();
   public static final QuerySegmentWalker testSegmentWalker = new QuerySegmentWalker()
   {
+    @Override
+    public QueryConfig getConfig()
+    {
+      return config;
+    }
+
     @Override
     public ExecutorService getExecutor()
     {
@@ -135,12 +140,13 @@ public class QueryResourceTest
 
   private static final DruidNode node = new DruidNode("dummy", "dummy", 0);
   private static final QueryToolChestWarehouse warehouse = new MapQueryToolChestWarehouse(
-      new QueryConfig(), Maps.<Class<? extends Query>, QueryToolChest>newHashMap()
+      config, Maps.<Class<? extends Query>, QueryToolChest>newHashMap()
   );
   private static final ServiceEmitter noopServiceEmitter = new NoopServiceEmitter();
 
   private QueryResource queryResource;
   private QueryManager queryManager;
+  private final HttpServletRequest testServletRequest = EasyMock.createMock(HttpServletRequest.class);
 
   @BeforeClass
   public static void staticSetup()

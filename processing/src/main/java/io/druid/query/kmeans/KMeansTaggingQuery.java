@@ -40,7 +40,6 @@ import io.druid.query.Query;
 import io.druid.query.Query.RewritingQuery;
 import io.druid.query.Query.SchemaProvider;
 import io.druid.query.Query.WrappingQuery;
-import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowSignature;
 import io.druid.query.UnionAllQuery;
@@ -329,7 +328,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     Query kMeansQuery = new KMeansQuery(
         getDataSource(),
@@ -346,11 +345,11 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         ranges,
         centroids,
         BaseQuery.copyContextForMeta(getContext())
-    ).rewriteQuery(segmentWalker, queryConfig);
+    ).rewriteQuery(segmentWalker);
 
     Query source = query;
     if (source instanceof RewritingQuery) {
-      source = ((RewritingQuery) source).rewriteQuery(segmentWalker, queryConfig);
+      source = ((RewritingQuery) source).rewriteQuery(segmentWalker);
     }
     ObjectMapper mapper = segmentWalker.getMapper();
 

@@ -48,6 +48,7 @@ import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.SegmentDescriptor;
@@ -344,6 +345,12 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
   public void start()
   {
     // No state startup required
+  }
+
+  @Override
+  public QueryConfig getConfig()
+  {
+    return toolboxFactory.getQueryConfig();
   }
 
   @Override

@@ -37,7 +37,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.DummyQuery;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
@@ -275,7 +274,7 @@ public class RegressionQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     final Map<String, Object> context = BaseQuery.copyContextForMeta(this);
     final TimeseriesQuery regression = new TimeseriesQuery(

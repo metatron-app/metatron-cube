@@ -33,7 +33,6 @@ import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
@@ -80,7 +79,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     Map<String, ValueDesc> majorTypes = QueryUtils.toMajorType(QueryUtils.analyzeTypes(segmentWalker, this));
 

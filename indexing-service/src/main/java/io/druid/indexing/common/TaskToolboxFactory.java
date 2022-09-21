@@ -30,6 +30,7 @@ import io.druid.guice.annotations.Processing;
 import io.druid.indexing.common.actions.TaskActionClientFactory;
 import io.druid.indexing.common.config.TaskConfig;
 import io.druid.indexing.common.task.Task;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
@@ -144,6 +145,11 @@ public class TaskToolboxFactory
         cacheConfig,
         indexMergerV9
     );
+  }
+
+  public QueryConfig getQueryConfig()
+  {
+    return queryRunnerFactoryConglomerate.getConfig();
   }
 
   public ExecutorService getQueryExecutorService()

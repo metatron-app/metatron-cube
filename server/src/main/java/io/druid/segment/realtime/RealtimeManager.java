@@ -40,6 +40,7 @@ import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -170,6 +171,12 @@ public class RealtimeManager implements ForwardingSegmentWalker
       }
     }
     return snapshot;
+  }
+
+  @Override
+  public QueryConfig getConfig()
+  {
+    return conglomerate.getConfig();
   }
 
   @Override

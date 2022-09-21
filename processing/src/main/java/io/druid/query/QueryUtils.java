@@ -407,7 +407,7 @@ public class QueryUtils
   {
     Query input = query;
     if (input instanceof Query.RewritingQuery) {
-      input = ((Query.RewritingQuery) input).rewriteQuery(segmentWalker, queryConfig);
+      input = ((Query.RewritingQuery) input).rewriteQuery(segmentWalker);
     }
     if (input instanceof Query.FilterSupport) {
       input = DimFilters.inflate((Query.FilterSupport) input);

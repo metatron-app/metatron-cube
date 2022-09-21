@@ -56,7 +56,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.ordering.OrderingSpec;
@@ -452,7 +451,7 @@ public class Queries
     if (query instanceof TimeseriesQuery) {
       return estimateCardinality((TimeseriesQuery) query, segmentWalker, config);
     } else if (query instanceof GroupByQuery) {
-      return estimateCardinality((GroupByQuery) query, segmentWalker, config);
+      return estimateCardinality((GroupByQuery) query, segmentWalker);
     } else if (query instanceof StreamQuery) {
       StreamQuery stream = (StreamQuery) query;
       return estimateCardinality(
@@ -490,7 +489,7 @@ public class Queries
     for (Interval interval : QueryUtils.analyzeInterval(segmentWalker, query)) {
       estimated += Iterables.size(granularity.getIterable(interval));
     }
-    return new long[]{estimated, NOT_EVALUATED};
+    return new long[]{estimated, estimated};
   }
 
   private static long tryEstimateOnDictionary(GroupByQuery query, List<Segment> segments, long minCardinality)
@@ -542,15 +541,15 @@ public class Queries
         return estimate;
       }
     }
-    return estimateCardinality(query, segmentWalker, config)[0];
+    return estimateCardinality(query, segmentWalker)[0];
   }
 
-  private static long[] estimateCardinality(GroupByQuery query, QuerySegmentWalker segmentWalker, QueryConfig config)
+  private static long[] estimateCardinality(GroupByQuery query, QuerySegmentWalker segmentWalker)
   {
     Map<String, Object> override = BaseQuery.copyContextForMeta(query);
     override.put(Query.FORCE_PARALLEL_MERGE, true);   // force parallel execution
     query = query.withOverriddenContext(override);
-    Query<Row> metaQuery = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
+    Query<Row> metaQuery = query.toCardinalityEstimator(segmentWalker);
 
     Sequence<Row> sequence = QueryRunners.run(metaQuery, segmentWalker);
 

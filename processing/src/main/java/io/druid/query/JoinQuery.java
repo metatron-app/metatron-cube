@@ -85,7 +85,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 {
   public static final String HASHING = "$hash";
   public static final String CARDINALITY = "$cardinality";
-  public static final String ROWNUM = "$rownum";
+  public static final String SELECTIVITY = "$selectivity";
 
   private static final Logger LOG = new Logger(JoinQuery.class);
 
@@ -307,7 +307,8 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       Query query = ((QueryDataSource) dataSource).getQuery();
       long cardinality = query.getContextLong(CARDINALITY, Queries.NOT_EVALUATED);
       if (cardinality != Queries.NOT_EVALUATED) {
-        return new long[]{cardinality, query.getContextLong(ROWNUM, Queries.NOT_EVALUATED)};
+        float selectivity = query.getContextFloat(SELECTIVITY, 1f);
+        return new long[]{cardinality, (long) (cardinality / selectivity)};
       }
       long[] estimate = estimatedCardinality(query.getDataSource());
       if (estimate[0] > 0 && query instanceof Query.AggregationsSupport) {
@@ -323,7 +324,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     if (schema != null && outputColumns != null) {
       Preconditions.checkArgument(
@@ -331,6 +332,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           "Invalid schema %s, expected column names %s", schema, outputColumns
       );
     }
+    final QueryConfig config = segmentWalker.getConfig();
     final int maxResult = config.getJoin().getMaxOutputRow(maxOutputRow);
     final int hashThreshold = config.getHashJoinThreshold(this);
     final int semiJoinThrehold = config.getSemiJoinThreshold(this);
@@ -339,6 +341,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     final int forcedFilterHugeThreshold = config.getForcedFilterHugeThreshold(this);
     final int forcedFilterTinyThreshold = config.getForcedFilterTinyThreshold(this);
 
+    float currentSelectivity = 1f;
     final long[] currentEstimation = new long[]{Queries.UNKNOWN, Queries.UNKNOWN};
 
     final Map<String, Object> context = getContext();
@@ -366,7 +369,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       if (rightEstimated[0] == Queries.NOT_EVALUATED) {
         rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
       }
-      LOG.info(">> %s (%s:%d + %s:%d)", element.getJoinTypeString(), leftAlias, leftEstimated[0], rightAlias, rightEstimated[0]);
+      LOG.info(">> %s (%s:%d/%d + %s:%d/%d)", element.getJoinTypeString(), leftAlias, leftEstimated[0], leftEstimated[1], rightAlias, rightEstimated[0], rightEstimated[1]);
 
       if (!getContextBoolean(Query.OUTERMOST_JOIN, false)) {
         element.earlyCheckMaxJoin(leftEstimated[0], rightEstimated[0], maxResult);
@@ -390,11 +393,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             if (converted.rhs != null) {
               query = PostProcessingOperators.appendLocal(query, converted.rhs);
             }
-            currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, RIGHT_TO_LEFT);
-            if (currentEstimation[0] == Queries.UNKNOWN) {
-              currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]) >> 2;
-            }
-            queries.add(propagateCardinality(query, currentEstimation));
+            currentEstimation[0] = leftEstimated[0] *= selectivity(rightEstimated);
+            currentSelectivity *= selectivity(leftEstimated, rightEstimated);
+            queries.add(propagateCardinality(query, currentEstimation, currentSelectivity));
             continue;
           }
         }
@@ -414,11 +415,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             if (converted.rhs != null) {
               query = PostProcessingOperators.appendLocal(query, converted.rhs);
             }
-            currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, LEFT_TO_RIGHT);
-            if (currentEstimation[0] == Queries.UNKNOWN) {
-              currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]) >> 2;
-            }
-            queries.add(propagateCardinality(query, currentEstimation));
+            currentEstimation[0] = rightEstimated[0] *= selectivity(leftEstimated);
+            currentSelectivity *= selectivity(leftEstimated, rightEstimated);
+            queries.add(propagateCardinality(query, currentEstimation, currentSelectivity));
             continue;
           }
         }
@@ -464,13 +463,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           );
           query1 = PostProcessingOperators.appendLocal(query1, processor);
           query1 = ((LastProjectionSupport) query1).withOutputColumns(null);
-          if (element.isInnerJoin()) {
-            currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, LEFT_TO_RIGHT);
-            if (currentEstimation[0] == Queries.UNKNOWN) {
-              currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
-            }
-          }
-          queries.add(propagateCardinality(query1, currentEstimation));
+          currentSelectivity *= selectivity(leftEstimated, rightEstimated);
+          currentEstimation[0] = roughEstimation(element, leftEstimated, rightEstimated);
+          queries.add(propagateCardinality(query1, currentEstimation, currentSelectivity));
           continue;
         }
         if (rightBroadcast) {
@@ -500,13 +495,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           );
           query0 = PostProcessingOperators.appendLocal(query0, processor);
           query0 = ((LastProjectionSupport) query0).withOutputColumns(null);
-          if (element.isInnerJoin()) {
-            currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, RIGHT_TO_LEFT);
-            if (currentEstimation[0] == Queries.UNKNOWN) {
-              currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
-            }
-          }
-          queries.add(propagateCardinality(query0, currentEstimation));
+          currentSelectivity *= selectivity(leftEstimated, rightEstimated);
+          currentEstimation[0] = roughEstimation(element, leftEstimated, rightEstimated);
+          queries.add(propagateCardinality(query0, currentEstimation, currentSelectivity));
           continue;
         }
       }
@@ -542,9 +533,10 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, leftJoinColumns));
             right = DataSources.applyFilter(right, SemiJoinFactory.from(rightJoinColumns, keys.iterator()));
             LOG.info("-- %s:%d (L) (hash) is applied to %s (R)", leftAlias, leftEstimated[0] = values.size(), rightAlias);
+            currentSelectivity *= selectivity(leftEstimated);
           }
         }
-        queries.add(propagateCardinality(query, leftEstimated));
+        queries.add(query);
       }
       List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
       LOG.info(
@@ -568,21 +560,13 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           left = DataSources.applyFilter(left, SemiJoinFactory.from(leftJoinColumns, keys.iterator()));
           LOG.info("-- %s:%d (R) (hash) is applied to %s (L) as filter", rightAlias, rightEstimated[0] = values.size(), leftAlias);
           GuavaUtils.setLastOf(queries, ((QueryDataSource) left).getQuery());   // overwrite
+          currentSelectivity *= selectivity(rightEstimated);
         }
       }
-      queries.add(propagateCardinality(query, rightEstimated));
+      queries.add(query);
 
-      if (queries.get(i) instanceof MaterializedQuery) {
-        currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, LEFT_TO_RIGHT);
-        if (currentEstimation[0] == Queries.UNKNOWN) {
-          currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
-        }
-        continue;
-      } else if (queries.get(i + 1) instanceof MaterializedQuery) {
-        currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, RIGHT_TO_LEFT);
-        if (currentEstimation[0] == Queries.UNKNOWN) {
-          currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
-        }
+      if (queries.get(i) instanceof MaterializedQuery || queries.get(i + 1) instanceof MaterializedQuery) {
+        currentEstimation[0] = roughEstimation(element, leftEstimated, rightEstimated);
         continue;
       }
 
@@ -647,25 +631,8 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           }
         }
       }
-      if (element.isInnerJoin() && rightEstimated[0] < rightEstimated[1]) {
-        long estimation = applySelectivity(leftEstimated, rightEstimated, RIGHT_TO_LEFT);
-        if (estimation == Queries.UNKNOWN && leftEstimated[0] >= 0) {
-          estimation = leftEstimated[0] >>> 2;
-        }
-        leftEstimated[0] = estimation;
-      }
-      if (element.isInnerJoin() && leftEstimated[0] < leftEstimated[1]) {
-        long estimation = applySelectivity(leftEstimated, rightEstimated, LEFT_TO_RIGHT);
-        if (estimation == Queries.UNKNOWN && rightEstimated[0] >= 0) {
-          estimation = rightEstimated[0] >>> 2;
-        }
-        rightEstimated[0] = estimation;
-      }
-      if (element.isInnerJoin() && (rightEstimated[0] < rightEstimated[1] || leftEstimated[0] < leftEstimated[1])) {
-        currentEstimation[0] = Math.max(leftEstimated[0], rightEstimated[0]);
-      } else {
-        currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
-      }
+      currentSelectivity *= selectivity(leftEstimated, rightEstimated);
+      currentEstimation[0] = roughEstimation(element, leftEstimated, rightEstimated);
     }
     // todo: properly handle filter converted semijoin
     if (queries.size() == 1) {
@@ -681,7 +648,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
 
-    Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, CARDINALITY, currentEstimation[0]);
+    Map<String, Object> joinContext = BaseQuery.copyContextForMeta(
+        context, CARDINALITY, currentEstimation[0], SELECTIVITY, next(currentSelectivity)
+    );
     JoinHolder query = new JoinHolder(
         StringUtils.concat("+", aliases), queries, timeColumn, outputAlias, outputColumns, limit, joinContext
     );
@@ -708,22 +677,39 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     );
   }
 
-  private Query propagateCardinality(Query query, long[] currentEstimation)
+  private Query propagateCardinality(Query query, long[] currentEstimation, float selectivity)
   {
-    return currentEstimation[0] > 0 ? query.withOverriddenContext(CARDINALITY, currentEstimation[0]) : query;
+    if (currentEstimation[0] < 0 && selectivity <= 0) {
+      return query;
+    }
+    Map<String, Object> context = BaseQuery.copyContext(query);
+    if (currentEstimation[0] >= 0) {
+      BaseQuery.putTo(context, CARDINALITY, currentEstimation[0]);
+    }
+    if (selectivity > 0) {
+      BaseQuery.putTo(context, SELECTIVITY, next(selectivity));
+    }
+    return query.withOverriddenContext(context);
   }
 
-  private long applySelectivity(long[] leftEstimation, long[] rightEstimation, boolean leftToRight)
+  private float selectivity(long[] estimation)
   {
-    if (leftEstimation[0] < 0 || rightEstimation[0] < 0) {
-      return Queries.UNKNOWN;
-    }
-    if (leftToRight && leftEstimation[1] > 0) {
-      return (long) (rightEstimation[0] * Math.max(0.04f, (float) leftEstimation[0] / leftEstimation[1]));
-    } else if (!leftToRight && rightEstimation[1] > 0) {
-      return (long) (leftEstimation[0] * Math.max(0.04f, (float) rightEstimation[0] / rightEstimation[1]));
-    }
-    return Queries.UNKNOWN;
+    return estimation[0] > 0 && estimation[1] > 0 ? normalize(((float) estimation[0]) / estimation[1]) : 1f;
+  }
+
+  private float selectivity(long[] leftEstimation, long[] rightEstimation)
+  {
+    return Math.min(selectivity(leftEstimation), selectivity(rightEstimation));
+  }
+
+  private float next(float selectivity)
+  {
+    return Math.min(1f, normalize(selectivity) * 1.5f);
+  }
+
+  private float normalize(float selectivity)
+  {
+    return Math.max(0.005f, Math.min(1f, selectivity));
   }
 
   private static byte[] writeBytes(ObjectMapper objectMapper, Object value)
@@ -741,41 +727,31 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     return estimation >= 0 && threshold >= 0 && estimation <= threshold;
   }
 
-  private long roughEstimation(JoinElement element, long leftEstimation, long rightEstimated)
+  private long roughEstimation(JoinElement element, long[] leftEstimated, long[] rightEstimated)
   {
-    if (leftEstimation < 0 || rightEstimated < 0) {
-      return Queries.UNKNOWN;
-    }
     if (element.isCrossJoin()) {
-      return leftEstimation * rightEstimated;
+      return leftEstimated[0] * rightEstimated[0];
     }
+    long estimation = 0;
     switch (element.getJoinType()) {
       case INNER:
-        if (leftEstimation == 0 || rightEstimated == 0) {
-          leftEstimation = 0;
+        if (leftEstimated[0] > rightEstimated[0]) {
+          estimation = (long) (leftEstimated[0] * selectivity(rightEstimated));
         } else {
-          leftEstimation = Math.min(leftEstimation, rightEstimated) + Math.abs(leftEstimation - rightEstimated) / 2;
+          estimation = (long) (rightEstimated[0] * selectivity(leftEstimated));
         }
         break;
       case LO:
-        if (leftEstimation == 0) {
-          leftEstimation = 0;
-        } else if (rightEstimated > leftEstimation) {
-          leftEstimation *= ((double) rightEstimated) / leftEstimation;
-        }
+        estimation = leftEstimated[0];
         break;
       case RO:
-        if (rightEstimated == 0) {
-          leftEstimation = 0;
-        } else if (leftEstimation > rightEstimated) {
-          leftEstimation *= (double) leftEstimation / rightEstimated;
-        }
+        estimation = rightEstimated[0];
         break;
       case FULL:
-        leftEstimation += rightEstimated;
+        estimation = leftEstimated[0] + rightEstimated[0];
         break;
     }
-    return leftEstimation;
+    return Math.max(1, (long) (estimation * 1.1f));
   }
 
   private static Factory bloom(
@@ -997,7 +973,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     }
 
     @Override
-    public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+    public Query rewriteQuery(QuerySegmentWalker segmentWalker)
     {
       return this;
     }

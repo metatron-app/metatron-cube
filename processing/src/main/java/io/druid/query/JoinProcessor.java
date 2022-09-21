@@ -26,7 +26,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -72,8 +71,7 @@ public class JoinProcessor
   {
     Preconditions.checkArgument(left.joinColumns.size() == right.joinColumns.size());
     if (left.joinColumns.size() == 0) {
-      LOG.info(">> CROSS (%s x %s)", left, right);
-      return JoinResult.none(product(left.materialize(), right.materialize(), false));
+      return product(left, right, false);
     }
     if (left.isHashed() && right.isHashed()) {
       switch (type) {
@@ -599,13 +597,11 @@ public class JoinProcessor
     {
       List<Object[]> materialized;
       if (hashed != null) {
-        materialized = Lists.<Object[]>newArrayList(
-            Iterables.concat(Iterables.transform(hashed.values(), JoinProcessor::asValues))
-        );
-        hashed.clear();
+        materialized = Lists.<Object[]>newArrayList(GuavaUtils.explode(hashed.values(), JoinProcessor::asValues));
       } else {
         materialized = Lists.<Object[]>newArrayList(rows);
       }
+      IOUtils.closeQuietly(this);
       return materialized;
     }
 
@@ -728,6 +724,17 @@ public class JoinProcessor
     } else {
       return Arrays.<Object[]>asList((Object[]) value);
     }
+  }
+
+  private JoinResult product(final JoinAlias left, final JoinAlias right, final boolean revert)
+  {
+    LOG.info(">> CROSS (%s x %s)", left, right);
+    List<Object[]> leftRows = left.materialize();
+    List<Object[]> rightRows = right.materialize();
+    return JoinResult.none(GuavaUtils.withResource(product(leftRows, rightRows, false), () ->
+        LOG.info("<< CROSS (%s + %s), resulting %d rows (%s+%s)",
+                 left, right, leftRows.size() * rightRows.size(), left.columns, right.columns
+        )));
   }
 
   private Iterator<Object[]> product(final List<Object[]> left, final List<Object[]> right, final boolean revert)

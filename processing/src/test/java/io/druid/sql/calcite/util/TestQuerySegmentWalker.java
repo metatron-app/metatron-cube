@@ -453,6 +453,12 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   }
 
   @Override
+  public QueryConfig getConfig()
+  {
+    return queryConfig;
+  }
+
+  @Override
   public ExecutorService getExecutor()
   {
     return executor;

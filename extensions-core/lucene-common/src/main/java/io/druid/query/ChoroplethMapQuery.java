@@ -153,7 +153,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     final List<String> columns = boundary.getColumns();
     final int geomIndex = boundaryColumn == null ? 0 : columns.indexOf(boundaryColumn);
@@ -192,7 +192,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]>
         ));
         filtered = filtered.withOverriddenContext(copy);
       }
-      queries.add(filtered.rewriteQuery(segmentWalker, queryConfig));
+      queries.add(filtered.rewriteQuery(segmentWalker));
     }
     Map<String, Object> copy = Maps.newHashMap(context);
     copy.put(Query.POST_PROCESSING, new RowToArray(estimatedOutputColumns()));

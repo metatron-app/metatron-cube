@@ -107,11 +107,11 @@ public class ClassifyQuery extends BaseQuery<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     Query q = query.getId() == null ? query.withId(getId()) : query;
     if (q instanceof Query.RewritingQuery) {
-      q = ((Query.RewritingQuery) q).rewriteQuery(segmentWalker, queryConfig);
+      q = ((Query.RewritingQuery) q).rewriteQuery(segmentWalker);
     }
     ObjectMapper jsonMapper = segmentWalker.getMapper();
     if (estimatedOutputColumns() == null && PostProcessingOperators.returns(q) != Map.class) {
@@ -119,7 +119,7 @@ public class ClassifyQuery extends BaseQuery<Object[]>
     }
     Query c = classifier.getId() == null ? classifier.withId(getId()) : classifier;
     if (c instanceof Query.RewritingQuery) {
-      c = ((Query.RewritingQuery) c).rewriteQuery(segmentWalker, queryConfig);
+      c = ((Query.RewritingQuery) c).rewriteQuery(segmentWalker);
     }
     Map<String, Object> postProcessing = ImmutableMap.<String, Object>of(
         Query.POST_PROCESSING, new ClassifyPostProcessor(tagColumn)

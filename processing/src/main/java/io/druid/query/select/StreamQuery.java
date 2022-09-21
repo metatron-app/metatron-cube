@@ -44,7 +44,6 @@ import io.druid.query.DataSource;
 import io.druid.query.JoinQuery;
 import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowResolver;
 import io.druid.query.filter.DimFilter;
@@ -206,7 +205,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public StreamQuery rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public StreamQuery rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     StreamQuery query = this;
     if (GuavaUtils.isNullOrEmpty(orderingSpecs)) {
@@ -496,7 +495,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         limitSpec.withOrderingSpec(orderingSpecs),
         getOutputColumns(),
         getContext()
-    ).rewriteQuery(null, null);
+    ).rewriteQuery(null);
   }
 
   public StreamQuery withLimit(int limit)

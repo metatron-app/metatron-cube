@@ -442,7 +442,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     if (query != null && query.getDataSource() instanceof UnionDataSource) {
       List<String> dataSources = ((UnionDataSource) query.getDataSource()).getDataSources();

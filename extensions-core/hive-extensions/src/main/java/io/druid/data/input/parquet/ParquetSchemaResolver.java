@@ -35,6 +35,7 @@ import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.granularity.Granularity;
 import io.druid.indexer.path.PathUtil;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.StringUtils;
@@ -86,14 +87,14 @@ public class ParquetSchemaResolver extends AbstractResolver
     ClassLoader loader = ParquetSchemaResolver.class.getClassLoader();
     Thread.currentThread().setContextClassLoader(loader);
     try {
-      return _resolve(dataSource, walker);
+      return _resolve(dataSource, walker.getMapper());
     }
     finally {
       Thread.currentThread().setContextClassLoader(prev);
     }
   }
 
-  public FileLoadSpec _resolve(String dataSource, QuerySegmentWalker walker) throws IOException
+  public FileLoadSpec _resolve(String dataSource, ObjectMapper mapper) throws IOException
   {
     Path base = basePath == null ? null : new Path(basePath);
     List<String> resolved = PathUtil.resolve(base, paths, recursive);
@@ -153,7 +154,6 @@ public class ParquetSchemaResolver extends AbstractResolver
       }
       throw new UnsupportedOperationException("Unknown type " + field);
     }
-    ObjectMapper mapper = walker.getMapper();
     List<AggregatorFactory> metrics = rewriteMetrics(agggregators, properties, mapper);
     if (timestampSpec == null) {
       timestampSpec = IncrementTimestampSpec.dummy();
@@ -184,14 +184,15 @@ public class ParquetSchemaResolver extends AbstractResolver
 
   public static void main(String[] args) throws Exception
   {
-    LOG.warn(QuerySegmentWalker.DUMMY.getMapper().writerWithDefaultPrettyPrinter().writeValueAsString(
+    ObjectMapper mapper = new DefaultObjectMapper();
+    LOG.warn(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(
         new ParquetSchemaResolver(
             null,
             StringUtils.concat(",", args),
             false,
             null,
             null
-        ).resolve("<test>", QuerySegmentWalker.DUMMY)
+        )._resolve("<test>", mapper)
     ));
   }
 }

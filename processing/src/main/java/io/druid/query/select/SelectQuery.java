@@ -33,12 +33,10 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.RowSignature;
@@ -131,11 +129,11 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @Override
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     final PagingSpec pagingSpec = getPagingSpec();
     final int threshold = pagingSpec.getThreshold();
-    final int maxthreshold = queryConfig.getSelect().getMaxThreshold();
+    final int maxthreshold = segmentWalker.getSelectConfig().getMaxThreshold();
     if (threshold < 0 || threshold > maxthreshold) {
       return withPagingSpec(pagingSpec.withThreshold(maxthreshold));
     }

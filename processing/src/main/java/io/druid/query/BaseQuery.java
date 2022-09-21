@@ -455,6 +455,12 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
+  public double getContextDouble(String key, double defaultValue)
+  {
+    return PropUtils.parseDouble(getContext(), key, defaultValue);
+  }
+
+  @Override
   public Query<T> withOverriddenContext(String contextKey, Object contextValue)
   {
     return withOverriddenContext(GuavaUtils.mutableMap(contextKey, contextValue));
@@ -506,11 +512,7 @@ public abstract class BaseQuery<T> implements Query<T>
   public static Map<String, Object> copyContext(Query<?> query, String key, Object value)
   {
     Map<String, Object> context = copyContext(query);
-    if (value != null) {
-      context.put(key, value);
-    } else {
-      context.remove(key);
-    }
+    putTo(context, key, value);
     return context;
   }
 
@@ -522,12 +524,25 @@ public abstract class BaseQuery<T> implements Query<T>
   public static Map<String, Object> copyContextForMeta(Map<String, Object> context, String key, Object value)
   {
     final Map<String, Object> forMeta = copyContextForMeta(context);
-    if (value != null) {
-      forMeta.put(key, value);
-    } else {
-      forMeta.remove(key);
-    }
+    putTo(forMeta, key, value);
     return forMeta;
+  }
+
+  public static Map<String, Object> copyContextForMeta(Map<String, Object> context, String key1, Object value1, String key2, Object value2)
+  {
+    final Map<String, Object> forMeta = copyContextForMeta(context);
+    putTo(forMeta, key1, value1);
+    putTo(forMeta, key2, value2);
+    return forMeta;
+  }
+
+  public static void putTo(Map<String, Object> context, String key, Object value)
+  {
+    if (value != null) {
+      context.put(key, value);
+    } else {
+      context.remove(key);
+    }
   }
 
   public static Map<String, Object> copyContextForMeta(Map<String, Object> context)

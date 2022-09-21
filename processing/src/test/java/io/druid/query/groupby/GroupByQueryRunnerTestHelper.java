@@ -141,7 +141,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
   public static int count(GroupByQuery query)
   {
     int sum = 0;
-    for (Row x : runRowQuery(new GroupByMetaQuery(query))) {
+    for (Row x : runRowQuery(query.toCardinalityEstimator(TestIndex.segmentWalker))) {
       sum += Ints.checkedCast(x.getLongMetric("cardinality"));
     }
     return sum;

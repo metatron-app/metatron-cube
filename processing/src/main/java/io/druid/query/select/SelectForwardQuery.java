@@ -26,7 +26,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.DelegateQuery;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -91,7 +90,7 @@ public class SelectForwardQuery extends BaseQuery implements DelegateQuery
   }
 
   @Override
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker)
   {
     return query;
   }

@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularities;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -107,7 +106,7 @@ public class GroupByQueryTest
         .setContext(ImmutableMap.<String, Object>of(Query.GBY_PRE_ORDERING, true))
         .build();
 
-    GroupByQuery rewritten = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
+    GroupByQuery rewritten = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
 
     List<DimensionSpec> dimensions = rewritten.getDimensions();
     Assert.assertEquals(2, dimensions.size());
@@ -132,7 +131,7 @@ public class GroupByQueryTest
         )
     );
 
-    rewritten = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
+    rewritten = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
 
     dimensions = rewritten.getDimensions();
     Assert.assertEquals(2, dimensions.size());

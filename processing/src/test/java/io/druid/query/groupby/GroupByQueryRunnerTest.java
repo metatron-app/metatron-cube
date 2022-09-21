@@ -43,7 +43,6 @@ import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -1905,7 +1904,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
-    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
+    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
@@ -1937,7 +1936,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_REMOVE_ORDERING, true);
-    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
+    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
@@ -2292,7 +2291,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
-    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
+    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
@@ -4201,7 +4200,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     GroupByQuery query = builder.build();
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
-    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker, new QueryConfig());
+    query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     DimensionSpec dimensionSpec = query.getDimensions().get(1);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);  // 0 is basic ordering
     WindowingSpec windowingSpec = query.getLimitSpec().getWindowingSpecs().get(0);

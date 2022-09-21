@@ -21,8 +21,9 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.collections.IntList;
-import io.druid.concurrent.Execs;
-import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.frequency.FrequencyQueryConfig;
+import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.select.SelectQueryConfig;
 import io.druid.timeline.SegmentKey;
 import org.joda.time.Interval;
 
@@ -33,32 +34,22 @@ import java.util.concurrent.ExecutorService;
  */
 public interface QuerySegmentWalker
 {
-  QuerySegmentWalker DUMMY = new QuerySegmentWalker()
+  QueryConfig getConfig();
+
+  default SelectQueryConfig getSelectConfig()
   {
-    @Override
-    public ExecutorService getExecutor()
-    {
-      return Execs.newDirectExecutorService();
-    }
+    return getConfig().getSelect();
+  }
 
-    @Override
-    public ObjectMapper getMapper()
-    {
-      return new DefaultObjectMapper();
-    }
+  default GroupByQueryConfig getGroupByConfig()
+  {
+    return getConfig().getGroupBy();
+  }
 
-    @Override
-    public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
-    {
-      throw new UnsupportedOperationException("getQueryRunnerForIntervals");
-    }
-
-    @Override
-    public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
-    {
-      throw new UnsupportedOperationException("getQueryRunnerForSegments");
-    }
-  };
+  default FrequencyQueryConfig getFrequencyConfig()
+  {
+    return getConfig().getFrequency();
+  }
 
   ExecutorService getExecutor();
 
