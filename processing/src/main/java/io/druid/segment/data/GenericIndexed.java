@@ -19,6 +19,7 @@
 
 package io.druid.segment.data;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.primitives.Ints;
@@ -63,7 +64,8 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   enum Feature
   {
     SORTED,
-    VSIZED_VALUE;
+    VSIZED_VALUE,
+    NO_OFFSET;
 
     private final int mask = 1 << ordinal();
 
@@ -147,6 +149,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     return fromIterable(objectsIterable, strategy, Feature.VSIZED_VALUE.mask);
   }
 
+  @SuppressWarnings("unchecked")
   private static <T> GenericIndexed<T> fromIterable(Iterable<T> objectsIterable, ObjectStrategy<T> strategy, int flag)
   {
     Iterator<T> objects = objectsIterable.iterator();
@@ -214,13 +217,28 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     this.theBuffer = buffer;
     this.flag = flag;
 
+    Supplier<ByteBuffer> supplier = () -> theBuffer.asReadOnlyBuffer();
+
     size = theBuffer.getInt();
-    indexOffset = theBuffer.position();
-    valuesOffset = theBuffer.position() + (size << 2);
-    if (Feature.VSIZED_VALUE.isSet(flag)) {
-      bufferIndexed = new BufferIndexedV2(strategy, () -> theBuffer.asReadOnlyBuffer());
+    if (Feature.NO_OFFSET.isSet(flag)) {
+      Preconditions.checkArgument(Feature.SORTED.isSet(flag), "Not sorted?");
+      final boolean hasNull = theBuffer.get() != 0;
+      final int minLength = VLongUtils.readUnsignedVarInt(theBuffer);
+      final int maxLength = VLongUtils.readUnsignedVarInt(theBuffer);
+      indexOffset = valuesOffset = theBuffer.position();
+      if (minLength == maxLength) {
+        bufferIndexed = new Fixed(hasNull, maxLength, strategy, supplier);
+      } else {
+        bufferIndexed = new NoOffset(hasNull, minLength, maxLength, strategy, supplier);
+      }
     } else {
-      bufferIndexed = new BufferIndexedV1(strategy, () -> theBuffer.asReadOnlyBuffer());
+      indexOffset = theBuffer.position();
+      valuesOffset = theBuffer.position() + (size << 2);
+      if (Feature.VSIZED_VALUE.isSet(flag)) {
+        bufferIndexed = new BufferIndexedV2(strategy, supplier);
+      } else {
+        bufferIndexed = new BufferIndexedV1(strategy, supplier);
+      }
     }
   }
 
@@ -248,18 +266,15 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public boolean isSorted()
+  public int flag()
   {
-    return Feature.SORTED.isSet(flag);
+    return flag;
   }
 
   @Override
   public Boolean containsNull()
   {
-    if (size > 0 && Feature.SORTED.isSet(flag)) {
-      return getAsRaw(0).length == 0;
-    }
-    return null;
+    return bufferIndexed.hasNull();
   }
 
   @Override
@@ -403,51 +418,69 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       this.supplier = supplier;
     }
 
+    protected Boolean hasNull()
+    {
+      if (size > 0 && Feature.SORTED.isSet(flag)) {
+        return valueLength(0, valuesOffset) == 0;
+      }
+      return null;
+    }
+
+    protected ObjectStrategy<T> dedicatedStrategy()
+    {
+      return ObjectStrategies.singleThreaded(strategy);
+    }
+
     protected abstract BufferIndexed asSingleThreaded();
 
-    private int valueOffset(int index)
+    protected int valueOffset(int index)
     {
       return valuesOffset + (index == 0 ? 0 : theBuffer.getInt(indexOffset + (index - 1) * 4));
     }
 
-    protected abstract int valueLength(int offset);
+    protected abstract int valueLength(int index, int offset);
 
-    protected abstract int valueHeaderLength(int length);
+    protected abstract int valueHeaderLength(int index, int length);
 
     private void scan(Tools.Scanner scanner)
     {
       final ByteBuffer buffer = supplier.get();
       int offset = valuesOffset;
-      for (int i = 0; i < size; i++) {
-        final int length = valueLength(offset);
-        final int header = valueHeaderLength(length);
-        scanner.scan(i, buffer, offset + header, length);
-        offset += header + length;
+      for (int index = 0; index < size; index++) {
+        final int length = valueLength(index, offset);
+        final int header = valueHeaderLength(index, length);
+        scanner.scan(index, buffer, offset + header, length);
+        offset += scanDelta(length, header);
       }
+    }
+
+    protected int scanDelta(int length, int header)
+    {
+      return header + length;
     }
 
     @Override
     public final T get(final int index)
     {
       final int offset = valueOffset(index);
-      final int length = valueLength(offset);
+      final int length = valueLength(index, offset);
       if (length == 0) {
         return null;
       }
       final ByteBuffer copyBuffer = supplier.get();
-      copyBuffer.position(offset + valueHeaderLength(length));
+      copyBuffer.position(offset + valueHeaderLength(index, length));
       return strategy.fromByteBuffer(copyBuffer, length);
     }
 
     public final byte[] getAsRaw(final int index)
     {
       final int offset = valueOffset(index);
-      final int length = valueLength(offset);
+      final int length = valueLength(index, offset);
       if (length == 0) {
         return StringUtils.EMPTY_BYTES;
       }
       final ByteBuffer copyBuffer = supplier.get();
-      copyBuffer.position(offset + valueHeaderLength(length));
+      copyBuffer.position(offset + valueHeaderLength(index, length));
       byte[] array = new byte[length];
       copyBuffer.get(array);
       return array;
@@ -456,16 +489,16 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     public final BufferRef getAsRef(final int index)
     {
       final int offset = valueOffset(index);
-      final int length = valueLength(offset);
-      final int header = valueHeaderLength(length);
+      final int length = valueLength(index, offset);
+      final int header = valueHeaderLength(index, length);
       return BufferRef.of(theBuffer, offset + header, length);
     }
 
     private int[] toIndices(final int index, final int[] reuse)
     {
       final int offset = valueOffset(index);
-      final int length = valueLength(offset);
-      final int header = valueHeaderLength(length);
+      final int length = valueLength(index, offset);
+      final int header = valueHeaderLength(index, length);
       reuse[0] = offset + header;
       reuse[1] = length;
       return reuse;
@@ -474,17 +507,17 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     public final void scan(final int index, final Tools.Scanner function)
     {
       final int offset = valueOffset(index);
-      final int length = valueLength(offset);
+      final int length = valueLength(index, offset);
       final ByteBuffer copyBuffer = supplier.get();
-      function.scan(index, copyBuffer, offset + valueHeaderLength(length), length);
+      function.scan(index, copyBuffer, offset + valueHeaderLength(index, length), length);
     }
 
     public final <R> R apply(final int index, final Tools.Function<R> function)
     {
       final int offset = valueOffset(index);
-      final int length = valueLength(offset);
+      final int length = valueLength(index, offset);
       final ByteBuffer copyBuffer = supplier.get();
-      return function.apply(index, copyBuffer, offset + valueHeaderLength(length), length);
+      return function.apply(index, copyBuffer, offset + valueHeaderLength(index, length), length);
     }
 
     @Override
@@ -584,19 +617,17 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     protected BufferIndexed asSingleThreaded()
     {
-      return new BufferIndexedV1(
-          ObjectStrategies.singleThreaded(strategy), Suppliers.ofInstance(theBuffer.asReadOnlyBuffer())
-      );
+      return new BufferIndexedV1(dedicatedStrategy(), Suppliers.ofInstance(supplier.get()));
     }
 
     @Override
-    protected int valueLength(int offset)
+    protected int valueLength(int index, int offset)
     {
       return theBuffer.getInt(offset);
     }
 
     @Override
-    protected int valueHeaderLength(int length)
+    protected int valueHeaderLength(int index, int length)
     {
       return Integer.BYTES;
     }
@@ -609,21 +640,125 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     protected BufferIndexed asSingleThreaded()
     {
-      return new BufferIndexedV2(
-          ObjectStrategies.singleThreaded(strategy), Suppliers.ofInstance(theBuffer.asReadOnlyBuffer())
-      );
+      return new BufferIndexedV2(dedicatedStrategy(), Suppliers.ofInstance(supplier.get()));
     }
 
     @Override
-    protected int valueLength(int offset)
+    protected int valueLength(int index, int offset)
     {
       return VLongUtils.readUnsignedVarInt(theBuffer, offset);
     }
 
     @Override
-    protected int valueHeaderLength(int length)
+    protected int valueHeaderLength(int index, int length)
     {
       return VLongUtils.sizeOfUnsignedVarInt(length);
+    }
+  }
+
+  private class NoOffset extends BufferIndexedV2
+  {
+    private final boolean hasNull;
+    private final int minLength;
+    private final int maxLength;
+
+    private NoOffset(
+        boolean hasNull,
+        int minLength,
+        int maxLength,
+        ObjectStrategy<T> strategy,
+        Supplier<ByteBuffer> supplier
+    )
+    {
+      super(strategy, supplier);
+      this.hasNull = hasNull;
+      this.minLength = minLength;
+      this.maxLength = maxLength;
+    }
+
+    @Override
+    protected Boolean hasNull()
+    {
+      return hasNull;
+    }
+
+    @Override
+    protected BufferIndexed asSingleThreaded()
+    {
+      return new NoOffset(hasNull, minLength, maxLength, dedicatedStrategy(), Suppliers.ofInstance(supplier.get()));
+    }
+
+    @Override
+    protected int valueOffset(int index)
+    {
+      return hasNull && index == 0 ? 0 : valuesOffset + (maxLength + 1) * (hasNull ? index - 1 : index);
+    }
+
+    @Override
+    protected int valueLength(int index, int offset)
+    {
+      return hasNull && index == 0 ? 0 : minLength + theBuffer.get(offset);
+    }
+
+    @Override
+    protected int valueHeaderLength(int index, int length)
+    {
+      return hasNull && index == 0 ? 0 : 1;
+    }
+
+    @Override
+    protected int scanDelta(int length, int header)
+    {
+      return maxLength + 1;
+    }
+  }
+
+  private class Fixed extends BufferIndexedV2
+  {
+    private final boolean hasNull;
+    private final int fixed;
+
+    private Fixed(boolean hasNull, int fixed, ObjectStrategy<T> strategy, Supplier<ByteBuffer> supplier)
+    {
+      super(strategy, supplier);
+      this.hasNull = hasNull;
+      this.fixed = fixed;
+    }
+
+    @Override
+    protected Boolean hasNull()
+    {
+      return hasNull;
+    }
+
+    @Override
+    protected BufferIndexed asSingleThreaded()
+    {
+      return new Fixed(hasNull, fixed, dedicatedStrategy(), Suppliers.ofInstance(supplier.get()));
+    }
+
+    @Override
+    protected int valueOffset(int index)
+    {
+      return hasNull && index == 0 ? 0 : valuesOffset + fixed * (hasNull ? index - 1 : index);
+    }
+
+    @Override
+    protected int valueLength(int index, int offset)
+    {
+      return hasNull && index == 0 ? 0 : fixed;
+    }
+
+    @Override
+    protected int valueHeaderLength(int index, int length)
+    {
+      return 0;
+    }
+
+    @Override
+    protected int scanDelta(int length, int header)
+    {
+      return fixed;
     }
   }
 }

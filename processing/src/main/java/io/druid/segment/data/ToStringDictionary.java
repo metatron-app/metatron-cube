@@ -28,9 +28,9 @@ import java.util.Iterator;
 public class ToStringDictionary implements Dictionary<String>
 {
   @Override
-  public boolean isSorted()
+  public int flag()
   {
-    return false;
+    return 0;
   }
 
   @Override

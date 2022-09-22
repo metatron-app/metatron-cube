@@ -19,13 +19,17 @@
 
 package io.druid.segment.data;
 
-import io.druid.common.guava.BufferRef;
 import io.druid.segment.Tools;
 
 // common interface of non-compressed(GenericIndexed) and compressed dictionary
-public interface Dictionary<T> extends Indexed.Closeable<T>
+public interface Dictionary<T> extends Indexed.BufferBacked<T>
 {
-  boolean isSorted();
+  int flag();
+
+  default boolean isSorted()
+  {
+    return GenericIndexed.Feature.SORTED.isSet(flag());
+  }
 
   Boolean containsNull();     // null for unknown
 
@@ -38,8 +42,6 @@ public interface Dictionary<T> extends Indexed.Closeable<T>
   int indexOf(T value, int start);
 
   byte[] getAsRaw(int index);
-
-  BufferRef getAsRef(int index);
 
   long getSerializedSize();
 

@@ -19,10 +19,13 @@
 
 package io.druid.segment.data;
 
+import com.google.common.base.Preconditions;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
+import io.druid.common.guava.BufferRef;
 import io.druid.data.VLongUtils;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.ByteBufferUtils;
 
 import java.io.IOException;
@@ -32,6 +35,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 
+import static io.druid.segment.data.GenericIndexed.Feature.NO_OFFSET;
 import static io.druid.segment.data.GenericIndexed.Feature.SORTED;
 import static io.druid.segment.data.GenericIndexed.Feature.VSIZED_VALUE;
 
@@ -47,7 +51,7 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
 
   public static GenericIndexedWriter<String> forDictionaryV2(IOPeon ioPeon, String filenameBase)
   {
-    return new V2<>(ioPeon, filenameBase, ObjectStrategy.STRING_STRATEGY, true);
+    return new DictionaryWriter(ioPeon, filenameBase);
   }
 
   public static <T> GenericIndexedWriter<T> v1(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy)
@@ -84,7 +88,7 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
     valuesOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("values")));
   }
 
-  private String makeFilename(String suffix)
+  protected final String makeFilename(String suffix)
   {
     return String.format("%s.%s", filenameBase, suffix);
   }
@@ -156,12 +160,12 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
   }
 
   // this is just for index merger.. which only uses size() and get()
-  public Indexed.Closeable<T> asIndexed() throws IOException
+  public Indexed.BufferBacked<T> asIndexed() throws IOException
   {
     final MappedByteBuffer header = Files.map(ioPeon.getFile(makeFilename("header")));
     final MappedByteBuffer values = Files.map(ioPeon.getFile(makeFilename("values")));
 
-    return new Indexed.Closeable<T>()
+    return new Indexed.BufferBacked<T>()
     {
       private final ObjectStrategy<T> dedicated = ObjectStrategies.singleThreaded(strategy);
 
@@ -181,6 +185,16 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
         final int length = readValueLength(values);
         // fromByteBuffer must not modify the buffer limit
         return length == 0 ? null : dedicated.fromByteBuffer(values, length);
+      }
+
+      @Override
+      public BufferRef getAsRef(int index)
+      {
+        final int position = index == 0 ? 0 : header.getInt((index - 1) << 2);
+        values.position(position);
+
+        final int length = readValueLength(values);
+        return BufferRef.of(values, values.position(), length);
       }
 
       @Override
@@ -252,6 +266,112 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
     protected int readValueLength(ByteBuffer values)
     {
       return VLongUtils.readUnsignedVarInt(values);
+    }
+  }
+
+  private static final int NO_OFFSET_THRESHOLD = 7;
+  private static final byte[][] PACK = new byte[NO_OFFSET_THRESHOLD][];
+
+  static {
+    for (int i = 0; i < PACK.length; i++) {
+      PACK[i] = new byte[i];
+    }
+  }
+
+  private static class DictionaryWriter extends V2<String>
+  {
+    private final String metaFile = makeFilename("meta.rewrite");
+    private final String valuesFile = makeFilename("values.rewrite");
+
+    private boolean hasNull;
+    private int minLen = -1;
+    private int maxLen = -1;
+
+    public DictionaryWriter(IOPeon ioPeon, String filenameBase)
+    {
+      super(ioPeon, filenameBase, ObjectStrategy.STRING_STRATEGY, true);
+    }
+
+    private boolean noHeader()
+    {
+      return maxLen > 0 && maxLen - minLen < NO_OFFSET_THRESHOLD;
+    }
+
+    @Override
+    protected void writeValueLength(OutputStream valuesOut, int length) throws IOException
+    {
+      super.writeValueLength(valuesOut, length);
+      if (length == 0) {
+        hasNull = true;
+      } else {
+        minLen = minLen < 0 ? length : Math.min(length, minLen);
+        maxLen = maxLen < 0 ? length : Math.max(length, maxLen);
+      }
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      super.close();
+      if (noHeader()) {
+        final byte[] buf = new byte[1];
+        final ByteBuffer wrap = ByteBuffer.wrap(buf);
+        final boolean fixedLen = minLen == maxLen;
+        try (Indexed.BufferBacked<String> dictionary = asIndexed();
+             WritableByteChannel valuesOut = ioPeon.makeOutputChannel(valuesFile)) {
+          int i = hasNull ? 1 : 0;
+          for (; i < numRow; i++) {
+            BufferRef ref = dictionary.getAsRef(i);
+            Preconditions.checkArgument(ref.length() >= minLen && ref.length() <= maxLen);
+            if (!fixedLen) {
+              buf[0] = (byte) (ref.length() - minLen);
+              valuesOut.write((ByteBuffer) wrap.position(0));
+            }
+            valuesOut.write(ref.asBuffer());
+            if (!fixedLen && ref.length() < maxLen) {
+              valuesOut.write(ByteBuffer.wrap(PACK[maxLen - ref.length()]));
+            }
+          }
+        }
+        int length1 = VLongUtils.sizeOfUnsignedVarInt(minLen);
+        int length2 = VLongUtils.sizeOfUnsignedVarInt(maxLen);
+        int payload = Ints.checkedCast(ioPeon.getFile(valuesFile).length());
+
+        final BytesOutputStream scratch = new BytesOutputStream();
+        try (OutputStream metaOut = ioPeon.makeOutputStream(metaFile)) {
+          scratch.write(GenericIndexed.version);
+          scratch.write(NO_OFFSET.set(flag(), true));
+          scratch.write(Ints.toByteArray(payload + Integer.BYTES + Byte.BYTES + length1 + length2));
+          scratch.write(Ints.toByteArray(numRow));
+          scratch.writeBoolean(hasNull);
+          scratch.writeUnsignedVarInt(minLen);
+          scratch.writeUnsignedVarInt(maxLen);
+          metaOut.write(scratch.unwrap(), 0, scratch.size());
+        }
+      }
+    }
+
+    @Override
+    public long getSerializedSize()
+    {
+      if (noHeader()) {
+        return ioPeon.getFile(metaFile).length() +
+               ioPeon.getFile(valuesFile).length();
+      } else {
+        return super.getSerializedSize();
+      }
+    }
+
+    @Override
+    public void writeToChannel(WritableByteChannel channel) throws IOException
+    {
+      if (noHeader()) {
+        // called after getSerializedSize()
+        ioPeon.copyTo(channel, metaFile);
+        ioPeon.copyTo(channel, valuesFile);
+      } else {
+        super.writeToChannel(channel);
+      }
     }
   }
 }

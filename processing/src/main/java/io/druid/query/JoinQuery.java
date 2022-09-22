@@ -532,7 +532,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             query = MaterializedQuery.of(left, Sequences.simple(outputColumns, values), query.getContext());
             Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, leftJoinColumns));
             right = DataSources.applyFilter(right, SemiJoinFactory.from(rightJoinColumns, keys.iterator()));
-            LOG.info("-- %s:%d (L) (hash) is applied to %s (R)", leftAlias, leftEstimated[0] = values.size(), rightAlias);
+            LOG.info("-- %s:%d (L) (hash) is applied as filter to %s (R)", leftAlias, leftEstimated[0] = values.size(), rightAlias);
             currentSelectivity *= selectivity(leftEstimated);
           }
         }
@@ -558,7 +558,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           query = MaterializedQuery.of(right, Sequences.simple(outputColumns, values), query.getContext());
           Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, rightJoinColumns));
           left = DataSources.applyFilter(left, SemiJoinFactory.from(leftJoinColumns, keys.iterator()));
-          LOG.info("-- %s:%d (R) (hash) is applied to %s (L) as filter", rightAlias, rightEstimated[0] = values.size(), leftAlias);
+          LOG.info("-- %s:%d (R) (hash) is applied as filter to %s (L)", rightAlias, rightEstimated[0] = values.size(), leftAlias);
           GuavaUtils.setLastOf(queries, ((QueryDataSource) left).getQuery());   // overwrite
           currentSelectivity *= selectivity(rightEstimated);
         }

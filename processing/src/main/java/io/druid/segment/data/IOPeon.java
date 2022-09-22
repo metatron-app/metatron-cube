@@ -40,9 +40,19 @@ public interface IOPeon extends Closeable
 
   InputStream makeInputStream(String filename) throws IOException;
 
+  default ReadableByteChannel makeInputChannel(String fileName) throws IOException
+  {
+    return Channels.newChannel(makeInputStream(fileName));
+  }
+
+  default WritableByteChannel makeOutputChannel(String fileName) throws IOException
+  {
+    return Channels.newChannel(makeOutputStream(fileName));
+  }
+
   default void copyTo(WritableByteChannel channel, String fileName) throws IOException
   {
-    try (ReadableByteChannel input = Channels.newChannel(makeInputStream(fileName))) {
+    try (ReadableByteChannel input = makeInputChannel(fileName)) {
       FileSmoosher.transfer(channel, input);
     }
   }

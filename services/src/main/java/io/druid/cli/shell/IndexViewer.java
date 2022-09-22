@@ -482,7 +482,8 @@ public class IndexViewer extends CommonShell.WithUtils
         if (cuboidSpec == null) {
           builder.flush();
           builder.append(
-              "dictionary (cardinality = %d, hasNull = %s, %,d bytes)", dictionary.size(), hasNull, dictionarySize
+              "dictionary (cardinality = %d, flag = %d, hasNull = %s, %,d bytes)",
+              dictionary.size(), dictionary.flag(), hasNull, dictionarySize
           );
         } else {
           builder.append("cardinality = %d", dictionary.size());

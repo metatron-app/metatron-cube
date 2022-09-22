@@ -68,8 +68,8 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
       final int compressed = LZ4_COMP.compress(ref.bytes, 0, ref.length, compressing, 0);
       final int reduction = 100 * (ref.length - compressed) / ref.length;
       LOG.info(
-          "-- compressed %,d bytes into %,d bytes (%d%% reduction, %d msec)",
-          ref.length, compressed, reduction, System.currentTimeMillis() - start
+          "-- compressed ins filter %s, %,d bytes into %,d bytes (%d%% reduction, %d msec)",
+          filter.getDimensions(), ref.length, compressed, reduction, System.currentTimeMillis() - start
       );
       destLens[i] = ref.length;
       bytes[i] = Arrays.copyOf(compressing, compressed);

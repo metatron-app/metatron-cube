@@ -28,6 +28,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 
 /**
@@ -56,14 +58,25 @@ public class TmpFileIOPeon implements IOPeon
   @Override
   public OutputStream makeOutputStream(String filename) throws IOException
   {
+    return new BufferedOutputStream(_makeOutputStream(filename));
+  }
+
+  @Override
+  public WritableByteChannel makeOutputChannel(String fileName) throws IOException
+  {
+    return Channels.newChannel(_makeOutputStream(fileName));
+  }
+
+  private FileOutputStream _makeOutputStream(String filename) throws IOException
+  {
     File retFile = createdFiles.get(filename);
     if (retFile == null) {
       retFile = File.createTempFile("filePeon", filename);
       retFile.deleteOnExit();
       createdFiles.put(filename, retFile);
-      return new BufferedOutputStream(new FileOutputStream(retFile));
+      return new FileOutputStream(retFile);
     } else if (allowOverwrite) {
-      return new BufferedOutputStream(new FileOutputStream(retFile));
+      return new FileOutputStream(retFile);
     } else {
       throw new IOException("tmp file conflicts, file[" + filename + "] already exist!");
     }

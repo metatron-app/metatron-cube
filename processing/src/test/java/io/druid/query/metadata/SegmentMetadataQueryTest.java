@@ -187,14 +187,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueDesc.DIM_STRING.typeName(),
                 false,
-                mmap1 ? 503 : 0,
+                mmap1 ? 501 : 0,
                 1,
                 "preferred",
                 "preferred",
                 null
             )
         ),
-        mmap1 ? 63810 : 0,
+        mmap1 ? 63801 : 0,
         1209,
         null,
         null
@@ -229,7 +229,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueDesc.DIM_STRING.typeName(),
                 false,
-                mmap2 ? 503 : 0,
+                mmap2 ? 501 : 0,
                 1,
                 "preferred",
                 "preferred",
@@ -237,7 +237,7 @@ public class SegmentMetadataQueryTest
             )
         // null_column will be included only for incremental index, which makes a little bigger result than expected
         ),
-        mmap2 ? 63810 : 0,
+        mmap2 ? 63801 : 0,
         1209,
         null,
         null
@@ -280,10 +280,10 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "partial_null_column",
             new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(), null, false, mmap1 ? 2963 : 0, 2, 1023, "", "value", null
+                ValueDesc.DIM_STRING.typeName(), null, false, mmap1 ? 2956 : 0, 2, 1023, "", "value", null
             )
         ),
-        mmap1 ? 63810 : 0,
+        mmap1 ? 63801 : 0,
         1209,
         null,
         null
@@ -318,7 +318,7 @@ public class SegmentMetadataQueryTest
             "string-expr",
             new ColumnAnalysis(ValueDesc.STRING_TYPE, null, false, 0, -1, -1, "spot|automotive", "upfront|premium", null)
         ),
-        mmap1 ? 63810 : 0,
+        mmap1 ? 63801 : 0,
         1209,
         null,
         null
@@ -359,7 +359,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        (mmap1 ? 63810 : 0) + (mmap2 ? 63810 : 0),
+        (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         -1L,
         -1L,
@@ -434,7 +434,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        (mmap1 ? 63810 : 0) + (mmap2 ? 63810 : 0),
+        (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -511,7 +511,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        (mmap1 ? 63810 : 0) + (mmap2 ? 63810 : 0),
+        (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -559,7 +559,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueDesc.DIM_STRING.typeName(),
         false,
-        (mmap1 ? 503 : 0) + (mmap2 ? 503 : 0),
+        (mmap1 ? 501 : 0) + (mmap2 ? 501 : 0),
         1,
         "preferred",
         "preferred",
@@ -682,7 +682,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        (mmap1 ? 63810 : 0) + (mmap2 ? 63810 : 0),
+        (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -743,7 +743,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        (mmap1 ? 63810 : 0) + (mmap2 ? 63810 : 0),
+        (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         expectedAggregators,
         null
@@ -801,7 +801,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        (mmap1 ? 63810 : 0) + (mmap2 ? 63810 : 0),
+        (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         QueryGranularities.NONE

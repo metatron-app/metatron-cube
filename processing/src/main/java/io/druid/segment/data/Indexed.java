@@ -19,6 +19,8 @@
 
 package io.druid.segment.data;
 
+import io.druid.common.guava.BufferRef;
+
 public interface Indexed<T> extends Iterable<T>
 {
   int size();
@@ -37,4 +39,9 @@ public interface Indexed<T> extends Iterable<T>
   int indexOf(T value);
 
   interface Closeable<T> extends Indexed<T>, java.io.Closeable { }
+
+  interface BufferBacked<T> extends Closeable<T>
+  {
+    BufferRef getAsRef(int index);
+  }
 }

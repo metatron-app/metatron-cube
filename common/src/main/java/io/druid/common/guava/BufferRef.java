@@ -46,6 +46,13 @@ public class BufferRef implements Comparable<BufferRef>
     return length;
   }
 
+  public ByteBuffer asBuffer()
+  {
+    return (ByteBuffer) buffer.asReadOnlyBuffer()
+                              .limit(from + length)
+                              .position(from);
+  }
+
   @Override
   public boolean equals(Object obj)
   {

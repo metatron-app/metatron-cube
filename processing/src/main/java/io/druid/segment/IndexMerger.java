@@ -641,7 +641,7 @@ public class IndexMerger
         final String dimension = mergedDimensions.get(dimIndex);
         nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
 
-        ColumnPartWriter<String> writer = GenericIndexedWriter.forDictionaryV2(ioPeon, dimension);
+        ColumnPartWriter<String> writer = GenericIndexedWriter.forDictionaryV1(ioPeon, dimension);
         writer.open();
 
         boolean dimHasNull = false;
