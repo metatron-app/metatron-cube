@@ -54,7 +54,6 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
   private final JoinElement[] elements;
 
   @JsonCreator
-  @SuppressWarnings("unchecked")
   public JoinPostProcessor(
       @JacksonInject JoinQueryConfig config,
       @JsonProperty("elements") List<JoinElement> elements,
@@ -185,11 +184,12 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     }
     final int cardinality = source.getContextInt(JoinQuery.CARDINALITY, -1);
     final boolean hashing = source.getContextBoolean(JoinQuery.HASHING, false);
+    final boolean sorting = source.getContextBoolean(JoinQuery.SORTING, false);
     if (hashing) {
       return () -> new JoinAlias(aliases, columnNames, joinColumns, indices, Sequences.toIterator(sequence));
     }
     return () -> new JoinAlias(
-        aliases, columnNames, joinColumns, getCollations(source), indices, Sequences.toIterator(sequence), cardinality
+        aliases, columnNames, joinColumns, sorting ? getCollations(source) : null, indices, Sequences.toIterator(sequence), cardinality
     );
   }
 

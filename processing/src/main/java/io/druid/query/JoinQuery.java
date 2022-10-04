@@ -84,6 +84,7 @@ import static io.druid.query.JoinType.RO;
 public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQuery<Object[]>
 {
   public static final String HASHING = "$hash";
+  public static final String SORTING = "$sort";
   public static final String CARDINALITY = "$cardinality";
   public static final String SELECTIVITY = "$selectivity";
 
@@ -523,7 +524,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         }
       }
       if (i == 0) {
-        List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : leftJoinColumns;
+        List<String> sortOn = leftHashing || rightHashing ? null : leftJoinColumns;
         LOG.info(
             "-- %s:%d (L) (%s)", leftAlias, leftEstimated[0], leftHashing ? "hash" : sortOn != null ? "sort" : "-"
         );
@@ -548,7 +549,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         }
         queries.add(query);
       }
-      List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
+      List<String> sortOn = leftHashing || rightHashing ? null : rightJoinColumns;
       LOG.info(
           "-- %s:%d (R) (%s)", rightAlias, rightEstimated[0], rightHashing ? "hash" : sortOn != null ? "sort" : "-"
       );
@@ -659,7 +660,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     }
 
     Map<String, Object> joinContext = BaseQuery.copyContextForMeta(
-        context, CARDINALITY, currentEstimation[0], SELECTIVITY, next(currentSelectivity)
+        context, CARDINALITY, currentEstimation[0], SELECTIVITY, normalize(currentSelectivity)
     );
     JoinHolder query = new JoinHolder(
         StringUtils.concat("+", aliases), queries, timeColumn, outputAlias, outputColumns, limit, joinContext
@@ -697,7 +698,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       BaseQuery.putTo(context, CARDINALITY, currentEstimation[0]);
     }
     if (selectivity > 0) {
-      BaseQuery.putTo(context, SELECTIVITY, next(selectivity));
+      BaseQuery.putTo(context, SELECTIVITY, normalize(selectivity));
     }
     return query.withOverriddenContext(context);
   }
@@ -712,14 +713,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     return Math.min(selectivity(leftEstimation), selectivity(rightEstimation));
   }
 
-  private float next(float selectivity)
-  {
-    return normalize(selectivity * 1.1f);
-  }
-
   private float normalize(float selectivity)
   {
-    return Math.max(0.005f, Math.min(1f, selectivity));
+    return Math.max(0.0025f, Math.min(1f, selectivity));
   }
 
   private static byte[] writeBytes(ObjectMapper objectMapper, Object value)
@@ -1069,7 +1065,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             OrderingSupport reordered = tryReordering((OrderingSupport) query0, sortColumns);
             if (reordered != null) {
               LOG.info("--- reordered.. %s : %s", query0.getDataSource().getNames(), reordered.getResultOrdering());
-              return (JoinHolder) holder.withQueries(Arrays.asList(reordered, query1));
+              return (JoinHolder) holder.withQueries(
+                  Arrays.asList(reordered.withOverriddenContext(SORTING, true), query1)
+              );
             }
           }
         }
@@ -1078,7 +1076,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             OrderingSupport reordered = tryReordering((OrderingSupport) query1, sortColumns);
             if (reordered != null) {
               LOG.info("--- reordered.. %s : %s", query1.getDataSource().getNames(), reordered.getResultOrdering());
-              return (JoinHolder) holder.withQueries(Arrays.asList(query0, reordered));
+              return (JoinHolder) holder.withQueries(
+                  Arrays.asList(query0, reordered.withOverriddenContext(SORTING, true))
+              );
             }
           }
         }

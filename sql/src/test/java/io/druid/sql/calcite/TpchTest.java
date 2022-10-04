@@ -1624,10 +1624,10 @@ public class TpchTest extends TpchTestHelper
     testQuery(TPCH13, TPCH13_EXPLAIN, TPCH13_RESULT);
 
     hook.verifyHooked(
-        "uw4p4RoQJJxhhsuTH6w9Jw==",
-        "GroupByQuery{dataSource='GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}, StreamQuery{dataSource='orders', filter=!(O_COMMENT LIKE '%unusual%accounts%'), columns=[O_CUSTKEY, O_ORDERKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0', fieldName='O_ORDERKEY'}], outputColumns=[a0]}', dimensions=[DefaultDimensionSpec{dimension='a0', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='_a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='d0', direction=descending}], limit=-1}, outputColumns=[d0, _a0]}",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}, StreamQuery{dataSource='orders', filter=!(O_COMMENT LIKE '%unusual%accounts%'), columns=[O_CUSTKEY, O_ORDERKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0', fieldName='O_ORDERKEY'}], outputColumns=[a0]}",
-        "StreamQuery{dataSource='customer', columns=[C_CUSTKEY], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}",
+        "hNsblffx2h8XYVnM7R9U2w==",
+        "GroupByQuery{dataSource='GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY]}, StreamQuery{dataSource='orders', filter=!(O_COMMENT LIKE '%unusual%accounts%'), columns=[O_CUSTKEY, O_ORDERKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0', fieldName='O_ORDERKEY'}], outputColumns=[a0]}', dimensions=[DefaultDimensionSpec{dimension='a0', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='_a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='d0', direction=descending}], limit=-1}, outputColumns=[d0, _a0]}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY]}, StreamQuery{dataSource='orders', filter=!(O_COMMENT LIKE '%unusual%accounts%'), columns=[O_CUSTKEY, O_ORDERKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0', fieldName='O_ORDERKEY'}], outputColumns=[a0]}",
+        "StreamQuery{dataSource='customer', columns=[C_CUSTKEY]}",
         "StreamQuery{dataSource='orders', filter=!(O_COMMENT LIKE '%unusual%accounts%'), columns=[O_CUSTKEY, O_ORDERKEY], $hash=true}"
     );
   }
@@ -2423,84 +2423,58 @@ public class TpchTest extends TpchTestHelper
   }
 
   public static final String TPCH22 =
-      "WITH q22_customer_tmp_cached AS ("
-      + " SELECT"
-      + "    C_ACCTBAL,"
-      + "    C_CUSTKEY,"
-      + "    SUBSTR(C_PHONE, 1, 2) AS CNTRYCODE"
-      + " FROM"
-      + "    customer"
-      + " WHERE"
-      + "    SUBSTR(C_PHONE, 1, 2) = '13' OR"
-      + "    SUBSTR(C_PHONE, 1, 2) = '31' OR"
-      + "    SUBSTR(C_PHONE, 1, 2) = '23' OR"
-      + "    SUBSTR(C_PHONE, 1, 2) = '29' OR"
-      + "    SUBSTR(C_PHONE, 1, 2) = '30' OR"
-      + "    SUBSTR(C_PHONE, 1, 2) = '18' OR"
-      + "    SUBSTR(C_PHONE, 1, 2) = '17'"
-      + "),"
-      + "q22_customer_tmp1_cached AS ("
-      + " SELECT"
-      + "    AVG(C_ACCTBAL) AS AVG_ACCTBAL"
-      + " FROM"
-      + "    q22_customer_tmp_cached"
-      + " WHERE"
-      + "    C_ACCTBAL > 0.00"
-      + "),"
-      + "q22_orders_tmp_cached AS ("
-      + " SELECT"
-      + "    O_CUSTKEY"
-      + " FROM"
-      + "    orders"
-      + " GROUP BY"
-      + "    O_CUSTKEY"
-      + ")"
-      + "SELECT"
-      + "    CNTRYCODE,"
-      + "    COUNT(1) AS NUMCUST,"
-      + "    SUM(C_ACCTBAL) AS TOTACCTBAL"
+      "SELECT"
+      + "  CNTRYCODE,"
+      + "  COUNT(*) AS NUMCUST,"
+      + "  SUM(C_ACCTBAL) AS TOTACCTBAL"
       + " FROM ("
-      + "    SELECT"
-      + "        CNTRYCODE,"
-      + "        C_ACCTBAL,"
-      + "        AVG_ACCTBAL"
-      + "    FROM"
-      + "        q22_customer_tmp1_cached CT1 CROSS JOIN ("
-      + "            SELECT"
-      + "                CNTRYCODE,"
-      + "                C_ACCTBAL"
-      + "            FROM"
-      + "                q22_orders_tmp_cached OT"
-      + "                RIGHT OUTER JOIN q22_customer_tmp_cached CT"
-      + "                ON CT.C_CUSTKEY = OT.O_CUSTKEY"
-      + "            WHERE"
-      + "                O_CUSTKEY IS NULL"
-      + "        ) CT2"
-      + ") A"
-      + " WHERE"
-      + "    C_ACCTBAL > AVG_ACCTBAL"
+      + "  SELECT"
+      + "    SUBSTR(C_PHONE, 1, 2) AS CNTRYCODE,"
+      + "    C_ACCTBAL"
+      + "  FROM"
+      + "    customer"
+      + "  WHERE"
+      + "    SUBSTR(C_PHONE, 1, 2) IN ('13', '31', '23', '29', '30', '18', '17')"
+      + "    AND C_ACCTBAL > ("
+      + "      SELECT"
+      + "        AVG(C_ACCTBAL)"
+      + "      FROM"
+      + "        customer"
+      + "      WHERE"
+      + "        C_ACCTBAL > 0.00"
+      + "        AND SUBSTR(C_PHONE, 1, 2) IN ('13', '31', '23', '29', '30', '18', '17')"
+      + "      )"
+      + "    AND NOT EXISTS ("
+      + "      SELECT"
+      + "        *"
+      + "      FROM"
+      + "        orders"
+      + "      WHERE"
+      + "        O_CUSTKEY = C_CUSTKEY"
+      + "    )"
+      + "  ) AS CUSTSALE"
       + " GROUP BY"
-      + "    CNTRYCODE"
+      + "  CNTRYCODE"
       + " ORDER BY"
-      + "    CNTRYCODE";
+      + "  CNTRYCODE";
 
   public static final String TPCH22_EXPLAIN =
-      "DruidOuterQueryRel(scanFilter=[>($2, $0)], scanProject=[$1, $2], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
-      + "  DruidJoinRel(joinType=[INNER])\n"
-      + "    DruidQueryRel(table=[druid.customer], scanFilter=[AND(OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17')), >($0, 0.00:DECIMAL(3, 2)))], scanProject=[$0], AVG_ACCTBAL=[AVG($0)])\n"
-      + "    DruidOuterQueryRel(scanFilter=[IS NULL($2)], scanProject=[$0, $1])\n"
-      + "      DruidJoinRel(joinType=[RIGHT], leftKeys=[0], rightKeys=[1], outputColumns=[3, 1, 0])\n"
-      + "        DruidQueryRel(table=[druid.orders], scanProject=[$2], group=[{0}])\n"
-      + "        DruidQueryRel(table=[druid.customer], scanFilter=[OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17'))], scanProject=[$0, $3, SUBSTR($7, 1, 2)])\n";
+      "DruidOuterQueryRel(scanFilter=[IS NULL($2)], scanProject=[SUBSTR($0, 1, 2), $1], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
+      + "  DruidJoinRel(joinType=[LEFT], leftKeys=[1], rightKeys=[0], outputColumns=[2, 0, 5])\n"
+      + "    DruidOuterQueryRel(scanFilter=[>($0, $3)])\n"
+      + "      DruidJoinRel(joinType=[INNER])\n"
+      + "        DruidQueryRel(table=[druid.customer], scanFilter=[OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17'))], scanProject=[$0, $3, $7])\n"
+      + "        DruidQueryRel(table=[druid.customer], scanFilter=[AND(>($0, 0.00:DECIMAL(3, 2)), OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17')))], scanProject=[$0], EXPR$0=[AVG($0)])\n"
+      + "    DruidQueryRel(table=[druid.orders], scanFilter=[IS NOT NULL($2)], scanProject=[$2], group=[{0}], aggregateProject=[$0, true])\n";
 
   public static final String TPCH22_EXPLAIN_JR =
-      "DruidOuterQueryRel(scanFilter=[>($1, $2)], scanProject=[$0, $1], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
-      + "  DruidJoinRel(joinType=[INNER])\n"
-      + "    DruidOuterQueryRel(scanFilter=[IS NULL($2)], scanProject=[$0, $1])\n"
-      + "      DruidJoinRel(joinType=[RIGHT], leftKeys=[0], rightKeys=[1], outputColumns=[3, 1, 0])\n"
-      + "        DruidQueryRel(table=[druid.orders], scanProject=[$2], group=[{0}])\n"
-      + "        DruidQueryRel(table=[druid.customer], scanFilter=[OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17'))], scanProject=[$0, $3, SUBSTR($7, 1, 2)])\n"
-      + "    DruidQueryRel(table=[druid.customer], scanFilter=[AND(OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17')), >($0, 0.00:DECIMAL(3, 2)))], scanProject=[$0], AVG_ACCTBAL=[AVG($0)])\n";
+      "DruidOuterQueryRel(scanFilter=[IS NULL($2)], scanProject=[SUBSTR($0, 1, 2), $1], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
+      + "  DruidJoinRel(joinType=[RIGHT], leftKeys=[0], rightKeys=[1], outputColumns=[4, 2, 1])\n"
+      + "    DruidQueryRel(table=[druid.orders], scanFilter=[IS NOT NULL($2)], scanProject=[$2], group=[{0}], aggregateProject=[$0, true])\n"
+      + "    DruidOuterQueryRel(scanFilter=[>($0, $3)])\n"
+      + "      DruidJoinRel(joinType=[INNER])\n"
+      + "        DruidQueryRel(table=[druid.customer], scanFilter=[OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17'))], scanProject=[$0, $3, $7])\n"
+      + "        DruidQueryRel(table=[druid.customer], scanFilter=[AND(>($0, 0.00:DECIMAL(3, 2)), OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17')))], scanProject=[$0], EXPR$0=[AVG($0)])\n";
 
   public static final Object[][] TPCH22_RESULT = {
       {"13", 5L, 37676.7D},
@@ -2519,24 +2493,23 @@ public class TpchTest extends TpchTestHelper
 
     if (bloomFilter) {
       hook.verifyHooked(
-          "rLrOVUrUJJEExtJ55Xna/A==",
-          "DimensionSamplingQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], sampleRatio=0.050}",
-          "GroupByQuery{dataSource='CommonJoin{queries=[TimeseriesQuery{dataSource='customer', filter=(InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]} && BoundDimFilter{0.00 < C_ACCTBAL(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}, StreamQuery{dataSource='CommonJoin{queries=[GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=BloomDimFilter.Factory{bloomSource=$view:customer[C_CUSTKEY]([ExprVirtualColumn{expression='substring(C_PHONE, 0, 2)', outputName='v0'}])(InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}), fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], groupingSets=Noop, maxNumEntries=217}, outputColumns=[d0], $hash=true}, StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(C_PHONE, 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}], timeColumnName=__time}', filter=d0==NULL, columns=[v0, C_ACCTBAL]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='v0', outputName='d0'}], filter=MathExprFilter{expression='(C_ACCTBAL > a0)'}, aggregatorSpecs=[CountAggregatorFactory{name='_a0'}, GenericSumAggregatorFactory{name='_a1', fieldName='C_ACCTBAL', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, _a0, _a1]}",
-          "TimeseriesQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[C_CUSTKEY], groupingSets=Noop, byRow=true, maxNumEntries=217}]}",
-          "StreamQuery{dataSource='CommonJoin{queries=[GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], groupingSets=Noop}, outputColumns=[d0], $hash=true}, StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(C_PHONE, 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}], timeColumnName=__time}', filter=d0==NULL, columns=[v0, C_ACCTBAL]}",
-          "GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], groupingSets=Noop}, outputColumns=[d0], $hash=true}",
-          "StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(C_PHONE, 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}",
-          "TimeseriesQuery{dataSource='customer', filter=(InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]} && BoundDimFilter{0.00 < C_ACCTBAL(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}"
+          "kbYYm4FG9X5mjkhk42zOLQ==",
+          "DimensionSamplingQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=!(O_CUSTKEY==NULL), sampleRatio=0.050}",
+          "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE]}, TimeseriesQuery{dataSource='customer', filter=(BoundDimFilter{0.00 < C_ACCTBAL(numeric)} && InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}], timeColumnName=__time}', filter=MathExprFilter{expression='(C_ACCTBAL > a0)'}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE, a0]}, GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=!(O_CUSTKEY==NULL), postAggregatorSpecs=[MathPostAggregator{name='p0', expression='true', finalize=true}], outputColumns=[d0, p0], $hash=true}], timeColumnName=__time}', dimensions=[ExtractionDimensionSpec{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, outputName='d0'}], filter=p0==NULL, aggregatorSpecs=[CountAggregatorFactory{name='a0'}, GenericSumAggregatorFactory{name='a1', fieldName='C_ACCTBAL', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0, a1]}",
+          "StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE]}, TimeseriesQuery{dataSource='customer', filter=(BoundDimFilter{0.00 < C_ACCTBAL(numeric)} && InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}], timeColumnName=__time}', filter=MathExprFilter{expression='(C_ACCTBAL > a0)'}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE, a0]}",
+          "StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE]}",
+          "TimeseriesQuery{dataSource='customer', filter=(BoundDimFilter{0.00 < C_ACCTBAL(numeric)} && InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}",
+          "GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=!(O_CUSTKEY==NULL), postAggregatorSpecs=[MathPostAggregator{name='p0', expression='true', finalize=true}], outputColumns=[d0, p0], $hash=true}"
       );
     } else {
       hook.verifyHooked(
-          "yyrHbIAhKQB7ht2svbWQQQ==",
-          "DimensionSamplingQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], sampleRatio=0.050}",
-          "GroupByQuery{dataSource='CommonJoin{queries=[TimeseriesQuery{dataSource='customer', filter=(InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]} && BoundDimFilter{0.00 < C_ACCTBAL(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}, StreamQuery{dataSource='CommonJoin{queries=[GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], outputColumns=[d0], $hash=true}, StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(C_PHONE, 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}], timeColumnName=__time}', filter=d0==NULL, columns=[v0, C_ACCTBAL]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='v0', outputName='d0'}], filter=MathExprFilter{expression='(C_ACCTBAL > a0)'}, aggregatorSpecs=[CountAggregatorFactory{name='_a0'}, GenericSumAggregatorFactory{name='_a1', fieldName='C_ACCTBAL', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, _a0, _a1]}",
-          "StreamQuery{dataSource='CommonJoin{queries=[GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], outputColumns=[d0], $hash=true}, StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(C_PHONE, 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}], timeColumnName=__time}', filter=d0==NULL, columns=[v0, C_ACCTBAL]}",
-          "GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], outputColumns=[d0], $hash=true}",
-          "StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(C_PHONE, 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}",
-          "TimeseriesQuery{dataSource='customer', filter=(InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]} && BoundDimFilter{0.00 < C_ACCTBAL(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}"
+          "kbYYm4FG9X5mjkhk42zOLQ==",
+          "DimensionSamplingQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=!(O_CUSTKEY==NULL), sampleRatio=0.050}",
+          "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE]}, TimeseriesQuery{dataSource='customer', filter=(BoundDimFilter{0.00 < C_ACCTBAL(numeric)} && InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}], timeColumnName=__time}', filter=MathExprFilter{expression='(C_ACCTBAL > a0)'}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE, a0]}, GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=!(O_CUSTKEY==NULL), postAggregatorSpecs=[MathPostAggregator{name='p0', expression='true', finalize=true}], outputColumns=[d0, p0], $hash=true}], timeColumnName=__time}', dimensions=[ExtractionDimensionSpec{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, outputName='d0'}], filter=p0==NULL, aggregatorSpecs=[CountAggregatorFactory{name='a0'}, GenericSumAggregatorFactory{name='a1', fieldName='C_ACCTBAL', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0, a1]}",
+          "StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE]}, TimeseriesQuery{dataSource='customer', filter=(BoundDimFilter{0.00 < C_ACCTBAL(numeric)} && InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}], timeColumnName=__time}', filter=MathExprFilter{expression='(C_ACCTBAL > a0)'}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE, a0]}",
+          "StreamQuery{dataSource='customer', filter=InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}, columns=[C_ACCTBAL, C_CUSTKEY, C_PHONE]}",
+          "TimeseriesQuery{dataSource='customer', filter=(BoundDimFilter{0.00 < C_ACCTBAL(numeric)} && InDimFilter{dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}, values=[13, 17, 18, 23, 29, 30, 31]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0], $hash=true}",
+          "GroupByQuery{dataSource='orders', dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=!(O_CUSTKEY==NULL), postAggregatorSpecs=[MathPostAggregator{name='p0', expression='true', finalize=true}], outputColumns=[d0, p0], $hash=true}"
       );
     }
   }

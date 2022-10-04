@@ -426,7 +426,13 @@ public class JoinProcessor
         return product(drivingRow, otherRows, revert);
       }
       if (type == JoinType.LO) {
-        return Iterators.singletonIterator(Arrays.copyOf(drivingRow, drivingRow.length + target.columns.size()));
+        final Object[] join = new Object[drivingRow.length + target.columns.size()];
+        if (revert) {
+          System.arraycopy(drivingRow, 0, join, target.columns.size(), drivingRow.length);
+        } else {
+          System.arraycopy(drivingRow, 0, join, 0, drivingRow.length);
+        }
+        return Iterators.singletonIterator(join);
       }
     }
     return null;

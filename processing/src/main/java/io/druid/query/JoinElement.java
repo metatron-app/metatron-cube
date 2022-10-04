@@ -53,6 +53,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static io.druid.query.JoinQuery.SORTING;
+
 /**
  */
 public class JoinElement
@@ -338,7 +340,8 @@ public class JoinElement
       }
       if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
         if (DataSources.isFilterSupport(dataSource) && DataSources.isFilterableOn(dataSource, sortColumns)) {
-          query = ((Query.OrderingSupport<?>) query).withResultOrdering(OrderByColumnSpec.ascending(sortColumns));
+          query = ((Query.OrderingSupport<?>) query).withResultOrdering(OrderByColumnSpec.ascending(sortColumns))
+                                                    .withOverriddenContext(SORTING, true);
         }
       }
       return (ArrayOutputSupport) query;
