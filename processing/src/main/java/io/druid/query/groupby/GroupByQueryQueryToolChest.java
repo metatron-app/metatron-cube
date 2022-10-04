@@ -100,9 +100,9 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   }
 
   @Override
-  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
-    return new SubQueryRunner<I>(segmentWalker, config)
+    return new SubQueryRunner<I>(segmentWalker)
     {
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)

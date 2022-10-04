@@ -44,7 +44,7 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
   private final DimFilter filter;
   private final List<VirtualColumn> virtualColumns;
   private final List<DimensionSpec> dimensions;
-  private final int samplePerNode;
+  private final float sampleRatio;
 
   @JsonCreator
   public DimensionSamplingQuery(
@@ -53,7 +53,7 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
       @JsonProperty("filter") DimFilter filter,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("samplePerNode") int samplePerNode,
+      @JsonProperty("sampleRatio") float sampleRatio,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -61,9 +61,9 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
     this.filter = filter;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.dimensions = dimensions;
-    this.samplePerNode = samplePerNode;
+    this.sampleRatio = sampleRatio;
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(dimensions), "dimensions should not be empty");
-    Preconditions.checkArgument(samplePerNode > 0 && samplePerNode < 1000, "invalid samplePerNode [%d]", samplePerNode);
+    Preconditions.checkArgument(sampleRatio > 0 && sampleRatio <= 0.1f, "invalid sampleRatio [%d]", sampleRatio);
   }
 
   @Override
@@ -93,9 +93,9 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
   }
 
   @JsonProperty
-  public int getSamplePerNode()
+  public float getSampleRatio()
   {
-    return samplePerNode;
+    return sampleRatio;
   }
 
   @Override
@@ -113,7 +113,7 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
         filter,
         virtualColumns,
         dimensions,
-        samplePerNode,
+        sampleRatio,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -127,7 +127,7 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
         filter,
         virtualColumns,
         dimensions,
-        samplePerNode,
+        sampleRatio,
         getContext()
     );
   }
@@ -141,7 +141,7 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
         filter,
         virtualColumns,
         dimensions,
-        samplePerNode,
+        sampleRatio,
         getContext()
     );
   }
@@ -149,13 +149,14 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
   @Override
   public String toString()
   {
-    return "DimensionSamplingQuery{" +
-           "dataSource='" + getDataSource() + '\'' +
-           (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
-           ", dimensions=" + dimensions +
-           (filter == null ? "" : ", filter=" + filter) +
-           (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +
-           ", samplePerNode=" + samplePerNode +
-           '}';
+    return String.format(
+        "DimensionSamplingQuery{dataSource='%s'%s, dimensions=%s%s%s, sampleRatio=%.3f}",
+        getDataSource(),
+        getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec(),
+        dimensions,
+        filter == null ? "" : ", filter=" + filter,
+        virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns,
+        sampleRatio
+    );
   }
 }

@@ -297,9 +297,9 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 
   /**
    * @param segmentWalker
-   * @param config
+   *
    */
-  public <I> QueryRunner<ResultType> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<ResultType> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
     throw new UnsupportedOperationException("handleSourceQuery");
   }
@@ -307,12 +307,10 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   protected abstract class SubQueryRunner<I> implements QueryRunner<ResultType>
   {
     protected final QuerySegmentWalker segmentWalker;
-    protected final QueryConfig config;
 
-    protected SubQueryRunner(QuerySegmentWalker segmentWalker, QueryConfig config)
+    protected SubQueryRunner(QuerySegmentWalker segmentWalker)
     {
       this.segmentWalker = segmentWalker;
-      this.config = config;
     }
 
     @Override
@@ -347,7 +345,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
           "Accumulating into intermediate index with dimensions [%s] and metrics [%s]",
           schema.dimensionAndTypes(), schema.metricAndTypes()
       );
-      int maxResult = config.getMaxResults(query);
+      int maxResult = segmentWalker.getConfig().getMaxResults(query);
       IncrementalIndex index = new OnheapIncrementalIndex(IncrementalIndexSchema.from(schema), false, true, false, maxResult);
       IncrementalIndex accumulated = sequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
       LOG.info(
@@ -415,9 +413,9 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   // streaming only version
   public abstract class StreamingSubQueryRunner<I> extends SubQueryRunner<I>
   {
-    protected StreamingSubQueryRunner(QuerySegmentWalker segmentWalker, QueryConfig config)
+    protected StreamingSubQueryRunner(QuerySegmentWalker segmentWalker)
     {
-      super(segmentWalker, config);
+      super(segmentWalker);
     }
 
     @Override

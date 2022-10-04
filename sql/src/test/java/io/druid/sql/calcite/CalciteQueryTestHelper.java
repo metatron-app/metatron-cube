@@ -383,7 +383,6 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         operatorTable,
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         plannerConfig,
-        walker.getQueryConfig(),
         CalciteTests.getJsonMapper()
     );
     final SqlLifecycleFactory sqlLifecycleFactory = CalciteTests.createSqlLifecycleFactory(plannerFactory);

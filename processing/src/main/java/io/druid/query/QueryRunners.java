@@ -372,8 +372,7 @@ public class QueryRunners
   public static <T> QueryRunner<T> getSubQueryResolver(
       final QueryRunner<T> baseRunner,
       final QueryToolChest<T, Query<T>> toolChest,
-      final QuerySegmentWalker segmentWalker,
-      final QueryConfig config
+      final QuerySegmentWalker segmentWalker
   )
   {
     return new QueryRunner<T>()
@@ -389,7 +388,7 @@ public class QueryRunners
           query = query.withDataSource(QueryDataSource.of(subQuery, schema));
         }
         query = QueryUtils.resolve(query, segmentWalker);
-        query = QueryUtils.rewrite(query, segmentWalker, config);
+        query = QueryUtils.rewrite(query, segmentWalker);
         return baseRunner.run(query, responseContext);
       }
     };

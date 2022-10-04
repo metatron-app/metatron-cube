@@ -361,7 +361,7 @@ public class QueryUtils
     );
   }
 
-  public static Query rewriteRecursively(Query query, QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+  public static Query rewriteRecursively(Query query, QuerySegmentWalker segmentWalker)
   {
     // todo: there would be better way than this
     return Queries.iterate(query, new QueryVisitor()
@@ -381,7 +381,7 @@ public class QueryUtils
       @Override
       public Query out(Query input)
       {
-        return rewrite(input, segmentWalker, queryConfig);
+        return rewrite(input, segmentWalker);
       }
     });
   }
@@ -399,11 +399,7 @@ public class QueryUtils
   }
 
   @SuppressWarnings("unchecked")
-  public static <T extends Query> T rewrite(
-      final Query query,
-      final QuerySegmentWalker segmentWalker,
-      final QueryConfig queryConfig
-  )
+  public static <T extends Query> T rewrite(final Query query, final QuerySegmentWalker segmentWalker)
   {
     Query input = query;
     if (input instanceof Query.RewritingQuery) {

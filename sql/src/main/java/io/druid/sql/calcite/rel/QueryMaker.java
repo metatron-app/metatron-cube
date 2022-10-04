@@ -73,19 +73,16 @@ public class QueryMaker
   private final QueryLifecycleFactory lifecycleFactory;
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
-  private final QueryConfig queryConfig;
 
   public QueryMaker(
       final QueryLifecycleFactory lifecycleFactory,
       final QuerySegmentWalker segmentWalker,
-      final PlannerContext plannerContext,
-      final QueryConfig queryConfig
+      final PlannerContext plannerContext
   )
   {
     this.lifecycleFactory = lifecycleFactory;
     this.segmentWalker = segmentWalker;
     this.plannerContext = plannerContext;
-    this.queryConfig = queryConfig;
   }
 
   public PlannerContext getPlannerContext()
@@ -114,7 +111,7 @@ public class QueryMaker
   public Query prepareQuery(Query<?> baseQuery)
   {
     Query prepared = QueryUtils.readPostProcessors(baseQuery, getJsonMapper());
-    prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker, queryConfig);
+    prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker);
     prepared = QueryUtils.resolveRecursively(prepared, segmentWalker);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
       Queries.iterate(prepared, query ->

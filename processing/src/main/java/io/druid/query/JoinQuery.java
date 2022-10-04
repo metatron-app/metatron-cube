@@ -362,12 +362,13 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       DataSource right = dataSources.get(rightAlias);
 
       long[] leftEstimated = i == 0 ? estimatedCardinality(left) : currentEstimation;
-      if (leftEstimated[0] == Queries.NOT_EVALUATED) {
-        leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, context, segmentWalker, config);
-      }
       long[] rightEstimated = estimatedCardinality(right);
+
+      if (leftEstimated[0] == Queries.NOT_EVALUATED) {
+        leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, context, segmentWalker);
+      }
       if (rightEstimated[0] == Queries.NOT_EVALUATED) {
-        rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
+        rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker);
       }
       LOG.info(">> %s (%s:%d/%d + %s:%d/%d)", element.getJoinTypeString(), leftAlias, leftEstimated[0], leftEstimated[1], rightAlias, rightEstimated[0], rightEstimated[1]);
 
@@ -506,9 +507,18 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       boolean leftHashing = i == 0 && joinType.isRightDrivable() && isUnderThreshold(leftEstimated[0], hashThreshold);
       boolean rightHashing = joinType.isLeftDrivable() && isUnderThreshold(rightEstimated[0], hashThreshold);
       if (leftHashing && rightHashing) {
-        if (leftEstimated[0] > rightEstimated[0]) {
+        if (Math.abs(leftEstimated[0] - rightEstimated[0]) < Math.max(leftEstimated[0], rightEstimated[0]) * 0.1f) {
+          boolean ldn = DataSources.isDataNodeSourced(left);
+          boolean rdn = DataSources.isDataNodeSourced(right);
+          if (!ldn && rdn) {
+            leftHashing = false;
+          } else if (ldn && !rdn) {
+            rightHashing = false;
+          }
+        }
+        if (rightHashing && leftEstimated[0] > rightEstimated[0]) {
           leftHashing = false;
-        } else {
+        } else if (leftHashing) {
           rightHashing = false;
         }
       }
@@ -704,7 +714,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
   private float next(float selectivity)
   {
-    return Math.min(1f, normalize(selectivity) * 1.5f);
+    return normalize(selectivity * 1.1f);
   }
 
   private float normalize(float selectivity)
@@ -732,13 +742,13 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     if (element.isCrossJoin()) {
       return leftEstimated[0] * rightEstimated[0];
     }
-    long estimation = 0;
+    float estimation = 0;
     switch (element.getJoinType()) {
       case INNER:
         if (leftEstimated[0] > rightEstimated[0]) {
-          estimation = (long) (leftEstimated[0] * selectivity(rightEstimated));
+          estimation = leftEstimated[0] * selectivity(rightEstimated);
         } else {
-          estimation = (long) (rightEstimated[0] * selectivity(leftEstimated));
+          estimation = rightEstimated[0] * selectivity(leftEstimated);
         }
         break;
       case LO:
@@ -751,7 +761,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         estimation = leftEstimated[0] + rightEstimated[0];
         break;
     }
-    return Math.max(1, (long) (estimation * 1.1f));
+    return Math.max(1, (long) estimation);
   }
 
   private static Factory bloom(
@@ -1058,7 +1068,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           if (hashing1 && query0 instanceof OrderingSupport) {
             OrderingSupport reordered = tryReordering((OrderingSupport) query0, sortColumns);
             if (reordered != null) {
-              LOG.info("reordered.. %s : %s", query0.getDataSource().getNames(), reordered.getResultOrdering());
+              LOG.info("--- reordered.. %s : %s", query0.getDataSource().getNames(), reordered.getResultOrdering());
               return (JoinHolder) holder.withQueries(Arrays.asList(reordered, query1));
             }
           }
@@ -1067,7 +1077,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           if (hashing0 && query1 instanceof OrderingSupport) {
             OrderingSupport reordered = tryReordering((OrderingSupport) query1, sortColumns);
             if (reordered != null) {
-              LOG.info("reordered.. %s : %s", query1.getDataSource().getNames(), reordered.getResultOrdering());
+              LOG.info("--- reordered.. %s : %s", query1.getDataSource().getNames(), reordered.getResultOrdering());
               return (JoinHolder) holder.withQueries(Arrays.asList(query0, reordered));
             }
           }

@@ -28,7 +28,6 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQueryToolChest;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -93,9 +92,9 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   }
 
   @Override
-  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
-    return new SubQueryRunner<I>(segmentWalker, config)
+    return new SubQueryRunner<I>(segmentWalker)
     {
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)

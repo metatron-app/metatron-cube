@@ -367,7 +367,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
             Query<T> query = queries.get(i);
             if (Queries.isNestedQuery(queries.get(i))) {
               sequences[i] = Pair.<Query<T>, Sequence<T>>of(
-                  query, QueryUtils.rewrite(query, segmentWalker, queryConfig)
+                  query, QueryUtils.rewrite(query, segmentWalker)
                                    .run(segmentWalker, responseContext)
               );
             }
@@ -376,7 +376,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
             Query<T> query = queries.get(i);
             if (!Queries.isNestedQuery(queries.get(i))) {
               sequences[i] = Pair.<Query<T>, Sequence<T>>of(
-                  query, QueryUtils.rewrite(query, segmentWalker, queryConfig)
+                  query, QueryUtils.rewrite(query, segmentWalker)
                                    .run(segmentWalker, responseContext)
               );
             }
@@ -411,7 +411,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
                         @Override
                         public Sequence<T> call()
                         {
-                          Sequence<T> sequence = QueryUtils.rewrite(query, segmentWalker, queryConfig)
+                          Sequence<T> sequence = QueryUtils.rewrite(query, segmentWalker)
                                                            .run(segmentWalker, responseContext);
                           return Sequences.materialize(Sequences.withBaggage(sequence, semaphore));    // eagely
                         }

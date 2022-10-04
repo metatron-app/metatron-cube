@@ -19,7 +19,6 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -59,7 +58,6 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.ordering.OrderingSpec;
-import io.druid.query.select.EventHolder;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.select.StreamQuery;
@@ -128,17 +126,6 @@ public class Queries
         Preconditions.checkArgument(combinedAggNames.add(postAgg.getName()), "[%s] already defined", postAgg.getName());
       }
     }
-  }
-
-  public static <T> T convert(Object object, ObjectMapper jsonMapper, Class<T> expected)
-  {
-    try {
-      return jsonMapper.convertValue(object, expected);
-    }
-    catch (Exception ex) {
-      LOG.warn(ex, "Failed to convert to %s", expected.getSimpleName());
-    }
-    return null;
   }
 
   // best effort.. implement SchemaProvider if not enough
@@ -310,47 +297,17 @@ public class Queries
   }
 
   public static Function<Result<TopNResultValue>, Sequence<Row>> TOP_N_TO_ROWS =
-      new Function<Result<TopNResultValue>, Sequence<Row>>()
+      input ->
       {
-        @Override
-        public Sequence<Row> apply(Result<TopNResultValue> input)
-        {
-          final DateTime dateTime = input.getTimestamp();
-          return Sequences.simple(
-              Iterables.transform(
-                  input.getValue(), new Function<Map<String, Object>, Row>()
-                  {
-                    @Override
-                    public Row apply(Map<String, Object> input)
-                    {
-                      return new MapBasedRow(dateTime, input);
-                    }
-                  }
-              )
-          );
-        }
+        final DateTime dateTime = input.getTimestamp();
+        return Sequences.simple(Iterables.transform(input.getValue(), v -> new MapBasedRow(dateTime, v)));
       };
 
   public static Function<Result<SelectResultValue>, Sequence<Row>> SELECT_TO_ROWS =
-      new Function<Result<SelectResultValue>, Sequence<Row>>()
+      input ->
       {
-        @Override
-        public Sequence<Row> apply(Result<SelectResultValue> input)
-        {
-          final DateTime dateTime = input.getTimestamp();
-          return Sequences.simple(
-              Iterables.transform(
-                  input.getValue(), new Function<EventHolder, Row>()
-                  {
-                    @Override
-                    public Row apply(EventHolder input)
-                    {
-                      return new MapBasedRow(dateTime, input.getEvent());
-                    }
-                  }
-              )
-          );
-        }
+        final DateTime dateTime = input.getTimestamp();
+        return Sequences.simple(Iterables.transform(input.getValue(), h -> new MapBasedRow(dateTime, h.getEvent())));
       };
 
   public static <I> Sequence<I> convertBack(Query<I> subQuery, Sequence<Row> sequence)
@@ -442,31 +399,25 @@ public class Queries
   public static final long UNKNOWN = -1;
   public static final long NOT_EVALUATED = -2;
 
-  public static long[] estimateCardinality(
-      Query query,
-      QuerySegmentWalker segmentWalker,
-      QueryConfig config
-  )
+  public static long[] estimateCardinality(Query query, QuerySegmentWalker segmentWalker)
   {
     if (query instanceof TimeseriesQuery) {
-      return estimateCardinality((TimeseriesQuery) query, segmentWalker, config);
+      return estimateCardinality((TimeseriesQuery) query, segmentWalker);
     } else if (query instanceof GroupByQuery) {
       return estimateCardinality((GroupByQuery) query, segmentWalker);
     } else if (query instanceof StreamQuery) {
-      StreamQuery stream = (StreamQuery) query;
-      return estimateCardinality(
-          stream.getDataSource(),
-          stream.getQuerySegmentSpec(),
-          stream.getFilter(),
-          BaseQuery.copyContextForMeta(stream),
-          segmentWalker
-      );
+      return estimateSelectivity(query, segmentWalker);
     } else {
       return new long[] {UNKNOWN, UNKNOWN};
     }
   }
 
-  public static long[] estimateCardinality(
+  public static long[] estimateSelectivity(Query query, QuerySegmentWalker segmentWalker)
+  {
+    return Sequences.only(FilterMetaQuery.of(query).run(segmentWalker, null), new long[] {0, 0});
+  }
+
+  public static long[] estimateSelectivity(
       DataSource dataSource,
       QuerySegmentSpec segmentSpec,
       DimFilter filter,
@@ -478,13 +429,12 @@ public class Queries
     return Sequences.only(query.run(segmentWalker, null), new long[] {0, 0});
   }
 
-  private static long[] estimateCardinality(
-      TimeseriesQuery query,
-      QuerySegmentWalker segmentWalker,
-      QueryConfig config
-  )
+  public static long[] estimateCardinality(TimeseriesQuery query, QuerySegmentWalker segmentWalker)
   {
     Granularity granularity = query.getGranularity();
+    if (Granularities.isAll(granularity)) {
+      return new long[]{1, 1};
+    }
     long estimated = 0;
     for (Interval interval : QueryUtils.analyzeInterval(segmentWalker, query)) {
       estimated += Iterables.size(granularity.getIterable(interval));
@@ -527,7 +477,6 @@ public class Queries
       GroupByQuery query,
       List<Segment> segments,
       QuerySegmentWalker segmentWalker,
-      QueryConfig config,
       long minCardinality
   )
   {
@@ -596,7 +545,7 @@ public class Queries
       Cache cache
   )
   {
-    if (!Granularities.ALL.equals(metaQuery.getGranularity())) {
+    if (!Granularities.isAll(metaQuery.getGranularity())) {
       return null;
     }
     OrderingSpec orderingSpec = null;

@@ -29,7 +29,6 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.CacheStrategy;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -150,9 +149,9 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
   }
 
   @Override
-  public <I> QueryRunner<Object[]> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<Object[]> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
-    return new SubQueryRunner<I>(segmentWalker, config)
+    return new SubQueryRunner<I>(segmentWalker)
     {
       @Override
       protected Function<Interval, Sequence<Object[]>> query(final Query<Object[]> query, final Segment segment)

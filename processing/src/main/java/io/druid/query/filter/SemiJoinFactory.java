@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.common.IntTagged;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
@@ -31,6 +32,7 @@ import io.druid.query.RowExploder;
 import io.druid.segment.StringArray;
 import it.unimi.dsi.fastutil.objects.Object2IntAVLTreeMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntSortedMap;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
@@ -61,22 +63,13 @@ public class SemiJoinFactory
         while (iterator.hasNext()) {
           set.add(Objects.toString(iterator.next()[0], ""));
         }
-        return new InDimFilter(fieldNames.get(0), null, ImmutableList.copyOf(set));
+        return toInFilter(fieldNames.get(0), set.iterator());
       } else {
         final Set<StringArray> set = Sets.newTreeSet();
         while (iterator.hasNext()) {
           set.add(StringArray.of(iterator.next(), ""));
         }
-        List<List<String>> valuesList = Lists.newArrayList();
-        for (int i = 0; i < fieldNames.size(); i++) {
-          valuesList.add(Lists.newArrayList());
-        }
-        for (StringArray array : set) {
-          for (int i = 0; i < fieldNames.size(); i++) {
-            valuesList.get(i).add(array.get(i));
-          }
-        }
-        return new InDimsFilter(fieldNames, valuesList);
+        return toInsFilter(fieldNames, set.iterator());
       }
     }
     finally {
@@ -84,6 +77,45 @@ public class SemiJoinFactory
         IOUtils.closeQuietly((Closeable) iterator);
       }
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  public static DimFilter toFilter(List<String> fieldNames, Object2IntSortedMap<?> mapping)
+  {
+    Iterator<?> iterator = mapping.keySet().iterator();
+    if (fieldNames.size() == 1) {
+      return toInFilter(fieldNames.get(0), (Iterator<String>) iterator);
+    } else {
+      return toInsFilter(fieldNames, (Iterator<StringArray>) iterator);
+    }
+  }
+
+  public static Iterator<?> toKeys(Object2IntSortedMap<?> mapping, int i)
+  {
+    return mapping.object2IntEntrySet().stream()
+                  .filter(e -> e.getIntValue() == i)
+                  .map(e -> e.getKey())
+                  .iterator();
+  }
+
+  private static DimFilter toInFilter(String fieldName, Iterator<String> set)
+  {
+    return new InDimFilter(fieldName, null, ImmutableList.copyOf(set));
+  }
+
+  private static InDimsFilter toInsFilter(List<String> fieldNames, Iterator<StringArray> objects)
+  {
+    List<List<String>> valuesList = Lists.newArrayList();
+    for (int i = 0; i < fieldNames.size(); i++) {
+      valuesList.add(Lists.newArrayList());
+    }
+    while (objects.hasNext()) {
+      StringArray array = objects.next();
+      for (int i = 0; i < fieldNames.size(); i++) {
+        valuesList.get(i).add(array.get(i));
+      }
+    }
+    return new InDimsFilter(fieldNames, valuesList);
   }
 
   public static int sizeOf(DimFilter filter)
@@ -144,6 +176,46 @@ public class SemiJoinFactory
     finally {
       IOUtils.closeQuietly(iterator);
     }
+  }
+
+  public static IntTagged<Object2IntSortedMap<?>> toMap(int dims, Iterator<Object[]> iterator)
+  {
+    try {
+      if (dims == 1) {
+        IntTagged<Object2IntSortedMap<String>> v = singleCounter(iterator);
+        return IntTagged.of(v.tag, v.value());
+      } else {
+        IntTagged<Object2IntSortedMap<StringArray>> v = multiCounter(iterator);
+        return IntTagged.of(v.tag, v.value());
+      }
+    }
+    finally {
+      if (iterator instanceof Closeable) {
+        IOUtils.closeQuietly((Closeable) iterator);
+      }
+    }
+  }
+
+  private static IntTagged<Object2IntSortedMap<String>> singleCounter(Iterator<Object[]> iterator)
+  {
+    int counter = 0;
+    Object2IntSortedMap<String> mapping = new Object2IntAVLTreeMap<>();
+    while (iterator.hasNext()) {
+      mapping.computeInt(Objects.toString(iterator.next()[0], ""), (k, v) -> v == null ? 1 : v + 1);
+      counter++;
+    }
+    return IntTagged.of(counter, mapping);
+  }
+
+  private static IntTagged<Object2IntSortedMap<StringArray>> multiCounter(Iterator<Object[]> iterator)
+  {
+    int counter = 0;
+    Object2IntSortedMap<StringArray> mapping = new Object2IntAVLTreeMap<>();
+    while (iterator.hasNext()) {
+      mapping.computeInt(StringArray.of(iterator.next(), ""), (k, v) -> v == null ? 1 : v + 1);
+      counter++;
+    }
+    return IntTagged.of(counter, mapping);
   }
 }
 

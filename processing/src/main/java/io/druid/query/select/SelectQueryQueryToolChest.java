@@ -39,7 +39,6 @@ import io.druid.query.BySegmentResultValue;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
@@ -136,9 +135,9 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
-    return new SubQueryRunner<I>(segmentWalker, config)
+    return new SubQueryRunner<I>(segmentWalker)
     {
       @Override
       public Sequence<Result<SelectResultValue>> run(
@@ -175,7 +174,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
           {
             return engine.process(
                 select.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                config.getSelect(),
+                segmentWalker.getSelectConfig(),
                 segment
             );
           }

@@ -241,7 +241,7 @@ public class BrokerQueryResource extends QueryResource
     }
 
     Query query = rewriteDataSource(prepared);
-    query = QueryUtils.rewriteRecursively(query, segmentWalker, warehouse.getQueryConfig());
+    query = QueryUtils.rewriteRecursively(query, segmentWalker);
     query = QueryUtils.resolveRecursively(query, segmentWalker);
 
     if (query.getContextBoolean(Query.OPTIMIZE_QUERY, false)) {

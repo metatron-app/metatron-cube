@@ -40,7 +40,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -517,10 +516,10 @@ public class TopNQueryQueryToolChest
   }
 
   @Override
-  public <I> QueryRunner<Result<TopNResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<Result<TopNResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
     return new ThresholdAdjustingQueryRunner(
-        new SubQueryRunner<I>(segmentWalker, config)
+        new SubQueryRunner<I>(segmentWalker)
         {
           @Override
           protected Function<Interval, Sequence<Result<TopNResultValue>>> query(
@@ -541,7 +540,7 @@ public class TopNQueryQueryToolChest
               }
             };
           }
-        }, config.getTopN()
+        }, segmentWalker.getTopNConfig()
     );
   }
 }

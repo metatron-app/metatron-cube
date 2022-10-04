@@ -116,12 +116,12 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
     if (query.getDataSource() instanceof QueryDataSource) {
-      QueryRunner<T> runner = toolChest.handleSubQuery(this, queryConfig);
+      QueryRunner<T> runner = toolChest.handleSubQuery(this);
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
                                      .applyPostProcessingOperator()
-                                     .applySubQueryResolver(this, queryConfig)
+                                     .applySubQueryResolver(this)
                                      .build();
     }
 

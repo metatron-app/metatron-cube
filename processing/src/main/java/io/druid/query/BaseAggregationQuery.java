@@ -459,7 +459,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     return result;
   }
 
-  public DimensionSamplingQuery toSampling(int samplePerNode)
+  public DimensionSamplingQuery toSampling(float sampleRatio)
   {
     return new DimensionSamplingQuery(
         getDataSource(),
@@ -467,7 +467,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
         getFilter(),
         getVirtualColumns(),
         getDimensions(),
-        samplePerNode,
+        sampleRatio,
         copyContextForMeta(context)
     );
   }

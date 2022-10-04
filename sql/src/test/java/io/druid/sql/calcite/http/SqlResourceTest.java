@@ -135,7 +135,6 @@ public class SqlResourceTest extends CalciteTestBase
         operatorTable,
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         plannerConfig,
-        queryConfig,
         CalciteTests.getJsonMapper()
     );
 

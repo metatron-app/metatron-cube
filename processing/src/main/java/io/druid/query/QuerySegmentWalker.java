@@ -23,7 +23,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.collections.IntList;
 import io.druid.query.frequency.FrequencyQueryConfig;
 import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.query.select.SelectQueryConfig;
+import io.druid.query.topn.TopNQueryConfig;
 import io.druid.timeline.SegmentKey;
 import org.joda.time.Interval;
 
@@ -49,6 +51,21 @@ public interface QuerySegmentWalker
   default FrequencyQueryConfig getFrequencyConfig()
   {
     return getConfig().getFrequency();
+  }
+
+  default SearchQueryConfig getSearchConfig()
+  {
+    return getConfig().getSearch();
+  }
+
+  default TopNQueryConfig getTopNConfig()
+  {
+    return getConfig().getTopN();
+  }
+
+  default JoinQueryConfig getJoinConfig()
+  {
+    return getConfig().getJoin();
   }
 
   ExecutorService getExecutor();

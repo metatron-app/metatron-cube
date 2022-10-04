@@ -497,7 +497,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
     query = QueryUtils.readPostProcessors(query, mapper);
     query = QueryUtils.setQueryId(query, queryId);
-    query = QueryUtils.rewriteRecursively(query, this, queryConfig);
+    query = QueryUtils.rewriteRecursively(query, this);
     query = QueryUtils.resolveRecursively(query, this);
     return query;
   }
@@ -617,12 +617,12 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     if (query.getDataSource() instanceof QueryDataSource) {
       Preconditions.checkNotNull(factory, "%s does not supports nested query", query);
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-      QueryRunner<T> runner = toolChest.handleSubQuery(this, queryConfig);
+      QueryRunner<T> runner = toolChest.handleSubQuery(this);
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
                                      .applyPostProcessingOperator()
-                                     .applySubQueryResolver(this, queryConfig)
+                                     .applySubQueryResolver(this)
                                      .runWith(query)
                                      .build();
     }

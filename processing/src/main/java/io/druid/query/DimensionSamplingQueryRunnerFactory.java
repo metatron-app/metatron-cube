@@ -61,7 +61,8 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
       ExecutorService exec
   )
   {
-    return Suppliers.ofInstance(new Sampler(query.getSamplePerNode(), query.getDimensions()));
+    int numSample = (int) (segments.stream().mapToInt(s -> s.getNumRows()).sum() * query.getSampleRatio());
+    return Suppliers.ofInstance(new Sampler(Math.max(10, numSample), query.getDimensions()));
   }
 
   @Override

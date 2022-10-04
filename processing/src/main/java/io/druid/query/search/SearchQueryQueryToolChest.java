@@ -40,7 +40,6 @@ import io.druid.query.CacheStrategy;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -156,10 +155,10 @@ public class SearchQueryQueryToolChest
   }
 
   @Override
-  public <I> QueryRunner<Result<SearchResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<Result<SearchResultValue>> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
     return new SearchThresholdAdjustingQueryRunner(
-        new SubQueryRunner<I>(segmentWalker, config)
+        new SubQueryRunner<I>(segmentWalker)
         {
           @Override
           protected Function<Interval, Sequence<Result<SearchResultValue>>> query(
@@ -180,7 +179,7 @@ public class SearchQueryQueryToolChest
               }
             };
           }
-        }, config.getSearch()
+        }, segmentWalker.getSearchConfig()
     );
   }
 

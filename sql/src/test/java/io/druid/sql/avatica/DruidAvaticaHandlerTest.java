@@ -162,7 +162,6 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
         operatorTable,
         AuthTestUtils.TEST_AUTHORIZER_MAPPER,
         plannerConfig,
-        queryConfig,
         CalciteTests.getJsonMapper()
     );
 
@@ -740,7 +739,6 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
                 operatorTable,
                 AuthTestUtils.TEST_AUTHORIZER_MAPPER,
                 plannerConfig,
-                queryConfig,
                 CalciteTests.getJsonMapper()
             )
         ),

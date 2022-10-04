@@ -31,7 +31,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
@@ -144,9 +143,9 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   }
 
   @Override
-  public <I> QueryRunner<Object[]> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public <I> QueryRunner<Object[]> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
-    return new StreamingSubQueryRunner<I>(segmentWalker, config)
+    return new StreamingSubQueryRunner<I>(segmentWalker)
     {
       @Override
       @SuppressWarnings("unchecked")
@@ -168,13 +167,13 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       }
 
       @Override
-      protected final Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)
+      protected Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)
       {
-        return StreamQueryEngine.processor((StreamQuery) query, config, new MutableInt());
+        return StreamQueryEngine.processor((StreamQuery) query, segmentWalker.getConfig(), new MutableInt());
       }
 
       @Override
-      protected final Sequence<Object[]> streamMerge(Query<Object[]> query, Sequence<Sequence<Object[]>> sequences)
+      protected Sequence<Object[]> streamMerge(Query<Object[]> query, Sequence<Sequence<Object[]>> sequences)
       {
         return ((StreamQuery) query).applyLimit(Sequences.concat(query.estimatedOutputColumns(), sequences));
       }

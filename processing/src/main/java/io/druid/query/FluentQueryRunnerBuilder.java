@@ -85,9 +85,9 @@ public class FluentQueryRunnerBuilder<T>
     return from(PostProcessingOperators.wrap(runner));
   }
 
-  public FluentQueryRunnerBuilder<T> applySubQueryResolver(QuerySegmentWalker segmentWalker, QueryConfig config)
+  public FluentQueryRunnerBuilder<T> applySubQueryResolver(QuerySegmentWalker segmentWalker)
   {
-    return from(QueryRunners.getSubQueryResolver(runner, toolChest, segmentWalker, config));
+    return from(QueryRunners.getSubQueryResolver(runner, toolChest, segmentWalker));
   }
 
   public FluentQueryRunnerBuilder<T> runWithLocalized()
