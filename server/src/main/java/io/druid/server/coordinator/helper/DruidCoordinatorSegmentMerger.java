@@ -98,18 +98,18 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
     Map<String, VersionedIntervalTimeline<String, DataSegment>> dataSources = Maps.newHashMap();
 
     // Find serviced segments by using a timeline
-    for (DataSegment dataSegment : params.getAvailableSegments()) {
-      if (whitelist == null || whitelist.contains(dataSegment.getDataSource())) {
-        VersionedIntervalTimeline<String, DataSegment> timeline = dataSources.get(dataSegment.getDataSource());
-        if (timeline == null) {
-          timeline = new VersionedIntervalTimeline<String, DataSegment>();
-          dataSources.put(dataSegment.getDataSource(), timeline);
+    Map<String, List<DataSegment>> segmentsMap = params.getAvailableSegments();
+    for (Map.Entry<String, List<DataSegment>> entry : segmentsMap.entrySet()) {
+      if (whitelist == null || whitelist.contains(entry.getKey())) {
+        VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<String, DataSegment>();
+        for (DataSegment dataSegment : entry.getValue()) {
+          timeline.add(
+              dataSegment.getInterval(),
+              dataSegment.getVersion(),
+              dataSegment.getShardSpecWithDefault().createChunk(dataSegment)
+          );
+          dataSources.put(entry.getKey(), timeline);
         }
-        timeline.add(
-            dataSegment.getInterval(),
-            dataSegment.getVersion(),
-            dataSegment.getShardSpecWithDefault().createChunk(dataSegment)
-        );
       }
     }
 

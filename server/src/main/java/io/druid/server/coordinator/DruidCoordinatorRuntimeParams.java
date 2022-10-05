@@ -50,7 +50,7 @@ public class DruidCoordinatorRuntimeParams
   private final MetadataRuleManager databaseRuleManager;
   private final SegmentReplicantLookup segmentReplicantLookup;
   private final Set<DruidDataSource> dataSources;
-  private final Supplier<Iterable<DataSegment>> availableSegments;
+  private final Supplier<Map<String, List<DataSegment>>> availableSegments;
   private final Map<String, LoadQueuePeon> loadManagementPeons;
   private final ServiceEmitter emitter;
   private final CoordinatorDynamicConfig coordinatorDynamicConfig;
@@ -70,7 +70,7 @@ public class DruidCoordinatorRuntimeParams
       MetadataRuleManager databaseRuleManager,
       SegmentReplicantLookup segmentReplicantLookup,
       Set<DruidDataSource> dataSources,
-      Supplier<Iterable<DataSegment>> availableSegments,
+      Supplier<Map<String, List<DataSegment>>> availableSegments,
       Map<String, LoadQueuePeon> loadManagementPeons,
       ServiceEmitter emitter,
       CoordinatorDynamicConfig coordinatorDynamicConfig,
@@ -134,7 +134,7 @@ public class DruidCoordinatorRuntimeParams
     return dataSources;
   }
 
-  public Iterable<DataSegment> getAvailableSegments()
+  public Map<String, List<DataSegment>> getAvailableSegments()
   {
     return availableSegments.get();
   }
@@ -142,7 +142,7 @@ public class DruidCoordinatorRuntimeParams
   public Map<String, Set<DataSegment>> getOvershadowedSegments()
   {
     if (materializedOvershadowedSegments == null) {
-      materializedOvershadowedSegments = ImmutableMap.copyOf(retainOverShadowed(dataSources));
+      materializedOvershadowedSegments = ImmutableMap.copyOf(retainOverShadowed(getAvailableSegments()));
     }
     return materializedOvershadowedSegments;
   }
@@ -151,18 +151,18 @@ public class DruidCoordinatorRuntimeParams
   {
     if (materializedNonOvershadowedSegments == null) {
       materializedNonOvershadowedSegments = ImmutableMap.copyOf(
-          retainNonOverShadowed(dataSources, getOvershadowedSegments())
+          retainNonOverShadowed(getAvailableSegments(), getOvershadowedSegments())
       );
     }
     return materializedNonOvershadowedSegments;
   }
 
-  private Map<String, Set<DataSegment>> retainOverShadowed(Set<DruidDataSource> dataSources)
+  private Map<String, Set<DataSegment>> retainOverShadowed(Map<String, List<DataSegment>> availables)
   {
     Map<String, Set<DataSegment>> overshadows = Maps.newHashMap();
-    for (DruidDataSource ds : dataSources) {
+    for (Map.Entry<String, List<DataSegment>> entry : availables.entrySet()) {
       VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
-      for (DataSegment segment : ds.getCopyOfSegments()) {
+      for (DataSegment segment : entry.getValue()) {
         timeline.add(
             segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment)
         );
@@ -174,32 +174,34 @@ public class DruidCoordinatorRuntimeParams
         }
       }
       if (!overshadow.isEmpty()) {
-        overshadows.put(ds.getName(), overshadow);
+        overshadows.put(entry.getKey(), overshadow);
       }
     }
     return overshadows;
   }
 
   private static Map<String, List<DataSegment>> retainNonOverShadowed(
-      Set<DruidDataSource> dataSources,
+      Map<String, List<DataSegment>> availables,
       Map<String, Set<DataSegment>> overshadows
   )
   {
     Map<String, List<DataSegment>> nonOvershadows = Maps.newHashMap();
-    for (DruidDataSource ds : dataSources) {
+    for (Map.Entry<String, List<DataSegment>> entry : availables.entrySet()) {
+      String ds = entry.getKey();
+      List<DataSegment> segments = entry.getValue();
       Set<DataSegment> overshadow = overshadows.get(ds);
       if (overshadow == null || overshadow.isEmpty()) {
-        nonOvershadows.put(ds.getName(), ds.getCopyOfSegments());
+        nonOvershadows.put(ds, segments);
         continue;
       }
       List<DataSegment> nonOvershadow = Lists.newArrayList();
-      for (DataSegment segment : ds.getCopyOfSegments()) {
+      for (DataSegment segment : segments) {
         if (!overshadow.contains(segment)) {
           nonOvershadow.add(segment);
         }
       }
       if (!nonOvershadow.isEmpty()) {
-        nonOvershadows.put(ds.getName(), nonOvershadow);
+        nonOvershadows.put(ds, nonOvershadow);
       }
     }
     return nonOvershadows;
@@ -280,7 +282,7 @@ public class DruidCoordinatorRuntimeParams
     private MetadataRuleManager databaseRuleManager;
     private SegmentReplicantLookup segmentReplicantLookup;
     private final Set<DruidDataSource> dataSources;
-    private Supplier<Iterable<DataSegment>> availableSegments;
+    private Supplier<Map<String, List<DataSegment>>> availableSegments;
     private final Map<String, LoadQueuePeon> loadManagementPeons;
     private ServiceEmitter emitter;
     private CoordinatorDynamicConfig coordinatorDynamicConfig;
@@ -312,7 +314,7 @@ public class DruidCoordinatorRuntimeParams
         MetadataRuleManager databaseRuleManager,
         SegmentReplicantLookup segmentReplicantLookup,
         Set<DruidDataSource> dataSources,
-        Supplier<Iterable<DataSegment>> availableSegments,
+        Supplier<Map<String, List<DataSegment>>> availableSegments,
         Map<String, LoadQueuePeon> loadManagementPeons,
         ServiceEmitter emitter,
         CoordinatorDynamicConfig coordinatorDynamicConfig,
@@ -398,7 +400,7 @@ public class DruidCoordinatorRuntimeParams
       return this;
     }
 
-    public Builder withAvailableSegments(Supplier<Iterable<DataSegment>> availableSegments)
+    public Builder withAvailableSegments(Supplier<Map<String, List<DataSegment>>> availableSegments)
     {
       this.availableSegments = Suppliers.memoize(availableSegments);
       materializedOvershadowedSegments = null;
@@ -407,9 +409,20 @@ public class DruidCoordinatorRuntimeParams
     }
 
     @VisibleForTesting
-    public Builder withAvailableSegments(Iterable<DataSegment> availableSegments)
+    public Builder withAvailableSegments(Collection<DataSegment> availableSegments)
     {
-      return withAvailableSegments(Suppliers.ofInstance(availableSegments));
+      final Map<String, List<DataSegment>> mapping = Maps.newHashMap();
+      for (DataSegment segment : availableSegments) {
+        mapping.compute(segment.getDataSource(), (k, v) -> {
+          if (v == null) {
+            v = Lists.newArrayList(segment);
+          } else {
+            v.add(segment);
+          }
+          return v;
+        });
+      }
+      return withAvailableSegments(Suppliers.ofInstance(mapping));
     }
 
     public Builder withLoadManagementPeons(Map<String, LoadQueuePeon> loadManagementPeonsCollection)

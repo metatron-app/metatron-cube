@@ -839,7 +839,7 @@ public class TestHelper
       if (i > 0) {
         System.out.println(",");
       }
-      System.out.print("new Object[]{" + b + "}");
+      System.out.print("{" + b + "}");
     }
     System.out.println();
   }

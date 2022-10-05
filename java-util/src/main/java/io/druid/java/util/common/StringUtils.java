@@ -369,7 +369,7 @@ public class StringUtils
 
   public static String fromUtf8(final ByteBuffer buffer)
   {
-    return fromUtf8(buffer, 0, buffer.remaining());
+    return fromUtf8(buffer, buffer.position(), buffer.remaining());
   }
 
   public static byte[] toUtf8(final String string)

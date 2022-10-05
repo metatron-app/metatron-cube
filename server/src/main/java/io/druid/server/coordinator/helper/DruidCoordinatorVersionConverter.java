@@ -28,6 +28,8 @@ import io.druid.server.coordinator.DatasourceWhitelist;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class DruidCoordinatorVersionConverter implements DruidCoordinatorHelper
@@ -55,13 +57,15 @@ public class DruidCoordinatorVersionConverter implements DruidCoordinatorHelper
     }
     DatasourceWhitelist whitelist = whitelistRef.get();
 
-    for (DataSegment dataSegment : params.getAvailableSegments()) {
-      if (whitelist == null || whitelist.contains(dataSegment.getDataSource())) {
-        final Integer binaryVersion = dataSegment.getBinaryVersion();
-
-        if (binaryVersion == null || binaryVersion < IndexIO.CURRENT_VERSION_ID) {
-          log.info("Upgrading version on segment[%s]", dataSegment.getIdentifier());
-          indexingServiceClient.upgradeSegment(dataSegment);
+    Map<String, List<DataSegment>> segmentsMap = params.getAvailableSegments();
+    for (Map.Entry<String, List<DataSegment>> entry : segmentsMap.entrySet()) {
+      if (whitelist == null || whitelist.contains(entry.getKey())) {
+        for (DataSegment dataSegment : entry.getValue()) {
+          final Integer binaryVersion = dataSegment.getBinaryVersion();
+          if (binaryVersion == null || binaryVersion < IndexIO.CURRENT_VERSION_ID) {
+            log.info("Upgrading version on segment[%s]", dataSegment.getIdentifier());
+            indexingServiceClient.upgradeSegment(dataSegment);
+          }
         }
       }
     }

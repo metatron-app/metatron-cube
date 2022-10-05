@@ -72,7 +72,7 @@ public class FilterMetaQueryToolChest extends QueryToolChest.CacheSupport<long[]
       public byte[] computeCacheKey(FilterMetaQuery query, int limit)
       {
         return KeyBuilder.get(limit)
-                         .append(query.getType())
+                         .append(FILTER_META_QUERY)
                          .append(query.getFilter())
                          .append(query.getVirtualColumns())
                          .build();

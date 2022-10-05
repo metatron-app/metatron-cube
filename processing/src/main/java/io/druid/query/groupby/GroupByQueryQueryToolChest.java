@@ -21,8 +21,6 @@ package io.druid.query.groupby;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.google.inject.Inject;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.Sequence;
@@ -38,8 +36,6 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQueryEngine.RowIterator;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -48,7 +44,6 @@ import io.druid.segment.Segment;
 import org.joda.time.Interval;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -196,28 +191,6 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
     GroupByQueryMetrics queryMetrics = metricsFactory.makeMetrics();
     queryMetrics.query(query);
     return queryMetrics;
-  }
-
-  /**
-   * This function checks the query for dimensions which can be optimized by applying the dimension extraction
-   * as the final step of the query instead of on every event.
-   *
-   * @param query The query to check for optimizations
-   *
-   * @return A collection of DimensionsSpec which can be extracted at the last second upon query completion.
-   */
-  private Collection<DimensionSpec> extractionsToRewrite(GroupByQuery query)
-  {
-    return Collections2.filter(
-        query.getDimensions(), new Predicate<DimensionSpec>()
-        {
-          @Override
-          public boolean apply(DimensionSpec input)
-          {
-            return DimensionSpecs.isOneToOneExtraction(input);
-          }
-        }
-    );
   }
 
   @Override

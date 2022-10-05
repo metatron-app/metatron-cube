@@ -24,7 +24,6 @@ import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
 
-import java.util.Map;
 import java.util.Set;
 
 public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelper
@@ -50,8 +49,8 @@ public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelp
     //Remove all segments in db that are overshadowed by served segments
     int count = 0;
     try {
-      for (Map.Entry<String, Set<DataSegment>> entry : params.getOvershadowedSegments().entrySet()) {
-        for (DataSegment dataSegment : entry.getValue()) {
+      for (Set<DataSegment> segments : params.getOvershadowedSegments().values()) {
+        for (DataSegment dataSegment : segments) {
           coordinator.disableSegment("overshadowed", dataSegment);    // todo mass disable
           count++;
         }

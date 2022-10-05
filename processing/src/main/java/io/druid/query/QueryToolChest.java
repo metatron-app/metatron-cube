@@ -73,6 +73,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   protected static final byte SKETCH_QUERY = 0x16;
   protected static final byte SELECT_META_QUERY = 0x17;
   protected static final byte SCHEMA_QUERY = 0x18;
+  protected static final byte FILTER_META_QUERY = 0x19;
 
   /**
    * This method wraps a QueryRunner.  The input QueryRunner, by contract, will provide a series of

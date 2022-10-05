@@ -20,7 +20,6 @@
 package io.druid.server.coordinator;
 
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -99,6 +98,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  */
@@ -293,7 +293,7 @@ public class DruidCoordinator
     final SegmentReplicantLookup replicantLookup = prevParam.getSegmentReplicantLookup();
 
     final DateTime now = new DateTime();
-    for (DataSegment segment : getAvailableDataSegments().get()) {
+    for (DataSegment segment : Iterables.concat(getAvailableDataSegments().get().values())) {
       List<Rule> rules = metadataRuleManager.getRulesWithDefault(segment.getDataSource());
       for (Rule rule : rules) {
         if (rule instanceof LoadRule && rule.appliesTo(segment, now)) {
@@ -320,7 +320,7 @@ public class DruidCoordinator
     }
     final SegmentReplicantLookup segmentReplicantLookup = prevParam.getSegmentReplicantLookup();
 
-    for (DataSegment segment : getAvailableDataSegments().get()) {
+    for (DataSegment segment : Iterables.concat(getAvailableDataSegments().get().values())) {
       int available = segmentReplicantLookup.getTotalReplicants(segment.getIdentifier()) == 0 ? 0 : 1;
       retVal.addTo(segment.getDataSource(), 1 - available);
     }
@@ -457,11 +457,13 @@ public class DruidCoordinator
     return false;
   }
 
-  public Supplier<Iterable<DataSegment>> getAvailableDataSegments()
+  public Supplier<Map<String, List<DataSegment>>> getAvailableDataSegments()
   {
-    return () -> Iterables.concat(Iterables.transform(
-        metadataSegmentManager.getInventory(), DruidDataSource::getCopyOfSegments
-    ));
+    return () -> metadataSegmentManager.getInventory().stream()
+                                       .collect(Collectors.toMap(
+                                           DruidDataSource::getName,
+                                           DruidDataSource::getCopyOfSegments
+                                       ));
   }
 
   public boolean isAvailable(DataSegment segment)
@@ -714,7 +716,7 @@ public class DruidCoordinator
                                              .withStartTime(System.currentTimeMillis())
                                              .withPollingInterval(config.getCoordinatorPeriod().getMillis())
                                              .withDatabaseRuleManager(ruleManager)
-                                             .withAvailableSegments(Suppliers.ofInstance(segments))
+                                             .withAvailableSegments(segments)
             );
             if (leader) {
               for (DataSegment segment : segments) {

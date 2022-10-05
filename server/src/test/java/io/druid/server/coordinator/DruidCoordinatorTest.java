@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
@@ -34,6 +35,7 @@ import io.druid.client.SingleServerInventoryView;
 import io.druid.collections.String2IntMap;
 import io.druid.common.DateTimes;
 import io.druid.common.config.JacksonConfigManager;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
 import io.druid.curator.discovery.NoopServiceAnnouncer;
@@ -399,7 +401,8 @@ public class DruidCoordinatorTest extends CuratorTestBase
         ImmutableList.of(dataSource)
     ).atLeastOnce();
     EasyMock.replay(databaseSegmentManager);
-    List<DataSegment> availableSegments = Lists.newArrayList(coordinator.getAvailableDataSegments().get());
+    Map<String, List<DataSegment>> availables = coordinator.getAvailableDataSegments().get();
+    List<DataSegment> availableSegments = Lists.newArrayList(Iterables.concat(availables.values()));
     Collections.sort(availableSegments, DataSegment.TIME_DESCENDING);
     List<DataSegment> expected = Arrays.asList(
         getSegment("test", new Interval("2016-01-11T01:00:00Z/2016-01-11T02:00:00Z")),
