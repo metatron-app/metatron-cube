@@ -36,7 +36,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -114,10 +113,10 @@ public class TpchTest extends TpchTestHelper
       + "sort=[$0:ASC, $1:ASC])\n";
 
   public static final Object[][] TPCH1_RESULT = {
-      {"A", "F", 189203L, 2.649171512299999E8D, 2.517225664892047E8D, 2.6181376653715158E8D, 25L, 35407.26426490242D, 0.05014435F, 7482L},
-      {"N", "F", 4654L, 6647990.519999999D, 6333568.498901443D, 6584905.203860926D, 26L, 37139.61184357541D, 0.04849162F, 179L},
-      {"N", "O", 376815L, 5.2792684456999964E8D, 5.016250498442685E8D, 5.216476002629087E8D, 25L, 35840.247424983005D, 0.04984861F, 14730L},
-      {"R", "F", 191214L, 2.6792430413999987E8D, 2.5454761771048513E8D, 2.648043625528718E8D, 25L, 35972.65093179375D, 0.04983217F, 7448L}
+      {"A", "F", 189203L, 2.649171512299999E8D, 2.5172256669044656E8D, 2.618137696907937E8D, 25L, 35407.26426490242D, 0.05014435F, 7482L},
+      {"N", "F", 4654L, 6647990.519999999D, 6333568.496621376D, 6584905.261532691D, 26L, 37139.61184357541D, 0.04849162F, 179L},
+      {"N", "O", 376815L, 5.2792684456999964E8D, 5.016250502495867E8D, 5.2164760657695186E8D, 25L, 35840.247424983005D, 0.04984861F, 14730L},
+      {"R", "F", 191214L, 2.6792430413999987E8D, 2.5454761805335242E8D, 2.6480436570269588E8D, 25L, 35972.65093179375D, 0.04983217F, 7448L}
   };
 
   @Test
@@ -383,16 +382,16 @@ public class TpchTest extends TpchTestHelper
       + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[>($11, '1995-03-22')], scanProject=[$2, $3, $6])\n";
 
   public static final Object[][] TPCH3_RESULT = {
-      {"26304", 358077.0173104012D, "1995-03-20", 0L},
-      {"928", 289800.9609201348D, "1995-03-02", 0L},
-      {"4327", 187634.62951172946D, "1995-03-16", 0L},
-      {"20453", 176905.62356464745D, "1995-03-11", 0L},
-      {"20486", 171516.90474127472D, "1995-03-06", 0L},
-      {"18820", 163812.80363306048D, "1995-02-12", 0L},
-      {"16096", 147838.64354118108D, "1995-01-20", 0L},
-      {"3749", 135109.4343535584D, "1995-02-24", 0L},
-      {"19365", 126378.68811139763D, "1995-01-17", 0L},
-      {"6560", 123264.19084395052D, "1995-01-05", 0L}
+      {"26304", 358077.0152279817D, "1995-03-20", 0L},
+      {"928", 289800.9607996043D, "1995-03-02", 0L},
+      {"4327", 187634.62862386403D, "1995-03-16", 0L},
+      {"20453", 176905.6235388234D, "1995-03-11", 0L},
+      {"20486", 171516.90596939923D, "1995-03-06", 0L},
+      {"18820", 163812.8043091065D, "1995-02-12", 0L},
+      {"16096", 147838.6416906625D, "1995-01-20", 0L},
+      {"3749", 135109.43370970472D, "1995-02-24", 0L},
+      {"19365", 126378.68876224649D, "1995-01-17", 0L},
+      {"6560", 123264.19097787395D, "1995-01-05", 0L}
   };
 
   @Test
@@ -545,11 +544,11 @@ public class TpchTest extends TpchTestHelper
       + "    DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1993-01-01'), <($3, '1994-01-01'))], scanProject=[$2, $4])\n";
 
   public static final Object[][] TPCH5_RESULT = {
-      {"KENYA", 523154.4756433582D},
-      {"MOROCCO", 218260.09130795716D},
-      {"ETHIOPIA", 167163.611216833D},
-      {"ALGERIA", 157068.92507587554D},
-      {"MOZAMBIQUE", 151814.85730328262D}
+      {"KENYA", 523154.4750718259D},
+      {"MOROCCO", 218260.09096727896D},
+      {"ETHIOPIA", 167163.61263319192D},
+      {"ALGERIA", 157068.92618799844D},
+      {"MOZAMBIQUE", 151814.8570359957D}
   };
 
   @Test
@@ -685,10 +684,10 @@ public class TpchTest extends TpchTestHelper
       + "        DruidQueryRel(table=[druid.nation], scanFilter=[OR(=($1, 'KENYA'), =($1, 'PERU'))], scanProject=[$1, $2])\n";
 
   public static final Object[][] TPCH7_RESULT = {
-      {"KENYA", "PERU", 1995L, 155808.41826545357D},
-      {"KENYA", "PERU", 1996L, 335577.4780717748D},
-      {"PERU", "KENYA", 1995L, 243818.1961560595D},
-      {"PERU", "KENYA", 1996L, 105976.7656660986D}
+      {"KENYA", "PERU", 1995L, 155808.41736393946D},
+      {"KENYA", "PERU", 1996L, 335577.4810472459D},
+      {"PERU", "KENYA", 1995L, 243818.19482950834D},
+      {"PERU", "KENYA", 1996L, 105976.7651234877D}
   };
 
   @Test
@@ -1013,165 +1012,165 @@ public class TpchTest extends TpchTestHelper
       + "    DruidQueryRel(table=[druid.orders], scanProject=[$3, $4])\n";
 
   public static final Object[][] TPCH9_RESULT = {
-      {"ALGERIA", 1998L, 114041.26030389729D},
-      {"ALGERIA", 1997L, 420005.5196960158D},
-      {"ALGERIA", 1996L, 179435.92986568867D},
-      {"ALGERIA", 1995L, 582584.3273152972D},
-      {"ALGERIA", 1994L, 460802.84585832D},
-      {"ALGERIA", 1993L, 358757.8330225676D},
-      {"ALGERIA", 1992L, 196711.98163813291D},
-      {"ARGENTINA", 1998L, 108010.48914558589D},
-      {"ARGENTINA", 1997L, 38692.82840696454D},
-      {"ARGENTINA", 1996L, 56161.96091754914D},
-      {"ARGENTINA", 1995L, 206313.398783111D},
-      {"ARGENTINA", 1994L, 138654.58356833278D},
-      {"ARGENTINA", 1993L, 130070.15324769974D},
-      {"ARGENTINA", 1992L, 249187.62450698193D},
-      {"BRAZIL", 1997L, 275368.1544864571D},
-      {"BRAZIL", 1996L, 121697.60182550666D},
-      {"BRAZIL", 1995L, 180382.1936285472D},
-      {"BRAZIL", 1994L, 135981.81291187106D},
-      {"BRAZIL", 1993L, 92990.53491969705D},
-      {"BRAZIL", 1992L, 132591.46454048812D},
-      {"CANADA", 1998L, 203860.59923854948D},
-      {"CANADA", 1997L, 321769.07278031466D},
-      {"CANADA", 1996L, 171418.11807058338D},
-      {"CANADA", 1995L, 335742.06487398804D},
-      {"CANADA", 1994L, 111252.62975068866D},
-      {"CANADA", 1993L, 195046.82526221155D},
-      {"CANADA", 1992L, 290137.6926700413D},
-      {"CHINA", 1998L, 172477.83238787178D},
-      {"CHINA", 1997L, 275949.41915031796D},
-      {"CHINA", 1996L, 262160.86919998226D},
-      {"CHINA", 1995L, 311497.5106262428D},
-      {"CHINA", 1994L, 163460.95393187582D},
-      {"CHINA", 1993L, 180435.70739745855D},
-      {"CHINA", 1992L, 330379.5476246345D},
-      {"EGYPT", 1998L, 21087.45820478082D},
-      {"EGYPT", 1997L, 103924.71271479249D},
-      {"EGYPT", 1996L, 100910.74221206187D},
-      {"EGYPT", 1995L, 79938.6035951674D},
-      {"EGYPT", 1994L, 187349.30180459976D},
-      {"EGYPT", 1993L, 330374.529838863D},
-      {"EGYPT", 1992L, 280424.4704564249D},
-      {"ETHIOPIA", 1998L, 194613.56150964915D},
-      {"ETHIOPIA", 1997L, 220107.2496837282D},
-      {"ETHIOPIA", 1996L, 158622.32755086065D},
-      {"ETHIOPIA", 1995L, 146433.78099538267D},
-      {"ETHIOPIA", 1994L, 223731.00869492054D},
-      {"ETHIOPIA", 1993L, 392406.4558510614D},
-      {"ETHIOPIA", 1992L, 120304.05713816821D},
-      {"GERMANY", 1998L, 106323.3786909008D},
+      {"ALGERIA", 1998L, 114041.26288207977D},
+      {"ALGERIA", 1997L, 420005.52036544395D},
+      {"ALGERIA", 1996L, 179435.92888346483D},
+      {"ALGERIA", 1995L, 582584.3183930825D},
+      {"ALGERIA", 1994L, 460802.8492547316D},
+      {"ALGERIA", 1993L, 358757.83164962556D},
+      {"ALGERIA", 1992L, 196711.9832104973D},
+      {"ARGENTINA", 1998L, 108010.48797064778D},
+      {"ARGENTINA", 1997L, 38692.829331616085D},
+      {"ARGENTINA", 1996L, 56161.95963088006D},
+      {"ARGENTINA", 1995L, 206313.39825887277D},
+      {"ARGENTINA", 1994L, 138654.5828448139D},
+      {"ARGENTINA", 1993L, 130070.15644093126D},
+      {"ARGENTINA", 1992L, 249187.62255413557D},
+      {"BRAZIL", 1997L, 275368.15491910925D},
+      {"BRAZIL", 1996L, 121697.60100621039D},
+      {"BRAZIL", 1995L, 180382.19198142894D},
+      {"BRAZIL", 1994L, 135981.81329815474D},
+      {"BRAZIL", 1993L, 92990.53442113772D},
+      {"BRAZIL", 1992L, 132591.4652138137D},
+      {"CANADA", 1998L, 203860.59596039643D},
+      {"CANADA", 1997L, 321769.0730324793D},
+      {"CANADA", 1996L, 171418.1153069712D},
+      {"CANADA", 1995L, 335742.06347199733D},
+      {"CANADA", 1994L, 111252.62846753643D},
+      {"CANADA", 1993L, 195046.82483966634D},
+      {"CANADA", 1992L, 290137.69375805295D},
+      {"CHINA", 1998L, 172477.83204571763D},
+      {"CHINA", 1997L, 275949.41903671867D},
+      {"CHINA", 1996L, 262160.8688651954D},
+      {"CHINA", 1995L, 311497.508512106D},
+      {"CHINA", 1994L, 163460.95307904793D},
+      {"CHINA", 1993L, 180435.7027487494D},
+      {"CHINA", 1992L, 330379.5508661473D},
+      {"EGYPT", 1998L, 21087.458950298802D},
+      {"EGYPT", 1997L, 103924.71502282038D},
+      {"EGYPT", 1996L, 100910.742700351D},
+      {"EGYPT", 1995L, 79938.60535488653D},
+      {"EGYPT", 1994L, 187349.30304467538D},
+      {"EGYPT", 1993L, 330374.5263726049D},
+      {"EGYPT", 1992L, 280424.466604101D},
+      {"ETHIOPIA", 1998L, 194613.56218396308D},
+      {"ETHIOPIA", 1997L, 220107.2526853096D},
+      {"ETHIOPIA", 1996L, 158622.32201870752D},
+      {"ETHIOPIA", 1995L, 146433.78034954268D},
+      {"ETHIOPIA", 1994L, 223731.00827797133D},
+      {"ETHIOPIA", 1993L, 392406.4595612766D},
+      {"ETHIOPIA", 1992L, 120304.05524324537D},
+      {"GERMANY", 1998L, 106323.37565803423D},
       {"GERMANY", 1997L, 92601.54000000001D},
-      {"GERMANY", 1996L, 198944.05857446848D},
-      {"GERMANY", 1995L, 165687.03981354833D},
-      {"GERMANY", 1994L, 226676.94488913118D},
-      {"GERMANY", 1993L, 141024.68987526838D},
-      {"GERMANY", 1992L, 293949.9781136233D},
-      {"INDIA", 1998L, 126584.3842398006D},
-      {"INDIA", 1997L, 242388.4046601951D},
-      {"INDIA", 1996L, 263227.1655768627D},
-      {"INDIA", 1995L, 205509.0660050738D},
-      {"INDIA", 1994L, 361137.83015613194D},
-      {"INDIA", 1993L, 283929.86863369995D},
-      {"INDIA", 1992L, 341885.8270686496D},
-      {"INDONESIA", 1998L, 274430.05509148D},
-      {"INDONESIA", 1997L, 465366.5118179262D},
-      {"INDONESIA", 1996L, 500014.2962179356D},
-      {"INDONESIA", 1995L, 424459.62825218006D},
-      {"INDONESIA", 1994L, 346039.4265588528D},
-      {"INDONESIA", 1993L, 450136.56612199725D},
-      {"INDONESIA", 1992L, 602251.4160785652D},
-      {"IRAN", 1998L, 131147.61450470984D},
-      {"IRAN", 1997L, 87582.14874230146D},
-      {"IRAN", 1996L, 95232.70590280532D},
-      {"IRAN", 1995L, 115417.6692933458D},
-      {"IRAN", 1994L, 190750.94298363506D},
-      {"IRAN", 1993L, 78173.58062207936D},
-      {"IRAN", 1992L, 9445.441345954541D},
-      {"IRAQ", 1998L, 64116.22477363587D},
-      {"IRAQ", 1997L, 53046.80687995434D},
-      {"IRAQ", 1996L, 98945.09801960111D},
-      {"IRAQ", 1994L, -791.629413479568D},
-      {"IRAQ", 1993L, 112985.2972689104D},
-      {"IRAQ", 1992L, 90281.51992891669D},
-      {"JAPAN", 1998L, 134707.84294367553D},
-      {"JAPAN", 1997L, 187434.7084983492D},
-      {"JAPAN", 1996L, 130783.95952647389D},
-      {"JAPAN", 1995L, 245886.58398801027D},
-      {"JAPAN", 1994L, 96861.93079289672D},
-      {"JAPAN", 1993L, 91508.3956084758D},
-      {"JAPAN", 1992L, 319633.412598049D},
-      {"JORDAN", 1998L, 84023.69245237112D},
-      {"JORDAN", 1997L, 248273.9257530522D},
-      {"JORDAN", 1996L, 303736.1332046127D},
-      {"JORDAN", 1995L, 269849.52374407044D},
-      {"JORDAN", 1994L, 82437.45666268229D},
-      {"JORDAN", 1993L, 290887.20637964306D},
-      {"JORDAN", 1992L, 275791.7683112568D},
-      {"KENYA", 1998L, 74049.84995142937D},
-      {"KENYA", 1997L, 311392.6756942439D},
-      {"KENYA", 1996L, 185216.46588993492D},
-      {"KENYA", 1995L, 80162.49504043101D},
-      {"KENYA", 1994L, 302921.19519311254D},
-      {"KENYA", 1993L, 325086.9646280855D},
-      {"KENYA", 1992L, 343416.7887258017D},
-      {"MOROCCO", 1998L, 119855.49532182992D},
-      {"MOROCCO", 1997L, 290008.62978701474D},
-      {"MOROCCO", 1996L, 14184.126959370373D},
-      {"MOROCCO", 1995L, 69843.47478906036D},
-      {"MOROCCO", 1994L, 191099.54942738713D},
-      {"MOROCCO", 1993L, 137202.08173092187D},
-      {"MOROCCO", 1992L, 66594.12980273308D},
-      {"MOZAMBIQUE", 1998L, 117097.67470478592D},
-      {"MOZAMBIQUE", 1997L, 363205.0272618228D},
-      {"MOZAMBIQUE", 1996L, 311449.27139029326D},
-      {"MOZAMBIQUE", 1995L, 473208.3942105938D},
-      {"MOZAMBIQUE", 1994L, 442759.0781167674D},
-      {"MOZAMBIQUE", 1993L, 440542.99224279815D},
-      {"MOZAMBIQUE", 1992L, 287795.51908457343D},
-      {"PERU", 1998L, 102725.66072352171D},
-      {"PERU", 1997L, 171472.82874866007D},
-      {"PERU", 1996L, 294416.149034543D},
-      {"PERU", 1995L, 112348.73500679017D},
-      {"PERU", 1994L, 95837.18646295546D},
-      {"PERU", 1993L, 138317.59775996328D},
-      {"PERU", 1992L, 85667.16805092811D},
-      {"ROMANIA", 1998L, 2421.2874725103384D},
-      {"ROMANIA", 1997L, 102189.5005055058D},
-      {"ROMANIA", 1996L, 81265.36530949711D},
-      {"ROMANIA", 1995L, 47749.046498327254D},
-      {"ROMANIA", 1994L, 35394.23816981554D},
-      {"ROMANIA", 1993L, 42641.986276656404D},
-      {"ROMANIA", 1992L, 49277.804435415266D},
-      {"RUSSIA", 1998L, 548958.650213117D},
-      {"RUSSIA", 1997L, 466773.9072422556D},
-      {"RUSSIA", 1996L, 901266.0350757325D},
-      {"RUSSIA", 1995L, 803254.3702657815D},
-      {"RUSSIA", 1994L, 932974.109281249D},
-      {"RUSSIA", 1993L, 843491.4828173231D},
-      {"RUSSIA", 1992L, 876831.2552419436D},
-      {"UNITED KINGDOM", 1998L, 81480.06851940393D},
-      {"UNITED KINGDOM", 1997L, 58282.63399619222D},
-      {"UNITED KINGDOM", 1996L, 134110.5876093769D},
-      {"UNITED KINGDOM", 1995L, 83918.57245126486D},
-      {"UNITED KINGDOM", 1994L, 70544.89867743969D},
-      {"UNITED KINGDOM", 1993L, 55681.24919359922D},
-      {"UNITED KINGDOM", 1992L, 31602.863201971057D},
-      {"UNITED STATES", 1998L, 196681.8699206197D},
-      {"UNITED STATES", 1997L, 311459.70588090236D},
-      {"UNITED STATES", 1996L, 451144.5775869352D},
-      {"UNITED STATES", 1995L, 481350.9459593015D},
-      {"UNITED STATES", 1994L, 473742.8177572065D},
-      {"UNITED STATES", 1993L, 324866.8101639927D},
-      {"UNITED STATES", 1992L, 343496.2612194723D},
-      {"VIETNAM", 1998L, 198132.12613428713D},
-      {"VIETNAM", 1997L, 426951.29093836364D},
-      {"VIETNAM", 1996L, 610135.1697260014D},
-      {"VIETNAM", 1995L, 316695.84854961873D},
-      {"VIETNAM", 1994L, 489111.94571378885D},
-      {"VIETNAM", 1993L, 343970.29225169297D},
-      {"VIETNAM", 1992L, 352275.06760803703D}
+      {"GERMANY", 1996L, 198944.05598116555D},
+      {"GERMANY", 1995L, 165687.04067567264D},
+      {"GERMANY", 1994L, 226676.94357343647D},
+      {"GERMANY", 1993L, 141024.68808797604D},
+      {"GERMANY", 1992L, 293949.9785120052D},
+      {"INDIA", 1998L, 126584.38706637183D},
+      {"INDIA", 1997L, 242388.40911733187D},
+      {"INDIA", 1996L, 263227.1670390725D},
+      {"INDIA", 1995L, 205509.06789985023D},
+      {"INDIA", 1994L, 361137.83027029823D},
+      {"INDIA", 1993L, 283929.86687772715D},
+      {"INDIA", 1992L, 341885.8311905579D},
+      {"INDONESIA", 1998L, 274430.051628585D},
+      {"INDONESIA", 1997L, 465366.50635826826D},
+      {"INDONESIA", 1996L, 500014.3016792602D},
+      {"INDONESIA", 1995L, 424459.6305658971D},
+      {"INDONESIA", 1994L, 346039.43092811655D},
+      {"INDONESIA", 1993L, 450136.56378824974D},
+      {"INDONESIA", 1992L, 602251.4145831331D},
+      {"IRAN", 1998L, 131147.61823914346D},
+      {"IRAN", 1997L, 87582.15097435769D},
+      {"IRAN", 1996L, 95232.70604957585D},
+      {"IRAN", 1995L, 115417.67062810008D},
+      {"IRAN", 1994L, 190750.94539575386D},
+      {"IRAN", 1993L, 78173.58147189885D},
+      {"IRAN", 1992L, 9445.441430400575D},
+      {"IRAQ", 1998L, 64116.222065007096D},
+      {"IRAQ", 1997L, 53046.80409555316D},
+      {"IRAQ", 1996L, 98945.09816294358D},
+      {"IRAQ", 1994L, -791.6299371585264D},
+      {"IRAQ", 1993L, 112985.29805446045D},
+      {"IRAQ", 1992L, 90281.52294340223D},
+      {"JAPAN", 1998L, 134707.8442967207D},
+      {"JAPAN", 1997L, 187434.71473944632D},
+      {"JAPAN", 1996L, 130783.96095723027D},
+      {"JAPAN", 1995L, 245886.58956717473D},
+      {"JAPAN", 1994L, 96861.93096909915D},
+      {"JAPAN", 1993L, 91508.39774376526D},
+      {"JAPAN", 1992L, 319633.41638581344D},
+      {"JORDAN", 1998L, 84023.6913846031D},
+      {"JORDAN", 1997L, 248273.9293701095D},
+      {"JORDAN", 1996L, 303736.13496585406D},
+      {"JORDAN", 1995L, 269849.5180936673D},
+      {"JORDAN", 1994L, 82437.45704854291D},
+      {"JORDAN", 1993L, 290887.21199729946D},
+      {"JORDAN", 1992L, 275791.7712003958D},
+      {"KENYA", 1998L, 74049.85009683364D},
+      {"KENYA", 1997L, 311392.6744855124D},
+      {"KENYA", 1996L, 185216.46649997216D},
+      {"KENYA", 1995L, 80162.49574048087D},
+      {"KENYA", 1994L, 302921.19203382055D},
+      {"KENYA", 1993L, 325086.96649505536D},
+      {"KENYA", 1992L, 343416.7854685216D},
+      {"MOROCCO", 1998L, 119855.49339878328D},
+      {"MOROCCO", 1997L, 290008.633373567D},
+      {"MOROCCO", 1996L, 14184.126619798131D},
+      {"MOROCCO", 1995L, 69843.47769951589D},
+      {"MOROCCO", 1994L, 191099.55208847D},
+      {"MOROCCO", 1993L, 137202.08287584715D},
+      {"MOROCCO", 1992L, 66594.12967929707D},
+      {"MOZAMBIQUE", 1998L, 117097.67474634536D},
+      {"MOZAMBIQUE", 1997L, 363205.03742464836D},
+      {"MOZAMBIQUE", 1996L, 311449.27169638564D},
+      {"MOZAMBIQUE", 1995L, 473208.3954721531D},
+      {"MOZAMBIQUE", 1994L, 442759.0845858489D},
+      {"MOZAMBIQUE", 1993L, 440542.9893679537D},
+      {"MOZAMBIQUE", 1992L, 287795.5268082155D},
+      {"PERU", 1998L, 102725.66279401527D},
+      {"PERU", 1997L, 171472.8264013625D},
+      {"PERU", 1996L, 294416.15261718613D},
+      {"PERU", 1995L, 112348.73268373786D},
+      {"PERU", 1994L, 95837.18593006683D},
+      {"PERU", 1993L, 138317.5969789736D},
+      {"PERU", 1992L, 85667.16847534657D},
+      {"ROMANIA", 1998L, 2421.287401699462D},
+      {"ROMANIA", 1997L, 102189.50098745801D},
+      {"ROMANIA", 1996L, 81265.36594303243D},
+      {"ROMANIA", 1995L, 47749.04802742277D},
+      {"ROMANIA", 1994L, 35394.23633686883D},
+      {"ROMANIA", 1993L, 42641.98851210192D},
+      {"ROMANIA", 1992L, 49277.804907966856D},
+      {"RUSSIA", 1998L, 548958.6482764423D},
+      {"RUSSIA", 1997L, 466773.9098531575D},
+      {"RUSSIA", 1996L, 901266.033027536D},
+      {"RUSSIA", 1995L, 803254.3646324247D},
+      {"RUSSIA", 1994L, 932974.120513519D},
+      {"RUSSIA", 1993L, 843491.4803470027D},
+      {"RUSSIA", 1992L, 876831.2496177027D},
+      {"UNITED KINGDOM", 1998L, 81480.06686721236D},
+      {"UNITED KINGDOM", 1997L, 58282.63452262785D},
+      {"UNITED KINGDOM", 1996L, 134110.58770714886D},
+      {"UNITED KINGDOM", 1995L, 83918.57284126579D},
+      {"UNITED KINGDOM", 1994L, 70544.89821118998D},
+      {"UNITED KINGDOM", 1993L, 55681.24707224962D},
+      {"UNITED KINGDOM", 1992L, 31602.86316145718D},
+      {"UNITED STATES", 1998L, 196681.86753583292D},
+      {"UNITED STATES", 1997L, 311459.7029831422D},
+      {"UNITED STATES", 1996L, 451144.57652934256D},
+      {"UNITED STATES", 1995L, 481350.94638033805D},
+      {"UNITED STATES", 1994L, 473742.82106392196D},
+      {"UNITED STATES", 1993L, 324866.8118531974D},
+      {"UNITED STATES", 1992L, 343496.2652782098D},
+      {"VIETNAM", 1998L, 198132.13110275078D},
+      {"VIETNAM", 1997L, 426951.29134074517D},
+      {"VIETNAM", 1996L, 610135.1674077166D},
+      {"VIETNAM", 1995L, 316695.8518692686D},
+      {"VIETNAM", 1994L, 489111.94819765206D},
+      {"VIETNAM", 1993L, 343970.28961719247D},
+      {"VIETNAM", 1992L, 352275.066762814D}
   };
 
   @Test
@@ -1290,26 +1289,26 @@ public class TpchTest extends TpchTestHelper
       + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[=($10, 'R')], scanProject=[$2, $3, $6])\n";
 
   public static final Object[][] TPCH10_RESULT = {
-    {"22", "Customer#000000022", 376659.3354837346D, 591.98D, "CANADA", "QI6p41,FNs5k7RZoCCVPUTkUdYpB", "13-806-545-9701", "s nod furiously above the furiously ironic ideas. "},
-    {"217", "Customer#000000217", 337546.5034711528D, 378.33D, "UNITED KINGDOM", "YIy05RMdthrXqdfnNKud", "33-159-298-3849", "ven frays wake according to the carefully "},
-    {"715", "Customer#000000715", 327733.10297188995D, 85.05D, "ROMANIA", "9qLvF42uxUarKl4I 2pEKOMNJmo8Ro5EK", "29-500-408-6392", "hins boost quickly. quickly regular epitaphs haggle fluffily quickly bold pinto beans. regular"},
-    {"55", "Customer#000000055", 325304.2209204144D, 4572.11D, "IRAN", "zIRBR4KNEl HzaiV3a i9n6elrxzDEh8r8pDom", "20-180-440-8525", "ully unusual packages wake bravely bold packages. unusual requests boost deposits! blithely ironic packages ab"},
-    {"19", "Customer#000000019", 295856.2535585952D, 8914.71D, "CHINA", "uc,3bHIx84H,wdrmLOjVsiqXCq2tr", "28-396-526-5053", " nag. furiously careful packages are slyly at the accounts. furiously regular in"},
-    {"686", "Customer#000000686", 284498.96497825027D, 5503.36D, "FRANCE", "1j C80VWHe ITCVCV", "16-682-293-3599", " even deposits print quickly. foxes wake. furiously ironic asymptotes across the bold foxes"},
-    {"202", "Customer#000000202", 280435.6208994395D, 2237.64D, "GERMANY", "Q0uJ1frCbi9yvu", "17-905-805-4635", "fully along the carefully pending Tiresias; special packages along the carefully special deposits try to"},
-    {"679", "Customer#000000679", 268885.6798972541D, 1394.44D, "IRAN", "IJf1FlZL9I9m,rvofcoKy5pRUOjUQV", "20-146-696-9508", "ely pending frays boost carefully"},
-    {"448", "Customer#000000448", 260133.37580457923D, 8117.27D, "UNITED STATES", "BH4vtnDpabk0NgoGNJWu4OUXnidfJ", "34-985-422-6009", "unts. final pinto beans boost carefully. furiously even foxes according to the express, regular pa"},
-    {"394", "Customer#000000394", 245405.0083951986D, 5200.96D, "UNITED KINGDOM", "nxW1jt,MQvImdr z72gAt1bslnfEipCh,bKZN", "33-422-600-6936", " instructions. carefully special ideas after the fluffily unusual r"},
-    {"64", "Customer#000000064", 245401.590318259D, -646.64D, "CANADA", "MbCeGY20kaKK3oalJD,OT", "13-558-731-7204", "structions after the quietly ironic theodolites cajole be"},
-    {"559", "Customer#000000559", 243818.18628837942D, 5872.94D, "GERMANY", "A3ACFoVbP,gPe xknVJMWC,wmRxb Nmg fWFS,UP", "17-395-429-6655", "al accounts cajole carefully across the accounts. furiously pending pinto beans across the "},
-    {"586", "Customer#000000586", 242057.21668825627D, 5134.35D, "IRAQ", "vGaA9XBtn,hlswFhSjLIXGlLEDD2flE8UXwj", "21-239-369-7791", "above the blithely express ideas. slyly r"},
-    {"721", "Customer#000000721", 234606.65834806324D, 3420.64D, "VIETNAM", "N6hr4gV9EkPBuE3Ayu ", "31-174-552-2949", "ar instructions. packages haggle stealthily ironic deposits. even platelets detect quickly. even sheaves along"},
-    {"65", "Customer#000000065", 228551.8947478521D, 8795.16D, "UNITED KINGDOM", "RGT yzQ0y4l0H90P783LG4U95bXQFDRXbWa1sl,X", "33-733-623-5267", "y final foxes serve carefully. theodolites are carefully. pending i"},
-    {"352", "Customer#000000352", 226905.6785498762D, 6257.88D, "INDONESIA", "HqhIE5GRTK0dFtWpJUQENU4aa1bwdsUBEWtzUw", "19-906-158-8420", "ts are. blithely special requests wake. furiously bold packages among the blithely eve"},
-    {"79", "Customer#000000079", 220721.15706590773D, 5121.28D, "MOROCCO", "n5hH2ftkVRwW8idtD,BmM2", "25-147-850-4166", "es. packages haggle furiously. regular, special requests poach after the quickly express ideas. blithely pending re"},
-    {"710", "Customer#000000710", 217848.3094086754D, 7412.12D, "RUSSIA", "OCLSZuXw1AEK NLvlofMkuK,YNe,bJD40a", "32-459-427-9559", "ges integrate express, even ideas"},
-    {"484", "Customer#000000484", 213702.96149329422D, 4245.0D, "SAUDI ARABIA", "ismzlUzrqRMRGWmCEUUjkBsi", "30-777-953-8902", "y against the express, even packages. blithely pending pearls haggle furiously above the fur"},
-    {"292", "Customer#000000292", 203414.17572621108D, 2975.43D, "IRAQ", "hCXh3vxC4uje9", "21-457-910-2923", "usly regular, ironic accounts. blithely regular platelets are carefully. blithely unusual ideas affi"}
+      {"22", "Customer#000000022", 376659.33794523217D, 591.98D, "CANADA", "QI6p41,FNs5k7RZoCCVPUTkUdYpB", "13-806-545-9701", "s nod furiously above the furiously ironic ideas. "},
+      {"217", "Customer#000000217", 337546.50298096647D, 378.33D, "UNITED KINGDOM", "YIy05RMdthrXqdfnNKud", "33-159-298-3849", "ven frays wake according to the carefully "},
+      {"715", "Customer#000000715", 327733.10233764054D, 85.05D, "ROMANIA", "9qLvF42uxUarKl4I 2pEKOMNJmo8Ro5EK", "29-500-408-6392", "hins boost quickly. quickly regular epitaphs haggle fluffily quickly bold pinto beans. regular"},
+      {"55", "Customer#000000055", 325304.2184793751D, 4572.11D, "IRAN", "zIRBR4KNEl HzaiV3a i9n6elrxzDEh8r8pDom", "20-180-440-8525", "ully unusual packages wake bravely bold packages. unusual requests boost deposits! blithely ironic packages ab"},
+      {"19", "Customer#000000019", 295856.25229804683D, 8914.71D, "CHINA", "uc,3bHIx84H,wdrmLOjVsiqXCq2tr", "28-396-526-5053", " nag. furiously careful packages are slyly at the accounts. furiously regular in"},
+      {"686", "Customer#000000686", 284498.96677950415D, 5503.36D, "FRANCE", "1j C80VWHe ITCVCV", "16-682-293-3599", " even deposits print quickly. foxes wake. furiously ironic asymptotes across the bold foxes"},
+      {"202", "Customer#000000202", 280435.6192224468D, 2237.64D, "GERMANY", "Q0uJ1frCbi9yvu", "17-905-805-4635", "fully along the carefully pending Tiresias; special packages along the carefully special deposits try to"},
+      {"679", "Customer#000000679", 268885.680341735D, 1394.44D, "IRAN", "IJf1FlZL9I9m,rvofcoKy5pRUOjUQV", "20-146-696-9508", "ely pending frays boost carefully"},
+      {"448", "Customer#000000448", 260133.3756423737D, 8117.27D, "UNITED STATES", "BH4vtnDpabk0NgoGNJWu4OUXnidfJ", "34-985-422-6009", "unts. final pinto beans boost carefully. furiously even foxes according to the express, regular pa"},
+      {"394", "Customer#000000394", 245405.0088580988D, 5200.96D, "UNITED KINGDOM", "nxW1jt,MQvImdr z72gAt1bslnfEipCh,bKZN", "33-422-600-6936", " instructions. carefully special ideas after the fluffily unusual r"},
+      {"64", "Customer#000000064", 245401.5889329308D, -646.64D, "CANADA", "MbCeGY20kaKK3oalJD,OT", "13-558-731-7204", "structions after the quietly ironic theodolites cajole be"},
+      {"559", "Customer#000000559", 243818.187256828D, 5872.94D, "GERMANY", "A3ACFoVbP,gPe xknVJMWC,wmRxb Nmg fWFS,UP", "17-395-429-6655", "al accounts cajole carefully across the accounts. furiously pending pinto beans across the "},
+      {"586", "Customer#000000586", 242057.2150677127D, 5134.35D, "IRAQ", "vGaA9XBtn,hlswFhSjLIXGlLEDD2flE8UXwj", "21-239-369-7791", "above the blithely express ideas. slyly r"},
+      {"721", "Customer#000000721", 234606.65694861457D, 3420.64D, "VIETNAM", "N6hr4gV9EkPBuE3Ayu ", "31-174-552-2949", "ar instructions. packages haggle stealthily ironic deposits. even platelets detect quickly. even sheaves along"},
+      {"65", "Customer#000000065", 228551.89613367125D, 8795.16D, "UNITED KINGDOM", "RGT yzQ0y4l0H90P783LG4U95bXQFDRXbWa1sl,X", "33-733-623-5267", "y final foxes serve carefully. theodolites are carefully. pending i"},
+      {"352", "Customer#000000352", 226905.6798173411D, 6257.88D, "INDONESIA", "HqhIE5GRTK0dFtWpJUQENU4aa1bwdsUBEWtzUw", "19-906-158-8420", "ts are. blithely special requests wake. furiously bold packages among the blithely eve"},
+      {"79", "Customer#000000079", 220721.16073114896D, 5121.28D, "MOROCCO", "n5hH2ftkVRwW8idtD,BmM2", "25-147-850-4166", "es. packages haggle furiously. regular, special requests poach after the quickly express ideas. blithely pending re"},
+      {"710", "Customer#000000710", 217848.30989936687D, 7412.12D, "RUSSIA", "OCLSZuXw1AEK NLvlofMkuK,YNe,bJD40a", "32-459-427-9559", "ges integrate express, even ideas"},
+      {"484", "Customer#000000484", 213702.96280260698D, 4245.0D, "SAUDI ARABIA", "ismzlUzrqRMRGWmCEUUjkBsi", "30-777-953-8902", "y against the express, even packages. blithely pending pearls haggle furiously above the fur"},
+      {"292", "Customer#000000292", 203414.1759173521D, 2975.43D, "IRAQ", "hCXh3vxC4uje9", "21-457-910-2923", "usly regular, ironic accounts. blithely regular platelets are carefully. blithely unusual ideas affi"}
   };
 
   @Test
@@ -1683,34 +1682,36 @@ public class TpchTest extends TpchTestHelper
   }
 
   public static final String TPCH15 =
-      "WITH revenue_cached AS ("
-      + " SELECT"
+      "WITH revenue_view AS ("
+      + "  SELECT"
       + "    L_SUPPKEY AS SUPPLIER_NO,"
       + "    SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) AS TOTAL_REVENUE"
-      + " FROM"
+      + "  FROM"
       + "    lineitem"
-      + " WHERE"
-      + "    L_SHIPDATE >= '1996-01-01' AND"
-      + "    L_SHIPDATE < '1996-04-01'"
-      + " GROUP BY L_SUPPKEY"
-      + "),"
-      + "max_revenue_cached AS ("
-      + "    SELECT MAX(TOTAL_REVENUE) AS MAX_REVENUE FROM revenue_cached"
-      + ")"
+      + "  WHERE"
+      + "    L_SHIPDATE >= '1996-01-01'"
+      + "    AND L_SHIPDATE < '1996-04-01'"
+      + "  GROUP BY"
+      + "    L_SUPPKEY)"
       + " SELECT"
-      + "    S_SUPPKEY,"
-      + "    S_NAME,"
-      + "    S_ADDRESS,"
-      + "    S_PHONE,"
-      + "    TOTAL_REVENUE"
+      + "  S_SUPPKEY,"
+      + "  S_NAME,"
+      + "  S_ADDRESS,"
+      + "  S_PHONE,"
+      + "  TOTAL_REVENUE"
       + " FROM"
-      + "    supplier,"
-      + "    revenue_cached,"
-      + "    max_revenue_cached"
+      + "  supplier,"
+      + "  revenue_view"
       + " WHERE"
-      + "    S_SUPPKEY = SUPPLIER_NO AND"
-      + "    TOTAL_REVENUE = MAX_REVENUE"
-      + " ORDER BY S_SUPPKEY";
+      + "  S_SUPPKEY = SUPPLIER_NO"
+      + "  AND TOTAL_REVENUE = ("
+      + "    SELECT"
+      + "      MAX(TOTAL_REVENUE)"
+      + "    FROM"
+      + "      revenue_view"
+      + "    )"
+      + " ORDER BY"
+      + "  S_SUPPKEY";
 
   public static final String TPCH15_EXPLAIN =
       "DruidOuterQueryRel(sort=[$0:ASC])\n"
@@ -1718,7 +1719,7 @@ public class TpchTest extends TpchTestHelper
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 3, 5])\n"
       + "      DruidQueryRel(table=[druid.supplier], scanProject=[$1, $3, $5, $6])\n"
       + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1996-01-01'), <($11, '1996-04-01'))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)])\n"
-      + "    DruidOuterQueryRel(MAX_REVENUE=[MAX($0)])\n"
+      + "    DruidOuterQueryRel(EXPR$0=[MAX($0)])\n"
       + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1996-01-01'), <($11, '1996-04-01'))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)], aggregateProject=[$1])\n";
 
   public static final String TPCH15_EXPLAIN_JR =
@@ -1726,12 +1727,12 @@ public class TpchTest extends TpchTestHelper
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[3], outputColumns=[5, 3, 2, 4, 1])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 1])\n"
       + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1996-01-01'), <($11, '1996-04-01'))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)])\n"
-      + "      DruidOuterQueryRel(MAX_REVENUE=[MAX($0)])\n"
+      + "      DruidOuterQueryRel(EXPR$0=[MAX($0)])\n"
       + "        DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1996-01-01'), <($11, '1996-04-01'))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)], aggregateProject=[$1])\n"
       + "    DruidQueryRel(table=[druid.supplier], scanProject=[$1, $3, $5, $6])\n";
 
   public static final Object[][] TPCH15_RESULT = {
-      {"6", "Supplier#000000006", "tQxuVm7s7CnK", "24-696-997-4969", 1080265.1368512397D}
+      {"6", "Supplier#000000006", "tQxuVm7s7CnK", "24-696-997-4969", 1080265.1420867585D}
   };
 
   @Test
@@ -1862,14 +1863,14 @@ public class TpchTest extends TpchTestHelper
       + "  WHERE L_PARTKEY IN (SELECT P_PARTKEY FROM Q17_PART)"
       + ")"
       + "SELECT"
-      + "    CAST(SUM(L_EXTENDEDPRICE) / 7.0 AS DECIMAL(32,2)) AS AVG_YEARLY"
+      + "    SUM(L_EXTENDEDPRICE) / 7.0 AS AVG_YEARLY"
       + " FROM"
       + "    Q17_AVG, Q17_PRICE"
       + " WHERE"
       + "    T_PARTKEY = L_PARTKEY AND L_QUANTITY < T_AVG_QUANTITY";
 
   public static final String TPCH17_EXPLAIN =
-      "DruidOuterQueryRel(scanFilter=[<($1, $2)], scanProject=[$0], agg#0=[SUM($0)], aggregateProject=[CAST(/($0, 7.0:DECIMAL(2, 1))):DECIMAL(19, 2)])\n"
+      "DruidOuterQueryRel(scanFilter=[<($1, $2)], scanProject=[$0], agg#0=[SUM($0)], aggregateProject=[/($0, 7.0:DECIMAL(2, 1))])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[4, 2, 1])\n"
       + "    DruidOuterQueryRel(group=[{0}], agg#0=[AVG($1)], aggregateProject=[$0, *(0.2:DECIMAL(2, 1), $1)])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[0, 1])\n"
@@ -1880,7 +1881,7 @@ public class TpchTest extends TpchTestHelper
       + "      DruidQueryRel(table=[druid.part], scanFilter=[AND(=($0, 'Brand#31'), =($2, 'MED BOX'))], scanProject=[$5], group=[{0}])\n";
 
   public static final String TPCH17_EXPLAIN_JR =
-      "DruidOuterQueryRel(scanFilter=[<($1, $2)], scanProject=[$0], agg#0=[SUM($0)], aggregateProject=[CAST(/($0, 7.0:DECIMAL(2, 1))):DECIMAL(19, 2)])\n"
+      "DruidOuterQueryRel(scanFilter=[<($1, $2)], scanProject=[$0], agg#0=[SUM($0)], aggregateProject=[/($0, 7.0:DECIMAL(2, 1))])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[2, 0, 4])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[2, 1, 0])\n"
       + "      DruidQueryRel(table=[druid.lineitem], scanProject=[$3, $7, $8])\n"
@@ -1890,7 +1891,7 @@ public class TpchTest extends TpchTestHelper
       + "        DruidQueryRel(table=[druid.lineitem], scanProject=[$7, $8])\n"
       + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(=($0, 'Brand#31'), =($2, 'MED BOX'))], scanProject=[$5], group=[{0}])\n";
 
-  public static final Object[][] TPCH17_RESULT = {{new BigDecimal(4923)}};
+  public static final Object[][] TPCH17_RESULT = {{4923.785714285714D}};
 
   @Test
   public void tpch17() throws Exception
@@ -1899,24 +1900,111 @@ public class TpchTest extends TpchTestHelper
 
     if (semiJoin) {
       hook.verifyHooked(
-          "W7T7k0ib75ME1jKXi7dQ4A==",
+          "IROOkZIC5PXkWLIA56eh+Q==",
           "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0]}",
           "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0]}",
-          "TimeseriesQuery{dataSource='CommonJoin{queries=[GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[558, 855]}, columns=[L_PARTKEY, L_QUANTITY]}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}, MathPostAggregator{name='p0', expression='(0.2B * a0)', finalize=true}], outputColumns=[d0, p0], $hash=true}, StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[558, 855]}, columns=[L_QUANTITY, L_PARTKEY, L_EXTENDEDPRICE]}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < p0)'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='CAST((a0 / 7.0B), 'decimal')', finalize=true}], outputColumns=[p0]}",
+          "TimeseriesQuery{dataSource='CommonJoin{queries=[GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[558, 855]}, columns=[L_PARTKEY, L_QUANTITY]}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}, MathPostAggregator{name='p0', expression='(0.2B * a0)', finalize=true}], outputColumns=[d0, p0], $hash=true}, StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[558, 855]}, columns=[L_QUANTITY, L_PARTKEY, L_EXTENDEDPRICE]}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < p0)'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(a0 / 7.0B)', finalize=true}], outputColumns=[p0]}",
           "GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[558, 855]}, columns=[L_PARTKEY, L_QUANTITY]}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}, MathPostAggregator{name='p0', expression='(0.2B * a0)', finalize=true}], outputColumns=[d0, p0], $hash=true}",
           "StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[558, 855]}, columns=[L_PARTKEY, L_QUANTITY]}",
           "StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[558, 855]}, columns=[L_QUANTITY, L_PARTKEY, L_EXTENDEDPRICE]}"
       );
     } else {
       hook.verifyHooked(
-          "KtnBmxnM+LdRKGC95DpyrQ==",
-          "TimeseriesQuery{dataSource='CommonJoin{queries=[GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', columns=[L_PARTKEY, L_QUANTITY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}, MathPostAggregator{name='p0', expression='(0.2B * a0)', finalize=true}], outputColumns=[d0, p0], $hash=true}, CommonJoin{queries=[StreamQuery{dataSource='lineitem', columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0], $hash=true}], timeColumnName=__time}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < p0)'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='CAST((a0 / 7.0B), 'decimal')', finalize=true}], outputColumns=[p0]}",
+          "cijeZMWWz0KhoZNQ8NlLnA==",
+          "TimeseriesQuery{dataSource='CommonJoin{queries=[GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', columns=[L_PARTKEY, L_QUANTITY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}, MathPostAggregator{name='p0', expression='(0.2B * a0)', finalize=true}], outputColumns=[d0, p0], $hash=true}, CommonJoin{queries=[StreamQuery{dataSource='lineitem', columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0], $hash=true}], timeColumnName=__time}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < p0)'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(a0 / 7.0B)', finalize=true}], outputColumns=[p0]}",
           "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', columns=[L_PARTKEY, L_QUANTITY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}, MathPostAggregator{name='p0', expression='(0.2B * a0)', finalize=true}], outputColumns=[d0, p0], $hash=true}",
           "StreamQuery{dataSource='lineitem', columns=[L_PARTKEY, L_QUANTITY]}",
           "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0], $hash=true}",
           "StreamQuery{dataSource='lineitem', columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}",
           "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), outputColumns=[d0], $hash=true}"
       );
+    }
+  }
+
+  public static final String TPCH17_2 =
+      "SELECT"
+      + "  SUM(L_EXTENDEDPRICE) / 7.0 AS AVG_YEARLY"
+      + " FROM"
+      + "  lineitem,"
+      + "  part"
+      + " WHERE"
+      + "  P_PARTKEY = L_PARTKEY"
+      + "  AND P_BRAND = 'Brand#31'"
+      + "  AND P_CONTAINER = 'MED BOX'"
+      + "  AND L_QUANTITY < ("
+      + "    SELECT"
+      + "      0.2 * AVG(L_QUANTITY)"
+      + "    FROM"
+      + "      lineitem"
+      + "    WHERE"
+      + "      L_PARTKEY = P_PARTKEY"
+      + "  )";
+
+  public static final String TPCH17_2_EXPLAIN =
+      "DruidOuterQueryRel(scanFilter=[<($1, *(0.2:DECIMAL(2, 1), $2))], scanProject=[$0], agg#0=[SUM($0)], aggregateProject=[/($0, 7.0:DECIMAL(2, 1))])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1, 4])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2, 3])\n"
+      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[IS NOT NULL($7)], scanProject=[$3, $7, $8])\n"
+      + "      DruidQueryRel(table=[druid.part], scanFilter=[AND(=($0, 'Brand#31'), =($2, 'MED BOX'), IS NOT NULL($5))], scanProject=[$5])\n"
+      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[IS NOT NULL($7)], scanProject=[$7, $8], group=[{0}], agg#0=[AVG($1)])\n";
+
+  @Test
+  public void tpch17_2() throws Exception
+  {
+    testQuery(TPCH17_2, TPCH17_2_EXPLAIN, TPCH17_RESULT);
+
+    if (semiJoin) {
+      if (broadcastJoin) {
+        hook.verifyHooked(
+            "bTMgudxPU3DTw8Idvx0YvQ==",
+            "StreamQuery{dataSource='part', filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX' && !(P_PARTKEY==NULL)), columns=[P_PARTKEY]}",
+            "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), sampleRatio=0.050}",
+            "StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BloomFilter{fieldNames=[L_PARTKEY], groupingSets=Noop}), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_PARTKEY], rightAlias=part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_PARTKEY:dimension.string}}, $hash=true}",
+            "TimeseriesQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[lineitem]}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=(!(L_PARTKEY==NULL) && InDimFilter{dimension='L_PARTKEY', values=[558, 855]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < (0.2B * a0))'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='_a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(_a0 / 7.0B)', finalize=true}], outputColumns=[p0]}",
+            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=(!(L_PARTKEY==NULL) && InDimFilter{dimension='L_PARTKEY', values=[558, 855]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}"
+        );
+      } else {
+        hook.verifyHooked(
+            "s31jLCFrnYWDBpa/vywh8A==",
+            "StreamQuery{dataSource='part', filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX' && !(P_PARTKEY==NULL)), columns=[P_PARTKEY], $hash=true}",
+            "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), sampleRatio=0.050}",
+            "TimeseriesQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && InDimFilter{dimension='L_PARTKEY', values=[558, 855]}), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}, MaterializedQuery{dataSource=[part]}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < (0.2B * a0))'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='_a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(_a0 / 7.0B)', finalize=true}], outputColumns=[p0]}",
+            "StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && InDimFilter{dimension='L_PARTKEY', values=[558, 855]}), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}",
+            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}"
+        );
+      }
+    } else {
+      if (broadcastJoin) {
+        hook.verifyHooked(
+            "IzZNLtaFwJ0CHZHuEPczxg==",
+            "StreamQuery{dataSource='part', filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX' && !(P_PARTKEY==NULL)), columns=[P_PARTKEY]}",
+            "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), sampleRatio=0.050}",
+            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BloomFilter{fieldNames=[L_PARTKEY], groupingSets=Noop}), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_PARTKEY], rightAlias=part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_PARTKEY:dimension.string}}, $hash=true}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < (0.2B * a0))'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='_a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(_a0 / 7.0B)', finalize=true}], outputColumns=[p0]}",
+            "StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BloomFilter{fieldNames=[L_PARTKEY], groupingSets=Noop}), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_PARTKEY], rightAlias=part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_PARTKEY:dimension.string}}, $hash=true}",
+            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}"
+        );
+      } else {
+        if (bloomFilter) {
+          hook.verifyHooked(
+              "F1K3vRyJBOJjQWMDL0VhPw==",
+              "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), sampleRatio=0.050}",
+              "TimeseriesQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY]((P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX')), fields=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='L_PARTKEY'}], groupingSets=Noop, maxNumEntries=2}), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}, StreamQuery{dataSource='part', filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX' && !(P_PARTKEY==NULL)), columns=[P_PARTKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < (0.2B * a0))'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='_a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(_a0 / 7.0B)', finalize=true}], outputColumns=[p0]}",
+              "TimeseriesQuery{dataSource='part', filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX'), aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=2}]}",
+              "StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BloomFilter{fields=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='L_PARTKEY'}], groupingSets=Noop}), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}",
+              "StreamQuery{dataSource='part', filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX' && !(P_PARTKEY==NULL)), columns=[P_PARTKEY], $hash=true}",
+              "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}"
+          );
+        } else {
+          hook.verifyHooked(
+              "A1s/MAtXIZUh5cHRZ4LW1g==",
+              "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), sampleRatio=0.050}",
+              "TimeseriesQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=!(L_PARTKEY==NULL), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}, StreamQuery{dataSource='part', filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX' && !(P_PARTKEY==NULL)), columns=[P_PARTKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}], timeColumnName=__time}', filter=MathExprFilter{expression='(L_QUANTITY < (0.2B * a0))'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='_a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(_a0 / 7.0B)', finalize=true}], outputColumns=[p0]}",
+              "StreamQuery{dataSource='lineitem', filter=!(L_PARTKEY==NULL), columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY]}",
+              "StreamQuery{dataSource='part', filter=(P_BRAND=='Brand#31' && P_CONTAINER=='MED BOX' && !(P_PARTKEY==NULL)), columns=[P_PARTKEY], $hash=true}",
+              "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}], filter=!(L_PARTKEY==NULL), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[d0, a0]}"
+          );
+        }
+      }
     }
   }
 
