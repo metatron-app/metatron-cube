@@ -23,6 +23,7 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import java.io.Closeable;
@@ -51,7 +52,7 @@ public interface MergeIndex<T> extends Closeable
     protected final Consumer<Object[]> consumer;
     protected final GroupByQuery groupBy;
 
-    protected final AggregatorFactory.Combiner[] metrics;
+    protected final BinaryFn.Identical[] metrics;
     protected final int metricStart;
 
     GroupByMerge(GroupByQuery groupBy)

@@ -62,6 +62,7 @@ import io.druid.query.search.SearchQueryRunnerFactory;
 import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexSpec;
@@ -135,9 +136,11 @@ public class AggregationTestHelper
     StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    StreamQueryEngine stream = new StreamQueryEngine();
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(config, engine, pool);
     GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        stream,
         NoopQueryWatcher.instance(),
         config,
         toolchest,

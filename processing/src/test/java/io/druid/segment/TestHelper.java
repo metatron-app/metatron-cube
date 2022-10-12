@@ -235,6 +235,7 @@ public class TestHelper
                 GroupByQuery.class,
                 new GroupByQueryRunnerFactory(
                     GBY_ENGINE,
+                    new StreamQueryEngine(),
                     NOOP_QUERYWATCHER,
                     config,
                     new GroupByQueryQueryToolChest(config, GBY_ENGINE, GBY_POOL),

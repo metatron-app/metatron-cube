@@ -83,7 +83,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
         }
         for (int i = 0; i < metrics.length; i++) {
           final int index = metricStart + i;
-          prevValue[index] = metrics[i].combine(prevValue[index], key.values[index]);
+          prevValue[index] = metrics[i].apply(prevValue[index], key.values[index]);
         }
         return prevValue;
       }

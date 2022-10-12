@@ -30,6 +30,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
@@ -47,6 +48,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
@@ -59,9 +61,12 @@ import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.query.ordering.Direction;
+import io.druid.query.ordering.OrderingSpec;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -70,6 +75,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -391,6 +397,40 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
         }
       };
     }
+  }
+
+  public StreamQuery toStreaming()
+  {
+    List<OrderByColumnSpec> orderings = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : getDimensions()) {
+      // only default dimension spec (todo)
+      OrderingSpec ordering;
+      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+        ordering = ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec();
+      } else {
+        ordering = OrderingSpec.DEFAULT;
+      }
+      orderings.add(new OrderByColumnSpec(dimensionSpec.getDimension(), ordering));
+    }
+    Set<String> required = Sets.newHashSet();
+    for (AggregatorFactory factory : aggregatorSpecs) {
+      required.addAll(factory.requiredFields());
+    }
+    List<String> columns = GuavaUtils.concat(Column.TIME_COLUMN_NAME, DimensionSpecs.toInputNames(getDimensions()));
+    columns.addAll(required);
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        false,
+        filter,
+        columns,
+        virtualColumns,
+        orderings,
+        null,
+        null,
+        null,
+        getContext()
+    );
   }
 
   @Override

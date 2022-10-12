@@ -356,8 +356,8 @@ public class CardinalityAggregatorTest
         9.0,
         (Double) rowAggregatorFactory.finalizeComputation(
             rowAggregatorFactory.combiner().apply(
-                agg1.get(aggregate1),
-                agg2.get(aggregate2)
+                (HyperLogLogCollector) agg1.get(aggregate1),
+                (HyperLogLogCollector) agg2.get(aggregate2)
             )
         ),
         0.05
@@ -389,8 +389,8 @@ public class CardinalityAggregatorTest
         7.0,
         (Double) rowAggregatorFactory.finalizeComputation(
             rowAggregatorFactory.combiner().apply(
-                agg1.get(aggregate1),
-                agg2.get(aggregate2)
+                (HyperLogLogCollector) agg1.get(aggregate1),
+                (HyperLogLogCollector) agg2.get(aggregate2)
             )
         ),
         0.05

@@ -82,6 +82,9 @@ public class GroupByQueryConfig
   @JsonProperty
   private boolean multiValueDimensionFiltering = false;
 
+  @JsonProperty
+  private boolean streamingAggregation = false;
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -255,5 +258,15 @@ public class GroupByQueryConfig
   public boolean isMultiValueDimensionFiltering()
   {
     return multiValueDimensionFiltering;
+  }
+
+  public void setStreamingAggregation(boolean streamingAggregation)
+  {
+    this.streamingAggregation = streamingAggregation;
+  }
+
+  public boolean isStreamingAggregation()
+  {
+    return streamingAggregation;
   }
 }

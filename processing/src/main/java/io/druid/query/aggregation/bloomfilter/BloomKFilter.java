@@ -494,9 +494,10 @@ public class BloomKFilter implements HashCollector.ScanSupport
     return this;
   }
 
-  public void reset()
+  public BloomKFilter reset()
   {
-    this.bitSet.clear();
+    bitSet.clear();
+    return this;
   }
 
   /**

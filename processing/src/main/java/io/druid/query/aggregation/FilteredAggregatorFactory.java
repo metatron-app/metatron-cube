@@ -21,6 +21,8 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
@@ -146,7 +148,9 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   @Override
   public List<String> requiredFields()
   {
-    return delegate.requiredFields();
+    Set<String> required = Sets.newLinkedHashSet(delegate.requiredFields());
+    filter.addDependent(required);
+    return Lists.newArrayList(required);
   }
 
   @Override

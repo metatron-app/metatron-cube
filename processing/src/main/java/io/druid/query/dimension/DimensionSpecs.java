@@ -130,17 +130,13 @@ public class DimensionSpecs
     return true;
   }
 
-  public static List<Direction> getDirections(List<DimensionSpec> dimensionSpecs)
+  private static Direction toDirection(DimensionSpec dimensionSpec)
   {
-    List<Direction> directions = Lists.newArrayList();
-    for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-        directions.add(((DimensionSpecWithOrdering) dimensionSpec).getDirection());
-      } else {
-        directions.add(Direction.ASCENDING);
-      }
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      return (((DimensionSpecWithOrdering) dimensionSpec).getDirection());
+    } else {
+      return Direction.ASCENDING;
     }
-    return directions;
   }
 
   public static List<DimensionSpec> retain(List<DimensionSpec> dimensionSpecs, List<String> retainer)

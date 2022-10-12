@@ -54,6 +54,7 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExpressionExtractionFn;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.ordering.Direction;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.ArrayVirtualColumn;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
@@ -103,6 +104,7 @@ public class VirtualColumnTest
     final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool);
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        new StreamQueryEngine(),
         TestHelper.NOOP_QUERYWATCHER,
         config,
         toolChest,

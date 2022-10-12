@@ -35,6 +35,7 @@ import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector.ScanSupport
 {
@@ -137,6 +138,14 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
       }
     }
     return output.toByteArray();
+  }
+
+  public CountMinSketch clear()
+  {
+    for (int i = 0; i < d; i++) {
+      Arrays.fill(multiset[i], 0);
+    }
+    return this;
   }
 
   private static final LZ4Compressor COMPRESSOR = LZ4Factory.fastestInstance().fastCompressor();

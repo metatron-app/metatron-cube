@@ -247,6 +247,27 @@ public class DruidDefaultSerializersModule extends SimpleModule
     );
 
     addSerializer(
+        byte[][].class,
+        new JsonSerializer<byte[][]>()
+        {
+          @Override
+          public void serialize(byte[][] collectors, JsonGenerator generator, SerializerProvider provider)
+              throws IOException
+          {
+            generator.writeStartArray();
+            for (int i = 0; i < collectors.length; i++) {
+              if (collectors[i] == null) {
+                generator.writeNull();
+              } else {
+                generator.writeBinary(collectors[i]);
+              }
+            }
+            generator.writeEndArray();
+          }
+        }
+    );
+
+    addSerializer(
         BitSet.class,
         new JsonSerializer<BitSet>()
         {

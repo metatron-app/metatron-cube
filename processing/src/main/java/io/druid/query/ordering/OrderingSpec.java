@@ -41,6 +41,8 @@ import java.util.Objects;
  */
 public class OrderingSpec implements Cacheable
 {
+  public static final OrderingSpec DEFAULT = new OrderingSpec(Direction.ASCENDING, null);
+
   public static List<OrderingSpec> toOrderingSpecs(String... specs)
   {
     List<OrderingSpec> orderingSpecs = Lists.newArrayList();

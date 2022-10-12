@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.select.StreamQuery;
 import io.druid.segment.SchemaProvider;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
@@ -42,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  */
@@ -141,6 +143,12 @@ public class RowResolver implements io.druid.data.RowSignature
     this.virtualColumns = VirtualColumns.valueOf(virtualColumns, schema);
   }
 
+  private RowResolver(RowSignature schema, VirtualColumns virtualColumns)
+  {
+    this.schema = schema;
+    this.virtualColumns = virtualColumns;
+  }
+
   @VisibleForTesting
   public RowResolver(Map<String, ValueDesc> columnTypes, VirtualColumns virtualColumns)
   {
@@ -207,5 +215,12 @@ public class RowResolver implements io.druid.data.RowSignature
       return ValueDesc.UNKNOWN;
     }
     return null;
+  }
+
+  public RowResolver resolve(StreamQuery query)
+  {
+    List<String> names = query.getColumns();
+    List<ValueDesc> types = names.stream().map(this::resolve).collect(Collectors.toList());
+    return new RowResolver(RowSignature.of(names, types), virtualColumns);
   }
 }

@@ -48,7 +48,7 @@ public class TopNBinaryFn implements BinaryFn.Identical<Result<TopNResultValue>>
   private final int threshold;
   private final List<AggregatorFactory> aggregations;
   private final String[] metrics;
-  private final AggregatorFactory.Combiner[] combiners;
+  private final BinaryFn.Identical[] combiners;
   private final List<PostAggregator> postAggregations;
   private final List<PostAggregator.Processor> postProcessors;
   private final Comparator comparator;
@@ -112,7 +112,7 @@ public class TopNBinaryFn implements BinaryFn.Identical<Result<TopNResultValue>>
 
         retVal.put(dimension, dimensionValue);
         for (int i = 0; i < metrics.length; i++) {
-          retVal.put(metrics[i], combiners[i].combine(arg1Val.get(metrics[i]), arg2Val.get(metrics[i])));
+          retVal.put(metrics[i], combiners[i].apply(arg1Val.get(metrics[i]), arg2Val.get(metrics[i])));
         }
 
         for (PostAggregator.Processor pf : postProcessors) {

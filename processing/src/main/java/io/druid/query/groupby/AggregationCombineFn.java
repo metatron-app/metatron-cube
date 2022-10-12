@@ -20,33 +20,32 @@
 package io.druid.query.groupby;
 
 import io.druid.collections.IntList;
+import io.druid.common.guava.CombineFn;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.AggregatorFactory.Combiner;
 
 import java.util.Arrays;
 
 @SuppressWarnings("unchecked")
-public class AggregationQueryBinaryFn implements BinaryFn.Identical<Row>
+public class AggregationCombineFn implements CombineFn.Identical<Row>
 {
-  public static AggregationQueryBinaryFn of(BaseAggregationQuery query, boolean finalize)
+  public static AggregationCombineFn of(BaseAggregationQuery query, boolean finalize)
   {
-    Combiner[] combiners = AggregatorFactory.toCombiner(query.getAggregatorSpecs(), finalize);
-    int[] finalizing = IntList.collect(combiners, c -> c instanceof Combiner.Finalizing).array();
+    CombineFn[] combiners = AggregatorFactory.toCombiner(query.getAggregatorSpecs(), finalize);
+    int[] finalizing = IntList.collect(combiners, c -> c instanceof CombineFn.Finalizing).array();
     if (finalizing.length == 0) {
-      return new AggregationQueryBinaryFn(query.getDimensions().size() + 1, combiners);
+      return new AggregationCombineFn(query.getDimensions().size() + 1, combiners);
     }
-    return new AggregationQueryBinaryFn(query.getDimensions().size() + 1, combiners)
+    return new AggregationCombineFn(query.getDimensions().size() + 1, combiners)
     {
       @Override
       public Row done(Row arg)
       {
         final Object[] values = ((CompactRow) arg).getValues();
         for (int ix : finalizing) {
-          values[start + ix] = ((Combiner.Finalizing) combiners[ix]).finalize(values[start + ix]);
+          values[start + ix] = combiners[ix].done(values[start + ix]);
         }
         return arg;
       }
@@ -54,9 +53,9 @@ public class AggregationQueryBinaryFn implements BinaryFn.Identical<Row>
   }
 
   final int start;
-  final Combiner[] combiners;
+  final CombineFn[] combiners;
 
-  private AggregationQueryBinaryFn(int start, Combiner[] combiners)
+  private AggregationCombineFn(int start, CombineFn[] combiners)
   {
     this.start = start;
     this.combiners = combiners;
@@ -73,8 +72,8 @@ public class AggregationQueryBinaryFn implements BinaryFn.Identical<Row>
     final Object[] values1 = ((CompactRow) arg1).getValues();
     final Object[] values2 = ((CompactRow) arg2).getValues();
     int index = start;
-    for (Combiner combiner : combiners) {
-      values1[index] = combiner.combine(values1[index], values2[index]);
+    for (CombineFn combiner : combiners) {
+      values1[index] = combiner.apply(values1[index], values2[index]);
       index++;
     }
     Arrays.fill(values2, null);   // for faster gc

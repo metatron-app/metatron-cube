@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation.cardinality;
 
+import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.Aggregator.StreamingSupport;
 import io.druid.query.aggregation.HashAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.filter.ValueMatcher;
@@ -27,6 +29,7 @@ import io.druid.segment.DimensionSelector;
 import java.util.List;
 
 public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
+    implements StreamingSupport<HyperLogLogCollector>
 {
   private final int b;
 
@@ -54,8 +57,29 @@ public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
   }
 
   @Override
-  protected final HyperLogLogCollector newCollector()
+  protected HyperLogLogCollector newCollector()
   {
     return HyperLogLogCollector.makeLatestCollector(b);
+  }
+
+  @Override
+  public Aggregator<HyperLogLogCollector> streaming()
+  {
+    return new CardinalityAggregator(predicate, selectorList, groupings, byRow, b)
+    {
+      private final HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector(b);
+
+      @Override
+      protected HyperLogLogCollector newCollector()
+      {
+        return collector.clear();
+      }
+
+      @Override
+      public byte[] get(HyperLogLogCollector current)
+      {
+        return current == null ? null : current.toByteArray();
+      }
+    };
   }
 }

@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.CombineFn;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
@@ -144,20 +145,20 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
   }
 
   @Override
-  public Combiner.Finalizing<HyperLogLogCollector> build()
+  public CombineFn.Finalizing<HyperLogLogCollector> build()
   {
-    return new Combiner.Finalizing<HyperLogLogCollector>()
+    return new CombineFn.Finalizing<HyperLogLogCollector>()
     {
       private final HyperLogLogCollector HLL = HyperLogLogCollector.makeLatestCollector(b);
 
       @Override
-      public HyperLogLogCollector combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
+      public HyperLogLogCollector apply(HyperLogLogCollector param1, HyperLogLogCollector param2)
       {
         return (param1 == HLL ? HLL : HLL.overwrite(param1)).fold(param2);
       }
 
       @Override
-      public Object finalize(HyperLogLogCollector collector)
+      public Object done(HyperLogLogCollector collector)
       {
         return finalizeComputation(collector);
       }

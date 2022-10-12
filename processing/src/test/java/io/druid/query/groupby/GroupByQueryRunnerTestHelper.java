@@ -37,6 +37,7 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
 import io.druid.query.TestQueryRunners;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import org.junit.Assert;
@@ -58,9 +59,11 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
     config.getGroupBy().setMaxResults(10000);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    StreamQueryEngine stream = new StreamQueryEngine();
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool),
@@ -73,6 +76,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
         engine,
+        stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(config, engine, pool),

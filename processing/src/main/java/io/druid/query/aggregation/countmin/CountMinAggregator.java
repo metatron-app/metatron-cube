@@ -19,13 +19,14 @@
 
 package io.druid.query.aggregation.countmin;
 
+import io.druid.query.aggregation.Aggregator.StreamingSupport;
 import io.druid.query.aggregation.HashAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
 import java.util.List;
 
-public class CountMinAggregator extends HashAggregator<CountMinSketch>
+public class CountMinAggregator extends HashAggregator<CountMinSketch> implements StreamingSupport<CountMinSketch>
 {
   private final int width;
   private final int depth;
@@ -51,8 +52,29 @@ public class CountMinAggregator extends HashAggregator<CountMinSketch>
   }
 
   @Override
-  protected final CountMinSketch newCollector()
+  protected CountMinSketch newCollector()
   {
     return new CountMinSketch(width, depth);
+  }
+
+  @Override
+  public CountMinAggregator streaming()
+  {
+    return new CountMinAggregator(predicate, selectorList, groupings, byRow, width, depth)
+    {
+      private final CountMinSketch collector = new CountMinSketch(width, depth);
+
+      @Override
+      protected CountMinSketch newCollector()
+      {
+        return collector.clear();
+      }
+
+      @Override
+      public byte[] get(CountMinSketch current)
+      {
+        return current == null ? null : current.toBytes();
+      }
+    };
   }
 }

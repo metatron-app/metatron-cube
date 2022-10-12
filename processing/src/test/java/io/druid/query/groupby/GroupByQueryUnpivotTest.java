@@ -41,6 +41,7 @@ import io.druid.query.UnpivotSpec;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
@@ -90,6 +91,7 @@ public class GroupByQueryUnpivotTest
     final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool);
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        new StreamQueryEngine(),
         TestHelper.NOOP_QUERYWATCHER,
         config,
         toolChest,

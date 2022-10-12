@@ -136,6 +136,11 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     this(dimension, direction, null);
   }
 
+  public OrderByColumnSpec(String dimension, OrderingSpec ordering)
+  {
+    this(dimension, ordering.getDirection(), ordering.getDimensionOrder());
+  }
+
   public OrderByColumnSpec(
       String dimension,
       Direction direction,

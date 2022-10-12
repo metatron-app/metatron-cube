@@ -474,6 +474,12 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   }
 
   @Override
+  public GroupByQuery withOverriddenContext(String contextKey, Object contextValue)
+  {
+    return (GroupByQuery) super.withOverriddenContext(contextKey, contextValue);
+  }
+
+  @Override
   public GroupByQuery toLocalQuery()
   {
     Map<String, Object> context = computeOverriddenContext(DEFAULT_DATALOCAL_CONTEXT);
@@ -759,6 +765,11 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     );
     // seemed not need to split now
     return withFilter(DimFilters.and(filter, getFilter())).withOverriddenContext(GBY_LOCAL_SPLIT_NUM, -1);
+  }
+
+  public boolean isStreamingAggregatable()
+  {
+    return DimensionSpecs.isAllDefault(dimensions) && groupingSets == null;
   }
 
   public int[][] getGroupings()

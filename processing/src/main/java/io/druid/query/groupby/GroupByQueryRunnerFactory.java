@@ -23,14 +23,17 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.Accumulator;
+import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
@@ -48,6 +51,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
+import io.druid.query.StreamAggregationFn;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
@@ -57,6 +61,7 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.Cuboids;
 import io.druid.segment.Segment;
@@ -81,11 +86,13 @@ public class GroupByQueryRunnerFactory
   private static final int MAX_LOCAL_SPLIT = 64;
 
   private final GroupByQueryEngine engine;
+  private final StreamQueryEngine stream;
   private final QueryConfig config;
 
   @Inject
   public GroupByQueryRunnerFactory(
       GroupByQueryEngine engine,
+      StreamQueryEngine stream,
       QueryWatcher queryWatcher,
       QueryConfig config,
       GroupByQueryQueryToolChest toolChest,
@@ -94,6 +101,7 @@ public class GroupByQueryRunnerFactory
   {
     super(toolChest, queryWatcher);
     this.engine = engine;
+    this.stream = stream;
     this.config = config;
   }
 
@@ -264,6 +272,14 @@ public class GroupByQueryRunnerFactory
         } else {
           logger.info("Expected cardinality %d. no split (%d msec)", cardinality, elapsed);
         }
+        if (query.isStreamingAggregatable() && cardinality > splitCardinality * 0.5 &&
+            query.getContextBoolean(Query.GBY_STREAMING, gbyConfig.isStreamingAggregation())) {
+          long[] selectivity = Queries.estimateSelectivity(query, segmentWalker);
+          if (selectivity[0] > 0 && cardinality > selectivity[0] * 0.25) {
+            logger.info("Using streaming aggregation.. ratio = [%.2f]", cardinality / (float) selectivity[0]);
+            query = query.withOverriddenContext(Query.STREAMING_GBY_SCHEMA, resolver.get().resolve(query.toStreaming()));
+          }
+        }
       }
     }
     if (numSplit > MAX_LOCAL_SPLIT) {
@@ -322,58 +338,49 @@ public class GroupByQueryRunnerFactory
   @Override
   public QueryRunner<Row> _createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
-    return new GroupByQueryRunner(segment, engine, config, cache);
+    return (query, response) ->
+    {
+      GroupByQuery groupBy = (GroupByQuery) query;
+      if (groupBy.getContextValue(Query.STREAMING_GBY_SCHEMA) != null) {
+        Sequence<Object[]> sequence = stream.process(groupBy.toStreaming(), config, segment, null, cache);
+        Long fixedTimestamp = BaseQuery.getUniversalTimestamp(query, null);
+        if (fixedTimestamp != null) {
+          sequence = Sequences.peek(sequence, v -> v[0] = fixedTimestamp);
+        }
+        return Sequences.map(sequence, CompactRow::new);
+      }
+      if (groupBy.getContextBoolean(Query.USE_CUBOIDS, config.isUseCuboids())) {
+        Segment cuboid = segment.cuboidFor(groupBy);
+        if (cuboid != null) {
+          return engine.process(Cuboids.rewrite(groupBy), config, cuboid, true, null);   // disable filter cache
+        }
+      }
+      return engine.process(groupBy, config, segment, true, cache);
+    };
   }
 
   @Override
   public QueryRunner<Row> mergeRunners(
-      final Query<Row> query,
+      final Query<Row> input,
       final ExecutorService exec,
-      final Iterable<QueryRunner<Row>> queryRunners,
+      final Iterable<QueryRunner<Row>> runners,
       final Supplier<Object> optimizer
   )
   {
-    // mergeRunners should take ListeningExecutorService at some point
-    return new GroupByMergedQueryRunner(
-        MoreExecutors.listeningDecorator(exec),
-        config,
-        queryWatcher,
-        queryRunners
-    );
-  }
-
-  private static class GroupByQueryRunner implements QueryRunner<Row>
-  {
-    private final Segment segment;
-    private final GroupByQueryEngine engine;
-    private final QueryConfig config;
-    private final Cache cache;
-
-    public GroupByQueryRunner(Segment segment, GroupByQueryEngine engine, QueryConfig config, Cache cache)
+    return (query, response) ->
     {
-      this.segment = segment;
-      this.engine = engine;
-      this.config = config;
-      this.cache = cache;
-    }
-
-    @Override
-    public Sequence<Row> run(Query<Row> input, Map<String, Object> responseContext)
-    {
-      GroupByQuery query = (GroupByQuery) input;
-      if (query.getContextBoolean(Query.USE_CUBOIDS, config.isUseCuboids())) {
-        Segment cuboid = segment.cuboidFor(query);
-        if (cuboid != null) {
-          return engine.process(Cuboids.rewrite(query), config, cuboid, true, null);   // disable filter cache
-        }
+      RowResolver resolver = query.getContextValue(Query.STREAMING_GBY_SCHEMA);
+      if (resolver == null) {
+        // mergeRunners should take ListeningExecutorService at some point
+        ListeningExecutorService executor = MoreExecutors.listeningDecorator(exec);
+        return new GroupByMergedQueryRunner(executor, config, queryWatcher, runners).run(query, response);
       }
-      return engine.process(query, config, segment, true, cache);
-    }
-
-    @Override
-    public String toString()
-    {
-      return segment.getIdentifier();
-    }
+      GroupByQuery groupBy = (GroupByQuery) query;
+      Sequence<Row> sequence = QueryRunners.executeParallel(groupBy, exec, Lists.newArrayList(runners), queryWatcher)
+                                           .run(query, response);
+      return CombiningSequence.create(
+          sequence, groupBy.getCompactRowOrdering(), StreamAggregationFn.of(groupBy, resolver)
+      );
+    };
   }
 }

@@ -110,7 +110,7 @@ public class ComplexSequenceTest
     }
   };
 
-  private final BinaryFn.Identical<Integer> plus = new BinaryFn.Identical<Integer>()
+  private final CombineFn.Identical<Integer> plus = new CombineFn.Identical<Integer>()
   {
     @Override
     public Integer apply(Integer arg1, Integer arg2)

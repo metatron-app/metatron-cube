@@ -23,6 +23,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.DSuppliers;
 import io.druid.query.RowResolver;
+import io.druid.query.aggregation.Aggregator.StreamingSupport;
 import io.druid.query.aggregation.HashAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.ValueMatcher;
@@ -33,7 +34,7 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.List;
 
-public class BloomFilterAggregator extends HashAggregator<BloomKFilter>
+public class BloomFilterAggregator extends HashAggregator<BloomKFilter> implements StreamingSupport<BloomKFilter>
 {
   public static BloomKFilter build(
       RowResolver resolver,
@@ -78,8 +79,29 @@ public class BloomFilterAggregator extends HashAggregator<BloomKFilter>
   }
 
   @Override
-  protected final BloomKFilter newCollector()
+  protected BloomKFilter newCollector()
   {
     return new BloomKFilter(maxNumEntries);
+  }
+
+  @Override
+  public BloomFilterAggregator streaming()
+  {
+    return new BloomFilterAggregator(predicate, selectorList, groupings, byRow, maxNumEntries)
+    {
+      private final BloomKFilter collector = new BloomKFilter(maxNumEntries);
+
+      @Override
+      protected BloomKFilter newCollector()
+      {
+        return collector.reset();
+      }
+
+      @Override
+      public byte[] get(BloomKFilter current)
+      {
+        return current == null ? null : current.serialize();
+      }
+    };
   }
 }

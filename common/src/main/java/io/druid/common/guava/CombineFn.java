@@ -12,15 +12,23 @@
  * limitations under the License.
  */
 
-package io.druid.java.util.common.guava.nary;
+package io.druid.common.guava;
 
-/**
- */
-public interface BinaryFn<Type1, Type2, OutType>
+import io.druid.java.util.common.guava.nary.BinaryFn;
+
+public interface CombineFn<T, V> extends BinaryFn.Identical<T>
 {
-  OutType apply(Type1 arg1, Type2 arg2);
+  @SuppressWarnings("unchecked")
+  default V done(T ret)
+  {
+    return (V) ret;
+  }
 
-  interface Identical<T> extends BinaryFn<T, T, T>
+  interface Identical<T> extends CombineFn<T, T>
+  {
+  }
+
+  interface Finalizing<T> extends CombineFn<T, Object>
   {
   }
 }

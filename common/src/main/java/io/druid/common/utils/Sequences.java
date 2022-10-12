@@ -64,6 +64,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 /**
  */
@@ -382,6 +383,11 @@ public class Sequences
   public static <From, To> Sequence<To> map(Sequence<From> sequence, Function<From, To> fn)
   {
     return map(null, sequence, fn);
+  }
+
+  public static <T> Sequence<T> peek(Sequence<T> sequence, Consumer<T> fn)
+  {
+    return map(null, sequence, v -> {fn.accept(v);return v;});
   }
 
   public static <From, To> Sequence<To> map(List<String> columns, Sequence<From> sequence, Function<From, To> fn)

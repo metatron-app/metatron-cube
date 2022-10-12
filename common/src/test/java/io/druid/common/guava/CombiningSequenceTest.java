@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -228,7 +227,7 @@ public class CombiningSequenceTest
         new CombiningSequence<>(
             Sequences.withBaggage(Sequences.simple(pairs), closeable),
             Ordering.natural().onResultOf(Pair.<Integer, Integer>lhsFn()),
-            new BinaryFn.Identical<Pair<Integer, Integer>>()
+            new CombineFn.Identical<Pair<Integer, Integer>>()
             {
               @Override
               public Pair<Integer, Integer> apply(Pair<Integer, Integer> lhs, Pair<Integer, Integer> rhs)

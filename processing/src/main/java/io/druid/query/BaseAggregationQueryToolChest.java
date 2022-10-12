@@ -27,6 +27,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.CombineFn;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -39,14 +40,13 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.groupby.AggregationQueryBinaryFn;
+import io.druid.query.groupby.AggregationCombineFn;
 import io.druid.query.timeseries.TimeseriesQuery;
 import org.joda.time.DateTime;
 
@@ -93,9 +93,9 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
 
   protected abstract Comparator<Row> getMergeOrdering(final T aggregation);
 
-  protected BinaryFn.Identical<Row> getMergeFn(T aggregation, boolean finalize)
+  protected CombineFn.Identical<Row> getMergeFn(T aggregation, boolean finalize)
   {
-    return AggregationQueryBinaryFn.of(aggregation, finalize);
+    return AggregationCombineFn.of(aggregation, finalize);
   }
 
   protected Sequence<Row> postAggregation(final T query, final Sequence<Row> sequence)

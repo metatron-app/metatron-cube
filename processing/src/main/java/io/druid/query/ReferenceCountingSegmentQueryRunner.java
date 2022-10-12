@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.CloseQuietly;
@@ -54,20 +55,16 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
   public Sequence<T> run(final Query<T> query, Map<String, Object> responseContext)
   {
     final Closeable closeable = adapter.increment();
-    if (closeable != null) {
-      try {
-        return Sequences.withBaggage(
-            factory.createRunner(adapter, optimizer).run(query, responseContext),
-            closeable
-        );
-      }
-      catch (RuntimeException e) {
-        CloseQuietly.close(closeable);
-        throw e;
-      }
-    } else {
+    if (closeable == null) {
       // Segment was closed before we had a chance to increment the reference count
       return new ReportTimelineMissingSegmentQueryRunner<T>(descriptor).run(query, responseContext);
+    }
+    try {
+      return Sequences.withBaggage(factory.createRunner(adapter, optimizer).run(query, responseContext), closeable);
+    }
+    catch (Exception e) {
+      CloseQuietly.close(closeable);
+      throw Throwables.propagate(e);
     }
   }
 }

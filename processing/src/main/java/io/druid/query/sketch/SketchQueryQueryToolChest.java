@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
-
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.CacheStrategy;
@@ -101,7 +100,6 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public CacheStrategy<Object[], Object[], SketchQuery> getCacheStrategy(final SketchQuery query)
   {
     return new IdenticalCacheStrategy()
@@ -129,7 +127,6 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
         return new Function<Object[], Object[]>()
         {
           @Override
-          @SuppressWarnings("unchecked")
           public Object[] apply(final Object[] input)
           {
             int index = 1;

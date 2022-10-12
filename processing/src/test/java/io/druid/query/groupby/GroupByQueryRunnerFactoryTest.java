@@ -40,6 +40,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.segment.CloserRule;
 import io.druid.segment.IncrementalIndexSegment;
@@ -155,6 +156,7 @@ public class GroupByQueryRunnerFactoryTest
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(config, engine, pool);
     return new GroupByQueryRunnerFactory(
         engine,
+        new StreamQueryEngine(),
         NoopQueryWatcher.instance(),
         config,
         toolchest,

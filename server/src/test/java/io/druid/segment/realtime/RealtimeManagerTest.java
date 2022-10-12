@@ -61,6 +61,7 @@ import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
@@ -732,8 +733,10 @@ public class RealtimeManagerTest
     final QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    final StreamQueryEngine stream = new StreamQueryEngine();
     return new GroupByQueryRunnerFactory(
         engine,
+        stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool),

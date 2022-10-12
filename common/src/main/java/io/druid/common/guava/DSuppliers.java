@@ -121,6 +121,12 @@ public class DSuppliers
     {
       this.object = object;
     }
+
+    public T setAndReturn(T object)
+    {
+      this.object = object;
+      return object;
+    }
   }
 
   public static class ThreadSafe<T> implements Supplier<T>, Closeable

@@ -42,6 +42,7 @@ import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
@@ -66,9 +67,11 @@ public class DistinctCountGroupByQueryTest
     config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    final StreamQueryEngine stream = new StreamQueryEngine();
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(

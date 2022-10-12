@@ -45,6 +45,7 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
+import io.druid.common.guava.CombineFn;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
@@ -1223,9 +1224,9 @@ public class IndexMerger
 
   private static class RowboatMergeFunction implements BinaryFn.Identical<Rowboat>
   {
-    private final AggregatorFactory.Combiner[] metricAggs;
+    private final BinaryFn.Identical[] metricAggs;
 
-    public RowboatMergeFunction(AggregatorFactory.Combiner[] metricAggs)
+    public RowboatMergeFunction(BinaryFn.Identical[] metricAggs)
     {
       this.metricAggs = metricAggs;
     }
@@ -1250,7 +1251,7 @@ public class IndexMerger
         if (lhsMetric == null) {
           lhsMetrics[i] = rhsMetric;
         } else if (rhsMetric != null) {
-          lhsMetrics[i] = metricAggs[i].combine(lhsMetric, rhsMetric);
+          lhsMetrics[i] = metricAggs[i].apply(lhsMetric, rhsMetric);
         }
       }
       return lhs;

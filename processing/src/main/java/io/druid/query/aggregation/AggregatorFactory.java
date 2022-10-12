@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.CombineFn;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
@@ -79,16 +80,20 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static interface FinalizingCombinerFactory
   {
-    Combiner.Finalizing build();
+    CombineFn.Finalizing build();
   }
 
-  @SuppressWarnings("unchecked")
-  public static <T> Combiner<T> combiner(AggregatorFactory factory, boolean finalize)
+  public static CombineFn combiner(AggregatorFactory factory, boolean finalize)
   {
     if (finalize && factory instanceof FinalizingCombinerFactory) {
       return ((FinalizingCombinerFactory) factory).build();
     }
-    final BinaryFn.Identical<T> combiner = factory.combiner();
+    return wrapNullHandling(factory.combiner());
+  }
+
+  @SuppressWarnings("unchecked")
+  private static CombineFn.Identical wrapNullHandling(BinaryFn.Identical combiner)
+  {
     return (param1, param2) ->
     {
       if (param1 == null) {
@@ -381,27 +386,27 @@ public abstract class AggregatorFactory implements Cacheable
     return combiners;
   }
 
-  public static AggregatorFactory.Combiner[] toCombiner(AggregatorFactory[] aggregators)
+  public static BinaryFn.Identical[] toCombiner(AggregatorFactory[] aggregators)
   {
-    AggregatorFactory.Combiner[] combiners = new AggregatorFactory.Combiner[aggregators.length];
+    BinaryFn.Identical[] combiners = new BinaryFn.Identical[aggregators.length];
     for (int i = 0; i < aggregators.length; i++) {
       combiners[i] = AggregatorFactory.combiner(aggregators[i], false);
     }
     return combiners;
   }
 
-  public static AggregatorFactory.Combiner[] toCombiner(Iterable<AggregatorFactory> aggregators)
+  public static CombineFn[] toCombiner(Iterable<AggregatorFactory> aggregators)
   {
     return toCombiner(aggregators, false);
   }
 
-  public static AggregatorFactory.Combiner[] toCombiner(Iterable<AggregatorFactory> aggregators, boolean finalize)
+  public static CombineFn[] toCombiner(Iterable<AggregatorFactory> aggregators, boolean finalize)
   {
-    List<Combiner> combiners = Lists.newArrayList();
+    List<CombineFn> combiners = Lists.newArrayList();
     for (AggregatorFactory aggregator : aggregators) {
       combiners.add(AggregatorFactory.combiner(aggregator, finalize));
     }
-    return combiners.toArray(new Combiner[0]);
+    return combiners.toArray(new CombineFn[0]);
   }
 
   public static List<AggregatorFactory> toRelay(Iterable<Pair<String, ValueDesc>> metricAndTypes)
@@ -413,6 +418,11 @@ public abstract class AggregatorFactory implements Cacheable
     return relay;
   }
 
+  public static int getMaxIntermediateSize(List<AggregatorFactory> factories)
+  {
+    return factories.stream().mapToInt(f -> f.getMaxIntermediateSize()).sum();
+  }
+
   public static boolean isCountAll(AggregatorFactory factory)
   {
     if (factory instanceof CountAggregatorFactory) {
@@ -420,22 +430,6 @@ public abstract class AggregatorFactory implements Cacheable
       return count.getFieldName() == null && count.getPredicate() == null;
     }
     return false;
-  }
-
-  public static interface Combiner<T>
-  {
-    /**
-     * @param lhs The left-hand side of the combine
-     * @param rhs The right-hand side of the combine
-     *
-     * @return an object representing the combination of lhs and rhs, this can be a new object or a mutation of the inputs
-     */
-    T combine(T param1, T param2);
-
-    interface Finalizing<T> extends Combiner<T>
-    {
-      Object finalize(T object);
-    }
   }
 
   public static interface SQLSupport

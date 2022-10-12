@@ -136,6 +136,11 @@ public interface Aggregator<T>
     }
   }
 
+  interface StreamingSupport<T> extends Aggregator<T>
+  {
+    Aggregator<T> streaming();
+  }
+
   Aggregator NULL = new Aggregator()
   {
     @Override

@@ -53,7 +53,7 @@ public abstract class HashAggregator<T extends HashCollector> extends HashIterat
   }
 
   @Override
-  public final T get(T current)
+  public Object get(T current)
   {
     return current;
   }

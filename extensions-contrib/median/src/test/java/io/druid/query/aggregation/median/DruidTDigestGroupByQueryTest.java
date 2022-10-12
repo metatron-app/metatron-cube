@@ -40,6 +40,7 @@ import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
@@ -55,7 +56,7 @@ import java.util.List;
 public class DruidTDigestGroupByQueryTest
 {
   private final QueryRunner<Row> runner;
-  private GroupByQueryRunnerFactory factory;
+  private final GroupByQueryRunnerFactory factory;
 
   @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder() throws IOException
@@ -67,9 +68,11 @@ public class DruidTDigestGroupByQueryTest
     config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    final StreamQueryEngine stream = new StreamQueryEngine();
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(config, engine, pool),
@@ -82,6 +85,7 @@ public class DruidTDigestGroupByQueryTest
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
         engine,
+        stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(config, engine, pool),

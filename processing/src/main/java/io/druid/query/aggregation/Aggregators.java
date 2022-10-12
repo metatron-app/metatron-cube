@@ -40,9 +40,21 @@ public class Aggregators
 {
   public static Aggregator[] makeAggregators(List<AggregatorFactory> factories, ColumnSelectorFactory factory)
   {
+    return makeAggregators(factories, factory, false);
+  }
+
+  public static Aggregator[] makeAggregators(
+      List<AggregatorFactory> factories,
+      ColumnSelectorFactory factory,
+      boolean streaming
+  )
+  {
     Aggregator[] aggregators = new Aggregator[factories.size()];
     for (int i = 0; i < aggregators.length; i++) {
       aggregators[i] = factories.get(i).factorize(factory);
+      if (streaming && aggregators[i] instanceof Aggregator.StreamingSupport) {
+        aggregators[i] = ((Aggregator.StreamingSupport) aggregators[i]).streaming();
+      }
     }
     return aggregators;
   }

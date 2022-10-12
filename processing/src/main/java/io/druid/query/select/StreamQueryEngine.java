@@ -71,12 +71,11 @@ public class StreamQueryEngine
       final Cache cache
   )
   {
-    final MutableInt counter = (MutableInt) optimizer.get();
     return QueryRunnerHelper.makeCursorBasedQueryConcat(
         segment,
         query,
         cache,
-        processor(query, config, counter)
+        processor(query, config, optimizer == null ? null : (MutableInt) optimizer.get())
     );
   }
 
