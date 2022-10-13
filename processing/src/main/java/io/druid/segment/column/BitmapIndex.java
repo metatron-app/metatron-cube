@@ -23,21 +23,29 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.query.filter.DimFilters;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 
 /**
  */
 public interface BitmapIndex
 {
-  int getCardinality();
+  Dictionary<String> getDictionary();
 
-  String getValue(int index);
+  default int getCardinality()
+  {
+    return getDictionary().size();
+  }
 
-  byte[] getValueAsRaw(int index);
+  default String getValue(int index)
+  {
+    return getDictionary().get(index);
+  }
 
-  boolean hasNulls();
-
-  BitmapFactory getBitmapFactory();
+  default byte[] getValueAsRaw(int index)
+  {
+    return getDictionary().getAsRaw(index);
+  }
 
   /**
    * Returns the index of "value" in this BitmapIndex, or (-(insertion point) - 1) if the value is not
@@ -48,10 +56,16 @@ public interface BitmapIndex
    */
   default int getIndex(String value)
   {
-    return getIndex(value, 0);
+    return getIndex(value, 0, true);
   }
 
-  int getIndex(String value, int start);
+  default int getIndex(String value, int start, boolean binary)
+  {
+    // GenericIndexed.indexOf satisfies contract needed by BitmapIndex.indexOf
+    return getDictionary().indexOf(value, start, binary);
+  }
+
+  BitmapFactory getBitmapFactory();
 
   ImmutableBitmap getBitmap(int idx);
 

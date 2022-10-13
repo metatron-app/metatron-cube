@@ -69,58 +69,15 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
     return new BitmapIndex.CumulativeSupport()
     {
       @Override
-      public int[] thresholds()
+      public Dictionary<String> getDictionary()
       {
-        return cumulativeThresholds;
-      }
-
-      @Override
-      public ImmutableBitmap getCumulative(int idx)
-      {
-        return getImmutableBitmap(cumulativeBitmaps, idx);
-      }
-
-      @Override
-      public GenericIndexed<ImmutableBitmap> getCumulativeBitmaps()
-      {
-        return cumulativeBitmaps == null ? null : cumulativeBitmaps.asSingleThreaded();
-      }
-
-      @Override
-      public int getCardinality()
-      {
-        return dictionary.size();
-      }
-
-      @Override
-      public String getValue(int index)
-      {
-        return dictionary.get(index);
-      }
-
-      @Override
-      public byte[] getValueAsRaw(int index)
-      {
-        return dictionary.getAsRaw(index);
-      }
-
-      @Override
-      public boolean hasNulls()
-      {
-        return dictionary.indexOf(null) >= 0;
+        return dictionary;
       }
 
       @Override
       public BitmapFactory getBitmapFactory()
       {
         return bitmapFactory;
-      }
-
-      @Override
-      public int getIndex(String value, int start)
-      {
-        // GenericIndexed.indexOf satisfies contract needed by BitmapIndex.indexOf
-        return dictionary.indexOf(value, start);
       }
 
       @Override
@@ -142,6 +99,24 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
         }
         final ImmutableBitmap bitmap = bitmaps.get(idx);
         return bitmap == null ? bitmapFactory.makeEmptyImmutableBitmap() : bitmap;
+      }
+
+      @Override
+      public int[] thresholds()
+      {
+        return cumulativeThresholds;
+      }
+
+      @Override
+      public ImmutableBitmap getCumulative(int idx)
+      {
+        return getImmutableBitmap(cumulativeBitmaps, idx);
+      }
+
+      @Override
+      public GenericIndexed<ImmutableBitmap> getCumulativeBitmaps()
+      {
+        return cumulativeBitmaps == null ? null : cumulativeBitmaps.asSingleThreaded();
       }
     };
   }

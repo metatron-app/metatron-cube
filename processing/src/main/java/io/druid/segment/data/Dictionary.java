@@ -36,10 +36,10 @@ public interface Dictionary<T> extends Indexed.BufferBacked<T>
   @Override
   default int indexOf(T value)
   {
-    return indexOf(value, 0);
+    return indexOf(value, 0, true);
   }
 
-  int indexOf(T value, int start);
+  int indexOf(T value, int start, boolean binary);
 
   byte[] getAsRaw(int index);
 

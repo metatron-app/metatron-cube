@@ -100,8 +100,9 @@ public class InFilter implements Filter
     if (bitmap == null) {
       return null;
     }
+    final boolean binary = values.size() < bitmap.getCardinality() * 0.25;
     final Stream<ImmutableBitmap> stream = GuavaUtils.stateToInt(
-        values.stream(), (v, s) -> bitmap.getIndex(v, s)).mapToObj(x -> bitmap.getBitmap(x)
+        values.stream(), (v, s) -> bitmap.getIndex(v, s, s == 0 || binary)).mapToObj(x -> bitmap.getBitmap(x)
     );
     return BitmapHolder.exact(DimFilters.union(selector.getBitmapFactory(), () -> stream.iterator()));
   }
