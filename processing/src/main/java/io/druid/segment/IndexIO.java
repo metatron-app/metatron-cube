@@ -1045,8 +1045,8 @@ public class IndexIO
        * Index.drd should consist of the segment version, the columns and dimensions of the segment as generic
        * indexes, the interval start and end millis as longs (in 16 bytes), and a bitmap index type.
        */
-      final GenericIndexed<String> cols = GenericIndexed.readString(indexBuffer).asSingleThreaded();
-      final GenericIndexed<String> dims = GenericIndexed.readString(indexBuffer).asSingleThreaded();
+      final GenericIndexed<String> cols = GenericIndexed.readString(indexBuffer);
+      final GenericIndexed<String> dims = GenericIndexed.readString(indexBuffer);
       final Interval dataInterval = new Interval(indexBuffer.getLong(), indexBuffer.getLong());
       final BitmapSerdeFactory serdeFactory;
 
@@ -1058,7 +1058,7 @@ public class IndexIO
       if (indexBuffer.hasRemaining()) {
         serdeFactory = mapper.readValue(SerializerUtils.readString(indexBuffer), BitmapSerdeFactory.class);
       } else {
-        serdeFactory = new BitmapSerde.LegacyBitmapSerdeFactory();
+        serdeFactory = BitmapSerde.createLegacyFactory();
       }
       final BitmapFactory bitmapFactory = serdeFactory.getBitmapFactory();
 
@@ -1083,7 +1083,7 @@ public class IndexIO
 
       Map<String, Supplier<Column>> columns = Maps.newHashMap();
 
-      for (String columnName : cols) {
+      for (String columnName : cols.asSingleThreaded()) {
         columns.put(columnName, DSuppliers.memoize(() -> {
           final ByteBuffer mapped = smooshedFiles.mapFile(columnName);
           return readDescriptor(mapper, mapped).read(columnName, mapped, serdeFactory);

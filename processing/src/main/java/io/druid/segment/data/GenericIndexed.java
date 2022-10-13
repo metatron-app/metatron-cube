@@ -205,6 +205,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   private final ByteBuffer theBuffer;
+  private final ObjectStrategy<T> theStrategy;
   private final int flag;
 
   private final int size;
@@ -215,6 +216,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   private GenericIndexed(ByteBuffer buffer, ObjectStrategy<T> strategy, int flag)
   {
     this.theBuffer = buffer;
+    this.theStrategy = strategy;
     this.flag = flag;
 
     Supplier<ByteBuffer> supplier = () -> theBuffer.asReadOnlyBuffer();
@@ -244,6 +246,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   private GenericIndexed(
       ByteBuffer buffer,
+      ObjectStrategy<T> strategy,
       int flag,
       int size,
       int indexOffset,
@@ -252,6 +255,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   )
   {
     this.theBuffer = buffer;
+    this.theStrategy = strategy;
     this.flag = flag;
     this.size = size;
     this.indexOffset = indexOffset;
@@ -374,6 +378,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   {
     return new GenericIndexed<T>(
         theBuffer,
+        theStrategy,
         flag,
         size,
         indexOffset,
@@ -407,6 +412,11 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     };
   }
 
+  private ObjectStrategy<T> dedicatedStrategy()
+  {
+    return ObjectStrategies.singleThreaded(theStrategy);
+  }
+
   abstract class BufferIndexed implements Indexed<T>
   {
     final ObjectStrategy<T> strategy;
@@ -424,11 +434,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         return valueLength(0, valuesOffset) == 0;
       }
       return null;
-    }
-
-    protected ObjectStrategy<T> dedicatedStrategy()
-    {
-      return ObjectStrategies.singleThreaded(strategy);
     }
 
     protected abstract BufferIndexed asSingleThreaded();
@@ -617,7 +622,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     protected BufferIndexed asSingleThreaded()
     {
-      return new BufferIndexedV1(dedicatedStrategy(), Suppliers.ofInstance(supplier.get()));
+      return new BufferIndexedV1(dedicatedStrategy(), Suppliers.ofInstance(theBuffer.asReadOnlyBuffer()));
     }
 
     @Override
@@ -640,7 +645,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     protected BufferIndexed asSingleThreaded()
     {
-      return new BufferIndexedV2(dedicatedStrategy(), Suppliers.ofInstance(supplier.get()));
+      return new BufferIndexedV2(dedicatedStrategy(), Suppliers.ofInstance(theBuffer.asReadOnlyBuffer()));
     }
 
     @Override
@@ -685,7 +690,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     protected BufferIndexed asSingleThreaded()
     {
-      return new NoOffset(hasNull, minLength, maxLength, dedicatedStrategy(), Suppliers.ofInstance(supplier.get()));
+      return new NoOffset(hasNull, minLength, maxLength, dedicatedStrategy(), Suppliers.ofInstance(theBuffer.asReadOnlyBuffer()));
     }
 
     @Override
@@ -734,7 +739,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     protected BufferIndexed asSingleThreaded()
     {
-      return new Fixed(hasNull, fixed, dedicatedStrategy(), Suppliers.ofInstance(supplier.get()));
+      return new Fixed(hasNull, fixed, dedicatedStrategy(), Suppliers.ofInstance(theBuffer.asReadOnlyBuffer()));
     }
 
     @Override
