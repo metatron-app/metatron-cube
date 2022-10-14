@@ -153,6 +153,12 @@ public class ColumnSelectors
       {
         return Rows.parseFloat(selector.get());
       }
+
+      @Override
+      public boolean getFloat(MutableFloat handover)
+      {
+        return Rows.getFloat(selector.get(), handover);
+      }
     };
   }
 
@@ -215,6 +221,12 @@ public class ColumnSelectors
       public Double get()
       {
         return Rows.parseDouble(selector.get());
+      }
+
+      @Override
+      public boolean getDouble(MutableDouble handover)
+      {
+        return Rows.getDouble(selector.get(), handover);
       }
     };
   }
@@ -279,6 +291,12 @@ public class ColumnSelectors
       {
         return Rows.parseLong(selector.get());
       }
+
+      @Override
+      public boolean getLong(MutableLong handover)
+      {
+        return Rows.getLong(selector.get(), handover);
+      }
     };
   }
 
@@ -340,6 +358,12 @@ public class ColumnSelectors
       {
         return selector.get().asDouble();
       }
+
+      @Override
+      public boolean getDouble(MutableDouble handover)
+      {
+        return selector.get().asDouble(handover);
+      }
     };
   }
 
@@ -352,6 +376,12 @@ public class ColumnSelectors
       {
         return selector.get().asFloat();
       }
+
+      @Override
+      public boolean getFloat(MutableFloat handover)
+      {
+        return selector.get().asFloat(handover);
+      }
     };
   }
 
@@ -363,6 +393,12 @@ public class ColumnSelectors
       public Long get()
       {
         return selector.get().asLong();
+      }
+
+      @Override
+      public boolean getLong(MutableLong handover)
+      {
+        return selector.get().asLong(handover);
       }
     };
   }

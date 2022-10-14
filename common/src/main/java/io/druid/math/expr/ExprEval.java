@@ -25,6 +25,9 @@ import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.Pair;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -306,6 +309,27 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return 0F;
   }
 
+  public boolean asFloat(MutableFloat handover)
+  {
+    if (isNull()) {
+      return false;
+    }
+    final float fv;
+    if (rhs.isBoolean()) {
+      fv = (Boolean) value() ? 1F : 0F;
+    } else if (rhs.isNumeric()) {
+      fv = floatValue();
+    } else if (rhs.isString()) {
+      fv = Rows.tryParseFloat(asString());
+    } else if (rhs.type() == ValueType.DATETIME) {
+      fv = (float) dateTimeValue().getMillis();
+    } else {
+      fv = 0F;
+    }
+    handover.setValue(fv);
+    return true;
+  }
+
   public Double asDouble()
   {
     if (isNull()) {
@@ -322,6 +346,27 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return 0D;
   }
 
+  public boolean asDouble(MutableDouble handover)
+  {
+    if (isNull()) {
+      return false;
+    }
+    final double dv;
+    if (rhs.isBoolean()) {
+      dv = (Boolean) value() ? 1D : 0D;
+    } else if (rhs.isNumeric()) {
+      dv = doubleValue();
+    } else if (rhs.isString()) {
+      dv = Rows.tryParseDouble(asString());
+    } else if (rhs.type() == ValueType.DATETIME) {
+      dv = (double) dateTimeValue().getMillis();
+    } else {
+      dv = 0d;
+    }
+    handover.setValue(dv);
+    return true;
+  }
+
   public Long asLong()
   {
     if (isNull()) {
@@ -336,6 +381,27 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return dateTimeValue().getMillis();
     }
     return 0L;
+  }
+
+  public boolean asLong(MutableLong handover)
+  {
+    if (isNull()) {
+      return false;
+    }
+    final long lv;
+    if (rhs.isBoolean()) {
+      lv = (Boolean) value() ? 1L : 0L;
+    } else if (rhs.isNumeric()) {
+      lv = longValue();
+    } else if (rhs.isString()) {
+      lv = Rows.tryParseLong(asString());
+    } else if (rhs.type() == ValueType.DATETIME) {
+      lv = dateTimeValue().getMillis();
+    } else {
+      lv = 0L;
+    }
+    handover.setValue(lv);
+    return true;
   }
 
   public Integer asInt()

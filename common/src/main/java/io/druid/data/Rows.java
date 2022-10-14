@@ -25,6 +25,9 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.parsers.ParseException;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
 import java.math.BigDecimal;
@@ -222,6 +225,68 @@ public class Rows
       return ((Date) value).getTime();
     }
     return value;
+  }
+
+  public static boolean getLong(Object value, MutableLong handover)
+  {
+    if (Rows.isNumericNull(value)) {
+      return false;
+    }
+    if (value instanceof Number) {
+      handover.setValue(((Number) value).longValue());
+    }
+    Long lv = Rows.parseLong(value);
+    if (lv != null) {
+      handover.setValue(lv.longValue());
+      return true;
+    }
+    return false;
+  }
+
+  public static boolean getFloat(Object value, MutableFloat handover)
+  {
+    if (isNumericNull(value)) {
+      return false;
+    }
+    if (value instanceof Number) {
+      handover.setValue(((Number) value).floatValue());
+      return true;
+    }
+    Float fv = Rows.parseFloat(value);
+    if (fv != null) {
+      handover.setValue(fv.floatValue());
+      return true;
+    }
+    return false;
+  }
+
+  public static boolean getDouble(Object value, MutableDouble handover)
+  {
+    if (isNumericNull(value)) {
+      return false;
+    }
+    if (value instanceof Number) {
+      handover.setValue(((Number) value).doubleValue());
+      return true;
+    }
+    Double dv = Rows.parseDouble(value);
+    if (dv != null) {
+      handover.setValue(dv.doubleValue());
+      return true;
+    }
+    return false;
+  }
+
+  public static boolean isNumericNull(Object value)
+  {
+    if (value == null) {
+      return true;
+    }
+    if (value instanceof String) {
+      String s = (String) value;
+      return s.isEmpty() || NULL.equalsIgnoreCase(s);
+    }
+    return false;
   }
 
   // long -> double -> long can make different value

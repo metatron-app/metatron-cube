@@ -53,6 +53,9 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -493,6 +496,12 @@ public class ColumnSelectorFactories
         {
           return in.get().getLong(columnName);
         }
+
+        @Override
+        public boolean getLong(MutableLong handover)
+        {
+          return Rows.getLong(in.get().getRaw(columnName), handover);
+        }
       };
     }
 
@@ -506,6 +515,12 @@ public class ColumnSelectorFactories
         {
           return in.get().getFloat(columnName);
         }
+
+        @Override
+        public boolean getFloat(MutableFloat handover)
+        {
+          return Rows.getFloat(in.get().getRaw(columnName), handover);
+        }
       };
     }
 
@@ -518,6 +533,12 @@ public class ColumnSelectorFactories
         public Double get()
         {
           return in.get().getDouble(columnName);
+        }
+
+        @Override
+        public boolean getDouble(MutableDouble handover)
+        {
+          return Rows.getDouble(in.get().getRaw(columnName), handover);
         }
       };
     }
