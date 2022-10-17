@@ -864,6 +864,40 @@ public class GuavaUtils
     };
   }
 
+  // values should be sorted, not contains null
+  public static <T> Iterator<T> dedup(List<T> values)
+  {
+    if (values.isEmpty()) {
+      return Iterators.emptyIterator();
+    }
+    return new Iterator<T>()
+    {
+      private final Iterator<T> iterator = values.iterator();
+      private T current = iterator.next();
+
+      @Override
+      public boolean hasNext()
+      {
+        return current != null;
+      }
+
+      @Override
+      public T next()
+      {
+        final T ret = current;
+        while (iterator.hasNext()) {
+          final T value = iterator.next();
+          if (!current.equals(value)) {
+            current = value;
+            return ret;
+          }
+        }
+        current = null;
+        return ret;
+      }
+    };
+  }
+
   public static class DelegatedProgressing<T> implements Progressing.OnIterator<T>
   {
     private final Iterator<T> delegate;

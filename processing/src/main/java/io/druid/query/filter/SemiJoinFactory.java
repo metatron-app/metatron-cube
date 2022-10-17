@@ -22,8 +22,8 @@ package io.druid.query.filter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import io.druid.common.IntTagged;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
@@ -36,11 +36,11 @@ import it.unimi.dsi.fastutil.objects.Object2IntSortedMap;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 public class SemiJoinFactory
 {
@@ -58,18 +58,19 @@ public class SemiJoinFactory
   {
     try {
       if (fieldNames.size() == 1) {
-        boolean hasDuplication = false;
-        final Set<String> set = Sets.newTreeSet();
+        final List<String> set = Lists.newArrayList();
         while (iterator.hasNext()) {
           set.add(Objects.toString(iterator.next()[0], ""));
         }
-        return toInFilter(fieldNames.get(0), set.iterator());
+        Collections.sort(set);
+        return toInFilter(fieldNames.get(0), GuavaUtils.dedup(set));
       } else {
-        final Set<StringArray> set = Sets.newTreeSet();
+        final List<StringArray> set = Lists.newArrayList();
         while (iterator.hasNext()) {
           set.add(StringArray.of(iterator.next(), ""));
         }
-        return toInsFilter(fieldNames, set.iterator());
+        Collections.sort(set);
+        return toInsFilter(fieldNames, GuavaUtils.dedup(set));
       }
     }
     finally {
