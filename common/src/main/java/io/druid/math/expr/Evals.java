@@ -20,7 +20,6 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -34,7 +33,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -53,50 +51,6 @@ import static io.druid.common.utils.JodaUtils.STANDARD_PARSER;
  */
 public class Evals
 {
-  static final Logger LOG = new Logger(Evals.class);
-
-  public static final Expr TRUE = new LongConst(1);
-  public static final Expr FALSE = new LongConst(0);
-
-  public static final Predicate<ExprEval> PREDICATE = new Predicate<ExprEval>()
-  {
-    @Override
-    public boolean apply(ExprEval input)
-    {
-      return input.asBoolean();
-    }
-  };
-
-  public static final com.google.common.base.Function<ExprEval, String> AS_STRING =
-      new com.google.common.base.Function<ExprEval, String>()
-      {
-        @Override
-        public String apply(ExprEval input)
-        {
-          return input.asString();
-        }
-      };
-
-  public static final com.google.common.base.Function<ExprEval, Double> AS_DOUBLE =
-      new com.google.common.base.Function<ExprEval, Double>()
-      {
-        @Override
-        public Double apply(ExprEval input)
-        {
-          return input.asDouble();
-        }
-      };
-
-  public static final com.google.common.base.Function<ExprEval, Long> AS_LONG =
-      new com.google.common.base.Function<ExprEval, Long>()
-      {
-        @Override
-        public Long apply(ExprEval input)
-        {
-          return input.asLong();
-        }
-      };
-
   static boolean eq(ExprEval leftVal, ExprEval rightVal)
   {
     if (leftVal.isNull() && rightVal.isNull()) {
@@ -117,11 +71,6 @@ public class Evals
       return leftVal.doubleValue() == rightVal.doubleValue();
     }
     return Objects.equals(leftVal.value(), rightVal.value());
-  }
-
-  public static String evalOptionalString(Expr arg, Expr.NumericBinding binding)
-  {
-    return arg == null ? null : evalString(arg, binding);
   }
 
   public static ExprEval eval(Expr arg, Expr.NumericBinding binding)
@@ -162,11 +111,6 @@ public class Evals
   public static boolean evalBoolean(Expr arg, Expr.NumericBinding binding)
   {
     return eval(arg, binding).asBoolean();
-  }
-
-  public static boolean evalOptionalBoolean(Expr arg, Expr.NumericBinding binding, boolean defaultVal)
-  {
-    return arg == null ? defaultVal : eval(arg, binding).asBoolean();
   }
 
   public static String getConstantString(Expr arg)

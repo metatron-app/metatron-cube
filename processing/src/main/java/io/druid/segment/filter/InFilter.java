@@ -24,6 +24,7 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
@@ -53,6 +54,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import java.math.BigDecimal;
 import java.util.BitSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -237,7 +239,8 @@ public class InFilter implements Filter
   @SuppressWarnings("unchecked")
   private Predicate toPredicate(final boolean containsNull)
   {
-    Predicate predicate = input -> input == null ? containsNull : values.contains(input);
+    Set<String> container = Sets.newHashSet(values);
+    Predicate predicate = input -> input == null ? containsNull : container.contains(input);
     if (extractionFn != null) {
       predicate = Predicates.compose(predicate, extractionFn);
     }
