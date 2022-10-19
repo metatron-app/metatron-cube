@@ -25,12 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
@@ -41,23 +38,13 @@ import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.PrefixFilter;
 import io.druid.segment.filter.SelectorFilter;
-import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
-import it.unimi.dsi.fastutil.chars.CharSet;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class LikeDimFilter extends SingleInput
 {
-  // Regex matching characters that are definitely okay to include unescaped in a regex.
-  // Leads to excessively paranoid escaping, although shouldn't affect runtime beyond compiling the regex.
-  private static final Matcher DEFINITELY_FINE = Pattern.compile("[\\w\\d\\s-]").matcher("");
-  private static final String WILDCARD = ".*";
-
   private final String dimension;
   private final String pattern;
   private final Character escapeChar;
@@ -83,199 +70,297 @@ public class LikeDimFilter extends SingleInput
     this.likeMatcherSupplier = Suppliers.memoize(() -> LikeMatcher.from(pattern, escapeChar));
   }
 
-  private static final CharSet REGEX_CHARS = new CharOpenHashSet(
-      new char[]{'?', '[', '\\', ']', '^'}
-  );
-
-  private static boolean isNonRegexAsciiChar(char x)
-  {
-    return x == ' ' || (x >= '0' && x <= 'z' && !REGEX_CHARS.contains(x));
-  }
-
-  private static boolean isLikePattern(char x)
-  {
-    return x == '_' || x == '%';
-  }
-
   public static class LikeMatcher
   {
-    private final String pattern;
     // Prefix that matching strings are known to start with. May be empty.
     private final String prefix;
-    private final String suffix;
-    private final List<String> elements;
+    private final Node[] elements;
 
-    // Regex pattern that describes matching strings.
-    private final String regex;
-
-    public LikeMatcher(
-        final String pattern,
-        final String prefix,
-        final String suffix,
-        final List<String> elements,
-        final String regex
-    )
+    private LikeMatcher(String prefix, Node[] elements)
     {
-      this.pattern = pattern;
       this.prefix = prefix;
-      this.suffix = suffix;
       this.elements = elements;
-      this.regex = regex;
     }
 
-    public static LikeMatcher from(
-        final String pattern,
-        @Nullable final Character escapeChar
-    )
+    public static LikeMatcher from(final String pattern, @Nullable final Character escapeChar)
     {
-      final StringBuilder builder = new StringBuilder();
-      boolean escaping = false;
+      int px = 0;
+      List<Node> elements = Lists.newArrayList();
       for (int i = 0; i < pattern.length(); i++) {
         final char c = pattern.charAt(i);
-        if (escapeChar != null && c == escapeChar && !escaping) {
-          escaping = true;
-        } else if (c == '%' && !escaping) {
-          builder.append(WILDCARD);
-        } else if (c == '_' && !escaping) {
-          builder.append(".");
-        } else {
-          if (DEFINITELY_FINE.reset(String.valueOf(c)).matches()) {
-            builder.append(c);
-          } else {
-            builder.append("\\u").append(BaseEncoding.base16().encode(Chars.toByteArray(c)));
+        if (escapeChar != null && c == escapeChar) {
+          i++;
+        } else if (c == '%' || c == '_') {
+          if (i > px) {
+            elements.add(new Literal(pattern.substring(px, i)));
           }
-          escaping = false;
+          elements.add(c == '_' ? new Underbar() : new Percent());
+          px = i + 1;
         }
       }
+      if (px < pattern.length()) {
+        elements.add(new Literal(pattern.substring(px)));
+      }
+      Node first = elements.get(0);
+      String prefix = first instanceof Literal ? ((Literal) first).v : null;
+      return new LikeMatcher(prefix, compress(elements));
+    }
 
-      int prev = 0;
-      List<int[]> strings = Lists.newArrayList();
-      int p = 0;
-      for (; p < pattern.length(); p++) {
-        if (!isNonRegexAsciiChar(pattern.charAt(p))) {
-          if (p > prev) {
-            strings.add(new int[]{prev, p});
-          }
-          if (!isLikePattern(pattern.charAt(p))) {
-            break;
-          }
-          prev = p + 1;
+    private static Node[] compress(List<Node> raw)
+    {
+      List<Node> compressed = Lists.newArrayList();
+      for (int i = 0; i < raw.size(); i++) {
+        Node value = raw.get(i);
+        if (value instanceof Literal) {
+          compressed.add(value);
+          continue;
         }
+        int x = findNext(raw, i + 1, n -> n instanceof Literal);
+        if (x == i + 1) {
+          compressed.add(value);
+          continue;
+        }
+        int underbars = (int) raw.subList(i, x).stream().filter(s -> s instanceof Underbar).count();
+        if (underbars == 0) {
+          compressed.add(value);
+        } else if (underbars == x - i) {
+          compressed.add(new Underbar(underbars));
+        } else {
+          compressed.add(new Underbar(underbars));
+          compressed.add(new Percent());
+        }
+        i = x - 1;
       }
-      if (prev == 0 && p == pattern.length()) {
-        return new LikeMatcher(pattern, pattern, null, Arrays.asList(), null);
-      }
-      int s = -1;
-      for (int i = pattern.length() - 1; i >= 0; i--) {
-        if (!isNonRegexAsciiChar(pattern.charAt(i))) {
-          if (isLikePattern(pattern.charAt(i))) {
-            s = i;
-          }
+      return compressed.toArray(new Node[0]);
+    }
+
+    private static int findNext(List<Node> values, int start, Predicate<Node> predicate)
+    {
+      int i = start;
+      for (; i < values.size(); i++) {
+        if (predicate.apply(values.get(i))) {
           break;
         }
       }
-      String prefix = null;
-      if (!strings.isEmpty() && strings.get(0)[0] == 0) {
-        prefix = pattern.substring(0, strings.get(0)[1]);
-        strings = strings.subList(1, strings.size());
-      }
-      List<String> elements = Lists.newArrayList(Iterables.transform(strings, x -> pattern.substring(x[0], x[1])));
-      String suffix = s >= 0 && s < pattern.length() - 1 ? pattern.substring(s + 1) : null;
-      return new LikeMatcher(pattern, prefix, suffix, elements, builder.toString());
-    }
-
-    public int predicateType()
-    {
-      if (pattern.equals(prefix)) {
-        return 0;
-      }
-      final int patternLen = pattern.length();
-
-      int type = 0;
-      if (prefix != null) {
-        type += 1;
-        if (patternLen == prefix.length() + 1 && isLikePattern(pattern.charAt(patternLen - 1))) {
-          return type;
-        }
-      }
-      if (suffix != null) {
-        type += 2;
-        if (patternLen == suffix.length() + 1 && isLikePattern(pattern.charAt(0))) {
-          return type;
-        }
-      }
-      if (prefix != null && suffix != null) {
-        if (patternLen == prefix.length() + suffix.length() + 1 && isLikePattern(pattern.charAt(prefix.length()))) {
-          return type;
-        }
-      }
-      if (!elements.isEmpty()) {
-        type += 4;
-      }
-      if (regex != null) {
-        type += 8;
-      }
-      return type;
+      return i;
     }
 
     public Predicate<String> asPredicate()
     {
-      if (pattern.equals(prefix)) {
-        return s -> s != null && s.equals(prefix);
-      }
-      List<Predicate<String>> predicates = Lists.newArrayList();
-      if (prefix != null) {
-        if (pattern.length() == prefix.length() + 1 && isLikePattern(pattern.charAt(pattern.length() - 1))) {
-          return s -> s != null && s.startsWith(prefix);
-        }
-        predicates.add(s -> s != null && s.startsWith(prefix));
-      }
-      if (suffix != null) {
-        if (pattern.length() == suffix.length() + 1 && isLikePattern(pattern.charAt(0))) {
-          return s -> s != null && s.endsWith(suffix);
-        }
-        predicates.add(s -> s != null && s.endsWith(suffix));
-      }
-      if (prefix != null && suffix != null) {
-        if (pattern.length() == prefix.length() + suffix.length() + 1 && isLikePattern(pattern.charAt(prefix.length()))) {
-          return Predicates.and(predicates);
-        }
-      }
-      for (String element : elements) {
-        predicates.add(s -> s != null && s.contains(element));
-      }
-      if (regex != null) {
-        Matcher matcher = Pattern.compile(regex, Pattern.DOTALL).matcher("");
-        predicates.add(s -> s != null && matcher.reset(s).matches());
-      }
-      return Predicates.and(predicates);
+      final Predicate<String> predicate = _asPredicate();
+      return s -> s != null && predicate.apply(s);
     }
 
-    @Override
-    public boolean equals(Object o)
+    private Predicate<String> _asPredicate()
     {
-      if (this == o) {
-        return true;
+      switch (represent()) {
+        case "%":
+          return Predicates.alwaysTrue();
+        case "_": {
+          final int c = ((Underbar) elements[0]).c;
+          return s -> s.length() == c;
+        }
+        case "L": {
+          final String v = ((Literal) elements[0]).v;
+          return s -> s.equals(v);
+        }
+        case "L%": {
+          final String v = ((Literal) elements[0]).v;
+          final int length = v.length();
+          return s -> s.length() >= length && s.startsWith(v);
+        }
+        case "L_": {
+          final String v = ((Literal) elements[0]).v;
+          final int length = v.length() + ((Underbar) elements[1]).c;
+          return s -> s.length() == length && s.startsWith(v);
+        }
+        case "%L": {
+          final String v = ((Literal) elements[1]).v;
+          final int length = v.length();
+          return s -> s.length() >= length && s.endsWith(v);
+        }
+        case "_L": {
+          final String v = ((Literal) elements[1]).v;
+          final int length = v.length() + ((Underbar) elements[0]).c;
+          return s -> s.length() == length && s.endsWith(v);
+        }
+        case "L%L": {
+          final String v1 = ((Literal) elements[0]).v;
+          final String v2 = ((Literal) elements[2]).v;
+          final int length = v1.length() + v2.length();
+          return s -> s.length() >= length && s.startsWith(v1) && s.endsWith(v2);
+        }
+        case "L_L": {
+          final String v1 = ((Literal) elements[0]).v;
+          final String v2 = ((Literal) elements[2]).v;
+          final int length = v1.length() + v2.length() + ((Underbar) elements[1]).c;
+          return s -> s.length() == length && s.startsWith(v1) && s.endsWith(v2);
+        }
+        case "%L%": {
+          final String v = ((Literal) elements[1]).v;
+          return s -> s.contains(v);
+        }
+        case "_L%": {
+          final String v = ((Literal) elements[1]).v;
+          final int c = ((Underbar) elements[0]).c;
+          final int length = v.length() + c;
+          return s -> s.length() >= length && s.startsWith(v, c);
+        }
+        case "%L_": {
+          final String v = ((Literal) elements[1]).v;
+          final int c = ((Underbar) elements[2]).c;
+          final int length = v.length() + c;
+          return s -> s.length() >= length && s.startsWith(v, s.length() - length);
+        }
+        case "_L_": {
+          final int c1 = ((Underbar) elements[0]).c;
+          final int c2 = ((Underbar) elements[2]).c;
+          final String v = ((Literal) elements[1]).v;
+          final int length = v.length() + c1 + c2;
+          return s -> s.length() == length && s.startsWith(v, c1);
+        }
       }
-      if (o == null || getClass() != o.getClass()) {
+//      Matcher matcher = Pattern.compile(toRegex(), Pattern.DOTALL).matcher("");
+//      return s -> matcher.reset(s).matches();
+      final State ix = new State();
+      return s -> {
+        ix.reset();
+        for (int i = 0; i < elements.length; i++) {
+          if (!elements[i].process(s, ix)) {
+            return false;
+          }
+        }
+        return ix.seek || ix.index == s.length();
+      };
+    }
+
+    // ternary?
+    public String represent()
+    {
+      char[] represent = new char[elements.length];
+      for (int i = 0; i < elements.length; i++) {
+        represent[i] = elements[i].represent();
+      }
+      return new String(represent);
+    }
+
+    private static class State
+    {
+      int index;
+      boolean seek;
+
+      private void reset()
+      {
+        index = 0;
+        seek = false;
+      }
+    }
+
+    public String regex()
+    {
+      StringBuilder b = new StringBuilder();
+      for (int i = 0; i < elements.length; i++) {
+        elements[i].regex(b);
+      }
+      return b.toString();
+    }
+
+    private static interface Node
+    {
+      void regex(StringBuilder builder);
+
+      boolean process(String value, State ix);
+
+      char represent();
+    }
+
+    private static class Literal implements Node
+    {
+      private final String v;
+
+      private Literal(String v) {this.v = v;}
+
+      @Override
+      public void regex(StringBuilder builder)
+      {
+        builder.append("\\Q").append(v).append("\\E");
+      }
+
+      @Override
+      public boolean process(String value, State ix)
+      {
+        if (ix.seek) {
+          final int x = value.indexOf(v, ix.index);
+          if (x < 0) {
+            return false;
+          }
+          ix.seek = false;
+          ix.index = x + v.length();
+          return true;
+        } else if (value.startsWith(v, ix.index)) {
+          ix.index += v.length();
+          return true;
+        }
         return false;
       }
-      LikeMatcher matcher1 = (LikeMatcher) o;
-      return Objects.equals(prefix, matcher1.prefix) &&
-             Objects.equals(suffix, matcher1.suffix) &&
-             Objects.equals(elements, matcher1.elements) &&
-             Objects.equals(regex, matcher1.regex);
+
+      @Override
+      public char represent()
+      {
+        return 'L';
+      }
     }
 
-    @Override
-    public String toString()
+    private static class Underbar implements Node
     {
-      return "LikeMatcher{" +
-             "prefix='" + prefix + '\'' +
-             ", suffix='" + suffix + '\'' +
-             ", elements=" + elements +
-             ", regex='" + regex + '\'' +
-             '}';
+      private final int c;
+
+      private Underbar(int c) {this.c = c;}
+
+      private Underbar() {this(1);}
+
+      @Override
+      public void regex(StringBuilder builder)
+      {
+        builder.append('.');
+        if (c > 1) {
+          builder.append('{').append(c).append('}');
+        }
+      }
+
+      @Override
+      public boolean process(String value, State ix)
+      {
+        return (ix.index += c) < value.length();
+      }
+
+      @Override
+      public char represent()
+      {
+        return '_';
+      }
+    }
+
+    private static class Percent implements Node
+    {
+      @Override
+      public void regex(StringBuilder builder)
+      {
+        builder.append(".*");
+      }
+
+      @Override
+      public boolean process(String value, State ix)
+      {
+        ix.seek = true;
+        return true;
+      }
+
+      @Override
+      public char represent()
+      {
+        return '%';
+      }
     }
   }
 
@@ -327,14 +412,14 @@ public class LikeDimFilter extends SingleInput
   {
     final LikeMatcher matcher = likeMatcherSupplier.get();
     if (extractionFn == null) {
-      switch (matcher.predicateType()) {
-        case 0:
+      switch (matcher.represent()) {
+        case "L":
           return new SelectorFilter(dimension, matcher.prefix);
-        case 1:
+        case "L%":
           return new PrefixFilter(dimension, matcher.prefix);
       }
     }
-    if (Strings.isNullOrEmpty(matcher.prefix)) {
+    if (matcher.prefix == null) {
       return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn);
     }
     return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn)
