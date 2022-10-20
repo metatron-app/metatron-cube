@@ -22,9 +22,13 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
+import io.druid.common.guava.BytesRef;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
+
+import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  */
@@ -56,10 +60,15 @@ public interface BitmapIndex
    */
   default int getIndex(String value)
   {
-    return getIndex(value, 0, true);
+    return getDictionary().indexOf(value, 0, true);
   }
 
-  default int getIndex(String value, int start, boolean binary)
+  default IntStream indexOf(List<String> values)
+  {
+    return getDictionary().indexOf(values);
+  }
+
+  default int getIndex(BytesRef value, int start, boolean binary)
   {
     // GenericIndexed.indexOf satisfies contract needed by BitmapIndex.indexOf
     return getDictionary().indexOf(value, start, binary);

@@ -20,7 +20,6 @@
 package io.druid.query.aggregation.bloomfilter;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.druid.common.guava.BufferRef;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Murmur3;
 import io.druid.data.input.BytesInputStream;
@@ -367,7 +366,7 @@ public class BloomKFilter implements HashCollector.ScanSupport
   @Override
   public void collect(Object[] values, BytesRef key)
   {
-    addHash(Murmur3.hash64(key.bytes, 0, key.length));
+    addHash(Murmur3.hash64(key));
   }
 
   @Override
@@ -378,7 +377,7 @@ public class BloomKFilter implements HashCollector.ScanSupport
 
   public static void collect(ByteBuffer collector, int position, BytesRef key)
   {
-    addHash(collector, position, Murmur3.hash64(key.bytes, 0, key.length));
+    addHash(collector, position, Murmur3.hash64(key));
   }
 
   public static void collect(ByteBuffer collector, int position, DimensionSelector.Scannable scannable)
@@ -388,7 +387,7 @@ public class BloomKFilter implements HashCollector.ScanSupport
 
   public boolean test(BytesRef key)
   {
-    return testHash(Murmur3.hash64(key.bytes, 0, key.length));
+    return testHash(Murmur3.hash64(key));
   }
 
   public boolean test(DimensionSelector.Scannable scannable)

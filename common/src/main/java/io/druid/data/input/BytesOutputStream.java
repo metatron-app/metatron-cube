@@ -230,13 +230,13 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
 
   public void write(BytesRef ref)
   {
-    write(ref.bytes, 0, ref.length);
+    write(ref.bytes, ref.offset, ref.length);
   }
 
   public void writeVarSizeBytes(BytesRef ref)
   {
     writeUnsignedVarInt(ref.length);
-    write(ref.bytes, 0, ref.length);
+    write(ref.bytes, ref.offset, ref.length);
   }
 
   public void writeVarInt(int v)
@@ -280,7 +280,7 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
 
   public BytesRef asRef()
   {
-    return new BytesRef(buf, count);
+    return new BytesRef(buf, 0, count);
   }
 
   public ByteBuffer asByteBuffer()

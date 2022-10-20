@@ -27,7 +27,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -102,10 +101,7 @@ public class InFilter implements Filter
     if (bitmap == null) {
       return null;
     }
-    final boolean binary = values.size() < bitmap.getCardinality() * 0.25;
-    final Stream<ImmutableBitmap> stream = GuavaUtils.stateToInt(
-        values.stream(), (v, s) -> bitmap.getIndex(v, s, s == 0 || binary)).mapToObj(x -> bitmap.getBitmap(x)
-    );
+    final Stream<ImmutableBitmap> stream = bitmap.indexOf(values).mapToObj(v -> bitmap.getBitmap(v));
     return BitmapHolder.exact(DimFilters.union(selector.getBitmapFactory(), () -> stream.iterator()));
   }
 

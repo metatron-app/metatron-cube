@@ -19,7 +19,14 @@
 
 package io.druid.segment.data;
 
+import io.druid.common.guava.BytesRef;
 import io.druid.segment.Tools;
+
+import java.util.List;
+import java.util.function.ToIntBiFunction;
+import java.util.function.ToIntFunction;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 // common interface of non-compressed(GenericIndexed) and compressed dictionary
 public interface Dictionary<T> extends Indexed.BufferBacked<T>
@@ -41,6 +48,13 @@ public interface Dictionary<T> extends Indexed.BufferBacked<T>
 
   int indexOf(T value, int start, boolean binary);
 
+  default IntStream indexOf(List<T> values)
+  {
+    return search(values.stream(), (v, s) -> indexOf(v, s, true));
+  }
+
+  int indexOf(BytesRef bytes, int start, boolean binary);
+
   byte[] getAsRaw(int index);
 
   long getSerializedSize();
@@ -52,4 +66,24 @@ public interface Dictionary<T> extends Indexed.BufferBacked<T>
   <R> R apply(int index, Tools.Function<R> function);
 
   void close();
+
+  // for searching stream of sorted value
+  public static <F> IntStream search(Stream<F> stream, ToIntBiFunction<F, Integer> function)
+  {
+    return search(stream, function, 0);
+  }
+
+  public static <F> IntStream search(Stream<F> stream, ToIntBiFunction<F, Integer> function, int start)
+  {
+    return stream.mapToInt(new ToIntFunction<F>()
+    {
+      private int p = start;
+
+      @Override
+      public int applyAsInt(F input)
+      {
+        return p = function.applyAsInt(input, p < 0 ? -p - 1 : p);
+      }
+    }).filter(p -> p >= 0);
+  }
 }

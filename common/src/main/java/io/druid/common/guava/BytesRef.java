@@ -22,29 +22,47 @@ package io.druid.common.guava;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class BytesRef
 {
   public final byte[] bytes;
+  public final int offset;
   public final int length;
 
   @JsonCreator
   public BytesRef(byte[] bytes)
   {
-    this(bytes, bytes.length);
+    this(bytes, 0, bytes.length);
   }
 
-  public BytesRef(byte[] bytes, int length)
+  public BytesRef(byte[] bytes, int offset, int length)
   {
     this.bytes = bytes;
+    this.offset = offset;
     this.length = length;
   }
 
   @JsonValue
   public byte[] asArray()
   {
-    return Arrays.copyOfRange(bytes, 0, length);
+    return Arrays.copyOfRange(bytes, offset, offset + length);
+  }
+
+  public byte get(int index)
+  {
+    return bytes[offset + index];
+  }
+
+  public ByteBuffer toBuffer()
+  {
+    return ByteBuffer.wrap(bytes, offset, length);
+  }
+
+  public String toUTF8()
+  {
+    return new String(bytes, offset, length);
   }
 
   @Override
@@ -61,7 +79,7 @@ public class BytesRef
       return false;
     }
     for (int i = 0; i < length; i++) {
-      if (bytes[i] != bytesRef.bytes[i]) {
+      if (bytes[offset + i] != bytesRef.bytes[bytesRef.offset + i]) {
         return false;
       }
     }
@@ -73,7 +91,7 @@ public class BytesRef
   {
     int result = 1;
     for (int i = 0; i < length; i++) {
-      result = 31 * result + bytes[i];
+      result = 31 * result + bytes[offset + i];
     }
     return result;
   }

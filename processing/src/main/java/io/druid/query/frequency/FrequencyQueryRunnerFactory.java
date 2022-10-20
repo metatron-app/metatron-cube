@@ -127,7 +127,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
           @Override
           public void collect(Object[] values, BytesRef bytes)
           {
-            final long hashCode = Murmur3.hash64(bytes.bytes, 0, bytes.length);
+            final long hashCode = Murmur3.hash64(bytes);
             final int cardinality = sketch.getEstimatedCount(hashCode);
             if (size.intValue() > limit && cardinality < sortedMap.firstKey()) {
               return;

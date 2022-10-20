@@ -20,6 +20,7 @@
 package io.druid.segment.data;
 
 import io.druid.common.guava.BufferRef;
+import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.segment.Tools;
 
@@ -61,6 +62,12 @@ public class ToStringDictionary implements Dictionary<String>
   public int indexOf(String value, int start, boolean binary)
   {
     return StringUtils.isNullOrEmpty(value) ? -1 : Integer.valueOf(value);
+  }
+
+  @Override
+  public int indexOf(BytesRef bytes, int start, boolean binary)
+  {
+    return bytes.length == 0 ? -1 : Integer.valueOf(bytes.toUTF8());
   }
 
   @Override

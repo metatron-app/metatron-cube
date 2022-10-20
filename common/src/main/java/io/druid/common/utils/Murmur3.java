@@ -22,6 +22,7 @@ package io.druid.common.utils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import io.druid.common.guava.BytesRef;
 import org.apache.commons.lang.mutable.MutableLong;
 
 import java.io.UnsupportedEncodingException;
@@ -131,6 +132,10 @@ public class Murmur3
    */
   public static long hash64(byte[] data) {
     return hash64(data, 0, data.length, DEFAULT_SEED);
+  }
+
+  public static long hash64(BytesRef bytes) {
+    return hash64(bytes.bytes, bytes.offset, bytes.length);
   }
 
   public static long hash64(byte[] data, int offset, int length) {

@@ -19,6 +19,8 @@
 
 package io.druid.segment.data;
 
+import io.druid.common.guava.BytesRef;
+
 import java.nio.ByteBuffer;
 
 public interface ObjectStrategy<T>

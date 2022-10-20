@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.primitives.Ints;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntIterators;
@@ -222,6 +221,11 @@ public class IntList implements Iterable<Integer>, IntConsumer
       this.size = length;
     }
     return this;
+  }
+
+  public IntStream stream()
+  {
+    return IntStream.of(array());
   }
 
   @Override

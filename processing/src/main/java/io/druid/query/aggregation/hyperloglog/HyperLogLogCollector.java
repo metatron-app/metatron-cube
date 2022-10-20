@@ -988,7 +988,7 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
   @Override
   public void collect(Object[] values, BytesRef bytes)
   {
-    add(Murmur3.hash64(bytes.bytes, 0, bytes.length));
+    add(Murmur3.hash64(bytes));
   }
 
   @Override

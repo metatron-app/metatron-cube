@@ -90,7 +90,7 @@ public class BulkRow extends AbstractRow
     final byte[] compressed = new byte[Integer.BYTES + LZ4_COMP.maxCompressedLength(length)];
     System.arraycopy(Ints.toByteArray(length), 0, compressed, 0, Integer.BYTES);
     output.writeVarSizeBytes(new BytesRef(
-        compressed, Integer.BYTES + LZ4_COMP.compress(scratch, 0, length, compressed, Integer.BYTES)
+        compressed, 0, Integer.BYTES + LZ4_COMP.compress(scratch, 0, length, compressed, Integer.BYTES)
     ));
   }
 

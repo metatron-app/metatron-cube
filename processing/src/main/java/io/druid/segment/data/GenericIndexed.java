@@ -23,7 +23,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.primitives.Ints;
+import io.druid.collections.IntList;
 import io.druid.common.guava.BufferRef;
+import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.VLongUtils;
 import io.druid.data.input.BytesOutputStream;
@@ -36,8 +38,12 @@ import io.druid.segment.serde.ColumnPartSerde;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
+import java.util.function.IntUnaryOperator;
+import java.util.stream.IntStream;
 
 /**
  * A generic, flat storage mechanism.  Use static methods fromArray() or fromIterable() to construct.  If input
@@ -332,6 +338,123 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     return bufferIndexed.indexOf(value, start, binary);
   }
 
+  private static final int TRIVIAL = 12;
+  private static final double LOG2 = Math.log(2);
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public IntStream indexOf(List<T> values)
+  {
+    if (values.size() < TRIVIAL) {
+      return Dictionary.super.indexOf(values);
+    }
+    if (!isSorted() || !(theStrategy instanceof Comparator)) {
+      throw new UnsupportedOperationException("Reverse lookup not allowed.");
+    }
+    final Comparator<T> comparator = (Comparator<T>) theStrategy;
+    final IntList prefix = new IntList();
+    int ds = 0;
+    int vs = 0;
+    T d = get(ds);
+    T v = values.get(vs);
+    if (v == null) {
+      if (d == null) {
+        prefix.add(0);
+        d = get(++ds);
+      }
+      v = values.get(++vs);
+    } else if (d == null) {
+      d = get(++ds);
+    }
+    final int compare = comparator.compare(v, d);
+    if (compare == 0) {
+      prefix.add(ds);
+      ds++;
+      vs++;
+    } else if (compare < 0) {
+      vs = Collections.binarySearch(values, d, comparator);
+      if (vs < 0) {
+        vs = -vs - 1;
+      }
+    } else {
+      ds = indexOf(v, ds + 1, true);
+      if (ds > 0) {
+        prefix.add(ds);
+        ds++;
+        vs++;
+      }
+    }
+    final int ix = Collections.binarySearch(values, get(size - 1), comparator);
+    final int ve = ix < 0 ? -ix - 1 : ix + 1;
+    if (ve - vs <= 0) {
+      return prefix.isEmpty() ? IntStream.empty() : prefix.stream();
+    }
+
+    IntStream stream = IntStream.range(vs, ve).map(searchOp(values, ds)).filter(x -> x >= 0);
+    if (!prefix.isEmpty()) {
+      stream = IntStream.concat(prefix.stream(), stream);
+    }
+    return stream;
+  }
+
+  private IntUnaryOperator searchOp(List<T> values, int si)
+  {
+    if (theStrategy instanceof ObjectStrategy.RawComparable) {
+      return new Searcher<T>(si, size, values)
+      {
+        @Override
+        protected int search(T value, int start, boolean binary)
+        {
+          return bufferIndexed._rawIndexOf(value, start, binary);
+        }
+      };
+    }
+    return new Searcher<T>(si, size, values)
+    {
+      @Override
+      protected int search(T value, int start, boolean binary)
+      {
+        return bufferIndexed._indexOf(value, start, binary);
+      }
+    };
+  }
+
+  private static abstract class Searcher<T> implements IntUnaryOperator
+  {
+    private final int start;
+    private final int end;
+    private final List<T> values;
+
+    private int p;
+    private boolean binary;
+
+    private Searcher(int start, int end, List<T> values)
+    {
+      this.start = start;
+      this.end = end;
+      this.values = values;
+      this.p = start;
+    }
+
+    @Override
+    public int applyAsInt(int ix)
+    {
+      final int s = p < 0 ? -p - 1 : p;
+      if (ix % 100 == 0 && s < end) {
+        binary = (end - s) / (values.size() - (float) ix) > Math.log(end - s + 1) / LOG2;
+      }
+      return p = search(values.get(ix), s, ix == start || binary);
+    }
+
+    protected abstract int search(T value, int start, boolean binary);
+  }
+
+  @Override
+  public int indexOf(BytesRef bytes, int start, boolean binary)
+  {
+    return bufferIndexed.indexOf(bytes, start, binary);
+  }
+
   @Override
   public Iterator<T> iterator()
   {
@@ -542,8 +665,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return indexOf(value, 0, true);
     }
 
-    @SuppressWarnings("unchecked")
-    public int indexOf(T value, int start, boolean binbary)
+    public int indexOf(T value, int start, boolean binary)
     {
       if (!isSorted() || !(strategy instanceof Comparator)) {
         throw new UnsupportedOperationException("Reverse lookup not allowed.");
@@ -552,19 +674,48 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         return start == 0 && StringUtils.isNullOrEmpty(get(0)) ? 0 : -1;
       }
       if (strategy instanceof ObjectStrategy.RawComparable) {
-        return binbary ?
-               binarySearchRaw(strategy.toBytes(value), start) :
-               linearSearchRaw(strategy.toBytes(value), start);
+        return _rawIndexOf(value, start, binary);
       }
-      return binbary ?
-             binarySearch(value, (Comparator<T>) strategy, start) :
-             linearSearch(value, (Comparator<T>) strategy, start);
+      return _indexOf(value, start, binary);
+    }
+
+    private int _rawIndexOf(T value, int start, boolean binary)
+    {
+      final BytesRef find = new BytesRef(strategy.toBytes(value));
+      return binary ? binarySearchRaw(find, start) : linearSearchRaw(find, start);
+    }
+
+    @SuppressWarnings("unchecked")
+    private int _indexOf(T value, int start, boolean binary)
+    {
+      final Comparator<T> comparator = (Comparator<T>) strategy;
+      return binary ? binarySearch(value, comparator, start) : linearSearch(value, comparator, start);
+    }
+
+    public int indexOf(BytesRef bytes, int start, boolean binary)
+    {
+      if (!isSorted() || !(strategy instanceof Comparator)) {
+        throw new UnsupportedOperationException("Reverse lookup not allowed.");
+      }
+      if (bytes.length == 0) {
+        return start == 0 && StringUtils.isNullOrEmpty(get(0)) ? 0 : -1;
+      }
+      if (strategy instanceof ObjectStrategy.RawComparable) {
+        return binary ? binarySearchRaw(bytes, start) : linearSearchRaw(bytes, start);
+      }
+      final T find = strategy.fromByteBuffer(bytes.toBuffer());
+      return _indexOf(find, start, binary);
     }
 
     private int binarySearch(final T value, final Comparator<T> comparator, final int start)
     {
+      return binarySearch(value, comparator, start, size - 1);
+    }
+
+    private int binarySearch(final T value, final Comparator<T> comparator, final int start, final int end)
+    {
       int minIndex = start < 0 ? -(start + 1) : start;
-      int maxIndex = size - 1;
+      int maxIndex = end;
       while (minIndex <= maxIndex) {
         final int medianIndex = (minIndex + maxIndex) >>> 1;
         final int comparison = comparator.compare(get(medianIndex), value);
@@ -581,17 +732,22 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return -(minIndex + 1);
     }
 
-    private int binarySearchRaw(final byte[] target, final int start)
+    private int binarySearchRaw(final BytesRef value, final int start)
+    {
+      return binarySearchRaw(value, start, size - 1);
+    }
+
+    private int binarySearchRaw(final BytesRef value, final int start, final int end)
     {
       final ByteBuffer buffer = theBuffer;
       int minIndex = start < 0 ? -(start + 1) : start;
-      int maxIndex = size - 1;
+      int maxIndex = end;
       while (minIndex <= maxIndex) {
         final int medianIndex = (minIndex + maxIndex) >>> 1;
         final int offset = valueOffset(medianIndex);
         final int length = valueLength(medianIndex, offset);
         final int header = valueHeaderLength(medianIndex, length);
-        final int comparison = compareTo(buffer, offset + header, length, target);
+        final int comparison = compareTo(buffer, offset + header, length, value);
         if (comparison == 0) {
           return medianIndex;
         }
@@ -624,7 +780,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return -(size + 1);
     }
 
-    private int linearSearchRaw(final byte[] target, final int start)
+    private int linearSearchRaw(final BytesRef target, final int start)
     {
       final ByteBuffer buffer = theBuffer;
       final int x = start < 0 ? -(start + 1) : start;
@@ -649,13 +805,13 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     }
   }
 
-  private static int compareTo(final ByteBuffer buffer, final int offset, final int length, final byte[] value)
+  private static int compareTo(final ByteBuffer buffer, final int offset, final int length, final BytesRef value)
   {
     final int len1 = length;
     final int len2 = value.length;
     final int limit = Math.min(len1, len2);
     for (int i = 0; i < limit; i++) {
-      final int cmp = Integer.compare(buffer.get(offset + i) & 0xff, value[i] & 0xff);
+      final int cmp = Integer.compare(buffer.get(offset + i) & 0xff, value.get(i) & 0xff);
       if (cmp != 0) {
         return cmp;
       }

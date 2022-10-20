@@ -68,7 +68,7 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
 
     // Lets split up 64-bit hashcode into two 32-bit hashcodes and employ the technique mentioned
     // in the above paper
-    collect(Murmur3.hash64(key.bytes, 0, key.length));
+    collect(Murmur3.hash64(key));
   }
 
   @Override

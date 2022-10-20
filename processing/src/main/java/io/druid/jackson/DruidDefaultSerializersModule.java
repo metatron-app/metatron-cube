@@ -201,7 +201,7 @@ public class DruidDefaultSerializersModule extends SimpleModule
           public void serialize(BytesRef utf8, final JsonGenerator jgen, SerializerProvider provider)
               throws IOException
           {
-            jgen.writeBinary(utf8.bytes, 0, utf8.length);
+            jgen.writeBinary(utf8.bytes, utf8.offset, utf8.length);
           }
         }
     );
