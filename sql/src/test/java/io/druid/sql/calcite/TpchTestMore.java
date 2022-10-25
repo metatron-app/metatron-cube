@@ -313,4 +313,35 @@ public class TpchTestMore extends CalciteQueryTestHelper
         "TimeseriesQuery{dataSource='lineitem', filter=BoundDimFilter{L_SHIPMODE < T(lexicographic)}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fieldNames=[L_LINENUMBER, L_RETURNFLAG, L_SHIPMODE], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[a0]}"
     );
   }
+
+  @Test
+  public void test4129_1() throws Exception
+  {
+    testQuery("SELECT COUNT(*) FROM lineitem", new Object[]{30201L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_RECEIPTDATE = L_COMMITDATE", new Object[]{263L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_RECEIPTDATE != L_COMMITDATE", new Object[]{30201L - 263L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_RECEIPTDATE > L_COMMITDATE", new Object[]{18965L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_RECEIPTDATE >= L_COMMITDATE", new Object[]{18965L + 263L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_RECEIPTDATE < L_COMMITDATE", new Object[]{30201L - (18965L + 263L)});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_RECEIPTDATE <= L_COMMITDATE", new Object[]{30201L - 18965L});
+
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_COMMITDATE = L_RECEIPTDATE", new Object[]{263L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_COMMITDATE != L_RECEIPTDATE", new Object[]{30201L - 263L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_COMMITDATE < L_RECEIPTDATE", new Object[]{18965L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_COMMITDATE <= L_RECEIPTDATE", new Object[]{18965L + 263L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_COMMITDATE > L_RECEIPTDATE", new Object[]{30201L - (18965L + 263L)});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_COMMITDATE >= L_RECEIPTDATE", new Object[]{30201L - 18965L});
+  }
+
+  @Test
+  public void test4129_2() throws Exception
+  {
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1", new Object[]{7500L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE != L_COMMITDATE)", new Object[]{65L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE = L_COMMITDATE)", new Object[]{7500L - 65L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE > L_COMMITDATE)", new Object[]{2697L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE <= L_COMMITDATE)", new Object[]{7500L - 2697L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE < L_COMMITDATE)", new Object[]{4868L});
+    testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE >= L_COMMITDATE)", new Object[]{7500L - 4868L});
+  }
 }

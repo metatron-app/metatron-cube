@@ -19,7 +19,7 @@
 
 package io.druid.segment.data;
 
-import io.druid.common.guava.BytesRef;
+import io.druid.common.guava.BinaryRef;
 import io.druid.segment.Tools;
 
 import java.util.List;
@@ -27,6 +27,13 @@ import java.util.function.ToIntBiFunction;
 import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import static io.druid.segment.data.DictionaryCompareOp.EQ;
+import static io.druid.segment.data.DictionaryCompareOp.GT;
+import static io.druid.segment.data.DictionaryCompareOp.GTE;
+import static io.druid.segment.data.DictionaryCompareOp.LT;
+import static io.druid.segment.data.DictionaryCompareOp.LTE;
+import static io.druid.segment.data.DictionaryCompareOp.NEQ;
 
 // common interface of non-compressed(GenericIndexed) and compressed dictionary
 public interface Dictionary<T> extends Indexed.BufferBacked<T>
@@ -50,10 +57,20 @@ public interface Dictionary<T> extends Indexed.BufferBacked<T>
 
   default IntStream indexOf(List<T> values)
   {
-    return search(values.stream(), (v, s) -> indexOf(v, s, true));
+    return indexOf(values.stream());
   }
 
-  int indexOf(BytesRef bytes, int start, boolean binary);
+  default IntStream indexOf(Stream<T> stream)
+  {
+    return search(stream, (v, s) -> indexOf(v, s, true));
+  }
+
+  default IntStream indexOfRaw(Stream<BinaryRef> stream)
+  {
+    return search(stream, (v, s) -> indexOf(v, s, true));
+  }
+
+  int indexOf(BinaryRef bytes, int start, boolean binary);
 
   byte[] getAsRaw(int index);
 
@@ -61,7 +78,9 @@ public interface Dictionary<T> extends Indexed.BufferBacked<T>
 
   void scan(Tools.Scanner scanner);
 
-  void scan(int index, Tools.Scanner scanner);
+  <R> Stream<R> stream(Tools.Function<R> scanner);
+
+  void apply(int index, Tools.Scanner scanner);
 
   <R> R apply(int index, Tools.Function<R> function);
 
@@ -84,6 +103,19 @@ public interface Dictionary<T> extends Indexed.BufferBacked<T>
       {
         return p = function.applyAsInt(input, p < 0 ? -p - 1 : p);
       }
-    }).filter(p -> p >= 0);
+    });
+  }
+
+  public static DictionaryCompareOp compareOp(String name)
+  {
+    switch (name) {
+      case "==": return EQ;
+      case "!=": return NEQ;
+      case ">":  return GT;
+      case ">=": return GTE;
+      case "<":  return LT;
+      case "<=": return LTE;
+    }
+    return null;
   }
 }

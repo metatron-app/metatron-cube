@@ -1088,4 +1088,11 @@ public class GuavaUtils
       }
     };
   }
+
+  public static void swap(final Object[] x, final int a, final int b)
+  {
+    final Object t = x[a];
+    x[a] = x[b];
+    x[b] = t;
+  }
 }

@@ -27,6 +27,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.function.IntSupplier;
+import java.util.stream.IntStream;
 
 /**
  * Get a int an index (array or list lookup abstraction without boxing).
@@ -92,6 +93,11 @@ public interface IndexedInts extends IntIterable, Closeable
   int size();
 
   int get(int index);
+
+  default IntStream stream()
+  {
+    return IntStream.range(0, size()).map(this::get);
+  }
 
   default it.unimi.dsi.fastutil.ints.IntIterator iterator()
   {

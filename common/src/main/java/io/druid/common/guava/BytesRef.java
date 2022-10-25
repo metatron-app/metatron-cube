@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class BytesRef
+public class BytesRef implements BinaryRef
 {
   public final byte[] bytes;
   public final int offset;
@@ -50,16 +50,25 @@ public class BytesRef
     return Arrays.copyOfRange(bytes, offset, offset + length);
   }
 
+  @Override
+  public int length()
+  {
+    return length;
+  }
+
+  @Override
   public byte get(int index)
   {
     return bytes[offset + index];
   }
 
+  @Override
   public ByteBuffer toBuffer()
   {
     return ByteBuffer.wrap(bytes, offset, length);
   }
 
+  @Override
   public String toUTF8()
   {
     return new String(bytes, offset, length);

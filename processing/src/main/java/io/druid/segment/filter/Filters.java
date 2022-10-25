@@ -38,6 +38,8 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.cache.Cache;
 import io.druid.collections.IntList;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.BinaryRef;
+import io.druid.common.guava.BufferWindow;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IntPredicate;
@@ -67,7 +69,6 @@ import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.InDimFilter;
-import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -82,9 +83,11 @@ import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.Dictionary;
+import io.druid.segment.data.DictionaryCompareOp;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
@@ -96,6 +99,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import org.apache.commons.io.IOUtils;
 import org.roaringbitmap.IntIterator;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -106,6 +110,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  */
@@ -609,11 +614,6 @@ public class Filters
     if (filter instanceof DimFilter.BestEffort) {
       return filter.toFilter(selector).getBitmapIndex(context);
     }
-    if (filter instanceof MathExprFilter) {
-      Expr expr = Parser.parse(((MathExprFilter) filter).getExpression(), selector);
-      Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);
-      return toExprBitmap(cnf, context, false);
-    }
     String columnName = Iterables.getOnlyElement(Filters.getDependents(filter), null);
     if (columnName == null) {
       return null;
@@ -848,85 +848,6 @@ public class Filters
     return null;
   }
 
-  private static BitmapHolder toExprBitmap(Expression expr, FilterContext context, boolean withNot)
-  {
-    if (expr instanceof AndExpression) {
-      List<BitmapHolder> holders = Lists.newArrayList();
-      for (Expression child : ((AndExpression) expr).getChildren()) {
-        BitmapHolder extracted = toExprBitmap(child, context, withNot);
-        if (extracted != null) {
-          holders.add(extracted);
-        }
-      }
-      return BitmapHolder.intersection(context.factory, holders);
-    } else if (expr instanceof OrExpression) {
-      List<BitmapHolder> holders = Lists.newArrayList();
-      for (Expression child : ((OrExpression) expr).getChildren()) {
-        BitmapHolder extracted = toExprBitmap(child, context, withNot);
-        if (extracted == null) {
-          return null;
-        }
-        holders.add(extracted);
-      }
-      return BitmapHolder.union(context.factory, holders);
-    } else if (expr instanceof NotExpression) {
-      return toExprBitmap(((NotExpression) expr).getChild(), context, !withNot);
-    } else {
-      List<String> required = Parser.findRequiredBindings((Expr) expr);
-      if (required.size() != 1) {
-        return null;
-      }
-      String columnName = required.get(0);
-      BitmapIndexSelector selector = context.selector;
-      Column column = selector.getColumn(columnName);
-      if (column == null) {
-        return null;
-      }
-      ColumnCapabilities capabilities = column.getCapabilities();
-      if (Evals.isLeafFunction((Expr) expr, columnName)) {
-        FuncExpression funcExpr = (FuncExpression) expr;
-        if (capabilities.hasBitmapIndexes()) {
-          SecondaryIndex.WithRange index = asSecondaryIndex(selector, columnName);
-          BitmapHolder holder = leafToRanges(columnName, funcExpr, context, index, withNot);
-          if (holder != null) {
-            return holder;
-          }
-        }
-        SecondaryIndex index = getWhatever(selector, columnName, SecondaryIndex.class);
-        if (index instanceof SecondaryIndex.WithRange) {
-          long start = System.currentTimeMillis();
-          BitmapHolder holder = leafToRanges(columnName, funcExpr, context, (SecondaryIndex.WithRange) index, withNot);
-          if (holder != null) {
-            if (logger.isDebugEnabled()) {
-              long elapsed = System.currentTimeMillis() - start;
-              logger.debug(
-                  "%s%s : %,d / %,d (%,d msec)", withNot ? "!" : "", expr, holder.size(), context.numRows(), elapsed
-              );
-            }
-            return holder;
-          }
-        }
-        // can be null for complex column
-        GenericColumn generic = column.getGenericColumn();
-        if (generic != null) {
-          BitmapHolder holder = leafToRanges(columnName, funcExpr, context, asSecondaryIndex(generic), withNot);
-          if (holder != null) {
-            return holder;
-          }
-        }
-      }
-      if (capabilities.hasBitmapIndexes() || capabilities.getType() == ValueType.BOOLEAN) {
-        // traverse all possible values
-        BitmapHolder holder = ofExpr((Expr) expr).getBitmapIndex(context);
-        if (holder != null && withNot) {
-          holder = BitmapHolder.not(context.factory, holder, context.numRows());
-        }
-        return holder;
-      }
-      return null;
-    }
-  }
-
   public static Filter ofExpr(final Expr expr)
   {
     return new Filter()
@@ -934,20 +855,89 @@ public class Filters
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
-        final String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr), null);
-        if (dimension == null) {
-          return null;
+        return toExprBitmap(expr, context, false);
+      }
+
+      private BitmapHolder toExprBitmap(Expression expr, FilterContext context, boolean withNot)
+      {
+        if (expr instanceof AndExpression) {
+          List<BitmapHolder> holders = Lists.newArrayList();
+          for (Expression child : ((AndExpression) expr).getChildren()) {
+            BitmapHolder extracted = toExprBitmap(child, context, withNot);
+            if (extracted != null) {
+              holders.add(extracted);
+            }
+          }
+          return BitmapHolder.intersection(context.factory, holders);
+        } else if (expr instanceof OrExpression) {
+          List<BitmapHolder> holders = Lists.newArrayList();
+          for (Expression child : ((OrExpression) expr).getChildren()) {
+            BitmapHolder extracted = toExprBitmap(child, context, withNot);
+            if (extracted == null) {
+              return null;
+            }
+            holders.add(extracted);
+          }
+          return BitmapHolder.union(context.factory, holders);
+        } else if (expr instanceof NotExpression) {
+          return toExprBitmap(((NotExpression) expr).getChild(), context, !withNot);
         }
-        final BitmapIndexSelector selector = context.indexSelector();
-        final ColumnCapabilities capabilities = selector.getCapabilities(dimension);
-        if (capabilities == null) {
-          return null;
+        List<String> required = Parser.findRequiredBindings((Expr) expr);
+        if (required.size() == 1) {
+          return handleSoleDimension((Expr) expr, required.get(0), withNot, context);
+        }
+        if (required.size() == 2) {
+          return handleBiDimension((Expr) expr, withNot, context);
+        }
+        return null;
+      }
+
+      @Nullable
+      private BitmapHolder handleSoleDimension(Expr expr, String columnName, boolean withNot, FilterContext context)
+      {
+        BitmapIndexSelector selector = context.selector;
+        Column column = selector.getColumn(columnName);
+        if (column == null) {
+          return null;  // todo
+        }
+        ColumnCapabilities capabilities = column.getCapabilities();
+        if (Evals.isLeafFunction((Expr) expr, columnName) && isRangeCompatible(((FuncExpression) expr).op())) {
+          FuncExpression funcExpr = (FuncExpression) expr;
+          if (capabilities.hasBitmapIndexes()) {
+            SecondaryIndex.WithRange index = asSecondaryIndex(selector, columnName);
+            BitmapHolder holder = leafToRanges(columnName, funcExpr, context, index, withNot);
+            if (holder != null) {
+              return holder;
+            }
+          }
+          SecondaryIndex index = getWhatever(selector, columnName, SecondaryIndex.class);
+          if (index instanceof SecondaryIndex.WithRange) {
+            long start = System.currentTimeMillis();
+            BitmapHolder holder = leafToRanges(columnName, funcExpr, context, (SecondaryIndex.WithRange) index, withNot);
+            if (holder != null) {
+              if (logger.isDebugEnabled()) {
+                long elapsed = System.currentTimeMillis() - start;
+                logger.debug(
+                    "%s%s : %,d / %,d (%,d msec)", withNot ? "!" : "", expr, holder.size(), context.numRows(), elapsed
+                );
+              }
+              return holder;
+            }
+          }
+          // can be null for complex column
+          GenericColumn generic = column.getGenericColumn();
+          if (generic != null) {
+            BitmapHolder holder = leafToRanges(columnName, funcExpr, context, asSecondaryIndex(generic), withNot);
+            if (holder != null) {
+              return holder;
+            }
+          }
         }
         final List<ImmutableBitmap> bitmaps = Lists.newArrayList();
         final DSuppliers.HandOver<Object> handOver = new DSuppliers.HandOver<>();
-        final Expr.NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(dimension, handOver));
+        final Expr.NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(columnName, handOver));
 
-        final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
+        final BitmapIndex bitmapIndex = selector.getBitmapIndex(columnName);
         if (bitmapIndex != null) {
           final int cardinality = bitmapIndex.getCardinality();
           for (int i = 0; i < cardinality; i++) {
@@ -960,14 +950,93 @@ public class Filters
           for (Boolean bool : new Boolean[]{null, true, false}) {
             handOver.set(bool);
             if (expr.eval(binding).asBoolean()) {
-              bitmaps.add(selector.getBitmapIndex(dimension, bool));
+              bitmaps.add(selector.getBitmapIndex(columnName, bool));
             }
           }
         } else {
           return null;
         }
+        ImmutableBitmap bitmap = DimFilters.union(context.factory, bitmaps);
+        if (withNot) {
+          bitmap = DimFilters.complement(context.factory, bitmap, context.numRows());
+        }
+        return BitmapHolder.exact(bitmap);
+      }
 
-        return BitmapHolder.exact(DimFilters.union(selector.getBitmapFactory(), bitmaps));
+      private BitmapHolder handleBiDimension(Expr expr, boolean withNot, FilterContext context)
+      {
+        BitmapIndexSelector selector = context.selector;
+        Parser.SimpleBinaryOp binaryOp =
+            Parser.isBinaryRangeOpWith(expr, c -> selector.getCapabilities(c) != null &&
+                                                  selector.getCapabilities(c).isDictionaryEncoded() &&
+                                                  !selector.getCapabilities(c).hasMultipleValues());
+        if (binaryOp == null || Dictionary.compareOp(binaryOp.op) == null) {
+          return null;
+        }
+        DictionaryCompareOp op = Dictionary.compareOp(binaryOp.op);
+
+        Column column1 = selector.getColumn(binaryOp.left);
+        Column column2 = selector.getColumn(binaryOp.right);
+
+        BitmapIndex[] bitmaps = new BitmapIndex[]{column1.getBitmapIndex(), column2.getBitmapIndex()};
+        DictionaryEncodedColumn[] encoded = new DictionaryEncodedColumn[]{
+            column1.getDictionaryEncoding(), column2.getDictionaryEncoding()
+        };
+
+        if (bitmaps[0].getCardinality() > bitmaps[1].getCardinality()) {
+          op = op.flip();
+          GuavaUtils.swap(encoded, 0, 1);
+          GuavaUtils.swap(bitmaps, 0, 1);
+        }
+
+        try {
+          final int numRows = context.numRows();
+          final BufferWindow window = new BufferWindow();
+          final Stream<BinaryRef> stream = bitmaps[0].getDictionary().stream(
+              (ix, buffer, offset, length) -> window.set(buffer, offset, length)
+          );
+          final int[] indices = bitmaps[1].getDictionary().indexOfRaw(stream).map(op::ix).toArray();
+
+          ImmutableBitmap bitmap;
+          if (context.factory instanceof RoaringBitmapFactory) {
+            long p = System.currentTimeMillis();
+            final long[] words = makeWords(numRows);
+            for (int i = 0; i < words.length; i++) {
+              final int offset = i << ADDRESS_BITS_PER_WORD;
+              final int limit = Math.min(numRows - offset, BITS_PER_WORD);
+              long v = 0;
+              for (int x = 0; x < limit; x++) {
+                final int index = offset + x;
+                if (op.compare(indices[encoded[0].getSingleValueRow(index)], encoded[1].getSingleValueRow(index))) {
+                  v |= 1L << x;
+                }
+              }
+              words[i] = v;
+            }
+            final BitSet bitSet = BitSet.valueOf(words);
+            if (withNot) {
+              bitSet.flip(0, numRows);
+            }
+            bitmap = RoaringBitmapFactory.from(bitSet);
+            logger.info("Bitmap from index map, took %,d msec", System.currentTimeMillis() - p);
+          } else {
+            final MutableBitmap mutable = context.factory.makeEmptyMutableBitmap();
+            for (int i = 0; i < numRows; i++) {
+              if (op.compare(indices[encoded[0].getSingleValueRow(i)], encoded[1].getSingleValueRow(i))) {
+                mutable.add(i);
+              }
+            }
+            bitmap = context.factory.makeImmutableBitmap(mutable);
+            if (withNot) {
+              bitmap = DimFilters.complement(context.factory, bitmap, numRows);
+            }
+          }
+          return BitmapHolder.exact(bitmap);
+        }
+        finally {
+          IOUtils.closeQuietly(encoded[0]);
+          IOUtils.closeQuietly(encoded[1]);
+        }
       }
 
       @Override
@@ -987,6 +1056,20 @@ public class Filters
     };
   }
 
+  // from BitSet
+  private static final int ADDRESS_BITS_PER_WORD = 6;
+  private static final int BITS_PER_WORD = 1 << ADDRESS_BITS_PER_WORD;
+
+  private static long[] makeWords(int numRows)
+  {
+    return new long[wordIndex(numRows - 1) + 1];
+  }
+
+  private static int wordIndex(int bitIndex)
+  {
+    return bitIndex >> ADDRESS_BITS_PER_WORD;
+  }
+
   @SuppressWarnings("unchecked")
   private static <T extends SecondaryIndex> T getWhatever(BitmapIndexSelector bitmaps, String column, Class<T> type)
   {
@@ -998,6 +1081,13 @@ public class Filters
       bitmap = bitmaps.getMetricBitmap(column);
     }
     return type.isInstance(bitmap) ? (T) bitmap : null;
+  }
+
+  private static Set<String> RANGE_COMPATIBLE = ImmutableSet.of("between", "in", "isnull", "isnotnull");
+
+  private static boolean isRangeCompatible(String op)
+  {
+    return Expressions.isCompare(op) || RANGE_COMPATIBLE.contains(op.toLowerCase());
   }
 
   // constants need to be calculated apriori

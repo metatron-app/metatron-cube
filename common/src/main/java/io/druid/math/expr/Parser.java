@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -465,6 +466,40 @@ public class Parser
         return x -> ExprEval.of(cp.compare(left.get(), right.get()) != 0);
     }
     return null;
+  }
+
+  public static SimpleBinaryOp isBinaryRangeOpWith(Expr expr, Predicate<String> predicate)
+  {
+    if (expr instanceof BinaryOp && expr instanceof BooleanOp) {
+      BinaryOp binaryOp = (BinaryOp) expr;
+      if (!Expressions.isCompare(binaryOp.op())) {
+        return null;
+      }
+      Expr left = binaryOp.left();
+      Expr right = binaryOp.right();
+      if (Evals.isIdentifier(left) && Evals.isIdentifier(right)) {
+        String id1 = Evals.getIdentifier(left);
+        String id2 = Evals.getIdentifier(right);
+        if (predicate.apply(id1) && predicate.apply(id2)) {
+          return new SimpleBinaryOp(binaryOp.op(), id1, id2);
+        }
+      }
+    }
+    return null;
+  }
+
+  public static class SimpleBinaryOp
+  {
+    public final String op;
+    public final String left;
+    public final String right;
+
+    private SimpleBinaryOp(String op, String left, String right)
+    {
+      this.op = op;
+      this.left = left;
+      this.right = right;
+    }
   }
 
   public static interface Visitor<T>

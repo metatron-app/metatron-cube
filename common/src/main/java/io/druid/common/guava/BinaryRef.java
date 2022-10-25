@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,29 +17,17 @@
  * under the License.
  */
 
-package io.druid.segment.column;
+package io.druid.common.guava;
 
-import io.druid.segment.data.Dictionary;
-import io.druid.segment.data.IndexedInts;
-import org.roaringbitmap.IntIterator;
+import java.nio.ByteBuffer;
 
-import java.io.Closeable;
-import java.util.stream.IntStream;
-
-/**
- */
-public interface DictionaryEncodedColumn extends Closeable
+public interface BinaryRef
 {
   int length();
-  boolean hasMultipleValues();
-  int getSingleValueRow(int rowNum);
-  IndexedInts getMultiValueRow(int rowNum);
-  void scan(IntIterator iterator, IntScanner scanner);
-  String lookupName(int id);
-  int lookupId(String name);
-  int getCardinality();
 
-  IntStream getSingleValueRows();
-  Dictionary<String> dictionary();
-  DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary);
+  byte get(int index);
+
+  ByteBuffer toBuffer();
+
+  String toUTF8();
 }

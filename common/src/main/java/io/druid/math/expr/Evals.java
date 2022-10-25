@@ -239,6 +239,7 @@ public class Evals
     return true;
   }
 
+  // identifier + constants
   public static boolean isLeafFunction(Expr expr, String column)
   {
     if (!(expr instanceof Expression.FuncExpression)) {

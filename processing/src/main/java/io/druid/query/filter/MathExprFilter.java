@@ -27,6 +27,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.Expressions;
 import io.druid.math.expr.Parser;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
@@ -39,7 +40,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("math")
-public class MathExprFilter implements DimFilter
+public class MathExprFilter implements DimFilter, DimFilter.BestEffort
 {
   private final String expression;
 
@@ -90,7 +91,7 @@ public class MathExprFilter implements DimFilter
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return Filters.ofExpr(Parser.parse(expression, resolver));
+    return Filters.ofExpr(Expressions.convertToCNF(Parser.parse(expression, resolver), Parser.EXPR_FACTORY));
   }
 
   @Override

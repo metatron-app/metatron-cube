@@ -327,7 +327,7 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
               buf[0] = (byte) (ref.length() - minLen);
               valuesOut.write((ByteBuffer) wrap.position(0));
             }
-            valuesOut.write(ref.asBuffer());
+            valuesOut.write(ref.toBuffer());
             if (!fixedLen && ref.length() < maxLen) {
               valuesOut.write(ByteBuffer.wrap(PACK[maxLen - ref.length()]));
             }

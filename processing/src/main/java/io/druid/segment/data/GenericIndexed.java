@@ -24,6 +24,7 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
+import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.BufferRef;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
@@ -42,8 +43,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Spliterators;
 import java.util.function.IntUnaryOperator;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * A generic, flat storage mechanism.  Use static methods fromArray() or fromIterable() to construct.  If input
@@ -294,6 +298,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
+  public <R> Stream<R> stream(Tools.Function<R> function)
+  {
+    return bufferIndexed.scan(function);
+  }
+
+  @Override
   public T get(int index)
   {
     return bufferIndexed.get(validateIndex(index));
@@ -312,9 +322,9 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public void scan(int index, Tools.Scanner scanner)
+  public void apply(int index, Tools.Scanner scanner)
   {
-    bufferIndexed.scan(validateIndex(index), scanner);
+    bufferIndexed.apply(validateIndex(index), scanner);
   }
 
   @Override
@@ -450,7 +460,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public int indexOf(BytesRef bytes, int start, boolean binary)
+  public int indexOf(BinaryRef bytes, int start, boolean binary)
   {
     return bufferIndexed.indexOf(bytes, start, binary);
   }
@@ -582,6 +592,34 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       }
     }
 
+    private <R> Stream<R> scan(Tools.Function<R> function)
+    {
+      Iterator<R> iterator = new Iterator<R>()
+      {
+        private final ByteBuffer buffer = supplier.get();
+        private int index;
+        private int offset = valuesOffset;
+
+        @Override
+        public boolean hasNext()
+        {
+          return index < size;
+        }
+
+        @Override
+        public R next()
+        {
+          final int length = valueLength(index, offset);
+          final int header = valueHeaderLength(index, length);
+          final R ret = function.apply(index, buffer, offset + header, length);
+          offset += scanDelta(length, header);
+          index++;
+          return ret;
+        }
+      };
+      return StreamSupport.stream(Spliterators.spliterator(iterator, size, 0), false);
+    }
+
     protected int scanDelta(int length, int header)
     {
       return header + length;
@@ -637,7 +675,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return reuse;
     }
 
-    public final void scan(final int index, final Tools.Scanner function)
+    public final void apply(final int index, final Tools.Scanner function)
     {
       final int offset = valueOffset(index);
       final int length = valueLength(index, offset);
@@ -692,12 +730,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return binary ? binarySearch(value, comparator, start) : linearSearch(value, comparator, start);
     }
 
-    public int indexOf(BytesRef bytes, int start, boolean binary)
+    public int indexOf(BinaryRef bytes, int start, boolean binary)
     {
       if (!isSorted() || !(strategy instanceof Comparator)) {
         throw new UnsupportedOperationException("Reverse lookup not allowed.");
       }
-      if (bytes.length == 0) {
+      if (bytes.length() == 0) {
         return start == 0 && StringUtils.isNullOrEmpty(get(0)) ? 0 : -1;
       }
       if (strategy instanceof ObjectStrategy.RawComparable) {
@@ -732,12 +770,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return -(minIndex + 1);
     }
 
-    private int binarySearchRaw(final BytesRef value, final int start)
+    private int binarySearchRaw(final BinaryRef value, final int start)
     {
       return binarySearchRaw(value, start, size - 1);
     }
 
-    private int binarySearchRaw(final BytesRef value, final int start, final int end)
+    private int binarySearchRaw(final BinaryRef value, final int start, final int end)
     {
       final ByteBuffer buffer = theBuffer;
       int minIndex = start < 0 ? -(start + 1) : start;
@@ -780,7 +818,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return -(size + 1);
     }
 
-    private int linearSearchRaw(final BytesRef target, final int start)
+    private int linearSearchRaw(final BinaryRef target, final int start)
     {
       final ByteBuffer buffer = theBuffer;
       final int x = start < 0 ? -(start + 1) : start;
@@ -805,10 +843,10 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     }
   }
 
-  private static int compareTo(final ByteBuffer buffer, final int offset, final int length, final BytesRef value)
+  private static int compareTo(final ByteBuffer buffer, final int offset, final int length, final BinaryRef value)
   {
     final int len1 = length;
-    final int len2 = value.length;
+    final int len2 = value.length();
     final int limit = Math.min(len1, len2);
     for (int i = 0; i < limit; i++) {
       final int cmp = Integer.compare(buffer.get(offset + i) & 0xff, value.get(i) & 0xff);

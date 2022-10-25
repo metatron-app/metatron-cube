@@ -19,12 +19,13 @@
 
 package io.druid.segment.data;
 
+import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.BufferRef;
-import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.segment.Tools;
 
 import java.util.Iterator;
+import java.util.stream.Stream;
 
 public class ToStringDictionary implements Dictionary<String>
 {
@@ -65,9 +66,9 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
-  public int indexOf(BytesRef bytes, int start, boolean binary)
+  public int indexOf(BinaryRef bytes, int start, boolean binary)
   {
-    return bytes.length == 0 ? -1 : Integer.valueOf(bytes.toUTF8());
+    return bytes.length() == 0 ? -1 : Integer.valueOf(bytes.toUTF8());
   }
 
   @Override
@@ -95,7 +96,7 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
-  public void scan(int index, Tools.Scanner scanner)
+  public void apply(int index, Tools.Scanner scanner)
   {
     throw new UnsupportedOperationException("scan");
   }
@@ -104,6 +105,12 @@ public class ToStringDictionary implements Dictionary<String>
   public void scan(Tools.Scanner scanner)
   {
     throw new UnsupportedOperationException("scan");
+  }
+
+  @Override
+  public <R> Stream<R> stream(Tools.Function<R> scanner)
+  {
+    throw new UnsupportedOperationException("stream");
   }
 
   @Override

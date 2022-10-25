@@ -41,7 +41,7 @@ public class BufferRefTest
       ByteBuffer buffer = ByteBuffer.wrap(bs.toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
       BufferRef ref = BufferRef.of(buffer, 0, buffer.remaining());
       for (int i = 0; i < 1024; i++) {
-        Assert.assertEquals(i + ":" + bs, bs.get(i), ref.get(i));
+        Assert.assertEquals(i + ":" + bs, bs.get(i), ref.getBool(i));
       }
       bs.clear();
     }
@@ -57,7 +57,7 @@ public class BufferRefTest
     ByteBuffer buffer = ByteBuffer.wrap(bs.toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
     BufferRef ref = BufferRef.of(buffer, 0, buffer.remaining());
     for (int i = 0; i < bs.length(); i++) {
-      Assert.assertEquals(i + ":" + bs, bs.get(i), ref.get(i));
+      Assert.assertEquals(i + ":" + bs, bs.get(i), ref.getBool(i));
     }
     System.out.println(bs);
     System.out.println(toString(ref, bs.size()));
@@ -65,7 +65,7 @@ public class BufferRefTest
     ref = BufferRef.of(buffer, 1, buffer.remaining() - 1);
     System.out.println(toString(ref, bs.size()));
     for (int i = 0; i < bs.length(); i++) {
-      Assert.assertEquals(i + ":" + bs, bs.get(i + 8), ref.get(i));
+      Assert.assertEquals(i + ":" + bs, bs.get(i + 8), ref.getBool(i));
     }
   }
 
@@ -73,7 +73,7 @@ public class BufferRefTest
   {
     StringBuilder b = new StringBuilder("{");
     for (int i = 0; i < max; i++) {
-      if (ref.get(i)) {
+      if (ref.getBool(i)) {
         if (b.length() > 1) {
           b.append(", ");
         }
