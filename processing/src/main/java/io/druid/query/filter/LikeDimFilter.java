@@ -103,10 +103,10 @@ public class LikeDimFilter extends SingleInput
       }
       Node first = elements.get(0);
       String prefix = first instanceof Literal ? ((Literal) first).v : null;
-      return new LikeMatcher(prefix, compress(elements));
+      return new LikeMatcher(prefix, organize(elements));
     }
 
-    private static Node[] compress(List<Node> raw)
+    private static Node[] organize(List<Node> raw)
     {
       List<Node> compressed = Lists.newArrayList();
       for (int i = 0; i < raw.size(); i++) {
@@ -130,6 +130,20 @@ public class LikeDimFilter extends SingleInput
           compressed.add(new Percent());
         }
         i = x - 1;
+      }
+      for (int i = 1; i < compressed.size(); i++) {
+        if (compressed.get(i - 1) instanceof Percent && compressed.get(i) instanceof Literal) {
+          int remains = 0;
+          for (int j = i + 1; j < compressed.size(); j++) {
+            Node node = compressed.get(j);
+            if (node instanceof Underbar) {
+              remains++;
+            } else if (node instanceof Literal) {
+              remains += ((Literal) node).v.length();
+            }
+          }
+          compressed.set(i, ((Literal) compressed.get(i)).withSeekRemaining(remains));
+        }
       }
       return compressed.toArray(new Node[0]);
     }
@@ -222,7 +236,8 @@ public class LikeDimFilter extends SingleInput
       }
 //      Matcher matcher = Pattern.compile(toRegex(), Pattern.DOTALL).matcher("");
 //      return s -> matcher.reset(s).matches();
-      final State ix = new State();
+      final boolean end = elements[elements.length - 1] instanceof Percent;
+      final Index ix = new Index();
       return s -> {
         ix.reset();
         for (int i = 0; i < elements.length; i++) {
@@ -230,7 +245,7 @@ public class LikeDimFilter extends SingleInput
             return false;
           }
         }
-        return ix.seek || ix.index == s.length();
+        return end || ix.index == s.length();
       };
     }
 
@@ -244,15 +259,13 @@ public class LikeDimFilter extends SingleInput
       return new String(represent);
     }
 
-    private static class State
+    private static class Index
     {
-      int index;
-      boolean seek;
+      private int index;
 
       private void reset()
       {
         index = 0;
-        seek = false;
       }
     }
 
@@ -269,16 +282,21 @@ public class LikeDimFilter extends SingleInput
     {
       void regex(StringBuilder builder);
 
-      boolean process(String value, State ix);
+      boolean process(String value, Index ix);
 
       char represent();
     }
 
     private static class Literal implements Node
     {
-      private final String v;
+      final String v;
 
       private Literal(String v) {this.v = v;}
+
+      private Literal withSeekRemaining(int remains)
+      {
+        return new Seek(v, remains);
+      }
 
       @Override
       public void regex(StringBuilder builder)
@@ -287,17 +305,9 @@ public class LikeDimFilter extends SingleInput
       }
 
       @Override
-      public boolean process(String value, State ix)
+      public boolean process(String value, Index ix)
       {
-        if (ix.seek) {
-          final int x = value.indexOf(v, ix.index);
-          if (x < 0) {
-            return false;
-          }
-          ix.seek = false;
-          ix.index = x + v.length();
-          return true;
-        } else if (value.startsWith(v, ix.index)) {
+        if (value.startsWith(v, ix.index)) {
           ix.index += v.length();
           return true;
         }
@@ -308,6 +318,42 @@ public class LikeDimFilter extends SingleInput
       public char represent()
       {
         return 'L';
+      }
+
+      private static class Seek extends Literal
+      {
+        private final int remains;
+
+        private Seek(String v, int remains)
+        {
+          super(v);
+          this.remains = remains;
+        }
+
+        @Override
+        public boolean process(String value, Index ix)
+        {
+          final int x = indexOf(value, ix.index);
+          if (x < 0) {
+            return false;
+          }
+          ix.index = x + v.length();
+          return true;
+        }
+
+        @Nullable
+        private int indexOf(String value, int ix)
+        {
+          final int minimum = ix + v.length();
+          if (remains == 0) {
+            return value.length() >= minimum ? value.indexOf(v, ix) : -1;
+          }
+          final int end = value.length() - remains;
+          if (end >= minimum) {
+            return value.substring(0, end).indexOf(v, ix);
+          }
+          return -1;
+        }
       }
     }
 
@@ -329,7 +375,7 @@ public class LikeDimFilter extends SingleInput
       }
 
       @Override
-      public boolean process(String value, State ix)
+      public boolean process(String value, Index ix)
       {
         return (ix.index += c) < value.length();
       }
@@ -350,9 +396,8 @@ public class LikeDimFilter extends SingleInput
       }
 
       @Override
-      public boolean process(String value, State ix)
+      public boolean process(String value, Index ix)
       {
-        ix.seek = true;
         return true;
       }
 

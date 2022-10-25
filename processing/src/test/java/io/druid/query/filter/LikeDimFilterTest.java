@@ -233,7 +233,9 @@ public class LikeDimFilterTest
     Assert.assertEquals("L%L%L", matcher.represent());
 
     predicate = matcher.asPredicate();
+    Assert.assertFalse(predicate.apply("ECONOMY BRUSH"));
     Assert.assertFalse(predicate.apply("ECONOMY BRUSHED"));
+    Assert.assertFalse(predicate.apply("ECONOMYXX BRUSHE"));
     Assert.assertTrue(predicate.apply("ECONOMYXXBRUSHED"));
     Assert.assertTrue(predicate.apply("ECONOMY XX BRUSHED"));
     Assert.assertTrue(predicate.apply("ECONOMY  XXBRUSHED"));
