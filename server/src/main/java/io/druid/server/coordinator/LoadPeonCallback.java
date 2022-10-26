@@ -32,4 +32,13 @@ public interface LoadPeonCallback
    * @param canceled
    */
   void execute(boolean canceled);
+
+  static LoadPeonCallback notCanceled(Runnable runnable)
+  {
+    return canceled -> {
+      if (!canceled) {
+        runnable.run();
+      }
+    };
+  }
 }

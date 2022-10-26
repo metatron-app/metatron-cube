@@ -31,6 +31,7 @@ import io.druid.timeline.DataSegment;
 import javax.tools.FileObject;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -227,7 +228,8 @@ public class LocalDataSegmentPuller implements DataSegmentPuller, URIDataPuller
       @Override
       public boolean apply(Throwable input)
       {
-        return !(input instanceof InterruptedException)
+        return !(input instanceof FileNotFoundException)
+               && !(input instanceof InterruptedException)
                && !(input instanceof CancellationException)
                && (input instanceof Exception);
       }

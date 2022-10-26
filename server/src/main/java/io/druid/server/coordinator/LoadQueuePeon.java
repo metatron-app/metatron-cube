@@ -237,7 +237,7 @@ public class LoadQueuePeon
   )
   {
     synchronized (lock) {
-      if (currentlyProcessing != null && currentlyProcessing.getSegment().equals(segment)) {
+      if (currentlyProcessing != null && segment.equals(currentlyProcessing.getSegment())) {
         currentlyProcessing.addCallback(callback);
         return false;
       }

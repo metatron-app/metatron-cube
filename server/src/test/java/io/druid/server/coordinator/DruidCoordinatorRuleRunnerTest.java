@@ -21,6 +21,7 @@ package io.druid.server.coordinator;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -70,7 +71,8 @@ public class DruidCoordinatorRuleRunnerTest
   public void setUp()
   {
     coordinator = EasyMock.createMock(DruidCoordinator.class);
-    EasyMock.expect(coordinator.getRecentlyFailedServers(EasyMock.<DataSegment>anyObject())).andReturn(null)
+    EasyMock.expect(coordinator.getBlacklisted(true)).andReturn(ImmutableSet.of()).anyTimes();
+    EasyMock.expect(coordinator.getFailedServers(EasyMock.<DataSegment>anyObject())).andReturn(ImmutableSet.of())
             .anyTimes();
 
     mockPeon = EasyMock.createMock(LoadQueuePeon.class);

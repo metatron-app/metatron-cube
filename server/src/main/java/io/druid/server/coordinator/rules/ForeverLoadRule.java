@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import io.druid.client.DruidServer;
+import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.timeline.DataSegment;
 
@@ -42,12 +43,15 @@ public class ForeverLoadRule extends LoadRule.Always
     return new ForeverLoadRule(ImmutableMap.of(DruidServer.DEFAULT_TIER, replicant))
     {
       @Override
-      protected boolean assign(DataSegment segment, LoadQueuePeon peon, String reason)
+      protected boolean assign(
+          DataSegment segment,
+          LoadQueuePeon peon,
+          String reason,
+          LoadPeonCallback callback,
+          Predicate<DataSegment> predicate
+      )
       {
-        if (predicate.test(segment)) {
-          return peon.loadSegment(segment, reason, null, predicate);
-        }
-        return false;
+        return predicate.test(segment) && super.assign(segment, peon, reason, callback, predicate);
       }
     };
   }

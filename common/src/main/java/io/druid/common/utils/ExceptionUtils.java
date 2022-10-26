@@ -68,4 +68,14 @@ public class ExceptionUtils
       printEnclosedStackTrace(cause, trace, visited, errorStack);
     }
   }
+
+  public static boolean contains(Throwable t, Class<? extends Exception> find)
+  {
+    for (Throwable current = t; current != null; current = current.getCause()) {
+      if (find.isInstance(current)) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

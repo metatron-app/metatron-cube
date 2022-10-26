@@ -21,7 +21,6 @@ package io.druid.client;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -95,26 +94,12 @@ public class BatchServerInventoryView extends AbstractCuratorServerInventoryView
   private Iterable<DataSegment> filterInventory(final DruidServer container, Set<DataSegment> inventory)
   {
     Predicate<Pair<DruidServerMetadata, DataSegment>> predicate = Predicates.or(
-        defaultFilter,
-        Predicates.or(segmentPredicates.values())
+        defaultFilter, Predicates.or(segmentPredicates.values())
     );
 
     // make a copy of the set and not just a filtered view, in order to not keep all the segment data in memory
     return Iterables.transform(
-        Iterables.filter(
-            Iterables.transform(
-                inventory,
-                new Function<DataSegment, Pair<DruidServerMetadata, DataSegment>>()
-                {
-                  @Override
-                  public Pair<DruidServerMetadata, DataSegment> apply(DataSegment input)
-                  {
-                    return Pair.of(container.getMetadata(), input);
-                  }
-                }
-            ),
-            predicate
-        ),
+        Iterables.filter(Iterables.transform(inventory, ds -> Pair.of(container.getMetadata(), ds)), predicate),
         Pair.rhsFn()
     );
   }

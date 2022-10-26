@@ -59,7 +59,7 @@ public class DruidBroker
 
     serverInventoryView.registerSegmentCallback(
         Execs.newDirectExecutorService(),
-        new ServerView.BaseSegmentCallback()
+        new ServerView.SegmentCallback()
         {
           @Override
           public ServerView.CallbackAction segmentViewInitialized()

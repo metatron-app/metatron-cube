@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import io.druid.common.DateTimes;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.server.coordinator.DruidCluster;
@@ -35,8 +36,10 @@ import io.druid.server.coordinator.rules.Rule;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -73,11 +76,11 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     int missingRules = 0;
     int notAssignedCount = 0;
     for (Map.Entry<String, Iterable<DataSegment>> entry : getTargetSegments(params).entrySet()) {
-      segments++;
       List<Rule> rules = databaseRuleManager.getRulesWithDefault(entry.getKey());
       boolean notAssigned = true;
       boolean foundMatchingRule = false;
       for (DataSegment segment : entry.getValue()) {
+        segments++;
         for (Rule rule : rules) {
           if (rule.appliesTo(segment, now)) {
             notAssigned &= rule.run(coordinator, params, segment);
@@ -101,7 +104,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     }
     final int maxNotAssigned = Math.max(10, Math.min((int)(segments * 0.3), MAX_NOT_ASSIGNED));
     if (notAssignedCount >= maxNotAssigned) {
-      logCluster(cluster);
+      logCluster(cluster, notAssignedCount);
     }
     if (!segmentsWithMissingRules.isEmpty()) {
       log.makeAlert("Unable to find matching rules!")
@@ -113,9 +116,9 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     return params;
   }
 
-  private void logCluster(DruidCluster cluster)
+  private void logCluster(DruidCluster cluster, int notAssignedCount)
   {
-    log.warn("Some segments are not assigned.. something wrong?");
+    log.warn("Some [%d] segments are not assigned.. something wrong?", notAssignedCount);
     for (Map.Entry<String, MinMaxPriorityQueue<ServerHolder>> entry : cluster.getCluster().entrySet()) {
       String tier = entry.getKey();
       MinMaxPriorityQueue<ServerHolder> servers = entry.getValue();
@@ -135,14 +138,43 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
 
   protected Map<String, Iterable<DataSegment>> getTargetSegments(DruidCoordinatorRuntimeParams coordinatorParam)
   {
-    final Map<String, Iterable<DataSegment>> segments = coordinatorParam.getNonOvershadowedSegments();
+    Set<DataSegment> blacklist = coordinator.getBlacklisted(true);
+    Map<String, Iterable<DataSegment>> segments = coordinatorParam.getNonOvershadowedSegments();
+    if (!blacklist.isEmpty()) {
+      log.debug("Blacklist.. %s", Logger.lazy(() -> forLog(blacklist)));
+      segments = Maps.transformValues(
+          segments, list -> Iterables.filter(list, segment -> !blacklist.contains(segment))
+      );
+    }
+    SegmentReplicantLookup replicantLookup = coordinatorParam.getSegmentReplicantLookup();
     if (!coordinatorParam.isMajorTick()) {
-      final SegmentReplicantLookup replicantLookup = coordinatorParam.getSegmentReplicantLookup();
-      return Maps.transformValues(
+      segments = Maps.transformValues(
           segments,
           list -> Iterables.filter(list, segment -> replicantLookup.getTotalReplicants(segment.getIdentifier()) == 0)
       );
     }
     return segments;
+  }
+
+  private static final int THRESHOLD = 10;
+
+  private static String forLog(Set<DataSegment> blacklist)
+  {
+    if (blacklist.isEmpty()) {
+      return "[]";
+    }
+    int limit = Math.min(blacklist.size(), THRESHOLD);
+    Iterator<DataSegment> iterator = blacklist.iterator();
+    StringBuilder b = new StringBuilder();
+    b.append('[').append(iterator.next().getIdentifier());
+    for (int i = 1; i < limit; i++) {
+      b.append(", ").append(iterator.next().getIdentifier());
+    }
+    if (blacklist.size() > THRESHOLD) {
+      b.append(",.. ").append(blacklist.size() - THRESHOLD).append(" more]");
+    } else {
+      b.append(']');
+    }
+    return b.toString();
   }
 }

@@ -21,7 +21,6 @@ package io.druid.client.coordinator;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.ServiceClient;
@@ -29,8 +28,8 @@ import io.druid.curator.discovery.ServerDiscoverySelector;
 import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.guice.annotations.Self;
 import io.druid.jackson.ObjectMappers;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.http.client.HttpClient;
-import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.server.DruidNode;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.lang.StringUtils;
@@ -43,7 +42,9 @@ import java.util.Set;
 
 public class CoordinatorClient extends ServiceClient
 {
-  private final DruidNode server;
+  private static final Logger LOG = new Logger(CoordinatorClient.class);
+
+  private final String reportFNN;
 
   @Inject
   public CoordinatorClient(
@@ -54,7 +55,7 @@ public class CoordinatorClient extends ServiceClient
   )
   {
     super("/druid/coordinator/v1", client, jsonMapper, selector);
-    this.server = server;
+    this.reportFNN = String.format("/report/segment/FileNotFound/%s", server.getHostAndPort());
   }
 
   public List<String> findDatasources(List<String> dataSources)
@@ -97,14 +98,15 @@ public class CoordinatorClient extends ServiceClient
     return execute(HttpMethod.POST, resource, segments, ObjectMappers.MAP_REF);
   }
 
-  public StatusResponseHolder reportFileNotFound(DataSegment[] segments)
+  public void reportFileNotFound(DataSegment[] segments)
   {
-    String resource = String.format("/report/segment/FileNotFound/%s", server.getHostAndPort());
     try {
-      return execute(makeRequest(HttpMethod.POST, resource), segments);
+      if (segments.length > 0) {
+        execute(makeRequest(HttpMethod.POST, reportFNN), segments);
+      }
     }
-    catch (Exception e) {
-      throw Throwables.propagate(e);
+    catch (Throwable t) {
+      LOG.info(t, "failed report FileNotFound");
     }
   }
 }

@@ -38,13 +38,13 @@ import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.ServerInventoryView;
 import io.druid.client.ServerView;
+import io.druid.client.ServerView.CallbackAction;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.collections.String2IntMap;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.curator.discovery.ServiceAnnouncer;
-import io.druid.data.KeyedData.StringKeyed;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.CoordinatorIndexingServiceHelper;
 import io.druid.guice.annotations.Self;
@@ -60,7 +60,6 @@ import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.metadata.MetadataSegmentManager;
 import io.druid.server.DruidNode;
-import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.server.coordinator.helper.DruidCoordinatorCleanupOvershadowed;
 import io.druid.server.coordinator.helper.DruidCoordinatorCleanupUnneeded;
@@ -81,7 +80,6 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -232,7 +230,7 @@ public class DruidCoordinator
         new ServerView.ServerCallback()
         {
           @Override
-          public ServerView.CallbackAction serverAdded(DruidServer server)
+          public CallbackAction serverAdded(DruidServer server)
           {
             if (leader && prevParam != null) {
               prevParam.stopNow();
@@ -240,28 +238,32 @@ public class DruidCoordinator
             if (leader && isClusterReady(false)) {
               balanceNow();
             }
-            return ServerView.CallbackAction.CONTINUE;
+            return CallbackAction.CONTINUE;
           }
 
           @Override
-          public ServerView.CallbackAction serverRemoved(DruidServer server)
+          public CallbackAction serverRemoved(DruidServer server)
           {
             if (leader && isClusterReady(false)) {
               serverDown(server);
             }
-            return ServerView.CallbackAction.CONTINUE;
+            return CallbackAction.CONTINUE;
           }
 
           @Override
-          public ServerView.CallbackAction serverUpdated(DruidServer server)
+          public CallbackAction serverUpdated(DruidServer server)
           {
             if (leader && server.isDecommissioned()) {
               balanceNow();
             }
-            return ServerView.CallbackAction.CONTINUE;
+            return CallbackAction.CONTINUE;
           }
         }
     );
+    serverInventoryView.registerSegmentCallback(exec, ServerView.segmentAdded((server, segment) -> {
+      success(segment);
+      return CallbackAction.CONTINUE;
+    }));
   }
 
   public boolean isLeader()
@@ -424,26 +426,18 @@ public class DruidCoordinator
       loadPeon.loadSegment(
           segment,
           String.format("balancing from %s", fromServer.getName()),
-          new LoadPeonCallback()
-          {
-            @Override
-            public void execute(boolean canceled)
-            {
-              if (canceled) {
-                return;   // nothing to do
-              }
-              try {
-                if (curator.checkExists().forPath(toLoadQueueSegPath) == null) {
-                  dropPeon.dropSegment(segment, String.format("balanced to %s", toServer.getName()), callback, null);
-                } else if (callback != null) {
-                  callback.execute(canceled);
-                }
-              }
-              catch (Exception e) {
-                throw Throwables.propagate(e);
+          LoadPeonCallback.notCanceled(() -> {
+            try {
+              if (curator.checkExists().forPath(toLoadQueueSegPath) == null) {
+                dropPeon.dropSegment(segment, String.format("balanced to %s", toServer.getName()), callback, null);
+              } else if (callback != null) {
+                callback.execute(false);
               }
             }
-          },
+            catch (Exception e) {
+              throw Throwables.propagate(e);
+            }
+          }),
           validity
       );
       return true;
@@ -647,15 +641,14 @@ public class DruidCoordinator
       return scheduleNow(segments).get(waitTimeout, TimeUnit.MILLISECONDS);
     }
     final CountDownLatch latch = new CountDownLatch(segments.size());
-    final ServerView.BaseSegmentCallback callback = new ServerView.BaseSegmentCallback()
-    {
-      @Override
-      public ServerView.CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment)
-      {
-        latch.countDown();
-        return ServerView.CallbackAction.CONTINUE;
-      }
-    };
+    final ServerView.SegmentCallback callback = ServerView.segmentAdded(
+        (server, segment) -> {
+          if (segments.contains(segment)) {
+            latch.countDown();
+          }
+          return latch.getCount() == 0 ? CallbackAction.UNREGISTER : CallbackAction.CONTINUE;
+        }
+    );
     serverInventoryView.registerSegmentCallback(exec, callback);
 
     long start = System.currentTimeMillis();
@@ -763,55 +756,94 @@ public class DruidCoordinator
 
   // keep latest only ?
   // seemed possible to disable the segment
-  private final Map<DataSegment, Set<StringKeyed<Long>>> reports = Maps.newHashMap();
+  private final Map<DataSegment, Report> reports = Maps.newHashMap();
 
   public void reportSegmentFileNotFound(String server, Set<DataSegment> segments)
   {
-    final long current = System.currentTimeMillis();
-    final long threshold = current - (config.getCoordinatorPeriod().getMillis() << 2);
+    log.info("FileNotFoundException reported from [%s], [%d] segments", server, segments.size());
     synchronized (reports) {
       for (DataSegment segment : segments) {
-        Set<StringKeyed<Long>> report = reports.get(segment);
-        if (report == null) {
-          reports.put(segment, report = Sets.newHashSet());
-        }
-        expire(report, threshold);
-        report.add(StringKeyed.of(server, current));
+        reports.computeIfAbsent(segment, k -> new Report()).failed(server);
       }
     }
   }
 
-  public Pair<Long, Set<String>> getRecentlyFailedServers(DataSegment segment)
+  private static class Report
+  {
+    private int tick;
+    private int backoff = 2;
+    private final Set<String> servers = Sets.newHashSet();
+
+    private void failed(String server)
+    {
+      servers.add(server);
+    }
+
+    private boolean tick()
+    {
+      if (tick++ >= backoff) {
+        tick = 0;
+        backoff = Math.min(64, backoff << 1);
+        return false;
+      }
+      return true;
+    }
+
+    private boolean isBlacklisted()
+    {
+      return tick < backoff;
+    }
+  }
+
+  public Set<DataSegment> getBlacklisted(boolean tick)
+  {
+    Predicate<Report> predicate = tick ? Report::tick : Report::isBlacklisted;
+    synchronized (reports) {
+      if (reports.isEmpty()) {
+        return ImmutableSet.of();
+      }
+      Set<DataSegment> blacklist = Sets.newHashSet();
+      for (Map.Entry<DataSegment, Report> entry : reports.entrySet()) {
+        if (predicate.test(entry.getValue())) {
+          blacklist.add(entry.getKey());
+        }
+      }
+      return blacklist;
+    }
+  }
+
+  public void clearReports()
   {
     synchronized (reports) {
-      final Set<StringKeyed<Long>> report = reports.get(segment);
-      if (report != null) {
-        expire(report, System.currentTimeMillis() - (config.getCoordinatorPeriod().getMillis() << 2));
-        if (report.isEmpty()) {
-          reports.remove(segment);
-          return null;
-        }
-        Long max = null;
-        final Set<String> servers = Sets.newHashSet();
-        for (StringKeyed<Long> server : report) {
-          servers.add(server.key);
-          if (max == null || max < server.value) {
-            max = server.value;
-          }
-        }
-        return Pair.of(max, servers);
-      }
-      return null;
+      reports.clear();
     }
   }
 
-  private void expire(Set<StringKeyed<Long>> report, long threshold)
+  public Set<String> getFailedServers(DataSegment segment)
   {
-    final Iterator<StringKeyed<Long>> iterator = report.iterator();
-    while (iterator.hasNext()) {
-      if (iterator.next().value < threshold) {
-        iterator.remove();
+    synchronized (reports) {
+      final Report report = reports.get(segment);
+      if (report != null) {
+        return report.servers;
       }
+      return ImmutableSet.of();
+    }
+  }
+
+  public void retryFailed(DataSegment segment)
+  {
+    synchronized (reports) {
+      final Report report = reports.get(segment);
+      if (report != null) {
+        report.servers.clear();
+      }
+    }
+  }
+
+  public void success(DataSegment segment)
+  {
+    synchronized (reports) {
+      reports.remove(segment);
     }
   }
 

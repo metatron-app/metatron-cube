@@ -21,6 +21,7 @@ package io.druid.server.coordinator.rules;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
@@ -88,7 +89,7 @@ public class LoadRuleTest
     emitter.start();
     coordinator = EasyMock.createMock(DruidCoordinator.class);
     EasyMock.expect(coordinator.isAvailable(EasyMock.anyObject())).andReturn(true).anyTimes();
-    EasyMock.expect(coordinator.getRecentlyFailedServers(EasyMock.<DataSegment>anyObject())).andReturn(null)
+    EasyMock.expect(coordinator.getFailedServers(EasyMock.<DataSegment>anyObject())).andReturn(ImmutableSet.of())
             .anyTimes();
     EasyMock.replay(coordinator);
 

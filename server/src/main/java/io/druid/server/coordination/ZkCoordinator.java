@@ -26,6 +26,7 @@ import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
 import io.druid.client.coordinator.CoordinatorClient;
+import io.druid.common.utils.ExceptionUtils;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
@@ -36,6 +37,7 @@ import io.druid.segment.loading.SegmentLoaderConfig;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.io.IOUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
@@ -58,6 +60,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -80,7 +83,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
   private final ScheduledExecutorService exec;
   private final ConcurrentSkipListSet<DataSegment> segmentsToDelete;
   private final Set<DataSegment> fileNotFoundSegment;
-  private final CoordinatorClient coordinatorClient;
+
+  private final ScheduledFuture report;
 
   private volatile PathChildrenCache loadQueueCache;
   private volatile boolean started = false;
@@ -107,11 +111,23 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     this.announcer = announcer;
     this.serverAnnouncer = serverAnnouncer;
     this.serverManager = serverManager;
-    this.coordinatorClient = coordinatorClient;
 
     this.exec = factory.create(1, "ZkCoordinator-Exec--%d");
     this.segmentsToDelete = new ConcurrentSkipListSet<>();
-    this.fileNotFoundSegment = new HashSet<>();
+
+    final long reportInterval = config.getReportFileNotFoundIntervalMillis();
+    if (reportInterval > 0) {
+      this.fileNotFoundSegment = new HashSet<>();
+      this.report = exec.scheduleAtFixedRate(
+          () -> coordinatorClient.reportFileNotFound(snapshot()),
+          reportInterval,
+          reportInterval,
+          TimeUnit.MILLISECONDS
+      );
+    } else {
+      fileNotFoundSegment = null;
+      report = null;
+    }
   }
 
   @LifecycleStart
@@ -234,17 +250,20 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       if (!started) {
         return;
       }
+      started = false;
 
+      if (report != null) {
+        report.cancel(true);
+      }
       try {
-        loadQueueCache.close();
         serverAnnouncer.unannounce();
       }
       catch (Exception e) {
         throw Throwables.propagate(e);
       }
       finally {
+        IOUtils.closeQuietly(loadQueueCache);
         loadQueueCache = null;
-        started = false;
       }
     }
   }
@@ -351,8 +370,13 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       loaded = serverManager.loadSegment(segment);
     }
     catch (Exception e) {
-      handleFileNotFound(segment, e);
-      removeSegment(segment, callback);
+      // someone removed segment in deep storage..?
+      final boolean fnf = ExceptionUtils.contains(e, FileNotFoundException.class);
+      if (fnf) {
+        handleFileNotFound(segment, e);
+      } else {
+        removeSegment(segment, callback);
+      }
       throw new SegmentLoadingException(e, "Exception loading segment[%s]", segment.getIdentifier());
     }
 
@@ -373,41 +397,25 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     return loaded;
   }
 
-  // someone removed segment in deep storage..
   private void handleFileNotFound(DataSegment segment, Exception e)
   {
-    if (config.getReportFileNotFoundIntervalMillis() > 0 && hasException(e, FileNotFoundException.class)) {
+    if (fileNotFoundSegment != null) {
       synchronized (fileNotFoundSegment) {
         fileNotFoundSegment.add(segment.withMinimum());
       }
-      exec.schedule(
-          new Runnable() {
-            @Override
-            public void run()
-            {
-              DataSegment[] segments;
-              synchronized (fileNotFoundSegment) {
-                segments = fileNotFoundSegment.toArray(new DataSegment[0]);
-                fileNotFoundSegment.clear();
-              }
-              if (segments.length > 0) {
-                coordinatorClient.reportFileNotFound(segments);
-              }
-            }
-          },
-          config.getReportFileNotFoundIntervalMillis(),
-          TimeUnit.MILLISECONDS);
     }
   }
 
-  private boolean hasException(Exception exception, Class<? extends Exception> find)
+  private DataSegment[] snapshot()
   {
-    for (Throwable current = exception; current != null; current = current.getCause()) {
-      if (find.isInstance(current)) {
-        return true;
+    synchronized (fileNotFoundSegment) {
+      try {
+        return fileNotFoundSegment.toArray(new DataSegment[0]);
+      }
+      finally {
+        fileNotFoundSegment.clear();
       }
     }
-    return false;
   }
 
   @Override

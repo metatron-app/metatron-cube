@@ -46,6 +46,7 @@ import org.jets3t.service.model.StorageObject;
 
 import javax.tools.FileObject;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -269,7 +270,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
       @Override
       public boolean apply(Throwable e)
       {
-        if (e == null) {
+        if (e == null || e instanceof FileNotFoundException) {
           return false;
         }
         if (e instanceof ServiceException) {

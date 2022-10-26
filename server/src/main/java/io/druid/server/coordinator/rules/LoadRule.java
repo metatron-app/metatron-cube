@@ -23,10 +23,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
-import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.server.coordinator.BalancerStrategy;
@@ -34,6 +32,7 @@ import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
+import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.coordinator.SegmentReplicantLookup;
 import io.druid.server.coordinator.ServerHolder;
@@ -44,6 +43,7 @@ import org.joda.time.Interval;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * LoadRules indicate the number of replicants a segment should have in a given tier.
@@ -57,11 +57,7 @@ public abstract class LoadRule implements Rule
   @Override
   public boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment)
   {
-    final Pair<Long, Set<String>> fails = coordinator.getRecentlyFailedServers(segment);
-    if (fails != null && fails.rhs.size() > 3) {
-      log.info("Skip segment [%s] for recent [%s] fails on %s", segment, DateTimes.utc(fails.lhs), fails.rhs);
-      return false;
-    }
+    final Set<String> failed = coordinator.getFailedServers(segment);
     final String segmentId = segment.getIdentifier();
     final CoordinatorStats stats = params.getCoordinatorStats();
 
@@ -82,18 +78,21 @@ public abstract class LoadRule implements Rule
       if (totalReplicantsInTier >= expectedReplicantsInTier) {
         continue;
       }
-      final List<ServerHolder> servers = filterServers(serverQueue, fails);
-      if (servers.isEmpty()) {
+      final List<ServerHolder> servers = filterServers(serverQueue, failed);
+      if (!failed.isEmpty() && servers.isEmpty()) {
+        coordinator.retryFailed(segment);
         continue;
       }
 
       int assigned = assign(
+          coordinator,
           tier,
           segment,
           totalReplicantsInTier,
           expectedReplicantsInTier,
           params.getBalancerStrategy(),
-          servers
+          servers,
+          !failed.isEmpty()
       );
       if (assigned > 0) {
         stats.addToTieredStat(assignedCount, tier, assigned);
@@ -108,21 +107,23 @@ public abstract class LoadRule implements Rule
     return totalReplicantsInCluster == 0;
   }
 
-  private List<ServerHolder> filterServers(Iterable<ServerHolder> servers, Pair<Long, Set<String>> fails)
+  private List<ServerHolder> filterServers(Iterable<ServerHolder> servers, Set<String> fails)
   {
-    if (fails != null && !fails.rhs.isEmpty()) {
-      servers = Iterables.filter(servers, server -> !fails.rhs.contains(server.getName()));
+    if (!fails.isEmpty()) {
+      servers = Iterables.filter(servers, server -> !fails.contains(server.getName()));
     }
     return Lists.newArrayList(servers);
   }
 
   private int assign(
+      final DruidCoordinator coordinator,
       final String tier,
       final DataSegment segment,
       final int totalReplicantsInTier,
       final int expectedReplicantsInTier,
       final BalancerStrategy strategy,
-      final List<ServerHolder> serverHolderList
+      final List<ServerHolder> serverHolderList,
+      final boolean failedBefore
   )
   {
     int assigned = 0;
@@ -140,11 +141,8 @@ public abstract class LoadRule implements Rule
         break;
       }
 
-      if (assign(
-          segment,
-          holder.getPeon(),
-          StringUtils.safeFormat("under-replicated(%d/%d)", currReplicantsInTier, expectedReplicantsInTier)
-      )) {
+      String reason = String.format("under-replicated(%d/%d)", currReplicantsInTier, expectedReplicantsInTier);
+      if (assign(segment, holder.getPeon(), reason, null, null)) {
         ++assigned;
         ++currReplicantsInTier;
       }
@@ -153,9 +151,15 @@ public abstract class LoadRule implements Rule
     return assigned;
   }
 
-  protected boolean assign(DataSegment segment, LoadQueuePeon peon, String reason)
+  protected boolean assign(
+      DataSegment segment,
+      LoadQueuePeon peon,
+      String reason,
+      LoadPeonCallback callback,
+      Predicate<DataSegment> predicate
+  )
   {
-    return peon.loadSegment(segment, reason, null, null);
+    return peon.loadSegment(segment, reason, callback, predicate);
   }
 
   private void drop(DataSegment segment, DruidCoordinatorRuntimeParams params, Map<String, Integer> tieredReplicants)

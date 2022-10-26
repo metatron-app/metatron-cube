@@ -23,6 +23,7 @@ import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 
 import java.util.concurrent.Executor;
+import java.util.function.BiFunction;
 
 /**
  */
@@ -126,7 +127,10 @@ public interface ServerView
      * @return UNREGISTER if the callback has completed its work and should be unregistered.  CONTINUE if the callback
      * should remain registered.
      */
-    CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment);
+    default CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment)
+    {
+      return CallbackAction.CONTINUE;
+    }
 
     /**
      * Called when a segment is removed from a server.
@@ -143,29 +147,26 @@ public interface ServerView
      * @return UNREGISTER if the callback has completed its work and should be unregistered.  CONTINUE if the callback
      * should remain registered.
      */
-    CallbackAction segmentRemoved(DruidServerMetadata server, DataSegment segment);
+    default CallbackAction segmentRemoved(DruidServerMetadata server, DataSegment segment)
+    {
+      return CallbackAction.CONTINUE;
+    }
 
-    CallbackAction segmentViewInitialized();
+    default CallbackAction segmentViewInitialized()
+    {
+      return CallbackAction.CONTINUE;
+    }
   }
 
-  static abstract class BaseSegmentCallback implements SegmentCallback
+  static SegmentCallback segmentAdded(BiFunction<DruidServerMetadata, DataSegment, CallbackAction> function)
   {
-    @Override
-    public CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment)
+    return new SegmentCallback()
     {
-      return CallbackAction.CONTINUE;
-    }
-
-    @Override
-    public CallbackAction segmentRemoved(DruidServerMetadata server, DataSegment segment)
-    {
-      return CallbackAction.CONTINUE;
-    }
-
-    @Override
-    public CallbackAction segmentViewInitialized()
-    {
-      return CallbackAction.CONTINUE;
-    }
+      @Override
+      public CallbackAction segmentAdded(DruidServerMetadata server, DataSegment segment)
+      {
+        return function.apply(server, segment);
+      }
+    };
   }
 }

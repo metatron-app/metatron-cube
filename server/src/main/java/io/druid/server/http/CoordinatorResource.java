@@ -22,6 +22,7 @@ package io.druid.server.http;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
@@ -37,6 +38,7 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import org.apache.commons.lang.mutable.MutableLong;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -215,6 +217,23 @@ public class CoordinatorResource
       throws InterruptedException, ExecutionException, TimeoutException
   {
     coordinator.reportSegmentFileNotFound(server, segments);
+    return Response.ok().build();
+  }
+
+  @GET
+  @Path("/loadqueue/blacklist")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getBlacklist()
+  {
+    return Response.ok(Iterables.transform(coordinator.getBlacklisted(false), DataSegment::getIdentifier)).build();
+  }
+
+  @DELETE
+  @Path("/loadqueue/blacklist")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response clearBlacklist()
+  {
+    coordinator.clearReports();
     return Response.ok().build();
   }
 }

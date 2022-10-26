@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.RemoteIterator;
 
 import javax.tools.FileObject;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -320,7 +321,7 @@ public class HdfsDataSegmentPuller implements DataSegmentPuller, URIDataPuller
       @Override
       public boolean apply(Throwable input)
       {
-        if (input == null) {
+        if (input == null || input instanceof FileNotFoundException) {
           return false;
         }
         if (input instanceof HdfsIOException) {

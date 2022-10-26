@@ -141,7 +141,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
     serverView.registerSegmentCallback(
         Execs.singleThreaded("CCClient-ServerView-CB-%d"),
-        new ServerView.BaseSegmentCallback()
+        new ServerView.SegmentCallback()
         {
           @Override
           public ServerView.CallbackAction segmentRemoved(DruidServerMetadata server, DataSegment segment)

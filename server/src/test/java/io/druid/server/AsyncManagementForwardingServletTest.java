@@ -24,6 +24,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
+import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
@@ -434,13 +435,21 @@ public class AsyncManagementForwardingServletTest extends BaseJettyTest
 
   public static class ProxyJettyServerInit implements JettyServerInitializer
   {
+    private final DruidNode druidNode;
+
+    @Inject
+    public ProxyJettyServerInit(@Self DruidNode druidNode)
+    {
+      this.druidNode = druidNode;
+    }
+
     @Override
     public void initialize(Server server, Injector injector)
     {
       final ServletContextHandler root = new ServletContextHandler(ServletContextHandler.SESSIONS);
       root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
 
-      final TestCoordinatorClient coordinatorLeaderSelector = new TestCoordinatorClient()
+      final TestCoordinatorClient coordinatorLeaderSelector = new TestCoordinatorClient(druidNode, null, null, null)
       {
         @Override
         public Request makeRequest(HttpMethod httpMethod, String resourcePath)

@@ -17,6 +17,8 @@ package io.druid.java.util.common.logger;
 import io.druid.java.util.common.StringUtils;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Supplier;
+
 /**
  */
 public class Logger
@@ -132,5 +134,14 @@ public class Logger
   public boolean isInfoEnabled()
   {
     return log.isInfoEnabled();
+  }
+
+  public static Object lazy(Supplier<String> supplier)
+  {
+    return new Object()
+    {
+      @Override
+      public String toString() {return supplier.get();}
+    };
   }
 }
