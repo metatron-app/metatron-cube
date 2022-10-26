@@ -274,6 +274,11 @@ public class DruidCoordinatorRuntimeParams
     return maxSegmentsToMove < 0 ? Math.max(4, loadManagementPeons.size()) : maxSegmentsToMove;
   }
 
+  public int getMaxPendingSegmentsToLoad()
+  {
+    return coordinatorDynamicConfig.getMaxPendingSegmentsToLoad();
+  }
+
   public static class Builder
   {
     private long startTime;

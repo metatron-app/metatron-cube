@@ -50,6 +50,9 @@ public class CoordinatorDynamicConfig
   private int maxSegmentsToMove = -1;
 
   @JsonProperty
+  private int maxPendingSegmentsToLoad = -1;
+
+  @JsonProperty
   private int replicantLifetime = 10;
 
   @JsonProperty
@@ -72,7 +75,7 @@ public class CoordinatorDynamicConfig
 
   public CoordinatorDynamicConfig()
   {
-    this(15 * 60 * 1000L, 524288000L, 100, 0, -1, 15, 10, 1, false, null, null, null);
+    this(15 * 60 * 1000L, 524288000L, 100, 0, -1, -1, 15, 10, 1, false, null, null, null);
   }
 
   @JsonCreator
@@ -82,6 +85,7 @@ public class CoordinatorDynamicConfig
       @JsonProperty("mergeSegmentsLimit") int mergeSegmentsLimit,
       @JsonProperty("mergeTaskLimit") int mergeTaskLimit,
       @JsonProperty("maxSegmentsToMove") int maxSegmentsToMove,
+      @JsonProperty("maxPendingSegmentsToLoad") int maxPendingSegmentsToLoad,
       @JsonProperty("replicantLifetime") int replicantLifetime,
       @JsonProperty("replicationThrottleLimit") int replicationThrottleLimit,
       @JsonProperty("balancerComputeThreads") int balancerComputeThreads,
@@ -95,11 +99,12 @@ public class CoordinatorDynamicConfig
       @JsonProperty("minimumServersForCoordination") Integer minimumServersForCoordination
   )
   {
-    this.maxSegmentsToMove = maxSegmentsToMove;
     this.millisToWaitBeforeDeleting = millisToWaitBeforeDeleting;
     this.mergeSegmentsLimit = mergeSegmentsLimit;
     this.mergeBytesLimit = mergeBytesLimit;
     this.mergeTaskLimit = mergeTaskLimit;
+    this.maxSegmentsToMove = maxSegmentsToMove;
+    this.maxPendingSegmentsToLoad = maxPendingSegmentsToLoad;
     this.replicantLifetime = replicantLifetime;
     this.emitBalancingStats = emitBalancingStats;
     this.balancerComputeThreads = Math.max(balancerComputeThreads, 1);
@@ -167,6 +172,12 @@ public class CoordinatorDynamicConfig
   }
 
   @JsonProperty
+  public int getMaxPendingSegmentsToLoad()
+  {
+    return maxPendingSegmentsToLoad;
+  }
+
+  @JsonProperty
   public int getReplicantLifetime()
   {
     return replicantLifetime;
@@ -205,6 +216,7 @@ public class CoordinatorDynamicConfig
            ", mergeSegmentsLimit=" + mergeSegmentsLimit +
            ", mergeTaskLimit=" + mergeTaskLimit +
            ", maxSegmentsToMove=" + maxSegmentsToMove +
+           ", maxPendingSegmentsToLoad=" + maxPendingSegmentsToLoad +
            ", replicantLifetime=" + replicantLifetime +
            ", balancerComputeThreads=" + balancerComputeThreads +
            ", emitBalancingStats=" + emitBalancingStats +
@@ -240,6 +252,9 @@ public class CoordinatorDynamicConfig
     if (maxSegmentsToMove != that.maxSegmentsToMove) {
       return false;
     }
+    if (maxPendingSegmentsToLoad != that.maxPendingSegmentsToLoad) {
+      return false;
+    }
     if (replicantLifetime != that.replicantLifetime) {
       return false;
     }
@@ -267,6 +282,7 @@ public class CoordinatorDynamicConfig
     result = 31 * result + mergeSegmentsLimit;
     result = 31 * result + mergeTaskLimit;
     result = 31 * result + maxSegmentsToMove;
+    result = 31 * result + maxPendingSegmentsToLoad;
     result = 31 * result + replicantLifetime;
     result = 31 * result + balancerComputeThreads;
     result = 31 * result + minimumServersForCoordination;
@@ -282,6 +298,7 @@ public class CoordinatorDynamicConfig
     private long mergeBytesLimit;
     private int mergeSegmentsLimit;
     private int maxSegmentsToMove;
+    private int maxPendingSegmentsToLoad;
     private int mergeTaskLimit;
     private int replicantLifetime;
     private int replicationThrottleLimit;
@@ -293,7 +310,7 @@ public class CoordinatorDynamicConfig
 
     public Builder()
     {
-      this(15 * 60 * 1000L, 524288000L, 100, 5, 15, 10, 1, false, null, null);
+      this(15 * 60 * 1000L, 524288000L, 100, 5, -1, 15, 10, 1, false, null, null);
     }
 
     private Builder(
@@ -301,6 +318,7 @@ public class CoordinatorDynamicConfig
         long mergeBytesLimit,
         int mergeSegmentsLimit,
         int maxSegmentsToMove,
+        int maxPendingSegmentsToLoad,
         int replicantLifetime,
         int replicationThrottleLimit,
         int balancerComputeThreads,
@@ -313,6 +331,7 @@ public class CoordinatorDynamicConfig
       this.mergeBytesLimit = mergeBytesLimit;
       this.mergeSegmentsLimit = mergeSegmentsLimit;
       this.maxSegmentsToMove = maxSegmentsToMove;
+      this.maxPendingSegmentsToLoad = maxPendingSegmentsToLoad;
       this.replicantLifetime = replicantLifetime;
       this.replicationThrottleLimit = replicationThrottleLimit;
       this.emitBalancingStats = emitBalancingStats;
@@ -351,6 +370,12 @@ public class CoordinatorDynamicConfig
       return this;
     }
 
+    public Builder withMaxPendingSegmentsToLoad(int maxPendingSegmentsToLoad)
+    {
+      this.maxPendingSegmentsToLoad = maxPendingSegmentsToLoad;
+      return this;
+    }
+
     public Builder withReplicantLifetime(int replicantLifetime)
     {
       this.replicantLifetime = replicantLifetime;
@@ -383,6 +408,7 @@ public class CoordinatorDynamicConfig
           mergeSegmentsLimit,
           mergeTaskLimit,
           maxSegmentsToMove,
+          maxPendingSegmentsToLoad,
           replicantLifetime,
           replicationThrottleLimit,
           balancerComputeThreads,

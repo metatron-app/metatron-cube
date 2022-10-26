@@ -64,6 +64,8 @@ public abstract class LoadRule implements Rule
     final DruidCluster cluster = params.getDruidCluster();
     final SegmentReplicantLookup replicantLookup = params.getSegmentReplicantLookup();
 
+    final int maxLoad = params.getMaxPendingSegmentsToLoad();
+
     boolean assignedAny = false;
     int totalReplicantsInCluster = replicantLookup.getTotalReplicants(segmentId);
     final Map<String, Integer> tieredReplicants = getTieredReplicants();
@@ -78,9 +80,9 @@ public abstract class LoadRule implements Rule
       if (totalReplicantsInTier >= expectedReplicantsInTier) {
         continue;
       }
-      final List<ServerHolder> servers = filterServers(serverQueue, failed);
+      final List<ServerHolder> servers = filterServers(serverQueue, failed, maxLoad);
       if (!failed.isEmpty() && servers.isEmpty()) {
-        coordinator.retryFailed(segment);
+        coordinator.releaseFailedServers(segment);
         continue;
       }
 
@@ -107,10 +109,17 @@ public abstract class LoadRule implements Rule
     return totalReplicantsInCluster == 0;
   }
 
-  private List<ServerHolder> filterServers(Iterable<ServerHolder> servers, Set<String> fails)
+  private List<ServerHolder> filterServers(
+      Iterable<ServerHolder> servers,
+      Set<String> fails,
+      int maxPendingSegmentsToLoad
+  )
   {
     if (!fails.isEmpty()) {
       servers = Iterables.filter(servers, server -> !fails.contains(server.getName()));
+    }
+    if (maxPendingSegmentsToLoad > 0) {
+      servers = Iterables.filter(servers, server -> server.getNumSegmentsToLoad() < maxPendingSegmentsToLoad);
     }
     return Lists.newArrayList(servers);
   }

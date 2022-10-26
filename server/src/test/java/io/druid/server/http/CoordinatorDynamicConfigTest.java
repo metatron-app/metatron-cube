@@ -38,6 +38,7 @@ public class CoordinatorDynamicConfigTest
                      + "  \"mergeBytesLimit\": 1,\n"
                      + "  \"mergeSegmentsLimit\" : 1,\n"
                      + "  \"maxSegmentsToMove\": 1,\n"
+                     + "  \"maxPendingSegmentsToLoad\": -1,\n"
                      + "  \"replicantLifetime\": 1,\n"
                      + "  \"replicationThrottleLimit\": 1,\n"
                      + "  \"balancerComputeThreads\": 2, \n"
@@ -57,7 +58,7 @@ public class CoordinatorDynamicConfigTest
     );
 
     Assert.assertEquals(
-        new CoordinatorDynamicConfig(1, 1, 1, 0, 1, 1, 1, 2, true, ImmutableSet.of("test1", "test2"), null, null),
+        new CoordinatorDynamicConfig(1, 1, 1, 0, 1, -1, 1, 1, 2, true, ImmutableSet.of("test1", "test2"), null, null),
         actual
     );
   }
@@ -70,6 +71,7 @@ public class CoordinatorDynamicConfigTest
                      + "  \"mergeBytesLimit\": 1,\n"
                      + "  \"mergeSegmentsLimit\" : 1,\n"
                      + "  \"maxSegmentsToMove\": 1,\n"
+                     + "  \"maxPendingSegmentsToLoad\": -1,\n"
                      + "  \"replicantLifetime\": 1,\n"
                      + "  \"replicationThrottleLimit\": 1,\n"
                      + "  \"balancerComputeThreads\": 2, \n"
@@ -89,7 +91,7 @@ public class CoordinatorDynamicConfigTest
     );
 
     Assert.assertEquals(
-        new CoordinatorDynamicConfig(1, 1, 1, 0, 1, 1, 1, 2, true, ImmutableSet.of("test1", "test2"), null, null),
+        new CoordinatorDynamicConfig(1, 1, 1, 0, 1, -1, 1, 1, 2, true, ImmutableSet.of("test1", "test2"), null, null),
         actual
     );
   }
@@ -98,7 +100,7 @@ public class CoordinatorDynamicConfigTest
   public void testBuilderDefaults()
   {
     Assert.assertEquals(
-        new CoordinatorDynamicConfig(900000, 524288000, 100, 0, 5, 15, 10, 1, false, null, null, null),
+        new CoordinatorDynamicConfig(900000, 524288000, 100, 0, 5, -1, 15, 10, 1, false, null, null, null),
         new CoordinatorDynamicConfig.Builder().build()
     );
   }
@@ -106,8 +108,8 @@ public class CoordinatorDynamicConfigTest
   @Test
   public void testEqualsAndHashCodeSanity()
   {
-    CoordinatorDynamicConfig config1 = new CoordinatorDynamicConfig(900000, 524288000, 100, 5, 0, 15, 10, 1, false, null, null, null);
-    CoordinatorDynamicConfig config2 = new CoordinatorDynamicConfig(900000, 524288000, 100, 5, 0, 15, 10, 1, false, null, null, null);
+    CoordinatorDynamicConfig config1 = new CoordinatorDynamicConfig(900000, 524288000, 100, 5, 0, -1, 15, 10, 1, false, null, null, null);
+    CoordinatorDynamicConfig config2 = new CoordinatorDynamicConfig(900000, 524288000, 100, 5, 0, -1, 15, 10, 1, false, null, null, null);
 
     Assert.assertEquals(config1, config2);
     Assert.assertEquals(config1.hashCode(), config2.hashCode());

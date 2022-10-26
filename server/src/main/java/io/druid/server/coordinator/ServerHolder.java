@@ -88,6 +88,11 @@ public class ServerHolder implements Comparable<ServerHolder>
     return server.isDecommissioned();
   }
 
+  public int getNumSegmentsToLoad()
+  {
+    return peon.getNumSegmentsToLoad();
+  }
+
   public int getNumExpectedSegments()
   {
     return peon.getNumSegmentsToLoad() - peon.getNumSegmentsToDrop() + server.getSegments().size();

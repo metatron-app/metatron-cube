@@ -830,7 +830,7 @@ public class DruidCoordinator
     }
   }
 
-  public void retryFailed(DataSegment segment)
+  public void releaseFailedServers(DataSegment segment)
   {
     synchronized (reports) {
       final Report report = reports.get(segment);
