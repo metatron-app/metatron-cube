@@ -31,12 +31,6 @@ import io.druid.java.util.common.logger.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.ServiceLoader;
 
@@ -106,9 +100,11 @@ public class Main
         properties = new String[]{args[1] + "/runtime.properties"};
       }
     }
-    String revision = readRevision();
     DateTimeZone timeZone = new DateTime().getChronology().getZone();
-    LOG.info("Starting with default timezone[%s], properties%s, git.revision[%s]", timeZone, Arrays.toString(properties), revision);
+    LOG.info(
+        "Starting with git.tag[%s], git.revision[%s], default timezone[%s]",
+        Initialization.git_tag, Initialization.git_revision, timeZone
+    );
 
     final Injector injector = GuiceInjectors.makeStartupInjector(properties);
     final ExtensionsConfig config = injector.getInstance(ExtensionsConfig.class);
@@ -136,18 +132,5 @@ public class Main
       System.out.println("===");
       cli.parse("help").run();
     }
-  }
-
-  private static String readRevision()
-  {
-    File revision = new File(System.getProperty("user.dir"), "git.version");
-    try (InputStream stream = new FileInputStream(revision)) {
-      if (stream != null) {
-        return new BufferedReader(new InputStreamReader(stream)).readLine();
-      }
-    }
-    catch (Throwable e) {
-    }
-    return "???";
   }
 }

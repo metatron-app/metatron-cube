@@ -21,7 +21,9 @@ package io.druid.common.utils;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.data.input.BytesOutputStream;
 
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Set;
 
@@ -69,13 +71,34 @@ public class ExceptionUtils
     }
   }
 
-  public static boolean contains(Throwable t, Class<? extends Exception> find)
+  public static <T extends Exception> T find(Throwable t, Class<T> find)
   {
     for (Throwable current = t; current != null; current = current.getCause()) {
       if (find.isInstance(current)) {
-        return true;
+        return find.cast(current);
       }
     }
-    return false;
+    return null;
+  }
+
+  public static byte[] digest(Throwable e, MessageDigest digest)
+  {
+    BytesOutputStream stream = collectHash(e, new BytesOutputStream());
+    digest.update(stream.unwrap(), 0, stream.size());
+    return digest.digest();
+  }
+
+  private static BytesOutputStream collectHash(Throwable e, BytesOutputStream stream)
+  {
+    stream.writeUTF(e.getMessage());
+    StackTraceElement[] trace = e.getStackTrace();
+    for (StackTraceElement element : trace) {
+      stream.writeInt(element.hashCode());
+    }
+    Throwable cause = e.getCause();
+    if (cause != null) {
+      collectHash(cause, stream);
+    }
+    return stream;
   }
 }

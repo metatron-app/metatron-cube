@@ -110,7 +110,7 @@ public class ComplexMetrics
       if (!complexSerializers.containsKey(arrayType.typeName())) {
         registerSerde(arrayType.typeName(), new ArrayMetricSerde(serde));
       }
-      log.info("Serde for type [%s] is registered with class [%s]", type, serde.getClass());
+      log.info("Serde for type [%s] is registered with class [%s]", type, serde.getClass().getName());
     }
   }
 

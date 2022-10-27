@@ -309,7 +309,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     final File[] segmentsToLoad = baseDir.listFiles();
     final int numSegments = segmentsToLoad.length;
     final int logInterval = numSegments < LOG_INTERVAL
-                            ? 1 : (int) Math.pow(10, (int) Math.log10(numSegments / LOG_INTERVAL) + 1);
+                            ? 1 : (int) Math.pow(10, (int) Math.log10(numSegments / (double) LOG_INTERVAL) + 1);
     for (int i = 0; i < segmentsToLoad.length; i++) {
       final int id = i + 1;
       final File file = segmentsToLoad[i];
@@ -370,10 +370,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       loaded = serverManager.loadSegment(segment);
     }
     catch (Exception e) {
-      // someone removed segment in deep storage..?
-      final boolean fnf = ExceptionUtils.contains(e, FileNotFoundException.class);
-      if (fnf) {
-        handleFileNotFound(segment, e);
+      if (ExceptionUtils.find(e, FileNotFoundException.class) != null) {
+        handleFileNotFound(segment, e);   // someone removed segment in deep storage..?
       } else {
         removeSegment(segment, callback);
       }
@@ -449,7 +447,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       }
     }
     catch (SegmentLoadingException e) {
-      log.makeAlert(e, "Failed to load segment for dataSource")
+      FileNotFoundException ex = ExceptionUtils.find(e, FileNotFoundException.class);
+      log.makeAlert(ex != null ? ex : e.getCause(), "Failed to load segment for dataSource")
          .addData("segment", segment)
          .emit();
     }
@@ -470,7 +469,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
 
       final int numSegments = segments.size();
       final int logInterval = numSegments < LOG_INTERVAL ?
-                              1 : (int) Math.pow(10, (int) Math.log10(numSegments / LOG_INTERVAL) + 1);
+                              1 : (int) Math.pow(10, (int) Math.log10(numSegments / (double) LOG_INTERVAL) + 1);
       final CountDownLatch latch = new CountDownLatch(numSegments);
       final AtomicInteger counter = new AtomicInteger(0);
       final CopyOnWriteArrayList<DataSegment> failedSegments = new CopyOnWriteArrayList<>();

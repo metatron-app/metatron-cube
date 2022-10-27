@@ -80,9 +80,13 @@ import org.apache.commons.io.FileUtils;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.jetty.util.ConcurrentHashSet;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -102,6 +106,32 @@ import java.util.Set;
 public class Initialization
 {
   private static final Logger log = new Logger(Initialization.class);
+
+  public static final String git_tag;
+  public static final String git_revision;
+
+  private static String readString(String fileName, String defaultValue)
+  {
+    File file = new File(System.getProperty("user.dir"), fileName);
+    try (InputStream stream = new FileInputStream(file)) {
+      if (stream != null) {
+        String s = new BufferedReader(new InputStreamReader(stream)).readLine();
+        if (s != null && !s.isEmpty()) {
+          return s;
+        }
+      }
+    }
+    catch (Throwable e) {
+      log.info("cannot find/read '%s' file", fileName);
+    }
+    return defaultValue;
+  }
+
+  static {
+    git_tag = readString("git.tag", "??");
+    git_revision = readString("git.version", "??");
+  }
+
   private static final Map<String, ClassLoader> loadersMap = Maps.newHashMap();
 
   private static final Map<Class, Set> extensionsMap = Maps.<Class, Set>newHashMap();
@@ -211,7 +241,7 @@ public class Initialization
                 module.getClass().getName()
             );
           } else if (!loadedExtensionNames.contains(moduleName)) {
-            log.info("Found extension module [%s] for class [%s]", extension.getName(), moduleName);
+            log.info("Found extension module [%s] for [%s]", extension.getName(), moduleName);
             loadedExtensionNames.add(moduleName);
             retVal.add(module);
           }

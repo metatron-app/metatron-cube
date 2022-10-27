@@ -198,6 +198,7 @@
             <directory>../</directory>
             <includes>
                 <include>LICENSE</include>
+                <include>git.tag</include>
                 <include>git.version</include>
                 <include>git.history</include>
             </includes>

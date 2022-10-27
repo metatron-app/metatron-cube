@@ -344,7 +344,7 @@ public class Lifecycle
     {
       for (Method method : o.getClass().getMethods()) {
         if (method.getAnnotation(LifecycleStart.class) != null) {
-          log.info("Invoking start method[%s] on object[%s].", method, o);
+          log.info("Invoking start method [%s] on object [%s].", method.getName(), o);
           method.invoke(o);
         }
       }

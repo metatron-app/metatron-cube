@@ -32,6 +32,7 @@ import io.druid.common.utils.VMUtils;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
+import io.druid.initialization.Initialization;
 import io.druid.java.util.common.IAE;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.server.DruidNode;
@@ -103,6 +104,22 @@ public class AdminResource
   public Response ping()
   {
     return Response.ok().build();
+  }
+
+  @GET
+  @Path("/tag")
+  @Produces(MediaType.TEXT_PLAIN)
+  public Response tag()
+  {
+    return Response.ok(Initialization.git_tag).build();
+  }
+
+  @GET
+  @Path("/revision")
+  @Produces(MediaType.TEXT_PLAIN)
+  public Response revision()
+  {
+    return Response.ok(Initialization.git_revision).build();
   }
 
   @GET
