@@ -21,7 +21,7 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
@@ -39,19 +39,25 @@ import java.util.List;
 public class MetadataTest
 {
   @Test
-  public void testSerde() throws Exception
+  public void testSerde0() throws Exception
+  {
+    serdeTest("{}", new Metadata());
+  }
+
+  @Test
+  public void testSerde1() throws Exception
   {
     Metadata metadata = new Metadata();
     metadata.put("k", "v");
 
-    AggregatorFactory[] aggregators = new AggregatorFactory[]
-        {
-            new LongSumAggregatorFactory("out", "in")
-        };
-    metadata.setAggregators(aggregators);
-    metadata.setQueryGranularity(QueryGranularities.ALL);
+    metadata.setAggregators(new AggregatorFactory[]{new LongSumAggregatorFactory("out", "in")});
+    metadata.setQueryGranularity(Granularities.ALL);
 
-    serdeTest(metadata);
+    String expected = "{\"container\":{\"k\":\"v\"},"
+                      + "\"aggregators\":[{\"type\":\"longSum\",\"name\":\"out\",\"fieldName\":\"in\"}],"
+                      + "\"queryGranularity\":{\"type\":\"all\"}"
+                      + "}";
+    serdeTest(expected, metadata);
   }
 
   @Test
@@ -60,25 +66,28 @@ public class MetadataTest
     Metadata metadata = new Metadata();
     metadata.put("k", "v");
 
-    AggregatorFactory[] aggregators = new AggregatorFactory[]
-        {
-            new LongSumAggregatorFactory("out", "in")
-        };
-    metadata.setAggregators(aggregators);
-    metadata.setQueryGranularity(QueryGranularities.ALL);
+    metadata.setAggregators(new AggregatorFactory[]{new LongSumAggregatorFactory("out", "in")});
+    metadata.setQueryGranularity(Granularities.ALL);
+    metadata.setNumRows(10);
     metadata.setIngestedNumRow(100L);
     metadata.setRollup(Boolean.FALSE);
 
-    serdeTest(metadata);
+    String expected = "{\"container\":{\"k\":\"v\"},"
+                      + "\"aggregators\":[{\"type\":\"longSum\",\"name\":\"out\",\"fieldName\":\"in\"}],"
+                      + "\"queryGranularity\":{\"type\":\"all\"},"
+                      + "\"numRows\":10,"
+                      + "\"ingestedNumRows\":100,"
+                      + "\"rollup\":false"
+                      + "}";
+    serdeTest(expected, metadata);
   }
 
-  private void serdeTest(Metadata metadata) throws Exception
+  private void serdeTest(String expected, Metadata metadata) throws Exception
   {
     ObjectMapper jsonMapper = new DefaultObjectMapper();
-    Metadata other = jsonMapper.readValue(
-        jsonMapper.writeValueAsString(metadata),
-        Metadata.class
-    );
+    String content = jsonMapper.writeValueAsString(metadata);
+    Assert.assertEquals(expected, content);
+    Metadata other = jsonMapper.readValue(content, Metadata.class);
 
     Assert.assertEquals(metadata, other);
   }
@@ -95,32 +104,26 @@ public class MetadataTest
     Assert.assertNull(Metadata.merge(metadataToBeMerged, null));
 
     //sanity merge check
-    AggregatorFactory[] aggs = new AggregatorFactory[] {
-        new LongMaxAggregatorFactory("n", "f")
-    };
+    AggregatorFactory[] aggs = new AggregatorFactory[]{new LongMaxAggregatorFactory("n", "f")};
     Metadata m1 = new Metadata();
     m1.put("k", "v");
     m1.setAggregators(aggs);
-    m1.setQueryGranularity(QueryGranularities.ALL);
+    m1.setQueryGranularity(Granularities.ALL);
     m1.setIngestedNumRow(100L);
     m1.setRollup(Boolean.FALSE);
 
     Metadata m2 = new Metadata();
     m2.put("k", "v");
     m2.setAggregators(aggs);
-    m2.setQueryGranularity(QueryGranularities.ALL);
+    m2.setQueryGranularity(Granularities.ALL);
     m2.setIngestedNumRow(200L);
     m2.setRollup(Boolean.FALSE);
 
     Metadata merged = new Metadata();
     merged.put("k", "v");
-    merged.setAggregators(
-        new AggregatorFactory[]{
-            new LongMaxAggregatorFactory("n", "n")
-        }
-    );
+    merged.setAggregators(new AggregatorFactory[]{new LongMaxAggregatorFactory("n", "n")});
     merged.setRollup(Boolean.FALSE);
-    merged.setQueryGranularity(QueryGranularities.ALL);
+    merged.setQueryGranularity(Granularities.ALL);
     merged.setIngestedNumRow(300L);
 
     Assert.assertEquals(merged, Metadata.merge(ImmutableList.of(m1, m2), null));
@@ -137,22 +140,14 @@ public class MetadataTest
     Assert.assertEquals(merged, Metadata.merge(metadataToBeMerged, null));
 
     //merge check with client explicitly providing merged aggregators
-    AggregatorFactory[] explicitAggs = new AggregatorFactory[] {
-        new DoubleMaxAggregatorFactory("x", "y")
-    };
+    AggregatorFactory[] explicitAggs = new AggregatorFactory[]{new DoubleMaxAggregatorFactory("x", "y")};
     merged.setAggregators(explicitAggs);
 
-    Assert.assertEquals(
-        merged,
-        Metadata.merge(metadataToBeMerged, explicitAggs)
-    );
+    Assert.assertEquals(merged, Metadata.merge(metadataToBeMerged, explicitAggs));
 
-    merged.setQueryGranularity(QueryGranularities.ALL);
+    merged.setQueryGranularity(Granularities.ALL);
     m1.setRollup(Boolean.TRUE);
-    Assert.assertEquals(
-        merged,
-        Metadata.merge(ImmutableList.of(m1, m2), explicitAggs)
-    );
+    Assert.assertEquals(merged, Metadata.merge(ImmutableList.of(m1, m2), explicitAggs));
   }
 
   @Test

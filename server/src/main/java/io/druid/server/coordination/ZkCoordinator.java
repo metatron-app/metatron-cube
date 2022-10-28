@@ -322,7 +322,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
           cachedSegments.add(segment);
           total += segment.getSize();
         } else {
-          log.warn("Unable to find cache file for %s. Deleting lookup entry", segment.getIdentifier());
+          log.info("Unable to find cache file for %s. Deleting lookup entry", segment.getIdentifier());
 
           File segmentInfoCacheFile = new File(config.getInfoDir(), segment.getIdentifier());
           if (!segmentInfoCacheFile.delete()) {

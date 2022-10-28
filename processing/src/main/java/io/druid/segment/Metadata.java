@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -38,21 +39,31 @@ public class Metadata
   // container is used for arbitrary key-value pairs in segment metadata e.g.
   // kafka firehose uses it to store commit offset
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   private final Map<String, Object> container;
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private AggregatorFactory[] aggregators;
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private Granularity queryGranularity;
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private Granularity segmentGranularity;
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private Integer numRows;
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private Long ingestedNumRows;
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private Boolean rollup;
 
   public Metadata()
@@ -130,6 +141,17 @@ public class Metadata
     return this;
   }
 
+  public int getNumRows()
+  {
+    return numRows == null ? -1 : numRows;
+  }
+
+  public Metadata setNumRows(int numRows)
+  {
+    this.numRows = numRows;
+    return this;
+  }
+
   public long getIngestedNumRows()
   {
     return ingestedNumRows == null ? -1 : ingestedNumRows;
@@ -197,7 +219,7 @@ public class Metadata
       }
     }
 
-    if(!foundSomeMetadata) {
+    if (!foundSomeMetadata) {
       return null;
     }
 
@@ -259,15 +281,13 @@ public class Metadata
     if (!Arrays.equals(aggregators, metadata.aggregators)) {
       return false;
     }
-    if (rollup != null ? !rollup.equals(metadata.rollup) : metadata.rollup != null) {
+    if (!Objects.equals(rollup, metadata.rollup)) {
       return false;
     }
     if (!Objects.equals(segmentGranularity, metadata.segmentGranularity)) {
       return false;
     }
-    return queryGranularity != null
-           ? queryGranularity.equals(metadata.queryGranularity)
-           : metadata.queryGranularity == null;
+    return Objects.equals(queryGranularity, metadata.queryGranularity);
 
   }
 
@@ -286,11 +306,11 @@ public class Metadata
   public String toString()
   {
     return "Metadata{" +
-
            "container=" + container +
            ", aggregators=" + Arrays.toString(aggregators) +
            ", queryGranularity=" + queryGranularity +
            ", segmentGranularity=" + segmentGranularity +
+           ", numRows=" + numRows +
            ", ingestedNumRows=" + ingestedNumRows +
            ", rollup=" + rollup +
            '}';

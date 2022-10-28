@@ -20,6 +20,7 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
@@ -118,6 +119,7 @@ public class LongMaxAggregatorFactory extends AggregatorFactory implements Aggre
 
   @Override
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
@@ -130,6 +132,7 @@ public class LongMaxAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldExpression()
   {
     return fieldExpression;

@@ -53,8 +53,8 @@ public class SimpleBalancerStrategy implements BalancerStrategy
   private static final Granularity DEFAULT_OFFSET_PERIOD = Granularities.DAY;
   private static final int DEFAULT_INIT_GROUPING = 96;
 
-  private static final float BASELINE_RATIO = 0.95f;
-  private static final float EXCESSIVE_TOLERANCE_RATIO = 0.1f;
+  private static final float BASELINE_RATIO = 0.96f;
+  private static final float EXCESSIVE_TOLERANCE_RATIO = 0.04f;
 
   private final Granularity offset;
   private final int initialGrouping;

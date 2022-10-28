@@ -1082,17 +1082,12 @@ public class IndexIO
       }
 
       Map<String, Supplier<Column>> columns = Maps.newHashMap();
-
-      for (String columnName : cols.asSingleThreaded()) {
+      for (String columnName : Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), cols.asSingleThreaded())) {
         columns.put(columnName, DSuppliers.memoize(() -> {
           final ByteBuffer mapped = smooshedFiles.mapFile(columnName);
           return readDescriptor(mapper, mapped).read(columnName, mapped, serdeFactory);
         }));
       }
-      ByteBuffer meta = smooshedFiles.mapFile(Column.TIME_COLUMN_NAME, readOnly);
-      columns.put(Column.TIME_COLUMN_NAME, Suppliers.ofInstance(
-          readDescriptor(mapper, meta).read(Column.TIME_COLUMN_NAME, meta, serdeFactory)
-      ));
 
       // load cuboids
       Iterable<String> remaining = Iterables.filter(smooshedFiles.getInternalFilenames(), c -> !columns.containsKey(c));

@@ -120,7 +120,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public int getNumRows()
   {
-    return stats.get().numRows;
+    return metadata != null && metadata.getNumRows() >= 0 ? metadata.getNumRows() : stats.get().numRows;
   }
 
   @Override

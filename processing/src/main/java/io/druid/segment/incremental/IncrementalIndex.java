@@ -633,7 +633,7 @@ public abstract class IncrementalIndex implements Closeable
 
   public Metadata getMetadata()
   {
-    return metadata.setIngestedNumRow(ingestedNumRows).setRollup(rollup);
+    return metadata.setNumRows(getAll().size()).setIngestedNumRow(ingestedNumRows).setRollup(rollup);
   }
 
   @VisibleForTesting
