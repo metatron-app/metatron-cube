@@ -226,12 +226,12 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       synchronized (dataSourceCounts) {
         dataSourceCounts.addTo(dataSource, 1);
       }
-      final QueryableIndex index = adapter.asQueryableIndex(false);
-      if (index != null) {
-        return segment.withNumRows(index.getNumRows());
-      }
-      return segment;
     }
+    final QueryableIndex index = adapter.asQueryableIndex(false);
+    if (index != null) {
+      return segment.withNumRows(index.getNumRows());
+    }
+    return segment;
   }
 
   public void dropSegment(final DataSegment segment) throws SegmentLoadingException

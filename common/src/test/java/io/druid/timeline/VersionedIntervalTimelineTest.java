@@ -258,13 +258,11 @@ public class VersionedIntervalTimelineTest
         timeline.findEntry(new Interval("2011-10-01T04/2011-10-01T17"), "1")
     );
 
-    Assert.assertEquals(
-        null,
+    Assert.assertNull(
         timeline.findEntry(new Interval("2011-10-01T04/2011-10-01T17"), "2")
     );
 
-    Assert.assertEquals(
-        null,
+    Assert.assertNull(
         timeline.findEntry(new Interval("2011-10-01T04/2011-10-02T17"), "1")
     );
   }
@@ -434,7 +432,7 @@ public class VersionedIntervalTimelineTest
       exceptionCaught = true;
     }
 
-    //Assert.assertTrue("Exception wasn't thrown.", exceptionCaught);
+    Assert.assertTrue("Exception wasn't thrown.", exceptionCaught);
   }
 
   //   1|----|
@@ -453,6 +451,22 @@ public class VersionedIntervalTimelineTest
         Arrays.asList(
             createExpected("2011-01-01/2011-01-10", "2", 2)
         ),
+        timeline.lookup(new Interval("2011-01-01/2011-01-10"))
+    );
+  }
+
+  //   1|----|
+  //   2|----|
+  @Test
+  public void testOverlapSameInterval() throws Exception
+  {
+    timeline = makeStringIntegerTimeline();
+
+    add("2011-01-01/2011-01-10", "1", 1);
+    add("2011-01-01/2011-01-10", "2", 2);
+
+    assertValues(
+        Arrays.asList(createExpected("2011-01-01/2011-01-10", "2", 2)),
         timeline.lookup(new Interval("2011-01-01/2011-01-10"))
     );
   }

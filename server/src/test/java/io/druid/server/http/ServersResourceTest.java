@@ -70,7 +70,7 @@ public class ServersResourceTest {
                       + "\"priority\":0,"
                       + "\"segments\":{\"dataSource_2016-03-22T14:00:00.000Z_2016-03-22T15:00:00.000Z_v0\":"
                       + "{\"dataSource\":\"dataSource\",\"interval\":\"2016-03-22T14:00:00.000Z/2016-03-22T15:00:00.000Z\",\"version\":\"v0\",\"dimensions\":\"\",\"metrics\":\"\","
-                      + "\"shardSpec\":{\"type\":\"none\"},\"size\":1,\"numRows\":-1,\"identifier\":\"dataSource_2016-03-22T14:00:00.000Z_2016-03-22T15:00:00.000Z_v0\"}},"
+                      + "\"shardSpec\":{\"type\":\"none\"},\"size\":1,\"numRows\":-1}},"
                       + "\"currSize\":1}]";
     Assert.assertEquals(expected, result);
   }
@@ -96,7 +96,7 @@ public class ServersResourceTest {
                       + "\"priority\":0,"
                       + "\"segments\":{\"dataSource_2016-03-22T14:00:00.000Z_2016-03-22T15:00:00.000Z_v0\":"
                       + "{\"dataSource\":\"dataSource\",\"interval\":\"2016-03-22T14:00:00.000Z/2016-03-22T15:00:00.000Z\",\"version\":\"v0\",\"dimensions\":\"\",\"metrics\":\"\","
-                      + "\"shardSpec\":{\"type\":\"none\"},\"size\":1,\"numRows\":-1,\"identifier\":\"dataSource_2016-03-22T14:00:00.000Z_2016-03-22T15:00:00.000Z_v0\"}},"
+                      + "\"shardSpec\":{\"type\":\"none\"},\"size\":1,\"numRows\":-1}},"
                       + "\"currSize\":1}";
     Assert.assertEquals(expected, result);
   }

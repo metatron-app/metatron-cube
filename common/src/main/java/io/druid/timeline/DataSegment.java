@@ -43,6 +43,8 @@ import io.druid.query.SegmentDescriptor;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -103,11 +105,18 @@ public class DataSegment implements Comparable<DataSegment>
 
   public static String toSegmentId(String dataSource, Interval interval, String version, int partitionNum)
   {
-    final StringBuilder sb = new StringBuilder(196)
-        .append(dataSource).append(DELIMITER)
-        .append(interval.getStart()).append(DELIMITER)
-        .append(interval.getEnd()).append(DELIMITER)
-        .append(version);
+    DateTimeFormatter printer = ISODateTimeFormat.dateTime().withChronology(interval.getChronology());
+
+    final StringBuffer sb = new StringBuffer(196);
+    sb.append(dataSource).append(DELIMITER);
+
+    printer.printTo(sb, interval.getStartMillis());
+    sb.append(DELIMITER);
+
+    printer.printTo(sb, interval.getEndMillis());
+    sb.append(DELIMITER);
+
+    sb.append(version);
 
     if (partitionNum != 0) {
       sb.append(DELIMITER).append(partitionNum);
@@ -328,7 +337,7 @@ public class DataSegment implements Comparable<DataSegment>
     return numRows;
   }
 
-  @JsonProperty
+  @JsonIgnore
   public String getIdentifier()
   {
     return identifier;

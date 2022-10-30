@@ -61,7 +61,6 @@ public class BatchDataSegmentAnnouncerTest
   private TestingCluster testingCluster;
   private CuratorFramework cf;
   private ObjectMapper jsonMapper;
-  private Announcer announcer;
   private SegmentReader segmentReader;
   private BatchDataSegmentAnnouncer segmentAnnouncer;
   private Set<DataSegment> testSegments;
@@ -70,6 +69,7 @@ public class BatchDataSegmentAnnouncerTest
   private Boolean skipDimensionsAndMetrics;
   private Boolean skipLoadSpec;
 
+  private Announcer announcer;
 
   @Before
   public void setUp() throws Exception
@@ -97,15 +97,17 @@ public class BatchDataSegmentAnnouncerTest
     segmentReader = new SegmentReader(cf, jsonMapper);
     skipDimensionsAndMetrics = false;
     skipLoadSpec = false;
-    segmentAnnouncer = new BatchDataSegmentAnnouncer(
-        new DruidServerMetadata(
-            "id",
-            "host",
-            Long.MAX_VALUE,
-            "type",
-            "tier",
-            0
-        ),
+
+    testSegments = Sets.newHashSet();
+    for (int i = 0; i < 100; i++) {
+      testSegments.add(makeSegment(i));
+    }
+  }
+
+  private BatchDataSegmentAnnouncer makeAnnouncer()
+  {
+    return new BatchDataSegmentAnnouncer(
+        new DruidServerMetadata("id", "host", Long.MAX_VALUE, "type", "tier", 0),
         new DummyDataSegmentServerAnnouncer(),
         new BatchDataSegmentAnnouncerConfig()
         {
@@ -144,11 +146,6 @@ public class BatchDataSegmentAnnouncerTest
         announcer,
         jsonMapper
     );
-
-    testSegments = Sets.newHashSet();
-    for (int i = 0; i < 100; i++) {
-      testSegments.add(makeSegment(i));
-    }
   }
 
   @After
@@ -162,6 +159,7 @@ public class BatchDataSegmentAnnouncerTest
   @Test
   public void testSingleAnnounce() throws Exception
   {
+    segmentAnnouncer = makeAnnouncer();
     Iterator<DataSegment> segIter = testSegments.iterator();
     DataSegment firstSegment = segIter.next();
     DataSegment secondSegment = segIter.next();
@@ -216,6 +214,8 @@ public class BatchDataSegmentAnnouncerTest
   public void testSkipDimensions() throws Exception
   {
     skipDimensionsAndMetrics = true;
+
+    segmentAnnouncer = makeAnnouncer();
     Iterator<DataSegment> segIter = testSegments.iterator();
     DataSegment firstSegment = segIter.next();
 
@@ -239,6 +239,8 @@ public class BatchDataSegmentAnnouncerTest
   public void testSkipLoadSpec() throws Exception
   {
     skipLoadSpec = true;
+
+    segmentAnnouncer = makeAnnouncer();
     Iterator<DataSegment> segIter = testSegments.iterator();
     DataSegment firstSegment = segIter.next();
 
@@ -260,6 +262,7 @@ public class BatchDataSegmentAnnouncerTest
   @Test
   public void testSingleAnnounceManyTimes() throws Exception
   {
+    segmentAnnouncer = makeAnnouncer();
     int prevMax = maxBytesPerNode.get();
     maxBytesPerNode.set(2048);
     // each segment is about 348 bytes long and that makes 2048 / 348 = 5 segments included per node
@@ -274,7 +277,7 @@ public class BatchDataSegmentAnnouncerTest
     }
 
     List<String> zNodes = cf.getChildren().forPath(testSegmentsPath);
-    Assert.assertEquals(17, zNodes.size());       // become a little smaller (#1842)
+    Assert.assertEquals(13, zNodes.size());       // become a little smaller (#1842)
 
     Set<DataSegment> segments = Sets.newHashSet(testSegments);
     for (String zNode : zNodes) {
@@ -293,6 +296,7 @@ public class BatchDataSegmentAnnouncerTest
 
   private void testBatchAnnounce(boolean testHistory) throws Exception
   {
+    segmentAnnouncer = makeAnnouncer();
     segmentAnnouncer.announceSegments(testSegments);
 
     List<String> zNodes = cf.getChildren().forPath(testSegmentsPath);
@@ -359,7 +363,7 @@ public class BatchDataSegmentAnnouncerTest
                       .build();
   }
 
-  private class SegmentReader
+  private static class SegmentReader
   {
     private final CuratorFramework cf;
     private final ObjectMapper jsonMapper;

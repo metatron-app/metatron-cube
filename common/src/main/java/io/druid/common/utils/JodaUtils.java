@@ -19,9 +19,7 @@
 
 package io.druid.common.utils;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -124,7 +122,7 @@ public class JodaUtils
       Interval next = intervalsIter.next();
 
       if (currInterval.overlaps(next) || currInterval.abuts(next)) {
-        currInterval = new Interval(currInterval.getStart(), next.getEnd());
+        currInterval = new Interval(currInterval.getStartMillis(), next.getEndMillis(), currInterval.getChronology());
       } else {
         retVal.add(currInterval);
         currInterval = next;
@@ -146,63 +144,31 @@ public class JodaUtils
       throw new IllegalArgumentException("Empty list of intervals");
     }
     Interval interval = intervals.next();
-    DateTime min = interval.getStart();
-    DateTime max = interval.getEnd();
+    long min = interval.getStartMillis();
+    long max = interval.getEndMillis();
 
     while (intervals.hasNext()) {
       Interval other = intervals.next();
-      DateTime start = other.getStart();
-      if (start.isBefore(min)) {
+      long start = other.getStartMillis();
+      if (start < min) {
         min = start;
       }
-      DateTime end = other.getEnd();
-      if (end.isAfter(max)) {
+      long end = other.getEndMillis();
+      if (end > max) {
         max = end;
       }
     }
-    return new Interval(min, max);
+    return new Interval(min, max, interval.getChronology());
   }
 
   public static boolean contains(final long timestamp, final Iterable<Interval> intervals)
   {
-    return Iterables.any(
-        intervals, new Predicate<Interval>()
-        {
-          @Override
-          public boolean apply(Interval input)
-          {
-            return input.contains(timestamp);
-          }
-        }
-    );
-  }
-
-  public static boolean overlaps(final Interval i, Iterable<Interval> intervals)
-  {
-    return Iterables.any(
-        intervals, new Predicate<Interval>()
-        {
-          @Override
-          public boolean apply(Interval input)
-          {
-            return input.overlaps(i);
-          }
-        }
-    );
+    return Iterables.any(intervals, interval -> interval.contains(timestamp));
   }
 
   public static List<Interval> overlapping(final Interval interval, Iterable<Interval> intervals)
   {
-    return Lists.newArrayList(Iterables.filter(
-        intervals, new Predicate<Interval>()
-        {
-          @Override
-          public boolean apply(Interval input)
-          {
-            return input.overlaps(interval);
-          }
-        }
-    ));
+    return Lists.newArrayList(Iterables.filter(intervals, v -> v.overlaps(interval)));
   }
 
   public static Iterable<Interval> split(final Granularity granularity, final Iterable<Interval> intervals)
@@ -210,17 +176,7 @@ public class JodaUtils
     if (granularity == null) {
       return intervals;
     }
-    return GuavaUtils.explode(
-        intervals,
-        new Function<Interval, Iterable<Interval>>()
-        {
-          @Override
-          public Iterable<Interval> apply(Interval input)
-          {
-            return granularity.getIterable(input);
-          }
-        }
-    );
+    return GuavaUtils.explode(intervals, v -> granularity.getIterable(v));
   }
 
   public static Period toPeriod(String string)

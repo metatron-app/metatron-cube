@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.java.util.common.UOE;
 import io.druid.timeline.partition.ImmutablePartitionHolder;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
@@ -425,67 +426,88 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
    * @return boolean flag indicating whether we inserted or discarded something
    */
   private boolean addAtKey(
-      NavigableMap<Interval, TimelineEntry> timeline,
-      Interval key,
-      TimelineEntry entry
+      final NavigableMap<Interval, TimelineEntry> timeline,
+      final Interval key,
+      final TimelineEntry entry
   )
   {
+    if (!key.overlaps(entry.getTrueInterval())) {
+      return false;
+    }
+
     boolean retVal = false;
     Interval currKey = key;
     Interval entryInterval = entry.getTrueInterval();
 
-    if (!currKey.overlaps(entryInterval)) {
-      return false;
-    }
-
     while (entryInterval != null && currKey != null && currKey.overlaps(entryInterval)) {
-      Interval nextKey = timeline.higherKey(currKey);
 
-      int versionCompare = versionComparator.compare(
-          entry.getVersion(),
-          timeline.get(currKey).getVersion()
-      );
+      Interval nextKey = timeline.higherKey(currKey);
+      TimelineEntry currEntry = timeline.get(currKey);
+
+      int versionCompare = versionComparator.compare(entry.getVersion(), currEntry.getVersion());
 
       if (versionCompare < 0) {
         if (currKey.contains(entryInterval)) {
           return true;
-        } else if (currKey.getStart().isBefore(entryInterval.getStart())) {
-          entryInterval = new Interval(currKey.getEnd(), entryInterval.getEnd());
+        } else if (currKey.getStartMillis() < entryInterval.getStartMillis()) {
+          entryInterval = new Interval(currKey.getEndMillis(), entryInterval.getEndMillis(), currKey.getChronology());
         } else {
-          addIntervalToTimeline(new Interval(entryInterval.getStart(), currKey.getStart()), entry, timeline);
+          addIntervalToTimeline(
+              new Interval(entryInterval.getStartMillis(), currKey.getStartMillis(), entryInterval.getChronology()),
+              entry,
+              timeline
+          );
 
-          if (entryInterval.getEnd().isAfter(currKey.getEnd())) {
-            entryInterval = new Interval(currKey.getEnd(), entryInterval.getEnd());
+          if (entryInterval.getEndMillis() > currKey.getEndMillis()) {
+            entryInterval = new Interval(currKey.getEndMillis(), entryInterval.getEndMillis(), currKey.getChronology());
           } else {
             entryInterval = null; // discard this entry
           }
         }
       } else if (versionCompare > 0) {
+
+        if (currKey.equals(entryInterval)) {
+          addIntervalToTimeline(entryInterval, entry, timeline);
+          return true;
+        }
         TimelineEntry oldEntry = timeline.remove(currKey);
 
         if (currKey.contains(entryInterval)) {
-          addIntervalToTimeline(new Interval(currKey.getStart(), entryInterval.getStart()), oldEntry, timeline);
-          addIntervalToTimeline(new Interval(entryInterval.getEnd(), currKey.getEnd()), oldEntry, timeline);
+          addIntervalToTimeline(
+              new Interval(currKey.getStartMillis(), entryInterval.getStartMillis(), currKey.getChronology()),
+              oldEntry,
+              timeline
+          );
+          addIntervalToTimeline(
+              new Interval(entryInterval.getEndMillis(), currKey.getEndMillis(), entryInterval.getChronology()),
+              oldEntry, timeline
+          );
           addIntervalToTimeline(entryInterval, entry, timeline);
 
           return true;
-        } else if (currKey.getStart().isBefore(entryInterval.getStart())) {
-          addIntervalToTimeline(new Interval(currKey.getStart(), entryInterval.getStart()), oldEntry, timeline);
-        } else if (entryInterval.getEnd().isBefore(currKey.getEnd())) {
-          addIntervalToTimeline(new Interval(entryInterval.getEnd(), currKey.getEnd()), oldEntry, timeline);
+        } else if (currKey.getStartMillis() < entryInterval.getStartMillis()) {
+          addIntervalToTimeline(
+              new Interval(currKey.getStartMillis(), entryInterval.getStartMillis(), currKey.getChronology()),
+              oldEntry,
+              timeline
+          );
+        } else if (currKey.getEndMillis() > entryInterval.getEndMillis()) {
+          addIntervalToTimeline(
+              new Interval(entryInterval.getEndMillis(), currKey.getEndMillis(), entryInterval.getChronology()),
+              oldEntry,
+              timeline
+          );
         }
       } else {
-        if (timeline.get(currKey).equals(entry)) {
+        if (currEntry.equals(entry)) {
           // This occurs when restoring segments
           timeline.remove(currKey);
         } else {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "Cannot add overlapping segments [%s and %s] with the same version [%s]",
-                  currKey,
-                  entryInterval,
-                  entry.getVersion()
-              )
+          throw new UOE(
+              "Cannot add overlapping segments [%s and %s] with the same version [%s]",
+              currKey,
+              entryInterval,
+              entry.getVersion()
           );
         }
       }
@@ -599,12 +621,12 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     }
 
     TimelineObjectHolder<VersionType, ObjectType> firstEntry = retVal.get(0);
-    if (interval.overlaps(firstEntry.getInterval()) && interval.getStart()
-                                                               .isAfter(firstEntry.getInterval().getStart())) {
+    Interval firstInterval = firstEntry.getInterval();
+    if (interval.overlaps(firstInterval) && interval.getStartMillis() > firstInterval.getStartMillis()) {
       retVal.set(
           0,
           new TimelineObjectHolder<VersionType, ObjectType>(
-              new Interval(interval.getStart(), firstEntry.getInterval().getEnd()),
+              new Interval(interval.getStartMillis(), firstInterval.getEndMillis(), interval.getChronology()),
               firstEntry.getVersion(),
               firstEntry.getObject()
           )
@@ -612,11 +634,12 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     }
 
     TimelineObjectHolder<VersionType, ObjectType> lastEntry = retVal.get(retVal.size() - 1);
-    if (interval.overlaps(lastEntry.getInterval()) && interval.getEnd().isBefore(lastEntry.getInterval().getEnd())) {
+    Interval lastInterval = lastEntry.getInterval();
+    if (interval.overlaps(lastInterval) && interval.getEndMillis() < lastInterval.getEndMillis()) {
       retVal.set(
           retVal.size() - 1,
           new TimelineObjectHolder<VersionType, ObjectType>(
-              new Interval(lastEntry.getInterval().getStart(), interval.getEnd()),
+              new Interval(lastInterval.getStartMillis(), interval.getEndMillis(), lastInterval.getChronology()),
               lastEntry.getVersion(),
               lastEntry.getObject()
           )

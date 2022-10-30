@@ -21,7 +21,6 @@ package io.druid.server.coordination;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -30,13 +29,12 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.druid.common.utils.UUIDUtils;
 import io.druid.curator.announcement.Announcer;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.initialization.BatchDataSegmentAnnouncerConfig;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.DataSegment;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.curator.utils.ZKPaths;
 import org.joda.time.DateTime;
 
@@ -86,23 +84,21 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
     this.jsonMapper = jsonMapper;
     this.server = server;
     this.serverAnnouncer = serverAnnouncer;
-
     this.liveSegmentLocation = ZKPaths.makePath(zkPaths.getLiveSegmentsPath(), server.getName());
-    segmentTransformer = new Function<DataSegment, DataSegment>()
-    {
-      @Override
-      public DataSegment apply(DataSegment input)
-      {
-        DataSegment rv = input;
-        if (config.isSkipDimensionsAndMetrics()) {
-          rv = rv.withDimensions(null).withMetrics(null);
-        }
-        if (config.isSkipLoadSpec()) {
-          rv = rv.withLoadSpec(null);
-        }
-        return rv;
-      }
-    };
+    this.segmentTransformer = toTransformer(config);
+  }
+
+  private static Function<DataSegment, DataSegment> toTransformer(BatchDataSegmentAnnouncerConfig config)
+  {
+    if (config.isSkipDimensionsAndMetrics() && config.isSkipLoadSpec()) {
+      return ds -> ds.withMinimum();
+    } else if (config.isSkipDimensionsAndMetrics()) {
+      return ds -> ds.withDimensionsMetrics(null, null);
+    } else if (config.isSkipLoadSpec()) {
+      return ds -> ds.withLoadSpec(null);
+    } else {
+      return ds -> ds;
+    }
   }
 
   @Override
@@ -116,9 +112,9 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
 
       final DataSegment toAnnounce = segmentTransformer.apply(segment);
 
-      final int newBytesLen = jsonMapper.writeValueAsBytes(toAnnounce).length;
-      if (newBytesLen > config.getMaxBytesPerNode()) {
-        throw new ISE("byte size %,d exceeds %,d", newBytesLen, config.getMaxBytesPerNode());
+      final byte[] newBytes = jsonMapper.writeValueAsBytes(toAnnounce);
+      if (newBytes.length > config.getMaxBytesPerNode()) {
+        throw new ISE("byte size %,d exceeds %,d", newBytes.length, config.getMaxBytesPerNode());
       }
 
       boolean done = false;
@@ -127,8 +123,8 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
         Iterator<SegmentZNode> iter = availableZNodes.iterator();
         while (iter.hasNext() && !done) {
           final SegmentZNode availableZNode = iter.next();
-          if (availableZNode.currentLength + newBytesLen < config.getMaxBytesPerNode()) {
-            availableZNode.addSegment(toAnnounce, newBytesLen);
+          if (availableZNode.currentLength + newBytes.length < config.getMaxBytesPerNode()) {
+            availableZNode.addSegment(toAnnounce, newBytes);
 
             log.debug(
                 "Announcing segment[%s] at existing path[%s]",
@@ -155,7 +151,7 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
         // create new batch
 
         SegmentZNode availableZNode = new SegmentZNode(makeServedSegmentPath());
-        availableZNode.addSegment(toAnnounce, newBytesLen);
+        availableZNode.addSegment(toAnnounce, newBytes);
 
         log.debug("Announcing segment[%s] at new path[%s]", toAnnounce.getIdentifier(), availableZNode.getPath());
         segmentLookup.put(toAnnounce, availableZNode);
@@ -209,14 +205,14 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
 
         final DataSegment segment = segmentTransformer.apply(ds);
 
-        final int newBytesLen = jsonMapper.writeValueAsBytes(segment).length;
+        final byte[] newBytes = jsonMapper.writeValueAsBytes(segment);
 
-        if (newBytesLen > config.getMaxBytesPerNode()) {
-          throw new ISE("byte size %,d exceeds %,d", newBytesLen, config.getMaxBytesPerNode());
+        if (newBytes.length > config.getMaxBytesPerNode()) {
+          throw new ISE("byte size %,d exceeds %,d", newBytes.length, config.getMaxBytesPerNode());
         }
 
         if (segmentZNode.getCount() >= config.getSegmentsPerNode() ||
-            segmentZNode.currentLength + newBytesLen > config.getMaxBytesPerNode()) {
+            segmentZNode.currentLength + newBytes.length > config.getMaxBytesPerNode()) {
           announcer.announce(segmentZNode.getPath(), segmentZNode.asBytes());
           segmentZNode = new SegmentZNode(makeServedSegmentPath());
         }
@@ -226,7 +222,7 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
           log.debug("Announcing segment[%s] at path[%s]", segment.getIdentifier(), segmentZNode.getPath());
         }
         segmentLookup.put(segment, segmentZNode);
-        segmentZNode.addSegment(segment, newBytesLen);
+        segmentZNode.addSegment(segment, newBytes);
 
         changesBatch.add(new SegmentChangeRequestLoad(segment));
       }
@@ -285,17 +281,17 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
     return ZKPaths.makePath(liveSegmentLocation, String.format("%s%s", zNode, counter.getAndIncrement()));
   }
 
-  private class SegmentZNode implements Comparable<SegmentZNode>
+  private static class SegmentZNode implements Comparable<SegmentZNode>
   {
     private final String path;
 
     private int currentLength;  // no need to be exact
-    private final Object2IntMap<DataSegment> segments;
+    private final Map<String, byte[]> segments;
 
     public SegmentZNode(String path)
     {
       this.path = path;
-      this.segments = new Object2IntOpenHashMap<>();
+      this.segments = Maps.newHashMap();
     }
 
     public String getPath()
@@ -310,24 +306,34 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
 
     public byte[] asBytes()
     {
-      try {
-        return jsonMapper.writeValueAsBytes(segments.keySet());
+      Iterator<byte[]> values = segments.values().iterator();
+      if (!values.hasNext()) {
+        return "[]".getBytes();
       }
-      catch (Exception e) {
-        throw Throwables.propagate(e);
+      BytesOutputStream b = new BytesOutputStream(currentLength + segments.size() + 1);
+      b.write('[');
+      b.write(values.next());
+      while (values.hasNext()) {
+        b.write(',');
+        b.write(values.next());
       }
+      b.write(']');
+      return b.toByteArray();
     }
 
-    public void addSegment(DataSegment segment, int length)
+    public void addSegment(DataSegment segment, byte[] bytes)
     {
-      if (segments.put(segment, length) == 0) {
-        currentLength += length;
+      if (segments.put(segment.getIdentifier(), bytes) == null) {
+        currentLength += bytes.length;
       }
     }
 
     public void removeSegment(DataSegment segment)
     {
-      currentLength -= segments.removeInt(segment);
+      byte[] bytes = segments.remove(segment.getIdentifier());
+      if (bytes != null) {
+        currentLength -= bytes.length;
+      }
     }
 
     @Override
@@ -361,4 +367,5 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
       return path.compareTo(segmentZNode.getPath());
     }
   }
+
 }

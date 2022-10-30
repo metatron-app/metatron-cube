@@ -64,7 +64,7 @@ public class DataSegmentTest
 
     final Map<String, Object> objectMap = mapper.readValue(mapper.writeValueAsString(segment), new TypeReference<Map<String, Object>>(){});
 
-    Assert.assertEquals(11, objectMap.size());
+    Assert.assertEquals(10, objectMap.size());
     Assert.assertEquals("something", objectMap.get("dataSource"));
     Assert.assertEquals(interval.toString(), objectMap.get("interval"));
     Assert.assertEquals("1", objectMap.get("version"));

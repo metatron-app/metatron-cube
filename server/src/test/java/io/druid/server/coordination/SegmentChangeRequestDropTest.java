@@ -64,7 +64,7 @@ public class SegmentChangeRequestDropTest
         mapper.writeValueAsString(segmentDrop), new TypeReference<Map<String, Object>>(){}
     );
 
-    Assert.assertEquals(12, objectMap.size());
+    Assert.assertEquals(11, objectMap.size());
     Assert.assertEquals("drop", objectMap.get("action"));
     Assert.assertEquals("something", objectMap.get("dataSource"));
     Assert.assertEquals(interval.toString(), objectMap.get("interval"));

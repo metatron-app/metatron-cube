@@ -546,14 +546,7 @@ public class DataSourcesResource
     return builder.entity(
         Iterables.transform(
             dataSource.getSegmentsSorted(),
-            new Function<DataSegment, Object>()
-            {
-              @Override
-              public Object apply(DataSegment segment)
-              {
-                return segment.getIdentifier();
-              }
-            }
+            DataSegment::getIdentifier
         )
     ).build();
   }
