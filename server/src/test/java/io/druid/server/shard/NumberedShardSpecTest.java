@@ -181,7 +181,7 @@ public class NumberedShardSpecTest
       Set<String> expectedObjects
   )
   {
-    VersionedIntervalTimeline<String, String> timeline = new VersionedIntervalTimeline<>();
+    VersionedIntervalTimeline<String> timeline = new VersionedIntervalTimeline<>();
     Interval interval = new Interval("2000/3000");
     String version = "v1";
     for (PartitionChunk<String> chunk : chunks) {
@@ -189,8 +189,8 @@ public class NumberedShardSpecTest
     }
 
     Set<String> actualObjects = new HashSet<>();
-    List<TimelineObjectHolder<String, String>> entries = timeline.lookup(interval);
-    for (TimelineObjectHolder<String, String> entry : entries) {
+    List<TimelineObjectHolder<String>> entries = timeline.lookup(interval);
+    for (TimelineObjectHolder<String> entry : entries) {
       for (PartitionChunk<String> chunk : entry.getObject()) {
         actualObjects.add(chunk.getObject());
       }

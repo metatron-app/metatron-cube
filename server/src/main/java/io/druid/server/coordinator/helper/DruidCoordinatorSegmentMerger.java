@@ -95,13 +95,13 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
     DatasourceWhitelist whitelist = whiteListRef.get();
 
     CoordinatorStats stats = new CoordinatorStats();
-    Map<String, VersionedIntervalTimeline<String, DataSegment>> dataSources = Maps.newHashMap();
+    Map<String, VersionedIntervalTimeline<DataSegment>> dataSources = Maps.newHashMap();
 
     // Find serviced segments by using a timeline
     Map<String, List<DataSegment>> segmentsMap = params.getAvailableSegments();
     for (Map.Entry<String, List<DataSegment>> entry : segmentsMap.entrySet()) {
       if (whitelist == null || whitelist.contains(entry.getKey())) {
-        VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<String, DataSegment>();
+        VersionedIntervalTimeline<DataSegment> timeline = new VersionedIntervalTimeline<DataSegment>();
         for (DataSegment dataSegment : entry.getValue()) {
           timeline.add(
               dataSegment.getInterval(),
@@ -115,10 +115,10 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
 
     FIN:
     // Find segments to merge
-    for (final Map.Entry<String, VersionedIntervalTimeline<String, DataSegment>> entry : dataSources.entrySet()) {
+    for (final Map.Entry<String, VersionedIntervalTimeline<DataSegment>> entry : dataSources.entrySet()) {
       // Get serviced segments from the timeline
-      VersionedIntervalTimeline<String, DataSegment> timeline = entry.getValue();
-      List<TimelineObjectHolder<String, DataSegment>> timelineObjects =
+      VersionedIntervalTimeline<DataSegment> timeline = entry.getValue();
+      List<TimelineObjectHolder<DataSegment>> timelineObjects =
           timeline.lookup(new Interval(new DateTime(0), new DateTime("3000-01-01")));
 
       // Accumulate timelineObjects greedily until we reach our limits, then backtrack to the maximum complete set
@@ -208,7 +208,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
     private final Multiset<DataSegment> segments;
 
     // (timeline object, union interval of underlying segments up to this point in the list)
-    private final List<Pair<TimelineObjectHolder<String, DataSegment>, Interval>> timelineObjects;
+    private final List<Pair<TimelineObjectHolder<DataSegment>, Interval>> timelineObjects;
 
     private long byteCount;
 
@@ -223,10 +223,10 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
     {
       return ImmutableSet.copyOf(
           GuavaUtils.explode(timelineObjects,
-              new Function<Pair<TimelineObjectHolder<String, DataSegment>, Interval>, Iterable<DataSegment>>()
+              new Function<Pair<TimelineObjectHolder<DataSegment>, Interval>, Iterable<DataSegment>>()
               {
                 @Override
-                public Iterable<DataSegment> apply(Pair<TimelineObjectHolder<String, DataSegment>, Interval> input)
+                public Iterable<DataSegment> apply(Pair<TimelineObjectHolder<DataSegment>, Interval> input)
                 {
                   return Iterables.transform(
                       input.lhs.getObject(),
@@ -245,7 +245,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
       ).asList();
     }
 
-    public boolean add(TimelineObjectHolder<String, DataSegment> timelineObject)
+    public boolean add(TimelineObjectHolder<DataSegment> timelineObject)
     {
       final Interval timelineObjectInterval = timelineObject.getInterval();
 
@@ -347,7 +347,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
       while (!isComplete() || byteCount > maxSize) {
         removed++;
 
-        final TimelineObjectHolder<String, DataSegment> removedHolder = timelineObjects.remove(
+        final TimelineObjectHolder<DataSegment> removedHolder = timelineObjects.remove(
             timelineObjects.size()
             - 1
         ).lhs;

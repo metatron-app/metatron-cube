@@ -217,7 +217,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
   public List<DataSegment> getUsedSegmentsForIntervals(final String dataSource, final List<Interval> intervals)
       throws IOException
   {
-    final VersionedIntervalTimeline<String, DataSegment> timeline = connector.retryWithHandle(
+    final VersionedIntervalTimeline<DataSegment> timeline = connector.retryWithHandle(
         handle -> getTimelineForIntervalsWithHandle(handle, dataSource, intervals)
     );
     final Set<DataSegment> segments = Sets.newHashSet(
@@ -252,14 +252,14 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     return identifiers;
   }
 
-  private VersionedIntervalTimeline<String, DataSegment> getTimelineForIntervalsWithHandle(
+  private VersionedIntervalTimeline<DataSegment> getTimelineForIntervalsWithHandle(
       final Handle handle,
       final String dataSource,
       final List<Interval> intervals
   ) throws IOException
   {
     return getPayloadsForIntervals(handle, dataSource, intervals, payloads -> {
-      final VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
+      final VersionedIntervalTimeline<DataSegment> timeline = new VersionedIntervalTimeline<>();
 
       while (payloads.hasNext()) {
         final byte[] payload = payloads.next();
@@ -702,7 +702,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     // assuming that all tasks inserting segments at a particular point in time are going through the
     // allocatePendingSegment flow. This should be assured through some other mechanism (like task locks).
 
-    final List<TimelineObjectHolder<String, DataSegment>> existingChunks = getTimelineForIntervalsWithHandle(
+    final List<TimelineObjectHolder<DataSegment>> existingChunks = getTimelineForIntervalsWithHandle(
             handle,
             dataSource,
             ImmutableList.of(interval)
@@ -722,7 +722,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
       SegmentIdentifier max = null;
 
       if (!existingChunks.isEmpty()) {
-        TimelineObjectHolder<String, DataSegment> existingHolder = Iterables.getOnlyElement(existingChunks);
+        TimelineObjectHolder<DataSegment> existingHolder = Iterables.getOnlyElement(existingChunks);
         for (PartitionChunk<DataSegment> existing : existingHolder.getObject()) {
           if (max == null || max.getShardSpec().getPartitionNum() < existing.getObject()
                   .getShardSpec()

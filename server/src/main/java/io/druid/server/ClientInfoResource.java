@@ -148,7 +148,7 @@ public class ClientInfoResource
       theInterval = new Interval(interval);
     }
 
-    TimelineLookup<String, ServerSelector> timeline = timelineServerView.getTimeline(dataSourceName);
+    TimelineLookup<ServerSelector> timeline = timelineServerView.getTimeline(dataSourceName);
     if (timeline == null) {
       return Collections.emptyMap();
     }
@@ -157,10 +157,10 @@ public class ClientInfoResource
 
   private Map<String, Object> toClientResult(
       Interval theInterval,
-      TimelineLookup<String, ServerSelector> timeline
+      TimelineLookup<ServerSelector> timeline
   )
   {
-    Iterable<TimelineObjectHolder<String, ServerSelector>> serversLookup = timeline.lookup(theInterval);
+    Iterable<TimelineObjectHolder<ServerSelector>> serversLookup = timeline.lookup(theInterval);
     if (Iterables.isEmpty(serversLookup)) {
       return Collections.emptyMap();
     }
@@ -179,7 +179,7 @@ public class ClientInfoResource
         }
     );
 
-    for (TimelineObjectHolder<String, ServerSelector> holder : serversLookup) {
+    for (TimelineObjectHolder<ServerSelector> holder : serversLookup) {
       final Set<Object> dimensions = Sets.newHashSet();
       final Set<Object> metrics = Sets.newHashSet();
       final PartitionHolder<ServerSelector> partitionHolder = holder.getObject();

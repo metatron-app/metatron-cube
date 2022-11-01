@@ -61,7 +61,7 @@ public class CachingClusteredClientFunctionalityTest {
 
   public CachingClusteredClient client;
 
-  protected VersionedIntervalTimeline<String, ServerSelector> timeline;
+  protected VersionedIntervalTimeline<ServerSelector> timeline;
   protected TimelineServerView serverView;
   protected Cache cache;
 
@@ -196,7 +196,7 @@ public class CachingClusteredClientFunctionalityTest {
           }
 
           @Override
-          public VersionedIntervalTimeline<String, ServerSelector> getTimeline(String dataSource)
+          public VersionedIntervalTimeline<ServerSelector> getTimeline(String dataSource)
           {
             return timeline;
           }

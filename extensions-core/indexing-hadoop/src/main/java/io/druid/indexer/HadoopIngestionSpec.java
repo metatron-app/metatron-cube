@@ -204,16 +204,16 @@ public class HadoopIngestionSpec extends IngestionSpec<HadoopIOConfig, HadoopTun
         }
       }
 
-      VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
+      VersionedIntervalTimeline<DataSegment> timeline = new VersionedIntervalTimeline<>();
       for (DataSegment segment : segmentsList) {
         timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment));
       }
 
       final List<WindowedDataSegment> windowedSegments = Lists.newArrayList();
       for (Interval interval : ingestionSpecObj.getIntervals()) {
-        final List<TimelineObjectHolder<String, DataSegment>> timeLineSegments = timeline.lookup(interval);
+        final List<TimelineObjectHolder<DataSegment>> timeLineSegments = timeline.lookup(interval);
 
-        for (TimelineObjectHolder<String, DataSegment> holder : timeLineSegments) {
+        for (TimelineObjectHolder<DataSegment> holder : timeLineSegments) {
           for (PartitionChunk<DataSegment> chunk : holder.getObject()) {
             windowedSegments.add(new WindowedDataSegment(chunk.getObject(), holder.getInterval()));
           }

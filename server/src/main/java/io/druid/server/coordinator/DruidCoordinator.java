@@ -251,9 +251,9 @@ public class DruidCoordinator
           }
 
           @Override
-          public CallbackAction serverUpdated(DruidServer server)
+          public CallbackAction serverUpdated(DruidServer prev, DruidServer current)
           {
-            if (leader && server.isDecommissioned()) {
+            if (leader && (prev.isDecommissioned() ^ current.isDecommissioned())) {
               balanceNow();
             }
             return CallbackAction.CONTINUE;
@@ -553,7 +553,11 @@ public class DruidCoordinator
       }
 
       log.info("I am the leader of the coordinators, all must bow!");
-      log.info("Starting coordination in [%s]", config.getCoordinatorStartDelay());
+      log.info(
+          "As of the leader, start coordination in [%s], waiting minimum number of vassals [%d]",
+          config.getCoordinatorStartDelay(),
+          getDynamicConfigs().getMinimumServersForCoordination()
+      );
       try {
         leaderCounter++;
         leader = true;
@@ -641,14 +645,12 @@ public class DruidCoordinator
       return scheduleNow(segments).get(waitTimeout, TimeUnit.MILLISECONDS);
     }
     final CountDownLatch latch = new CountDownLatch(segments.size());
-    final ServerView.SegmentCallback callback = ServerView.segmentAdded(
-        (server, segment) -> {
-          if (segments.contains(segment)) {
-            latch.countDown();
-          }
-          return latch.getCount() == 0 ? CallbackAction.UNREGISTER : CallbackAction.CONTINUE;
-        }
-    );
+    final ServerView.SegmentCallback callback = ServerView.segmentAdded((server, segment) -> {
+      if (segments.contains(segment)) {
+        latch.countDown();
+      }
+      return latch.getCount() == 0 ? CallbackAction.UNREGISTER : CallbackAction.CONTINUE;
+    });
     serverInventoryView.registerSegmentCallback(exec, callback);
 
     long start = System.currentTimeMillis();

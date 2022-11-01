@@ -120,9 +120,7 @@ public class RealtimePlumber implements Plumber
   private final SegmentHandoffNotifier handoffNotifier;
   private final Object handoffCondition = new Object();
   private final Map<Long, Sink> sinks = Maps.newConcurrentMap();
-  private final VersionedIntervalTimeline<String, Sink> sinkTimeline = new VersionedIntervalTimeline<String, Sink>(
-      String.CASE_INSENSITIVE_ORDER
-  );
+  private final VersionedIntervalTimeline<Sink> sinkTimeline = new VersionedIntervalTimeline<Sink>();
 
   private final Cache cache;
   private final CacheConfig cacheConfig;
@@ -320,7 +318,7 @@ public class RealtimePlumber implements Plumber
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     final QueryToolChest<T, Query<T>> toolchest = factory.getToolchest();
 
-    List<TimelineObjectHolder<String, Sink>> querySinks = Lists.newArrayList();
+    List<TimelineObjectHolder<Sink>> querySinks = Lists.newArrayList();
     for (Interval interval : query.getIntervals()) {
       querySinks.addAll(sinkTimeline.lookup(interval));
     }

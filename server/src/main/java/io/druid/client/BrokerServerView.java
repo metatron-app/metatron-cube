@@ -114,7 +114,7 @@ public class BrokerServerView implements TimelineServerView
 
   private final ConcurrentMap<String, QueryableDruidServer> clients;
   private final Map<String, ServerSelector> selectors;
-  private final Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelines;
+  private final Map<String, VersionedIntervalTimeline<ServerSelector>> timelines;
   private final ConcurrentMap<TimelineCallback, Executor> timelineCallbacks = new ConcurrentHashMap<>();
 
   private final QueryToolChestWarehouse warehouse;
@@ -221,7 +221,7 @@ public class BrokerServerView implements TimelineServerView
 
     baseView.registerServerCallback(
         exec,
-        new AbstractServerCallback()
+        new ServerCallback()
         {
           @Override
           public ServerView.CallbackAction serverRemoved(DruidServer server)
@@ -294,7 +294,7 @@ public class BrokerServerView implements TimelineServerView
     if (selector == null) {
       selector = new ServerSelector(segment);
 
-      VersionedIntervalTimeline<String, ServerSelector> timeline = timelines.get(segment.getDataSource());
+      VersionedIntervalTimeline<ServerSelector> timeline = timelines.get(segment.getDataSource());
       if (timeline == null) {
         timeline = new VersionedIntervalTimeline<>();
         timelines.put(segment.getDataSource(), timeline);
@@ -384,8 +384,7 @@ public class BrokerServerView implements TimelineServerView
       if (localServer == null) {
         return false;
       }
-      VersionedIntervalTimeline<String, LocalSegment> timeline =
-          localServer.getLocalTimelineView().remove(dataSource);
+      VersionedIntervalTimeline<LocalSegment> timeline = localServer.getLocalTimelineView().remove(dataSource);
       if (timeline == null) {
         return false;
       }
@@ -425,7 +424,7 @@ public class BrokerServerView implements TimelineServerView
       }
 
       if (selector.isEmpty()) {
-        VersionedIntervalTimeline<String, ServerSelector> timeline = timelines.get(segment.getDataSource());
+        VersionedIntervalTimeline<ServerSelector> timeline = timelines.get(segment.getDataSource());
         selectors.remove(segmentId);
 
         final PartitionChunk<ServerSelector> removedPartition = timeline.remove(
@@ -465,7 +464,7 @@ public class BrokerServerView implements TimelineServerView
   }
 
   @Override
-  public VersionedIntervalTimeline<String, ServerSelector> getTimeline(String dataSource)
+  public VersionedIntervalTimeline<ServerSelector> getTimeline(String dataSource)
   {
     synchronized (lock) {
       return timelines.get(dataSource);
@@ -476,7 +475,7 @@ public class BrokerServerView implements TimelineServerView
   public Iterable<ServerSelector> getSelectors(String dataSource)
   {
     synchronized (lock) {
-      VersionedIntervalTimeline<String, ServerSelector> timeline = timelines.get(dataSource);
+      VersionedIntervalTimeline<ServerSelector> timeline = timelines.get(dataSource);
       if (timeline == null) {
         return ImmutableList.of();
       }
@@ -553,8 +552,7 @@ public class BrokerServerView implements TimelineServerView
   }
 
   private <T> QueryRunner<T> toRunner(
-      final Query<T> query,
-      final Map<String, VersionedIntervalTimeline<String, LocalSegment>> indexMap
+      final Query<T> query, final Map<String, VersionedIntervalTimeline<LocalSegment>> indexMap
   )
   {
     // called from CachingClusteredClient.. it's always MultipleSpecificSegmentSpec
@@ -574,7 +572,7 @@ public class BrokerServerView implements TimelineServerView
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-    final TimelineLookup<String, LocalSegment> timeline = indexMap.get(DataSources.getName(query));
+    final TimelineLookup<LocalSegment> timeline = indexMap.get(DataSources.getName(query));
     if (timeline == null) {
       return NoopQueryRunner.instance();
     }

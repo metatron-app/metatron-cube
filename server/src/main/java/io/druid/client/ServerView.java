@@ -41,7 +41,10 @@ public interface ServerView
 
   static interface ServerCallback
   {
-    CallbackAction serverAdded(DruidServer server);
+    default CallbackAction serverAdded(DruidServer server)
+    {
+      return CallbackAction.CONTINUE;
+    }
 
     /**
      * Called when a server is removed.
@@ -57,54 +60,12 @@ public interface ServerView
      * @return UNREGISTER if the callback has completed its work and should be unregistered.  CONTINUE if the callback
      * should remain registered.
      */
-    CallbackAction serverRemoved(DruidServer server);
-
-    CallbackAction serverUpdated(DruidServer server);
-
-    enum Type
-    {
-      ADDED {
-        @Override
-        public CallbackAction execute(ServerCallback callback, DruidServer server)
-        {
-          return callback.serverAdded(server);
-        }
-      },
-      REMOVED {
-        @Override
-        public CallbackAction execute(ServerCallback callback, DruidServer server)
-        {
-          return callback.serverRemoved(server);
-        }
-      },
-      UPDATED {
-        @Override
-        public CallbackAction execute(ServerCallback callback, DruidServer server)
-        {
-          return callback.serverUpdated(server);
-        }
-      };
-
-      public abstract CallbackAction execute(ServerCallback callback, DruidServer server);
-    }
-  }
-
-  class AbstractServerCallback implements ServerCallback
-  {
-    @Override
-    public CallbackAction serverAdded(DruidServer server)
+    default CallbackAction serverRemoved(DruidServer server)
     {
       return CallbackAction.CONTINUE;
     }
 
-    @Override
-    public CallbackAction serverRemoved(DruidServer server)
-    {
-      return CallbackAction.CONTINUE;
-    }
-
-    @Override
-    public CallbackAction serverUpdated(DruidServer server)
+    default CallbackAction serverUpdated(DruidServer prev, DruidServer current)
     {
       return CallbackAction.CONTINUE;
     }

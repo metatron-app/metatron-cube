@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -623,6 +624,11 @@ public class GuavaUtils
   public static <F, T> List<T> transform(List<F> fromList, Function<? super F, ? extends T> function)
   {
     return Lists.newArrayList(Iterables.transform(fromList, function));
+  }
+
+  public static <K, V, V2> Iterable<V2> transform(Map<K, V> map, BiFunction<K, V, V2> function)
+  {
+    return Iterables.transform(map.entrySet(), e -> function.apply(e.getKey(), e.getValue()));
   }
 
   // should be no null in source

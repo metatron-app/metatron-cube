@@ -141,9 +141,7 @@ public class AppenderatorImpl implements Appenderator
   private final CacheConfig cacheConfig;
   private final Map<SegmentIdentifier, Sink> sinks = Maps.newConcurrentMap();
   private final Set<SegmentIdentifier> droppingSinks = Sets.newConcurrentHashSet();
-  private final VersionedIntervalTimeline<String, Sink> sinkTimeline = new VersionedIntervalTimeline<>(
-      String.CASE_INSENSITIVE_ORDER
-  );
+  private final VersionedIntervalTimeline<Sink> sinkTimeline = new VersionedIntervalTimeline<>();
   // This variable updated in add(), persist(), and drop()
   private final AtomicInteger rowsCurrentlyInMemory = new AtomicInteger();
   private final AtomicInteger totalRows = new AtomicInteger();

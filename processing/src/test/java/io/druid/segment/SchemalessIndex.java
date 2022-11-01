@@ -441,12 +441,12 @@ public class SchemalessIndex
 
       List<File> filesToMap = makeFilesToMap(tmpFile, files);
 
-      VersionedIntervalTimeline<Integer, File> timeline = new VersionedIntervalTimeline<Integer, File>();
+      VersionedIntervalTimeline<File> timeline = new VersionedIntervalTimeline<File>();
 
       ShardSpec noneShardSpec = NoneShardSpec.instance();
 
       for (int i = 0; i < intervals.size(); i++) {
-        timeline.add(intervals.get(i), i, noneShardSpec.createChunk(filesToMap.get(i)));
+        timeline.add(intervals.get(i), String.format("%4d", i), noneShardSpec.createChunk(filesToMap.get(i)));
       }
 
       final List<IndexableAdapter> adapters = Lists.newArrayList(
@@ -454,10 +454,10 @@ public class SchemalessIndex
               // TimelineObjectHolder is actually an iterable of iterable of indexable adapters
               Iterables.transform(
                   timeline.lookup(new Interval("1000-01-01/3000-01-01")),
-                  new Function<TimelineObjectHolder<Integer, File>, Iterable<IndexableAdapter>>()
+                  new Function<TimelineObjectHolder<File>, Iterable<IndexableAdapter>>()
                   {
                     @Override
-                    public Iterable<IndexableAdapter> apply(final TimelineObjectHolder<Integer, File> timelineObjectHolder)
+                    public Iterable<IndexableAdapter> apply(final TimelineObjectHolder<File> timelineObjectHolder)
                     {
                       return Iterables.transform(
                           timelineObjectHolder.getObject(),

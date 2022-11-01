@@ -110,7 +110,7 @@ public class CoordinatorServerViewTest extends CuratorTestBase
     );
     Assert.assertEquals(1, serverLookupRes.size());
 
-    TimelineObjectHolder<String, SegmentLoadInfo> actualTimelineObjectHolder = serverLookupRes.get(0);
+    TimelineObjectHolder<SegmentLoadInfo> actualTimelineObjectHolder = serverLookupRes.get(0);
     Assert.assertEquals(new Interval("2014-10-20T00:00:00Z/P1D"), actualTimelineObjectHolder.getInterval());
     Assert.assertEquals("v1", actualTimelineObjectHolder.getVersion());
 
@@ -271,7 +271,7 @@ public class CoordinatorServerViewTest extends CuratorTestBase
 
     for (int i = 0; i < expected.size(); ++i) {
       Pair<Interval, Pair<String, Pair<DruidServer, DataSegment>>> expectedPair = expected.get(i);
-      TimelineObjectHolder<String, SegmentLoadInfo> actualTimelineObjectHolder = actual.get(i);
+      TimelineObjectHolder<SegmentLoadInfo> actualTimelineObjectHolder = actual.get(i);
 
       Assert.assertEquals(expectedPair.lhs, actualTimelineObjectHolder.getInterval());
       Assert.assertEquals(expectedPair.rhs.lhs, actualTimelineObjectHolder.getVersion());

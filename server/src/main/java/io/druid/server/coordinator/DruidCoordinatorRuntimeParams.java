@@ -161,14 +161,14 @@ public class DruidCoordinatorRuntimeParams
   {
     Map<String, Set<DataSegment>> overshadows = Maps.newHashMap();
     for (Map.Entry<String, List<DataSegment>> entry : availables.entrySet()) {
-      VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
+      VersionedIntervalTimeline<DataSegment> timeline = new VersionedIntervalTimeline<>();
       for (DataSegment segment : entry.getValue()) {
         timeline.add(
             segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment)
         );
       }
       Set<DataSegment> overshadow = Sets.newHashSet();
-      for (TimelineObjectHolder<String, DataSegment> holder : timeline.findOvershadowed()) {
+      for (TimelineObjectHolder<DataSegment> holder : timeline.findOvershadowed()) {
         for (DataSegment dataSegment : holder.getObject().payloads()) {
           overshadow.add(dataSegment);
         }

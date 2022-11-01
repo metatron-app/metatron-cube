@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 
 /**
  */
@@ -114,14 +115,14 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           public void newContainer(DruidServer container)
           {
             log.info("Server[%s:%s] Registered", container.getType(), container.getName());
-            runServerCallback(container, ServerCallback.Type.ADDED);
+            runServerCallback((exec, callback) -> exec.execute(() -> callback.serverAdded(container)));
           }
 
           @Override
           public void deadContainer(DruidServer deadContainer)
           {
             log.info("Server[%s:%s] Disappeared", deadContainer.getType(), deadContainer.getName());
-            runServerCallback(deadContainer, ServerCallback.Type.REMOVED);
+            runServerCallback((exec, callback) -> exec.execute(() -> callback.serverRemoved(deadContainer)));
           }
 
           @Override
@@ -129,7 +130,7 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           {
             log.info("Server[%s:%s] Updated", oldContainer.getType(), newContainer);
             DruidServer updated = newContainer.addDataSegments(oldContainer);
-            runServerCallback(updated, ServerCallback.Type.UPDATED);
+            runServerCallback((exec, callback) -> exec.execute(() -> callback.serverUpdated(oldContainer, updated)));
             return updated;
           }
 
@@ -262,21 +263,10 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
     }
   }
 
-  protected void runServerCallback(final DruidServer server, final ServerCallback.Type type)
+  protected void runServerCallback(final BiConsumer<Executor, ServerCallback> function)
   {
     for (final Map.Entry<ServerCallback, Executor> entry : serverCallbacks.entrySet()) {
-      entry.getValue().execute(
-          new Runnable()
-          {
-            @Override
-            public void run()
-            {
-              if (CallbackAction.UNREGISTER == type.execute(entry.getKey(), server)) {
-                serverCallbacks.remove(entry.getKey());
-              }
-            }
-          }
-      );
+      function.accept(entry.getValue(), entry.getKey());
     }
   }
 

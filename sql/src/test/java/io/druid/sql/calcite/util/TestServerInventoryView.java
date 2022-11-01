@@ -66,7 +66,7 @@ public class TestServerInventoryView implements TimelineServerView
   }
 
   @Override
-  public TimelineLookup<String, ServerSelector> getTimeline(String dataSource)
+  public TimelineLookup<ServerSelector> getTimeline(String dataSource)
   {
     return dataSources.contains(dataSource) ? new TimelineLookup.NotSupport<>() : null;
   }

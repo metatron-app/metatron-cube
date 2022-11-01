@@ -107,7 +107,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   private final ServiceEmitter emitter;
   private final ExecutorService exec;
   private final ExecutorService cachingExec;
-  private final Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> dataSources;
+  private final Map<String, VersionedIntervalTimeline<ReferenceCountingSegment>> dataSources;
   private final String2LongMap dataSourceSizes = new String2LongMap();
   private final String2IntMap dataSourceCounts = new String2IntMap();
   private final Cache cache;
@@ -199,7 +199,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     }
 
     synchronized (lock) {
-      VersionedIntervalTimeline<String, ReferenceCountingSegment> loadedIntervals = dataSources.get(dataSource);
+      VersionedIntervalTimeline<ReferenceCountingSegment> loadedIntervals = dataSources.get(dataSource);
 
       if (loadedIntervals == null) {
         loadedIntervals = new VersionedIntervalTimeline<>();
@@ -238,7 +238,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   {
     String dataSource = segment.getDataSource();
     synchronized (lock) {
-      VersionedIntervalTimeline<String, ReferenceCountingSegment> loadedIntervals = dataSources.get(dataSource);
+      VersionedIntervalTimeline<ReferenceCountingSegment> loadedIntervals = dataSources.get(dataSource);
 
       if (loadedIntervals == null) {
         log.info("Told to delete a queryable for a dataSource[%s] that doesn't exist.", dataSource);
@@ -324,7 +324,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     }
     final String dataSourceName = getDataSourceName(dataSource);
 
-    final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
+    final VersionedIntervalTimeline<ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
 
     if (timeline == null) {
       return NoopQueryRunner.instance();
@@ -360,7 +360,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     }
     String dataSourceName = getDataSourceName(query.getDataSource());
 
-    final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
+    final VersionedIntervalTimeline<ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
     if (timeline == null) {
       return NoopQueryRunner.instance();
     }
@@ -387,7 +387,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, List<SegmentKey> keys, List<IntList> partitions)
   {
     String dataSourceName = getDataSourceName(query.getDataSource());
-    VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
+    VersionedIntervalTimeline<ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
     if (timeline == null) {
       return NoopQueryRunner.instance();
     }

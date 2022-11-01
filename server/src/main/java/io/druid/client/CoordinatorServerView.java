@@ -46,7 +46,7 @@ public class CoordinatorServerView implements InventoryView
   private final Object lock = new Object();
 
   private final Map<String, SegmentLoadInfo> segmentLoadInfos;
-  private final Map<String, VersionedIntervalTimeline<String, SegmentLoadInfo>> timelines;
+  private final Map<String, VersionedIntervalTimeline<SegmentLoadInfo>> timelines;
 
   private final ServerInventoryView baseView;
   private final Emitter emitter;
@@ -94,7 +94,7 @@ public class CoordinatorServerView implements InventoryView
 
     baseView.registerServerCallback(
         exec,
-        new ServerView.AbstractServerCallback()
+        new ServerView.ServerCallback()
         {
           @Override
           public ServerView.CallbackAction serverRemoved(DruidServer server)
@@ -135,7 +135,7 @@ public class CoordinatorServerView implements InventoryView
     synchronized (lock) {
       SegmentLoadInfo loadInfo = segmentLoadInfos.computeIfAbsent(segmentId, id -> {
         SegmentLoadInfo info = new SegmentLoadInfo(segment.toDescriptor());
-        VersionedIntervalTimeline<String, SegmentLoadInfo> timeline = timelines.computeIfAbsent(
+        VersionedIntervalTimeline<SegmentLoadInfo> timeline = timelines.computeIfAbsent(
             segment.getDataSource(), ds -> {
               emitter.emit(
                   new Events.SimpleEvent(
@@ -174,7 +174,7 @@ public class CoordinatorServerView implements InventoryView
         }
         segmentLoadInfo.removeServer(server);
         if (segmentLoadInfo.isEmpty()) {
-          final VersionedIntervalTimeline<String, SegmentLoadInfo> timeline = timelines.get(segment.getDataSource());
+          final VersionedIntervalTimeline<SegmentLoadInfo> timeline = timelines.get(segment.getDataSource());
           final PartitionChunk<SegmentLoadInfo> removedPartition = timeline.remove(
               segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(null)
           );
@@ -193,7 +193,7 @@ public class CoordinatorServerView implements InventoryView
     }
   }
 
-  public VersionedIntervalTimeline<String, SegmentLoadInfo> getTimeline(DataSource dataSource)
+  public VersionedIntervalTimeline<SegmentLoadInfo> getTimeline(DataSource dataSource)
   {
     String table = Iterables.getOnlyElement(dataSource.getNames());
     synchronized (lock) {

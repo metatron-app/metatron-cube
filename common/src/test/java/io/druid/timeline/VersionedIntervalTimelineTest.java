@@ -50,7 +50,7 @@ import java.util.Set;
  */
 public class VersionedIntervalTimelineTest
 {
-  VersionedIntervalTimeline<String, Integer> timeline;
+  VersionedIntervalTimeline<Integer> timeline;
 
   @Before
   public void setUp() throws Exception
@@ -205,7 +205,7 @@ public class VersionedIntervalTimelineTest
 
     Assert.assertTrue(
         "These timestamps have to be at the end AND include now for this test to work.",
-        overallStart.isAfter(timeline.incompletePartitionsTimeline.lastEntry().getKey().getEnd())
+        overallStart.isAfter(timeline.incompletePartitions.lastEntry().getKey().getEnd())
     );
 
     final Interval oneHourInterval1 = new Interval(overallStart.plus(Hours.THREE), overallStart.plus(Hours.FOUR));
@@ -226,7 +226,7 @@ public class VersionedIntervalTimelineTest
   @Test
   public void testRemove() throws Exception
   {
-    for (TimelineObjectHolder<String, Integer> holder : timeline.findOvershadowed()) {
+    for (TimelineObjectHolder<Integer> holder : timeline.findOvershadowed()) {
       for (PartitionChunk<Integer> chunk : holder.getObject()) {
         timeline.remove(holder.getInterval(), holder.getVersion(), chunk);
       }
@@ -1739,7 +1739,7 @@ public class VersionedIntervalTimelineTest
     add("2018-11-07/2018-11-08", "11", LinearPartitionChunk.make(0, 0));
     add("2018-11-07/2018-11-08", "11", LinearPartitionChunk.make(1, 1));
     add("2018-11-08/2018-11-09", "12", LinearPartitionChunk.make(0, 2));
-    List<TimelineObjectHolder<String, Integer>> holders = timeline.lookup(new Interval("2018-11-01/2018-11-30"));
+    List<TimelineObjectHolder<Integer>> holders = timeline.lookup(new Interval("2018-11-01/2018-11-30"));
     Assert.assertEquals(2, holders.size());
     Assert.assertEquals(2, holders.get(0).getObject().size());
     Assert.assertEquals(1, holders.get(1).getObject().size());
@@ -1814,17 +1814,17 @@ public class VersionedIntervalTimelineTest
 
   private void assertValues(
       List<Pair<Interval, Pair<String, PartitionHolder<Integer>>>> expected,
-      List<TimelineObjectHolder<String, Integer>> actual
+      List<TimelineObjectHolder<Integer>> actual
   )
   {
     Assert.assertEquals("Sizes did not match.", expected.size(), actual.size());
 
     Iterator<Pair<Interval, Pair<String, PartitionHolder<Integer>>>> expectedIter = expected.iterator();
-    Iterator<TimelineObjectHolder<String, Integer>> actualIter = actual.iterator();
+    Iterator<TimelineObjectHolder<Integer>> actualIter = actual.iterator();
 
     while (expectedIter.hasNext()) {
       Pair<Interval, Pair<String, PartitionHolder<Integer>>> pair = expectedIter.next();
-      TimelineObjectHolder<String, Integer> holder = actualIter.next();
+      TimelineObjectHolder<Integer> holder = actualIter.next();
 
       Assert.assertEquals(pair.lhs, holder.getInterval());
       Assert.assertEquals(pair.rhs.lhs, holder.getVersion());
@@ -1834,7 +1834,7 @@ public class VersionedIntervalTimelineTest
 
   private void assertValues(
       Set<Pair<Interval, Pair<String, PartitionHolder<Integer>>>> expected,
-      Set<TimelineObjectHolder<String, Integer>> actual
+      Set<TimelineObjectHolder<Integer>> actual
   )
   {
     Assert.assertEquals("Sizes did not match.", expected.size(), actual.size());
@@ -1843,11 +1843,11 @@ public class VersionedIntervalTimelineTest
         Sets.newHashSet(
             Iterables.transform(
                 actual,
-                new Function<TimelineObjectHolder<String, Integer>, Pair<Interval, Pair<String, PartitionHolder<Integer>>>>()
+                new Function<TimelineObjectHolder<Integer>, Pair<Interval, Pair<String, PartitionHolder<Integer>>>>()
                 {
                   @Override
                   public Pair<Interval, Pair<String, PartitionHolder<Integer>>> apply(
-                      TimelineObjectHolder<String, Integer> input
+                      TimelineObjectHolder<Integer> input
                   )
                   {
                     return new Pair<>(input.getInterval(), new Pair<>(input.getVersion(), input.getObject()));
@@ -1859,9 +1859,8 @@ public class VersionedIntervalTimelineTest
     Assert.assertEquals(expected, actualSet);
   }
 
-  private VersionedIntervalTimeline<String, Integer> makeStringIntegerTimeline()
+  private VersionedIntervalTimeline<Integer> makeStringIntegerTimeline()
   {
-    return new VersionedIntervalTimeline<String, Integer>();
+    return new VersionedIntervalTimeline<Integer>();
   }
-
 }

@@ -32,7 +32,6 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.ordering.StringComparators;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
@@ -129,13 +128,13 @@ public class MultiSegmentSelectQueryTest
     segment1 = new IncrementalIndexSegment(index1, DataSegment.asKey(makeIdentifier(index1, "v1")));
     segment_override = new IncrementalIndexSegment(index2, DataSegment.asKey(makeIdentifier(index2, "v2")));
 
-    VersionedIntervalTimeline<String, Segment> timeline = new VersionedIntervalTimeline(StringComparators.LEXICOGRAPHIC);
+    VersionedIntervalTimeline<Segment> timeline = new VersionedIntervalTimeline();
     timeline.add(index0.getInterval(), "v1", new SingleElementPartitionChunk(segment0));
     timeline.add(index1.getInterval(), "v1", new SingleElementPartitionChunk(segment1));
     timeline.add(index2.getInterval(), "v2", new SingleElementPartitionChunk(segment_override));
 
     segmentIdentifiers = Lists.newArrayList();
-    for (TimelineObjectHolder<String, ?> holder : timeline.lookup(new Interval("2011-01-12/2011-01-14"))) {
+    for (TimelineObjectHolder<?> holder : timeline.lookup(new Interval("2011-01-12/2011-01-14"))) {
       segmentIdentifiers.add(makeIdentifier(holder.getInterval(), holder.getVersion()));
     }
 

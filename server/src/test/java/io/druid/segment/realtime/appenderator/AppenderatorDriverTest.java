@@ -507,7 +507,7 @@ public class AppenderatorDriverTest
     @Override
     public Set<DataSegment> findUsedSegments(Set<SegmentIdentifier> identifiers) throws IOException
     {
-      final VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
+      final VersionedIntervalTimeline<DataSegment> timeline = new VersionedIntervalTimeline<>();
       for (DataSegment dataSegment : appenderatorTester.getPushedSegments()) {
         timeline.add(
             dataSegment.getInterval(),
@@ -518,7 +518,7 @@ public class AppenderatorDriverTest
 
       final Set<DataSegment> retVal = Sets.newHashSet();
       for (SegmentIdentifier identifier : identifiers) {
-        for (TimelineObjectHolder<String, DataSegment> holder : timeline.lookup(identifier.getInterval())) {
+        for (TimelineObjectHolder<DataSegment> holder : timeline.lookup(identifier.getInterval())) {
           for (PartitionChunk<DataSegment> chunk : holder.getObject()) {
             if (identifiers.contains(SegmentIdentifier.fromDataSegment(chunk.getObject()))) {
               retVal.add(chunk.getObject());

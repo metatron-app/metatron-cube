@@ -244,11 +244,11 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   {
     try {
       final IDBI dbi = connector.getDBI();
-      VersionedIntervalTimeline<String, DataSegment> timeline = inReadOnlyTransaction(
-          new TransactionCallback<VersionedIntervalTimeline<String, DataSegment>>()
+      VersionedIntervalTimeline<DataSegment> timeline = inReadOnlyTransaction(
+          new TransactionCallback<VersionedIntervalTimeline<DataSegment>>()
           {
             @Override
-            public VersionedIntervalTimeline<String, DataSegment> inTransaction(
+            public VersionedIntervalTimeline<DataSegment> inTransaction(
                 Handle handle, TransactionStatus status
             ) throws Exception
             {
@@ -261,12 +261,12 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                   .bind("dataSource", ds)
                   .map(ByteArrayMapper.FIRST)
                   .fold(
-                      new VersionedIntervalTimeline<String, DataSegment>(),
-                      new Folder3<VersionedIntervalTimeline<String, DataSegment>, byte[]>()
+                      new VersionedIntervalTimeline<DataSegment>(),
+                      new Folder3<VersionedIntervalTimeline<DataSegment>, byte[]>()
                       {
                         @Override
-                        public VersionedIntervalTimeline<String, DataSegment> fold(
-                            VersionedIntervalTimeline<String, DataSegment> timeline,
+                        public VersionedIntervalTimeline<DataSegment> fold(
+                            VersionedIntervalTimeline<DataSegment> timeline,
                             byte[] payload,
                             FoldController foldController,
                             StatementContext statementContext
@@ -301,7 +301,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       }
 
       final List<DataSegment> segments = Lists.newArrayList();
-      for (TimelineObjectHolder<String, DataSegment> objectHolder : timeline.lookup(timeline.coverage())) {
+      for (TimelineObjectHolder<DataSegment> objectHolder : timeline.lookup(timeline.coverage())) {
         for (PartitionChunk<DataSegment> partitionChunk : objectHolder.getObject()) {
           segments.add(partitionChunk.getObject());
         }

@@ -197,13 +197,13 @@ public class BrokerQueryResource extends QueryResource
 
   private List<LocatedSegmentDescriptor> getTargetLocations(String dataSourceName, List<Interval> intervals)
   {
-    TimelineLookup<String, ServerSelector> timeline = brokerServerView.getTimeline(dataSourceName);
+    TimelineLookup<ServerSelector> timeline = brokerServerView.getTimeline(dataSourceName);
     if (timeline == null) {
       return Collections.emptyList();
     }
     List<LocatedSegmentDescriptor> located = Lists.newArrayList();
     for (Interval interval : intervals) {
-      for (TimelineObjectHolder<String, ServerSelector> holder : timeline.lookup(interval)) {
+      for (TimelineObjectHolder<ServerSelector> holder : timeline.lookup(interval)) {
         for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
           ServerSelector selector = chunk.getObject();
           final SegmentDescriptor descriptor = new SegmentDescriptor(

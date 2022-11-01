@@ -48,6 +48,16 @@ public final class Intervals
     return new Interval(start, end);
   }
 
+  public static Interval aheadOf(Interval current, Interval reference)
+  {
+    return new Interval(current.getStartMillis(), reference.getStartMillis(), reference.getChronology());
+  }
+
+  public static Interval behindOf(Interval current, Interval reference)
+  {
+    return new Interval(reference.getEndMillis(), current.getEndMillis(), reference.getChronology());
+  }
+
   private Intervals()
   {
   }

@@ -797,9 +797,7 @@ public class DataSourcesResource
       @QueryParam("partial") final boolean partial
   )
   {
-    TimelineLookup<String, SegmentLoadInfo> timeline = serverInventoryView.getTimeline(
-        new TableDataSource(dataSourceName)
-    );
+    TimelineLookup<SegmentLoadInfo> timeline = serverInventoryView.getTimeline(TableDataSource.of(dataSourceName));
     final Interval theInterval = new Interval(interval.replace("_", "/"));
     if (timeline == null) {
       log.debug("No timeline found for datasource[%s]", dataSourceName);
@@ -807,7 +805,7 @@ public class DataSourcesResource
     }
 
     final List<ImmutableSegmentLoadInfo> segments = Lists.newArrayList();
-    for (TimelineObjectHolder<String, SegmentLoadInfo> lookup : timeline.lookupWithIncompletePartitions(theInterval)) {
+    for (TimelineObjectHolder<SegmentLoadInfo> lookup : timeline.lookupWithIncompletePartitions(theInterval)) {
       for (PartitionChunk<SegmentLoadInfo> segment : lookup.getObject()) {
         segments.add(segment.getObject().toImmutableSegmentLoadInfo());
       }

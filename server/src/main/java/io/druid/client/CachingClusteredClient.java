@@ -183,7 +183,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     final boolean explicitBySegment = BaseQuery.isBySegment(query);
 
     final String dataSource = DataSources.getName(query);
-    final TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(dataSource);
+    final TimelineLookup<ServerSelector> timeline = serverView.getTimeline(dataSource);
 
     if (timeline == null) {
       return Sequences.empty(query.estimatedOutputColumns());
@@ -192,7 +192,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     // build set of segments to query
     Set<Pair<ServerSelector, SegmentDescriptor>> segments = Sets.newLinkedHashSet();
 
-    List<TimelineObjectHolder<String, ServerSelector>> serversLookup = Lists.newLinkedList();
+    List<TimelineObjectHolder<ServerSelector>> serversLookup = Lists.newLinkedList();
 
     // Note that enabling this leads to putting uncovered intervals information in the response headers
     // and might blow up in some cases https://github.com/druid-io/druid/issues/2108
@@ -203,10 +203,10 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       boolean uncoveredIntervalsOverflowed = false;
 
       for (Interval interval : query.getIntervals()) {
-        Iterable<TimelineObjectHolder<String, ServerSelector>> lookup = timeline.lookup(interval);
+        Iterable<TimelineObjectHolder<ServerSelector>> lookup = timeline.lookup(interval);
         long startMillis = interval.getStartMillis();
         long endMillis = interval.getEndMillis();
-        for (TimelineObjectHolder<String, ServerSelector> holder : lookup) {
+        for (TimelineObjectHolder<ServerSelector> holder : lookup) {
           Interval holderInterval = holder.getInterval();
           long intervalStart = holderInterval.getStartMillis();
           if (!uncoveredIntervalsOverflowed && startMillis != intervalStart) {
@@ -244,7 +244,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     }
 
     // Let tool chest filter out unneeded segments
-    final List<TimelineObjectHolder<String, ServerSelector>> filteredServersLookup =
+    final List<TimelineObjectHolder<ServerSelector>> filteredServersLookup =
         toolChest.filterSegments(query, serversLookup);
 
     // minor quick-path
@@ -261,7 +261,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       );
     }
 
-    for (TimelineObjectHolder<String, ServerSelector> holder : filteredServersLookup) {
+    for (TimelineObjectHolder<ServerSelector> holder : filteredServersLookup) {
       for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
         final SegmentDescriptor descriptor = new SegmentDescriptor(
             dataSource, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()

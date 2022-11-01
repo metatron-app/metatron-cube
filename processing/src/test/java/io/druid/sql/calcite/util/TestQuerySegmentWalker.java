@@ -296,19 +296,19 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private static class PopulatingMap
   {
     private final List<DataSegment> segments = Lists.newArrayList();
-    private final Map<String, VersionedIntervalTimeline<String, Segment>> node1 = Maps.newHashMap();
-    private final Map<String, VersionedIntervalTimeline<String, Segment>> node2 = Maps.newHashMap();
+    private final Map<String, VersionedIntervalTimeline<Segment>> node1 = Maps.newHashMap();
+    private final Map<String, VersionedIntervalTimeline<Segment>> node2 = Maps.newHashMap();
     private final Map<String, Supplier<List<Pair<DataSegment, Segment>>>> populators = Maps.newHashMap();
 
     private void addSegment(DataSegment descriptor, Segment segment)
     {
       int node = segment.getInterval().hashCode() % 2;
-      VersionedIntervalTimeline<String, Segment> timeline = get(descriptor.getDataSource(), node);
+      VersionedIntervalTimeline<Segment> timeline = get(descriptor.getDataSource(), node);
       timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpecWithDefault().createChunk(segment));
       segments.add(descriptor);
     }
 
-    public VersionedIntervalTimeline<String, Segment> get(String key, int node)
+    public VersionedIntervalTimeline<Segment> get(String key, int node)
     {
       Supplier<List<Pair<DataSegment, Segment>>> populator = populators.remove(key);
       if (populator == null) {
@@ -330,8 +330,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
     private void populate(String key, Supplier<List<Pair<DataSegment, Segment>>> populator)
     {
-      VersionedIntervalTimeline<String, Segment> timeline1 = node1.computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
-      VersionedIntervalTimeline<String, Segment> timeline2 = node2.computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
+      VersionedIntervalTimeline<Segment> timeline1 = node1.computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
+      VersionedIntervalTimeline<Segment> timeline2 = node2.computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
       for (Pair<DataSegment, Segment> pair : populator.get()) {
         DataSegment descriptor = pair.lhs;
         if (descriptor.getInterval().hashCode() % 2 == 0) {
@@ -530,7 +530,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private <T> Iterable<Pair<SegmentDescriptor, Segment>> getSegment(Query<T> input, int node)
   {
     final String dataSourceName = Iterables.getOnlyElement(input.getDataSource().getNames());
-    final VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(dataSourceName, node);
+    final VersionedIntervalTimeline<Segment> timeline = timeLines.get(dataSourceName, node);
     if (timeline == null) {
       return ImmutableList.of();
     }
@@ -562,21 +562,21 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
             Iterables.concat(
                 Iterables.transform(
                     input.getIntervals(),
-                    new Function<Interval, Iterable<TimelineObjectHolder<String, Segment>>>()
+                    new Function<Interval, Iterable<TimelineObjectHolder<Segment>>>()
                     {
                       @Override
-                      public Iterable<TimelineObjectHolder<String, Segment>> apply(Interval input)
+                      public Iterable<TimelineObjectHolder<Segment>> apply(Interval input)
                       {
                         return timeline.lookup(input);
                       }
                     }
                 )
             ),
-            new Function<TimelineObjectHolder<String, Segment>, Iterable<Pair<SegmentDescriptor, Segment>>>()
+            new Function<TimelineObjectHolder<Segment>, Iterable<Pair<SegmentDescriptor, Segment>>>()
             {
               @Override
               public Iterable<Pair<SegmentDescriptor, Segment>> apply(
-                  @Nullable final TimelineObjectHolder<String, Segment> holder
+                  @Nullable final TimelineObjectHolder<Segment> holder
               )
               {
                 if (holder == null) {

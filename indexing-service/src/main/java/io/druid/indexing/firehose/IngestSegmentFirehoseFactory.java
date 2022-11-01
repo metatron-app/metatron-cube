@@ -135,12 +135,12 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
           .getTaskActionClient()
           .submit(new SegmentListUsedAction(dataSource, interval, null));
       final Map<DataSegment, File> segmentFileMap = toolbox.fetchSegments(usedSegments);
-      VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
+      VersionedIntervalTimeline<DataSegment> timeline = new VersionedIntervalTimeline<>();
 
       for (DataSegment segment : usedSegments) {
         timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment));
       }
-      final List<TimelineObjectHolder<String, DataSegment>> timeLineSegments = timeline.lookup(
+      final List<TimelineObjectHolder<DataSegment>> timeLineSegments = timeline.lookup(
           interval
       );
 
@@ -154,11 +154,11 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
             Iterables.concat(
                 Iterables.transform(
                     timeLineSegments,
-                    new Function<TimelineObjectHolder<String, DataSegment>, Iterable<String>>()
+                    new Function<TimelineObjectHolder<DataSegment>, Iterable<String>>()
                     {
                       @Override
                       public Iterable<String> apply(
-                          TimelineObjectHolder<String, DataSegment> timelineObjectHolder
+                          TimelineObjectHolder<DataSegment> timelineObjectHolder
                       )
                       {
                         return Iterables.concat(
@@ -198,11 +198,11 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
             Iterables.concat(
                 Iterables.transform(
                     timeLineSegments,
-                    new Function<TimelineObjectHolder<String, DataSegment>, Iterable<String>>()
+                    new Function<TimelineObjectHolder<DataSegment>, Iterable<String>>()
                     {
                       @Override
                       public Iterable<String> apply(
-                          TimelineObjectHolder<String, DataSegment> input
+                          TimelineObjectHolder<DataSegment> input
                       )
                       {
                         return Iterables.concat(
@@ -231,10 +231,10 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
           Iterables.concat(
               Iterables.transform(
                   timeLineSegments,
-                  new Function<TimelineObjectHolder<String, DataSegment>, Iterable<WindowedStorageAdapter>>()
+                  new Function<TimelineObjectHolder<DataSegment>, Iterable<WindowedStorageAdapter>>()
                   {
                     @Override
-                    public Iterable<WindowedStorageAdapter> apply(final TimelineObjectHolder<String, DataSegment> holder)
+                    public Iterable<WindowedStorageAdapter> apply(final TimelineObjectHolder<DataSegment> holder)
                     {
                       return
                           Iterables.transform(

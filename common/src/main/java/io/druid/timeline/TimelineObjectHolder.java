@@ -19,20 +19,21 @@
 
 package io.druid.timeline;
 
+import com.google.common.base.Preconditions;
 import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
 /**
 */
-public class TimelineObjectHolder<VersionType, ObjectType> implements LogicalSegment
+public class TimelineObjectHolder<ObjectType> implements LogicalSegment
 {
   private final Interval interval;
-  private final VersionType version;
+  private final String version;
   private final PartitionHolder<ObjectType> object;
 
   public TimelineObjectHolder(
       Interval interval,
-      VersionType version,
+      String version,
       PartitionHolder<ObjectType> object
   )
   {
@@ -47,7 +48,7 @@ public class TimelineObjectHolder<VersionType, ObjectType> implements LogicalSeg
     return interval;
   }
 
-  public VersionType getVersion()
+  public String getVersion()
   {
     return version;
   }
@@ -55,6 +56,19 @@ public class TimelineObjectHolder<VersionType, ObjectType> implements LogicalSeg
   public PartitionHolder<ObjectType> getObject()
   {
     return object;
+  }
+
+  public TimelineObjectHolder<ObjectType> withOverlap(Interval interval)
+  {
+    return withOverlap(interval.getStartMillis(), interval.getEndMillis());
+  }
+
+  public TimelineObjectHolder<ObjectType> withOverlap(long start, long end)
+  {
+    start = Math.max(start, interval.getStartMillis());
+    end = Math.min(end, interval.getEndMillis());
+    Preconditions.checkArgument(start < end);
+    return new TimelineObjectHolder<>(new Interval(start, end, interval.getChronology()), version, object);
   }
 
   @Override
