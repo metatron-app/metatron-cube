@@ -119,8 +119,8 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
         final List<BitmapHolder> holders = Lists.newArrayList();
         for (int i = 0; i < dimensions.size(); i++) {
           final List<String> value = values.get(i);
-          final List<String> sorted = i == 0 ? GuavaUtils.dedupSorted(value) : GuavaUtils.sortAndDedup(value);
-          final BitmapHolder holder = InFilter.unionBitmaps(dimensions.get(i), sorted, context.indexSelector());
+          final List<String> dedup = i == 0 ? GuavaUtils.dedupSorted(value) : GuavaUtils.sortAndDedup(value);
+          final BitmapHolder holder = InFilter.unionBitmaps(dimensions.get(i), dedup, context.indexSelector());
           if (holder != null) {
             holders.add(holder);
           }
@@ -131,26 +131,39 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
       @Override
       public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
       {
-        final List<ObjectColumnSelector> selectors = GuavaUtils.transform(
-            dimensions, dimension -> factory.makeObjectColumnSelector(dimension)
-        );
-        final Map<String, IntList> mapping = Maps.newHashMap();
+        final IntList stash = new IntList();
+        final Map<String, int[]> mapping = Maps.newHashMap();
         final List<String> strings = values.get(0);
+        String prev = null;
         for (int i = 0; i < strings.size(); i++) {
-          mapping.computeIfAbsent(strings.get(i), k -> new IntList()).add(i);
+          final String current = strings.get(i);
+          if (prev != null && !current.equals(prev)) {
+            mapping.put(prev, stash.array());
+            stash.clear();
+          }
+          prev = current;
+          stash.add(i);
         }
+        if (!stash.isEmpty()) {
+          mapping.put(prev, stash.array());
+        }
+
+        final ObjectColumnSelector[] selectors = dimensions.stream()
+                                                           .map(d -> factory.makeObjectColumnSelector(d))
+                                                           .toArray(v -> new ObjectColumnSelector[v]);
         // todo: optimize this
         return new ValueMatcher()
         {
           @Override
           public boolean matches()
           {
-            final IntList indices = mapping.get(selectors.get(0).get());
-            if (indices == null || indices.isEmpty()) {
+            // todo: multi-value dimensions?
+            final int[] indices = mapping.get(selectors[0].get());
+            if (indices == null) {
               return false;
             }
-            for (int x = 0; x < indices.size(); x++) {
-              if (matches(indices.get(x), 1)) {
+            for (int x = 0; x < indices.length; x++) {
+              if (matches(indices[x], 1)) {
                 return true;
               }
             }
@@ -160,9 +173,9 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
           private boolean matches(int index, int order)
           {
             final String expected = values.get(order).get(index);
-            final String value = Objects.toString(selectors.get(order).get(), null);
+            final String value = Objects.toString(selectors[order].get(), "");
             if (Objects.equals(expected, value)) {
-              return order == selectors.size() - 1 || matches(index, order + 1);
+              return order == selectors.length - 1 || matches(index, order + 1);
             }
             return false;
           }
@@ -222,7 +235,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
     builder.append(']');
     return "InDimsFilter{" +
            "dimensions=" + dimensions +
-           ", values=" + builder.toString() +
+           ", values=" + builder +
            '}';
   }
 

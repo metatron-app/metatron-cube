@@ -60,13 +60,13 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
-  public int indexOf(String value, int start, boolean binary)
+  public int indexOf(String value, int start, int end, boolean binary)
   {
     return StringUtils.isNullOrEmpty(value) ? -1 : Integer.valueOf(value);
   }
 
   @Override
-  public int indexOf(BinaryRef bytes, int start, boolean binary)
+  public int indexOf(BinaryRef bytes, int start, int end, boolean binary)
   {
     return bytes.length() == 0 ? -1 : Integer.valueOf(bytes.toUTF8());
   }

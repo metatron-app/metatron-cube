@@ -101,7 +101,7 @@ public class InFilter implements Filter
     if (bitmap == null) {
       return null;
     }
-    final Stream<ImmutableBitmap> stream = bitmap.indexOf(values).filter(p -> p >= 0).mapToObj(v -> bitmap.getBitmap(v));
+    final Stream<ImmutableBitmap> stream = bitmap.indexOf(values).mapToObj(v -> bitmap.getBitmap(v));
     return BitmapHolder.exact(DimFilters.union(selector.getBitmapFactory(), () -> stream.iterator()));
   }
 

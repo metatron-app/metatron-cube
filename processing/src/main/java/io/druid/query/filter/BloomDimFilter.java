@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -33,6 +32,7 @@ import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -100,8 +100,8 @@ public class BloomDimFilter implements LogProvider, BestEffort
     this.fields = fields;
     this.groupingSets = groupingSets;
     this.bloomFilter = Preconditions.checkNotNull(bloomFilter);
-    this.supplier = Suppliers.memoize(() -> BloomKFilter.deserialize(bloomFilter));
-    this.hash = Suppliers.memoize(() -> Hashing.sha512().hashBytes(bloomFilter));
+    this.supplier = DSuppliers.memoize(() -> BloomKFilter.deserialize(bloomFilter));
+    this.hash = DSuppliers.memoize(() -> Hashing.sha512().hashBytes(bloomFilter));
     Preconditions.checkArgument(
         fieldNames != null ^ fields != null,
         "Must have a valid, non-null fieldNames or fields"

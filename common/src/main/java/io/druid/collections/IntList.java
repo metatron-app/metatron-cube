@@ -225,7 +225,7 @@ public class IntList implements Iterable<Integer>, IntConsumer
 
   public IntStream stream()
   {
-    return IntStream.of(array());
+    return size == 0 ? IntStream.empty() : IntStream.of(array());
   }
 
   @Override

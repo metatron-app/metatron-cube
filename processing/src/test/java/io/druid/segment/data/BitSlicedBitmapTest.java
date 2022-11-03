@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Random;
 
+@Ignore("Not using")
 public class BitSlicedBitmapTest
 {
   private final BitmapFactory factory = new RoaringBitmapFactory();

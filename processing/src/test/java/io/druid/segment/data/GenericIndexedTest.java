@@ -20,6 +20,7 @@
 package io.druid.segment.data;
 
 import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -30,12 +31,20 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  */
 public class GenericIndexedTest
 {
+  private static GenericIndexed<String> of(List<String> values)
+  {
+    return of(values.toArray(new String[0]));
+  }
+
   private static GenericIndexed<String> of(String... values)
   {
     return GenericIndexed.v2(Arrays.asList(values), ObjectStrategy.STRING_STRATEGY);
@@ -128,6 +137,69 @@ public class GenericIndexedTest
         // not supported
       }
     }
+  }
+
+  @Test
+  public void testBulkSearch() throws Exception
+  {
+    List<String> values = IntStream.range(200, 300)
+                               .filter(v -> v % 2 == 0)
+                               .mapToObj(String::valueOf).collect(Collectors.toList());
+
+    GenericIndexed<String> indexed1 = of(values);
+    GenericIndexed<String> indexed2 = of(GuavaUtils.concat("", values));
+
+    assertEquals(IntStream.empty(), indexed1, indexed2, IntStream.range(180, 200));
+    assertEquals(IntStream.empty(), indexed1, indexed2, IntStream.range(300, 320));
+
+    assertEquals(IntStream.range(0, 50), indexed1, indexed2, IntStream.range(200, 300));
+    assertEquals(IntStream.range(0, 50), indexed1, indexed2, IntStream.range(180, 320));
+
+    assertEquals(IntStream.range(0, 10), indexed1, indexed2, IntStream.range(180, 220));
+    assertEquals(IntStream.range(40, 50), indexed1, indexed2, IntStream.range(280, 320));
+
+    assertEquals(IntStream.of(49), indexed1, indexed2, IntStream.concat(IntStream.range(190, 200), IntStream.of(297, 298)));
+    assertEquals(IntStream.of(48, 49), indexed1, indexed2, IntStream.concat(IntStream.range(190, 200), IntStream.of(296, 298)));
+
+    assertEquals(IntStream.of(47, 48), indexed1, indexed2, IntStream.concat(IntStream.range(190, 200), IntStream.of(294, 296)));
+  }
+
+  private static void assertEquals(
+      IntStream expected,
+      GenericIndexed<String> indexed1,
+      GenericIndexed<String> indexed2,
+      IntStream values
+  )
+  {
+    int[] e = expected.toArray();
+
+    List<String> search = values.mapToObj(String::valueOf).collect(Collectors.toList());
+    int[] r1 = indexed1.indexOf(search).toArray();
+    int[] r2 = indexed2.indexOf(search).toArray();
+
+    for (int i = 0; i < Math.min(e.length, r1.length); i++) {
+      Assert.assertEquals(e[i], r1[i]);
+    }
+    Assert.assertEquals(e.length, r1.length);
+    for (int i = 0; i < Math.min(e.length, r2.length); i++) {
+      Assert.assertEquals(e[i] + 1, r2[i]);
+    }
+    Assert.assertEquals(e.length, r2.length);
+
+    search = GuavaUtils.concat("", search);
+    r1 = indexed1.indexOf(search).toArray();
+    r2 = indexed2.indexOf(search).toArray();
+
+    for (int i = 0; i < Math.min(e.length, r1.length); i++) {
+      Assert.assertEquals(e[i], r1[i]);
+    }
+    Assert.assertEquals(e.length, r1.length);
+
+    Assert.assertEquals(0, r2[0]);
+    for (int i = 0; i < Math.min(e.length, r2.length); i++) {
+      Assert.assertEquals(e[i] + 1, r2[i + 1]);
+    }
+    Assert.assertEquals(e.length + 1, r2.length);
   }
 
   private GenericIndexed<String> serializeAndDeserialize(GenericIndexed<String> indexed) throws IOException

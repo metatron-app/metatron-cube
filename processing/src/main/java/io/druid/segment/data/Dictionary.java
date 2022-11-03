@@ -50,27 +50,27 @@ public interface Dictionary<T> extends Indexed.BufferBacked<T>
   @Override
   default int indexOf(T value)
   {
-    return indexOf(value, 0, true);
+    return indexOf(value, 0, size(), true);
   }
 
-  int indexOf(T value, int start, boolean binary);
+  int indexOf(T value, int start, int end, boolean binary);
 
   default IntStream indexOf(List<T> values)
   {
-    return indexOf(values.stream());
+    return indexOf(values.stream()).filter(x -> x >= 0);
   }
 
   default IntStream indexOf(Stream<T> stream)
   {
-    return search(stream, (v, s) -> indexOf(v, s, true));
+    return search(stream, (v, s) -> indexOf(v, s, size(), true));
   }
 
   default IntStream indexOfRaw(Stream<BinaryRef> stream)
   {
-    return search(stream, (v, s) -> indexOf(v, s, true));
+    return search(stream, (v, s) -> indexOf(v, s, size(), true));
   }
 
-  int indexOf(BinaryRef bytes, int start, boolean binary);
+  int indexOf(BinaryRef bytes, int start, int end, boolean binary);
 
   byte[] getAsRaw(int index);
 
