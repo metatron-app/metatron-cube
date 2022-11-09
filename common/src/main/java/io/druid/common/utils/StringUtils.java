@@ -22,7 +22,6 @@ package io.druid.common.utils;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BytesOutputStream;
 
 import javax.annotation.Nullable;
@@ -108,17 +107,6 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
       }
     }
     return length;
-  }
-
-  public static byte[] toUtf8WithNullToEmpty(final Object value)
-  {
-    if (value == null) {
-      return EMPTY_BYTES;
-    } else if (value instanceof UTF8Bytes) {
-      return ((UTF8Bytes) value).getValue();
-    } else {
-      return toUtf8(Objects.toString(value));
-    }
   }
 
   public static URL toURL(String address)

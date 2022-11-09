@@ -25,7 +25,6 @@ import io.druid.common.guava.Yielder;
 import io.druid.common.guava.YieldingAccumulator;
 import io.druid.common.guava.YieldingSequenceBase;
 import io.druid.common.utils.Sequences;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.query.RowSignature;
@@ -192,7 +191,7 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
           case 2: ((Long[]) page[i])[ix] = values[i] == null ? null : ((Number) values[i]).longValue(); continue;
           case 3: ((Double[]) page[i])[ix] = values[i] == null ? null : ((Number) values[i]).doubleValue(); continue;
           case 4: ((Boolean[]) page[i])[ix] = Rows.parseBoolean(values[i]); continue;
-          case 5: ((BytesOutputStream) page[i]).writeVarSizeBytes(StringUtils.toUtf8WithNullToEmpty(values[i])); continue;
+          case 5: ((BytesOutputStream) page[i]).writeVarSizeUTF(values[i]); continue;
           case 6: ((Object[]) page[i])[ix] = values[i]; continue;
           default:
             throw new ISE("invalid type %d", category[i]);

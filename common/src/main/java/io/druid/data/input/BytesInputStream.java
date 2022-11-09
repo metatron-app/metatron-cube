@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import com.google.common.io.ByteArrayDataInput;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.VLongUtils;
 import io.druid.java.util.common.StringUtils;
 
@@ -70,13 +71,13 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
   }
 
   @Override
-  public void readFully(byte b[])
+  public void readFully(byte[] b)
   {
     readFully(b, 0, b.length);
   }
 
   @Override
-  public void readFully(byte b[], int off, int len)
+  public void readFully(byte[] b, int off, int len)
   {
     System.arraycopy(bytes, pos, b, off, len);
     pos += len;
@@ -208,6 +209,14 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
     final byte[] bytes = new byte[readUnsignedVarInt()];
     readFully(bytes);
     return bytes;
+  }
+
+  public UTF8Bytes viewVarSizeUTF()
+  {
+    final int length = readUnsignedVarInt();
+    UTF8Bytes view = UTF8Bytes.of(bytes, pos, length);
+    pos += length;
+    return view;
   }
 
   // copied from org.apache.parquet.bytes.BytesUtils

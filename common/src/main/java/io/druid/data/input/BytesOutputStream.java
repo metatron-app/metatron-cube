@@ -21,12 +21,15 @@ package io.druid.data.input;
 
 import com.google.common.io.ByteArrayDataOutput;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.UTF8Bytes;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Objects;
 
 public final class BytesOutputStream extends OutputStream implements ByteArrayDataOutput
 {
@@ -286,5 +289,20 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   public ByteBuffer asByteBuffer()
   {
     return ByteBuffer.wrap(buf, 0, count);
+  }
+
+  public void writeVarSizeUTF(Object value)
+  {
+    if (value == null) {
+      writeUnsignedVarInt(0);
+    } else if (value instanceof UTF8Bytes) {
+      UTF8Bytes bytes = (UTF8Bytes) value;
+      writeUnsignedVarInt(bytes.length());
+      bytes.writeTo(this);
+    } else {
+      byte[] bytes = StringUtils.toUtf8(Objects.toString(value));
+      writeUnsignedVarInt(bytes.length);
+      write(bytes);
+    }
   }
 }

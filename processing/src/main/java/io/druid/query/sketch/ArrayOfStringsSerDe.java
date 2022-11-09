@@ -35,7 +35,7 @@ public class ArrayOfStringsSerDe extends ArrayOfItemsSerDe
     final byte[][] itemsBytes = new byte[items.length][];
     for (int i = 0; i < items.length; i++) {
       if (items[i] instanceof UTF8Bytes) {
-        itemsBytes[i] = ((UTF8Bytes) items[i]).getValue();
+        itemsBytes[i] = ((UTF8Bytes) items[i]).asBytes();
       } else {
         itemsBytes[i] = StringUtils.toUtf8((String) items[i]);
       }

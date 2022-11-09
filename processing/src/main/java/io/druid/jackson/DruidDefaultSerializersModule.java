@@ -188,8 +188,7 @@ public class DruidDefaultSerializersModule extends SimpleModule
           public void serialize(UTF8Bytes utf8, final JsonGenerator jgen, SerializerProvider provider)
               throws IOException
           {
-            final byte[] value = utf8.getValue();
-            jgen.writeUTF8String(value, 0, value.length);
+            jgen.writeUTF8String(utf8.value(), utf8.offset(), utf8.length());
           }
         }
     );

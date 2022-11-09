@@ -29,18 +29,17 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BytesRef;
-import io.druid.data.UTF8Bytes;
 import io.druid.java.util.common.ISE;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Iterator;
@@ -320,7 +319,8 @@ public class BulkRow extends AbstractRow
     return count;
   }
 
-  public Object[] values()
+  @VisibleForTesting
+  Object[] values()
   {
     return values;
   }
@@ -330,13 +330,16 @@ public class BulkRow extends AbstractRow
     return decompose(false);
   }
 
-  public Iterator<Object[]> decompose(boolean stringAsRaw)
+  public Iterator<Object[]> decompose(final boolean stringAsRaw)
   {
-    // for test
-    final Object[] copy = Arrays.copyOf(values, values.length);
-    for (int i = 0; i < category.length; i++) {
-      if (category[i] == 5 && copy[i] instanceof byte[]) {
-        copy[i] = new BytesInputStream((byte[]) copy[i]);
+    for (int i = 0; i < values.length; i++) {
+      if (category[i] == 5) {
+        final BytesInputStream source = (BytesInputStream) values[i];
+        final Object[] strings = new Object[count];
+        for (int x = 0; x < strings.length; x++) {
+          strings[x] = stringAsRaw ? source.viewVarSizeUTF() : source.readVarSizeUTF();
+        }
+        values[i] = strings;
       }
     }
     return new Iterator<Object[]>()
@@ -353,17 +356,9 @@ public class BulkRow extends AbstractRow
       public Object[] next()
       {
         final int ix = index++;
-        final Object[] row = new Object[copy.length];
-        for (int i = 0; i < row.length; i++) {
-          if (category[i] == 5) {
-            if (stringAsRaw) {
-              row[i] = UTF8Bytes.of(((BytesInputStream) copy[i]).readVarSizeBytes());
-            } else {
-              row[i] = ((BytesInputStream) copy[i]).readVarSizeUTF();
-            }
-          } else {
-            row[i] = ((Object[]) copy[i])[ix];
-          }
+        final Object[] row = new Object[values.length];
+        for (int i = 0; i < values.length; i++) {
+          row[i] = ((Object[]) values[i])[ix];
         }
         return row;
       }

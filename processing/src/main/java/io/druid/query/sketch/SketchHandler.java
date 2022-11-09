@@ -219,7 +219,7 @@ public interface SketchHandler<U>
       switch (union.type().type()) {
         case STRING:
           if (value instanceof UTF8Bytes) {
-            union.value().update(((UTF8Bytes) value).getValue());
+            union.value().update(((UTF8Bytes) value).asBytes());
           } else {
             union.value().update((String) value);
           }
