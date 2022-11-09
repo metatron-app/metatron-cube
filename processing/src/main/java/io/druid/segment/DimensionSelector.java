@@ -22,6 +22,7 @@ package io.druid.segment;
 import io.druid.common.guava.BufferRef;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.IntScanner;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import org.roaringbitmap.IntIterator;
 
@@ -105,6 +106,8 @@ public interface DimensionSelector
   // aka. dictionary without extract function
   interface WithRawAccess extends DimensionSelector
   {
+    Dictionary getDictionary();
+
     byte[] lookupRaw(int id);
 
     BufferRef getAsRef(int id);

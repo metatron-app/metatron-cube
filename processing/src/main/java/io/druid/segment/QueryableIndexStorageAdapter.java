@@ -507,6 +507,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return new DimensionSelector.WithRawAccess()
                           {
                             @Override
+                            public Dictionary getDictionary()
+                            {
+                              return dictionary;
+                            }
+
+                            @Override
                             public IndexedInts getRow()
                             {
                               return column.getMultiValueRow(offset());
@@ -605,9 +611,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return new DimensionSelector.Scannable()
                           {
                             @Override
-                            public void scan(IntIterator iterator, IntScanner scanner)
+                            public Dictionary getDictionary()
                             {
-                              column.scan(iterator, scanner);
+                              return dictionary;
                             }
 
                             @Override
@@ -668,6 +674,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             public boolean withSortedDictionary()
                             {
                               return dictionary.isSorted();
+                            }
+
+                            @Override
+                            public void scan(IntIterator iterator, IntScanner scanner)
+                            {
+                              column.scan(iterator, scanner);
                             }
                           };
                         }

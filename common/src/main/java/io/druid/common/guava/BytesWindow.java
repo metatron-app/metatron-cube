@@ -23,6 +23,7 @@ import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
 {
@@ -59,6 +60,12 @@ public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
   public ByteBuffer toBuffer()
   {
     return ByteBuffer.wrap(buffer, from, length);
+  }
+
+  @Override
+  public byte[] toBytes()
+  {
+    return Arrays.copyOfRange(buffer, from, from + length);
   }
 
   @Override

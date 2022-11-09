@@ -4884,14 +4884,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     testQuery(
         "  SELECT ShipDate, sum(cast(Quantity as double)) over W as S FROM sales"
         + "  WINDOW W as (ORDER BY ShipDate ROWS BETWEEN 1999 PRECEDING AND CURRENT ROW INCREMENT BY 1000)",
-        new Object[]{"2011. 4. 1.", 3753.0},
+        new Object[]{"2011. 4. 1.", 3757.0},
         new Object[]{"2012. 1. 29.", 7585.0},
-        new Object[]{"2012. 3. 26.", 7754.0},
-        new Object[]{"2012. 9. 29.", 7643.0},
-        new Object[]{"2013. 12. 31.", 7622.0},
-        new Object[]{"2013. 7. 22.", 7636.0},
-        new Object[]{"2014. 10. 29.", 7464.0},
-        new Object[]{"2014. 12. 9.", 7611.0},
+        new Object[]{"2012. 3. 26.", 7750.0},
+        new Object[]{"2012. 9. 29.", 7641.0},
+        new Object[]{"2013. 12. 31.", 7623.0},
+        new Object[]{"2013. 7. 22.", 7638.0},
+        new Object[]{"2014. 10. 29.", 7463.0},
+        new Object[]{"2014. 12. 9.", 7612.0},
         new Object[]{"2014. 6. 4.", 7514.0}
     );
     hook.verifyHooked(
@@ -4904,14 +4904,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "  SELECT ShipDate, sum(cast(Quantity as double)) over W as S FROM sales"
         + "  WINDOW W as (ORDER BY ShipDate ROWS BETWEEN 999 PRECEDING AND 1000 FOLLOWING INCREMENT BY 1000)",
         new Object[]{"2011. 4. 1.", 7585.0},
-        new Object[]{"2012. 1. 29.", 7754.0},
-        new Object[]{"2012. 3. 26.", 7643.0},
-        new Object[]{"2012. 9. 29.", 7622.0},
-        new Object[]{"2013. 12. 31.", 7636.0},
-        new Object[]{"2013. 7. 22.", 7464.0},
-        new Object[]{"2014. 10. 29.", 7611.0},
+        new Object[]{"2012. 1. 29.", 7750.0},
+        new Object[]{"2012. 3. 26.", 7641.0},
+        new Object[]{"2012. 9. 29.", 7623.0},
+        new Object[]{"2013. 12. 31.", 7638.0},
+        new Object[]{"2013. 7. 22.", 7463.0},
+        new Object[]{"2014. 10. 29.", 7612.0},
         new Object[]{"2014. 12. 9.", 7514.0},
-        new Object[]{"2014. 6. 4.", 7396.0}
+        new Object[]{"2014. 6. 4.", 7395.0}
     );
     hook.verifyHooked(
         "8DxoLwZQ8GbJo68TKmrndA==",
@@ -4923,13 +4923,13 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "  SELECT ShipDate, sum(cast(Quantity as double)) over W as S FROM sales"
         + "  WINDOW W as (ORDER BY ShipDate ROWS BETWEEN CURRENT ROW AND 2000 FOLLOWING INCREMENT BY 1000)",
         new Object[]{"2011. 4. 1.", 7757.0},
-        new Object[]{"2012. 1. 29.", 7648.0},
-        new Object[]{"2012. 3. 26.", 7623.0},
-        new Object[]{"2012. 9. 29.", 7637.0},
-        new Object[]{"2013. 12. 31.", 7469.0},
+        new Object[]{"2012. 1. 29.", 7646.0},
+        new Object[]{"2012. 3. 26.", 7624.0},
+        new Object[]{"2012. 9. 29.", 7640.0},
+        new Object[]{"2013. 12. 31.", 7465.0},
         new Object[]{"2013. 7. 22.", 7614.0},
         new Object[]{"2014. 10. 29.", 7517.0},
-        new Object[]{"2014. 12. 9.", 7398.0},
+        new Object[]{"2014. 12. 9.", 7397.0},
         new Object[]{"2014. 6. 4.", 3772.0}
     );
     hook.verifyHooked(
@@ -4941,14 +4941,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     testQuery(
         "  SELECT ShipDate, sum(cast(Quantity as double)) over W as S FROM sales"
         + "  WINDOW W as (ORDER BY ShipDate ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW INCREMENT BY 1000)",
-        new Object[]{"2011. 4. 1.", 3753.0},
+        new Object[]{"2011. 4. 1.", 3757.0},
         new Object[]{"2012. 1. 29.", 7585.0},
         new Object[]{"2012. 3. 26.", 11507.0},
-        new Object[]{"2012. 9. 29.", 15228.0},
-        new Object[]{"2013. 12. 31.", 19129.0},
+        new Object[]{"2012. 9. 29.", 15226.0},
+        new Object[]{"2013. 12. 31.", 19130.0},
         new Object[]{"2013. 7. 22.", 22864.0},
         new Object[]{"2014. 10. 29.", 26593.0},
-        new Object[]{"2014. 12. 9.", 30475.0},
+        new Object[]{"2014. 12. 9.", 30476.0},
         new Object[]{"2014. 6. 4.", 34107.0}
     );
     hook.verifyHooked(
@@ -4963,11 +4963,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{"2011. 4. 1.", 34121.0},
         new Object[]{"2012. 1. 29.", 30291.0},
         new Object[]{"2012. 3. 26.", 26365.0},
-        new Object[]{"2012. 9. 29.", 22644.0},
-        new Object[]{"2013. 12. 31.", 18747.0},
-        new Object[]{"2013. 7. 22.", 15010.0},
+        new Object[]{"2012. 9. 29.", 22647.0},
+        new Object[]{"2013. 12. 31.", 18743.0},
+        new Object[]{"2013. 7. 22.", 15009.0},
         new Object[]{"2014. 10. 29.", 11281.0},
-        new Object[]{"2014. 12. 9.", 7398.0},
+        new Object[]{"2014. 12. 9.", 7397.0},
         new Object[]{"2014. 6. 4.", 3772.0}
     );
     hook.verifyHooked(
@@ -4984,11 +4984,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "  SELECT ShipDate, sum(cast(Quantity as double)) over W as S FROM sales"
         + "  WINDOW W as (ORDER BY ShipDate ROWS BETWEEN 1999 PRECEDING AND CURRENT ROW INCREMENT BY 1000 OFFSET 499)",
         new Object[]{"2011. 11. 5.", 1869.0D},
-        new Object[]{"2011. 7. 27.", 5655.0D},
+        new Object[]{"2011. 7. 27.", 5657.0D},
         new Object[]{"2012. 11. 7.", 7719.0D},
-        new Object[]{"2012. 7. 10.", 7669.0D},
+        new Object[]{"2012. 7. 10.", 7664.0D},
         new Object[]{"2013. 11. 18.", 7550.0D},
-        new Object[]{"2013. 4. 7.", 7653.0D},
+        new Object[]{"2013. 4. 7.", 7656.0D},
         new Object[]{"2013. 9. 28.", 7603.0D},
         new Object[]{"2014. 11. 7.", 7570.0D},
         new Object[]{"2014. 4. 28.", 7526.0D},
@@ -5004,14 +5004,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "  SELECT ShipDate, sum(cast(Quantity as double)) over W as S FROM sales"
         + "  WINDOW W as (ORDER BY ShipDate ROWS BETWEEN CURRENT ROW AND 2000 FOLLOWING INCREMENT BY 1000 OFFSET 0)",
         new Object[]{"2011. 1. 11.", 7586.0D},
-        new Object[]{"2011. 4. 1.", 7757.0D},
-        new Object[]{"2012. 1. 29.", 7646.0D},
-        new Object[]{"2012. 3. 26.", 7625.0D},
-        new Object[]{"2012. 9. 29.", 7637.0D},
-        new Object[]{"2013. 12. 31.", 7467.0D},
-        new Object[]{"2013. 7. 22.", 7613.0D},
+        new Object[]{"2011. 4. 1.", 7753.0D},
+        new Object[]{"2012. 1. 29.", 7648.0D},
+        new Object[]{"2012. 3. 26.", 7626.0D},
+        new Object[]{"2012. 9. 29.", 7641.0D},
+        new Object[]{"2013. 12. 31.", 7466.0D},
+        new Object[]{"2013. 7. 22.", 7615.0D},
         new Object[]{"2014. 10. 29.", 7518.0D},
-        new Object[]{"2014. 12. 9.", 7396.0D},
+        new Object[]{"2014. 12. 9.", 7395.0D},
         new Object[]{"2014. 6. 4.", 3764.0D}
     );
     hook.verifyHooked(

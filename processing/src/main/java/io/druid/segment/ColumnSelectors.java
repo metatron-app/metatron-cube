@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import io.druid.common.IntTagged;
+import io.druid.common.guava.BufferWindow;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
@@ -34,6 +35,8 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
+import io.druid.segment.data.Dictionary;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableDouble;
@@ -45,6 +48,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
+ *
  */
 public class ColumnSelectors
 {
@@ -503,16 +507,27 @@ public class ColumnSelectors
     };
   }
 
-  public static ObjectColumnSelector<UTF8Bytes> asRawAccess(final WithRawAccess selector)
+  private static final int THRESHOLD = 4194304;
+
+  public static ObjectColumnSelector<UTF8Bytes> asRawAccess(final WithRawAccess selector, final int rowCount)
   {
-    return new ObjectColumnSelector.Typed<UTF8Bytes>(ValueDesc.STRING)
-    {
-      @Override
-      public UTF8Bytes get()
-      {
-        return UTF8Bytes.of(selector.lookupRaw(selector.getRow().get(0)));
+    Dictionary dictionary = selector.getDictionary();
+    if (rowCount > 0 && rowCount > dictionary.size() << 1 && dictionary.getSerializedSize() < THRESHOLD) {
+      UTF8Bytes[] cached = new UTF8Bytes[dictionary.size()];
+      if (dictionary instanceof GenericIndexed) {
+        GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
+        indexed.scan((ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer, offset, length));
+      } else {
+        BufferWindow window = new BufferWindow();
+        dictionary.scan(
+            (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.of(window.set(buffer, offset, length).toBytes())
+        );
       }
-    };
+      return ObjectColumnSelector.with(ValueDesc.STRING, () -> cached[selector.getRow().get(0)]);
+    }
+    return ObjectColumnSelector.with(
+        ValueDesc.STRING, () -> UTF8Bytes.of(selector.lookupRaw(selector.getRow().get(0)))
+    );
   }
 
   public static ObjectColumnSelector<String> asSingleValued(final SingleValued selector)

@@ -152,68 +152,35 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         .build();
 
     String[] columns = new String[]{"__time", "market", "index", "market_month", "value"};
-    List<Row> expectedRows;
-    if (dataSource.startsWith("realtime")) {
-      expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-          columns,
-          array("2011-04-01", "spot", 135.88510131835938D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 118.57034301757812D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 158.74722290039062D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 120.13470458984375D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 109.70581817626953D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 121.58358001708984D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 144.5073699951172D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 78.62254333496094D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 119.92274475097656D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 147.42593383789062D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 112.98703002929688D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 166.01605224609375D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 113.44600677490234D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 110.93193054199219D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 114.2901382446289D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 135.30149841308594D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 97.38743591308594D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 126.41136169433594D, "april_spot", 41111L),
-          array("2011-04-01", "total_market", 1314.8397216796875D, "april_total_market", 41112L),
-          array("2011-04-01", "total_market", 1522.043701171875D, "april_total_market", 41112L),
-          array("2011-04-02", "total_market", 1193.5562744140625D, "april_total_market", 41112L),
-          array("2011-04-02", "total_market", 1321.375D, "april_total_market", 41112L),
-          array("2011-04-01", "upfront", 1447.3411865234375D, "april_upfront", 41113L),
-          array("2011-04-01", "upfront", 1234.24755859375D, "april_upfront", 41113L),
-          array("2011-04-02", "upfront", 1144.3424072265625D, "april_upfront", 41113L),
-          array("2011-04-02", "upfront", 1049.738525390625D, "april_upfront", 41113L)
-      );
-    } else {
-      expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-          columns,
-          array("2011-04-01", "spot", 135.88510131835938D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 118.57034301757812D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 120.13470458984375D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 78.62254333496094D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 166.01605224609375D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 113.44600677490234D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 97.38743591308594D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 119.92274475097656D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 110.93193054199219D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 114.2901382446289D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 109.70581817626953D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 135.30149841308594D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 112.98703002929688D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 147.42593383789062D, "april_spot", 41111L),
-          array("2011-04-02", "spot", 126.41136169433594D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 158.74722290039062D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 121.58358001708984D, "april_spot", 41111L),
-          array("2011-04-01", "spot", 144.5073699951172D, "april_spot", 41111L),
-          array("2011-04-01", "total_market", 1522.043701171875D, "april_total_market", 41112L),
-          array("2011-04-01", "total_market", 1314.8397216796875D, "april_total_market", 41112L),
-          array("2011-04-02", "total_market", 1193.5562744140625D, "april_total_market", 41112L),
-          array("2011-04-02", "total_market", 1321.375D, "april_total_market", 41112L),
-          array("2011-04-01", "upfront", 1447.3411865234375D, "april_upfront", 41113L),
-          array("2011-04-01", "upfront", 1234.24755859375D, "april_upfront", 41113L),
-          array("2011-04-02", "upfront", 1049.738525390625D, "april_upfront", 41113L),
-          array("2011-04-02", "upfront", 1144.3424072265625D, "april_upfront", 41113L)
-      );
-    }
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01", "spot", 135.88510131835938D, "april_spot", 41111L),
+        array("2011-04-01", "spot", 118.57034301757812D, "april_spot", 41111L),
+        array("2011-04-01", "spot", 158.74722290039062D, "april_spot", 41111L),
+        array("2011-04-01", "spot", 120.13470458984375D, "april_spot", 41111L),
+        array("2011-04-01", "spot", 109.70581817626953D, "april_spot", 41111L),
+        array("2011-04-01", "spot", 121.58358001708984D, "april_spot", 41111L),
+        array("2011-04-01", "spot", 144.5073699951172D, "april_spot", 41111L),
+        array("2011-04-01", "spot", 78.62254333496094D, "april_spot", 41111L),
+        array("2011-04-01", "spot", 119.92274475097656D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 147.42593383789062D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 112.98703002929688D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 166.01605224609375D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 113.44600677490234D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 110.93193054199219D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 114.2901382446289D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 135.30149841308594D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 97.38743591308594D, "april_spot", 41111L),
+        array("2011-04-02", "spot", 126.41136169433594D, "april_spot", 41111L),
+        array("2011-04-01", "total_market", 1314.8397216796875D, "april_total_market", 41112L),
+        array("2011-04-01", "total_market", 1522.043701171875D, "april_total_market", 41112L),
+        array("2011-04-02", "total_market", 1193.5562744140625D, "april_total_market", 41112L),
+        array("2011-04-02", "total_market", 1321.375D, "april_total_market", 41112L),
+        array("2011-04-01", "upfront", 1447.3411865234375D, "april_upfront", 41113L),
+        array("2011-04-01", "upfront", 1234.24755859375D, "april_upfront", 41113L),
+        array("2011-04-02", "upfront", 1144.3424072265625D, "april_upfront", 41113L),
+        array("2011-04-02", "upfront", 1049.738525390625D, "april_upfront", 41113L)
+    );
 
     Iterable<Row> rows;
     rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
@@ -221,67 +188,35 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
 
     columns = new String[]{"market", "index", "value"};
     // with outoutColumns
-    if (dataSource.startsWith("realtime")) {
-      expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-          columns,
-          array("spot", 135.88510131835938D, 41111L),
-          array("spot", 118.57034301757812D, 41111L),
-          array("spot", 158.74722290039062D, 41111L),
-          array("spot", 120.13470458984375D, 41111L),
-          array("spot", 109.70581817626953D, 41111L),
-          array("spot", 121.58358001708984D, 41111L),
-          array("spot", 144.5073699951172D, 41111L),
-          array("spot", 78.62254333496094D, 41111L),
-          array("spot", 119.92274475097656D, 41111L),
-          array("spot", 147.42593383789062D, 41111L),
-          array("spot", 112.98703002929688D, 41111L),
-          array("spot", 166.01605224609375D, 41111L),
-          array("spot", 113.44600677490234D, 41111L),
-          array("spot", 110.93193054199219D, 41111L),
-          array("spot", 114.2901382446289D, 41111L),
-          array("spot", 135.30149841308594D, 41111L),
-          array("spot", 97.38743591308594D, 41111L),
-          array("spot", 126.41136169433594D, 41111L),
-          array("total_market", 1314.8397216796875D, 41112L),
-          array("total_market", 1522.043701171875D, 41112L),
-          array("total_market", 1193.5562744140625D, 41112L),
-          array("total_market", 1321.375D, 41112L),
-          array("upfront", 1447.3411865234375D, 41113L),
-          array("upfront", 1234.24755859375D, 41113L),
-          array("upfront", 1144.3424072265625D, 41113L),
-          array("upfront", 1049.738525390625D, 41113L)
-      );
-    } else {
-      expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-          columns,
-          array("spot", 135.88510131835938D, 41111L),
-          array("spot", 118.57034301757812D, 41111L),
-          array("spot", 120.13470458984375D, 41111L),
-          array("spot", 78.62254333496094D, 41111L),
-          array("spot", 166.01605224609375D, 41111L),
-          array("spot", 113.44600677490234D, 41111L),
-          array("spot", 97.38743591308594D, 41111L),
-          array("spot", 119.92274475097656D, 41111L),
-          array("spot", 110.93193054199219D, 41111L),
-          array("spot", 114.2901382446289D, 41111L),
-          array("spot", 109.70581817626953D, 41111L),
-          array("spot", 135.30149841308594D, 41111L),
-          array("spot", 112.98703002929688D, 41111L),
-          array("spot", 147.42593383789062D, 41111L),
-          array("spot", 126.41136169433594D, 41111L),
-          array("spot", 158.74722290039062D, 41111L),
-          array("spot", 121.58358001708984D, 41111L),
-          array("spot", 144.5073699951172D, 41111L),
-          array("total_market", 1522.043701171875D, 41112L),
-          array("total_market", 1314.8397216796875D, 41112L),
-          array("total_market", 1193.5562744140625D, 41112L),
-          array("total_market", 1321.375D, 41112L),
-          array("upfront", 1447.3411865234375D, 41113L),
-          array("upfront", 1234.24755859375D, 41113L),
-          array("upfront", 1049.738525390625D, 41113L),
-          array("upfront", 1144.3424072265625D, 41113L)
-      );
-    }
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("spot", 135.88510131835938D, 41111L),
+        array("spot", 118.57034301757812D, 41111L),
+        array("spot", 158.74722290039062D, 41111L),
+        array("spot", 120.13470458984375D, 41111L),
+        array("spot", 109.70581817626953D, 41111L),
+        array("spot", 121.58358001708984D, 41111L),
+        array("spot", 144.5073699951172D, 41111L),
+        array("spot", 78.62254333496094D, 41111L),
+        array("spot", 119.92274475097656D, 41111L),
+        array("spot", 147.42593383789062D, 41111L),
+        array("spot", 112.98703002929688D, 41111L),
+        array("spot", 166.01605224609375D, 41111L),
+        array("spot", 113.44600677490234D, 41111L),
+        array("spot", 110.93193054199219D, 41111L),
+        array("spot", 114.2901382446289D, 41111L),
+        array("spot", 135.30149841308594D, 41111L),
+        array("spot", 97.38743591308594D, 41111L),
+        array("spot", 126.41136169433594D, 41111L),
+        array("total_market", 1314.8397216796875D, 41112L),
+        array("total_market", 1522.043701171875D, 41112L),
+        array("total_market", 1193.5562744140625D, 41112L),
+        array("total_market", 1321.375D, 41112L),
+        array("upfront", 1447.3411865234375D, 41113L),
+        array("upfront", 1234.24755859375D, 41113L),
+        array("upfront", 1144.3424072265625D, 41113L),
+        array("upfront", 1049.738525390625D, 41113L)
+    );
     rows = Iterables.transform(
         runTabularQuery(joinQuery.withOutputColumns(Arrays.asList("market", "index", "value"))),
         Rows.mapToRow(Column.TIME_COLUMN_NAME)
@@ -295,67 +230,35 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         dataSource + ".market", dataSource + ".__time", dataSource + ".index",
         JOIN_DS + ".market", JOIN_DS + ".market_month", JOIN_DS + ".value"
     };
-    if (dataSource.startsWith("realtime")) {
-      expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-          columns,
-          array("2011-04-01", "spot", 1301616000000L, 135.88510131835938D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 118.57034301757812D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 158.74722290039062D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 120.13470458984375D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 109.70581817626953D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 121.58358001708984D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 144.5073699951172D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 78.62254333496094D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 119.92274475097656D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 147.42593383789062D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 112.98703002929688D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 166.01605224609375D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 113.44600677490234D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 110.93193054199219D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 114.2901382446289D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 135.30149841308594D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 97.38743591308594D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 126.41136169433594D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "total_market", 1301616000000L, 1314.8397216796875D, "total_market", "april_total_market", 41112L),
-          array("2011-04-01", "total_market", 1301616000000L, 1522.043701171875D, "total_market", "april_total_market", 41112L),
-          array("2011-04-02", "total_market", 1301702400000L, 1193.5562744140625D, "total_market", "april_total_market", 41112L),
-          array("2011-04-02", "total_market", 1301702400000L, 1321.375D, "total_market", "april_total_market", 41112L),
-          array("2011-04-01", "upfront", 1301616000000L, 1447.3411865234375D, "upfront", "april_upfront", 41113L),
-          array("2011-04-01", "upfront", 1301616000000L, 1234.24755859375D, "upfront", "april_upfront", 41113L),
-          array("2011-04-02", "upfront", 1301702400000L, 1144.3424072265625D, "upfront", "april_upfront", 41113L),
-          array("2011-04-02", "upfront", 1301702400000L, 1049.738525390625D, "upfront", "april_upfront", 41113L)
-      );
-    } else {
-      expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-          columns,
-          array("2011-04-01", "spot", 1301616000000L, 135.88510131835938D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 118.57034301757812D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 120.13470458984375D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 78.62254333496094D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 166.01605224609375D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 113.44600677490234D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 97.38743591308594D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 119.92274475097656D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 110.93193054199219D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 114.2901382446289D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 109.70581817626953D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 135.30149841308594D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 112.98703002929688D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 147.42593383789062D, "spot", "april_spot", 41111L),
-          array("2011-04-02", "spot", 1301702400000L, 126.41136169433594D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 158.74722290039062D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 121.58358001708984D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 144.5073699951172D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "total_market", 1301616000000L, 1522.043701171875D, "total_market", "april_total_market", 41112L),
-          array("2011-04-01", "total_market", 1301616000000L, 1314.8397216796875D, "total_market", "april_total_market", 41112L),
-          array("2011-04-02", "total_market", 1301702400000L, 1193.5562744140625D, "total_market", "april_total_market", 41112L),
-          array("2011-04-02", "total_market", 1301702400000L, 1321.375D, "total_market", "april_total_market", 41112L),
-          array("2011-04-01", "upfront", 1301616000000L, 1447.3411865234375D, "upfront", "april_upfront", 41113L),
-          array("2011-04-01", "upfront", 1301616000000L, 1234.24755859375D, "upfront", "april_upfront", 41113L),
-          array("2011-04-02", "upfront", 1301702400000L, 1049.738525390625D, "upfront", "april_upfront", 41113L),
-          array("2011-04-02", "upfront", 1301702400000L, 1144.3424072265625D, "upfront", "april_upfront", 41113L)
-      );
-    }
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01", "spot", 1301616000000L, 135.88510131835938D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 118.57034301757812D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 158.74722290039062D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 120.13470458984375D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 109.70581817626953D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 121.58358001708984D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 144.5073699951172D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 78.62254333496094D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 119.92274475097656D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 147.42593383789062D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 112.98703002929688D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 166.01605224609375D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 113.44600677490234D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 110.93193054199219D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 114.2901382446289D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 135.30149841308594D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 97.38743591308594D, "spot", "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 126.41136169433594D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "total_market", 1301616000000L, 1314.8397216796875D, "total_market", "april_total_market", 41112L),
+        array("2011-04-01", "total_market", 1301616000000L, 1522.043701171875D, "total_market", "april_total_market", 41112L),
+        array("2011-04-02", "total_market", 1301702400000L, 1193.5562744140625D, "total_market", "april_total_market", 41112L),
+        array("2011-04-02", "total_market", 1301702400000L, 1321.375D, "total_market", "april_total_market", 41112L),
+        array("2011-04-01", "upfront", 1301616000000L, 1447.3411865234375D, "upfront", "april_upfront", 41113L),
+        array("2011-04-01", "upfront", 1301616000000L, 1234.24755859375D, "upfront", "april_upfront", 41113L),
+        array("2011-04-02", "upfront", 1301702400000L, 1144.3424072265625D, "upfront", "april_upfront", 41113L),
+        array("2011-04-02", "upfront", 1301702400000L, 1049.738525390625D, "upfront", "april_upfront", 41113L)
+    );
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
   }
 
@@ -525,40 +428,21 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         dataSource + ".market", dataSource + ".__time", dataSource + ".index",
         JOIN_DS + ".market", JOIN_DS + ".market_month", JOIN_DS + ".value"
     };
-    List<Row> expectedRows;
-    if (dataSource.startsWith("realtime")) {
-      expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-          columns,
-          array("2011-04-01", "spot", 1301616000000L, 135.88510131835938D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 158.74722290039062D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 120.13470458984375D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 121.58358001708984D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 144.5073699951172D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301702400000L, 147.42593383789062D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301702400000L, 166.01605224609375D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301702400000L, 135.30149841308594D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301702400000L, 126.41136169433594D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "total_market", 1301702400000L, 1193.5562744140625D, "total_market", "april_total_market", 41112L),
-          array("2011-04-01", "upfront", 1301702400000L, 1144.3424072265625D, "upfront", "april_upfront", 41113L),
-          array("2011-04-01", "upfront", 1301702400000L, 1049.738525390625D, "upfront", "april_upfront", 41113L)
-      );
-    } else {
-      expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-          columns,
-          array("2011-04-01", "spot", 1301616000000L, 135.88510131835938D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 120.13470458984375D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301702400000L, 166.01605224609375D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301702400000L, 135.30149841308594D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301702400000L, 147.42593383789062D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301702400000L, 126.41136169433594D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 158.74722290039062D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 121.58358001708984D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "spot", 1301616000000L, 144.5073699951172D, "spot", "april_spot", 41111L),
-          array("2011-04-01", "total_market", 1301702400000L, 1193.5562744140625D, "total_market", "april_total_market", 41112L),
-          array("2011-04-01", "upfront", 1301702400000L, 1049.738525390625D, "upfront", "april_upfront", 41113L),
-          array("2011-04-01", "upfront", 1301702400000L, 1144.3424072265625D, "upfront", "april_upfront", 41113L)
-      );
-    }
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01", "spot", 1301616000000L, 135.88510131835938D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 158.74722290039062D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 120.13470458984375D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 121.58358001708984D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 144.5073699951172D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301702400000L, 147.42593383789062D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301702400000L, 166.01605224609375D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301702400000L, 135.30149841308594D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301702400000L, 126.41136169433594D, "spot", "april_spot", 41111L),
+        array("2011-04-01", "total_market", 1301702400000L, 1193.5562744140625D, "total_market", "april_total_market", 41112L),
+        array("2011-04-01", "upfront", 1301702400000L, 1144.3424072265625D, "upfront", "april_upfront", 41113L),
+        array("2011-04-01", "upfront", 1301702400000L, 1049.738525390625D, "upfront", "april_upfront", 41113L)
+    );
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
 
     selectQuery = selectQuery.withDimensionSpecs(DefaultDimensionSpec.toSpec(dataSource + ".market", "not-existing"));

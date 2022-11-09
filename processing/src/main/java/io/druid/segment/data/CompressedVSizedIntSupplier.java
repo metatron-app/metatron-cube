@@ -309,11 +309,15 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
   {
     final Indexed.Closeable<ResourceHolder<ByteBuffer>> singleThreaded = baseBuffers.asSingleThreaded();
 
-    final int div = Integer.numberOfTrailingZeros(sizePer);
-    final int rem = sizePer - 1;
+    private final int div = Integer.numberOfTrailingZeros(sizePer);
+    private final int rem = sizePer - 1;
 
-    int currIndex = -1;
-    ResourceHolder<ByteBuffer> holder;
+    private int pindex = -1;
+    private int pvalue = -1;
+
+    private int currIndex = -1;
+    private ResourceHolder<ByteBuffer> holder;
+
     ByteBuffer buffer;
     boolean bigEndian;
 
@@ -335,6 +339,9 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     @Override
     public int get(int index)
     {
+      if (index == pindex) {
+        return pvalue;
+      }
       // assumes the number of entries in each buffer is a power of 2
       final int bufferNum = index >> div;
 
@@ -342,7 +349,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
         loadBuffer(bufferNum);
       }
 
-      return _get(index & rem);
+      return pvalue = _get((pindex = index) & rem);
     }
 
     /**

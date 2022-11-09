@@ -69,6 +69,12 @@ public class BytesRef implements BinaryRef
   }
 
   @Override
+  public byte[] toBytes()
+  {
+    return asArray();
+  }
+
+  @Override
   public String toUTF8()
   {
     return new String(bytes, offset, length);

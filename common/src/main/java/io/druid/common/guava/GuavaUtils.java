@@ -421,6 +421,15 @@ public class GuavaUtils
     return indices;
   }
 
+  public static <T> List<T> collect(T[] values, int[] indices)
+  {
+    List<T> collect = Lists.newArrayList();
+    for (int i = 0; i < indices.length; i++) {
+      collect.add(values[indices[i]]);
+    }
+    return collect;
+  }
+
   public static int[] indicesOf(List list, Object indexing)
   {
     final IntList indices = new IntList();

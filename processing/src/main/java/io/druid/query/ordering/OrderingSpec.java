@@ -65,6 +65,15 @@ public class OrderingSpec implements Cacheable
     return comparators;
   }
 
+  public static List<Direction> getDirections(List<? extends OrderingSpec> orderByColumnSpecs)
+  {
+    List<Direction> directions = Lists.newArrayList();
+    for (OrderingSpec orderByColumnSpec : orderByColumnSpecs) {
+      directions.add(orderByColumnSpec.direction);
+    }
+    return directions;
+  }
+
   public static boolean isAllNaturalOrdering(List<? extends OrderingSpec> orderByColumnSpecs)
   {
     List<Comparator<String>> comparators = Lists.newArrayList();

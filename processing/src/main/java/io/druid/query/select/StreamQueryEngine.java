@@ -51,11 +51,13 @@ import io.druid.segment.Segment;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.apache.commons.lang.mutable.MutableInt;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.function.LongSupplier;
 
 /**
  */
@@ -96,20 +98,21 @@ public class StreamQueryEngine
       @Override
       public Sequence<Object[]> apply(final Cursor cursor)
       {
+        final int size = cursor.size();
         final List<String> orderingColumns = Lists.newArrayList(Iterables.transform(orderings, o -> o.getDimension()));
         int index = 0;
         boolean optimizeOrdering = !orderingColumns.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings);
-        final DimensionSelector[] dimSelectors = new DimensionSelector[columns.length];
+        final DimensionSelector[] dimensions = new DimensionSelector[columns.length];
         final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.length];
         for (String column : columns) {
           if (cursor.resolve(column, ValueDesc.UNKNOWN).isDimension()) {
             final DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
             if (selector instanceof SingleValued) {
               if (selector.withSortedDictionary()) {
-                dimSelectors[index] = selector;
+                dimensions[index] = selector;
               }
               if (useRawUTF8 && selector instanceof WithRawAccess) {
-                selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector);
+                selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector, size);
               } else {
                 selectors[index] = ColumnSelectors.asSingleValued((SingleValued) selector);
               }
@@ -122,47 +125,75 @@ public class StreamQueryEngine
             selectors[index] = cursor.makeObjectColumnSelector(column);
           }
           if (orderingColumns.contains(column)) {
-            optimizeOrdering &= dimSelectors[index] != null;
+            optimizeOrdering &= dimensions[index] != null;
           }
           index++;
         }
 
-        if (optimizeOrdering) {
+        final int[] indices = GuavaUtils.indexOf(query.getColumns(), orderingColumns, true);
+        if (optimizeOrdering && indices != null) {
+          final int limit = query.getSimpleLimit();
           // optimize order by dimensions only
-          final IntComparator[] comparators = new IntComparator[orderingColumns.size()];
-          for (int i = 0; i < comparators.length; i++) {
-            if (orderings.get(i).getDirection() == Direction.DESCENDING) {
-              comparators[i] = (l, r) -> Integer.compare(r, l);
-            } else {
-              comparators[i] = (l, r) -> Integer.compare(l, r);
+          final Direction[] directions = OrderingSpec.getDirections(orderings).toArray(new Direction[0]);
+          final DimensionSelector[] orders = GuavaUtils.collect(dimensions, indices).toArray(new DimensionSelector[0]);
+
+          final int[] cardinalities = Arrays.stream(orders).mapToInt(DimensionSelector::getValueCardinality).toArray();
+          final int[] shifts = toShifts(cardinalities);
+          if (size > 0 && shifts != null) {
+            final int keyBits = Arrays.stream(shifts).sum();
+            final int rowBits = bitsRequired(size);
+            if (rowBits < Integer.SIZE && keyBits + rowBits < Long.SIZE) {
+              final long[] keys = new long[size];
+              final List<Object[]> values = Lists.newArrayList();
+              final LongSupplier supplier = keys(orders, directions, cardinalities, shifts);
+              int ix = 0;
+              for (; !cursor.isDone(); cursor.advance(), ix++) {
+                keys[ix] = (supplier.getAsLong() << rowBits) + ix;
+                values.add(values(selectors));
+              }
+              Arrays.sort(keys, 0, ix);
+
+              final int valid = ix;
+              Sequence<Object[]> sequence = Sequences.once(query.getColumns(), new Iterator<Object[]>()
+              {
+                private final int mask = (1 << rowBits) - 1;
+                private int index;
+
+                @Override
+                public boolean hasNext()
+                {
+                  return index < valid;
+                }
+
+                @Override
+                public Object[] next()
+                {
+                  return values.get((int) keys[index++] & mask);
+                }
+              });
+              return limit > 0 ? Sequences.limit(sequence, limit) : sequence;
             }
           }
 
-          final Comparator<int[]> comparator = toComparator(comparators);
-          final int limit = query.getSimpleLimit();
+          final Comparator<int[]> comparator = comparator(directions);
           final Queue<int[]> keys = limit > 0
                                     ? MinMaxPriorityQueue.orderedBy(comparator).maximumSize(limit).create()
                                     : new PriorityQueue<>(comparator);
-          final int[] indices = GuavaUtils.indexOf(query.getColumns(), orderingColumns, true);
           final List<Object[]> values = Lists.newArrayList();
           while (!cursor.isDone()) {
-            final int[] key = new int[indices.length + 1];
-            for (int i = 0; i < indices.length; i++) {
-              key[i] = dimSelectors[indices[i]].getRow().get(0);
+            final int[] key = new int[orders.length + 1];
+            for (int i = 0; i < orders.length; i++) {
+              key[i] = orders[i].getRow().get(0);
             }
             if (keys.offer(key)) {
-              key[indices.length] = values.size();
-              final Object[] value = new Object[selectors.length];
-              for (int i = 0; i < selectors.length; i++) {
-                value[i] = selectors[i] == null ? null : selectors[i].get();
-              }
-              values.add(value);
+              key[orders.length] = values.size();
+              values.add(values(selectors));
             }
             cursor.advance();
           }
           final Iterator<int[]> sorted = new OrderedPriorityQueueItems<int[]>(keys);
           return Sequences.once(
-              query.getColumns(), Iterators.transform(sorted, key -> values.get(key[comparators.length]))
+              query.getColumns(), Iterators.transform(sorted, key -> values.get(key[orders.length]))
           );
         }
 
@@ -207,8 +238,21 @@ public class StreamQueryEngine
     };
   }
 
-  private static Comparator<int[]> toComparator(final IntComparator[] comparators)
+  private static Object[] values(final ObjectColumnSelector[] selectors)
   {
+    final Object[] value = new Object[selectors.length];
+    for (int i = 0; i < selectors.length; i++) {
+      value[i] = selectors[i] == null ? null : selectors[i].get();
+    }
+    return value;
+  }
+
+  private static Comparator<int[]> comparator(Direction[] directions)
+  {
+    final IntComparator[] comparators = new IntComparator[directions.length];
+    for (int i = 0; i < directions.length; i++) {
+      comparators[i] = comparator(directions[i]);
+    }
     if (comparators.length == 1) {
       return (a, b) -> comparators[0].compare(a[0], b[0]);
     }
@@ -221,5 +265,59 @@ public class StreamQueryEngine
       }
       return 0;
     };
+  }
+
+  private static IntComparator comparator(Direction direction)
+  {
+    return direction == Direction.ASCENDING ? ((l, r) -> Integer.compare(l, r)) : ((l, r) -> Integer.compare(r, l));
+  }
+
+  private static LongSupplier keys(DimensionSelector[] selectors, Direction[] directions, int[] cardinalities, int[] shifts)
+  {
+    if (!Arrays.asList(directions).contains(Direction.DESCENDING)) {
+      if (selectors.length == 1) {
+        return () -> (long) selectors[0].getRow().get(0) << shifts[0];
+      }
+      return () -> {
+        long keys = 0;
+        for (int i = 0; i < selectors.length; i++) {
+          keys += (long) selectors[i].getRow().get(0) << shifts[i];
+        }
+        return keys;
+      };
+    }
+    return () -> {
+      long keys = 0;
+      for (int i = 0; i < selectors.length; i++) {
+        int v = selectors[i].getRow().get(0);
+        if (directions[i] == Direction.DESCENDING) {
+          v = cardinalities[i] - v;
+        }
+        keys += (long) v << shifts[i];
+      }
+      return keys;
+    };
+  }
+
+  private static int[] toShifts(int[] cardinalities)
+  {
+    final int[] masks = new int[cardinalities.length];
+    for (int i = 0; i < cardinalities.length; i++) {
+      if (cardinalities[i] < 0) {
+        return null;
+      }
+      masks[i] = bitsRequired(cardinalities[i]);
+    }
+    int[] shifts = new int[masks.length];
+    for (int i = masks.length - 2; i >= 0; i--) {
+      shifts[i] = shifts[i + 1] + masks[i + 1];
+    }
+    return shifts;
+  }
+
+  private static int bitsRequired(int cardinality)
+  {
+    double v = Math.log(cardinality) / Math.log(2);
+    return v == (int) v ? (int) v : (int) v + 1;
   }
 }

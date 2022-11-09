@@ -26,6 +26,7 @@ import io.druid.common.guava.Comparators;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -34,6 +35,13 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
   public static UTF8Bytes of(byte[] value)
   {
     return of(value, 0, value.length);
+  }
+
+  public static UTF8Bytes read(ByteBuffer buffer, int offset, int length)
+  {
+    byte[] bytes = new byte[length];
+    ((ByteBuffer) buffer.limit(offset + length).position(offset)).get(bytes);
+    return UTF8Bytes.of(bytes);
   }
 
   public static UTF8Bytes of(byte[] value, int offset, int length)

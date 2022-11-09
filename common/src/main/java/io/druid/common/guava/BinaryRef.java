@@ -19,6 +19,8 @@
 
 package io.druid.common.guava;
 
+import io.druid.common.utils.StringUtils;
+
 import java.nio.ByteBuffer;
 
 public interface BinaryRef
@@ -29,5 +31,11 @@ public interface BinaryRef
 
   ByteBuffer toBuffer();
 
-  String toUTF8();
+  byte[] toBytes();
+
+  default String toUTF8()
+  {
+    final byte[] bytes = toBytes();
+    return StringUtils.toUTF8String(bytes, 0, bytes.length);
+  }
 }

@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Supplier;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.ValueDesc;
 
@@ -45,5 +46,18 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
     {
       return type;
     }
+
+  }
+
+  public static <T> Typed<T> with(ValueDesc type, Supplier<T> supplier)
+  {
+    return new Typed<T>(type)
+    {
+      @Override
+      public T get()
+      {
+        return supplier.get();
+      }
+    };
   }
 }

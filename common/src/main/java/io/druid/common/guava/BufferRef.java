@@ -63,11 +63,11 @@ public class BufferRef implements Comparable<BufferRef>, BinaryRef
   }
 
   @Override
-  public String toUTF8()
+  public byte[] toBytes()
   {
-    byte[] bytes = new byte[length];
+    final byte[] bytes = new byte[length];
     toBuffer().get(bytes);
-    return StringUtils.toUTF8String(bytes, 0, bytes.length);
+    return bytes;
   }
 
   @Override
