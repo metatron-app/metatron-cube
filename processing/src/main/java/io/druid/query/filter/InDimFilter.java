@@ -177,7 +177,7 @@ public class InDimFilter extends SingleInput
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new InFilter(dimension, values, extractionFn);
+    return new InFilter(this, dimension, values, extractionFn);
   }
 
   @Override

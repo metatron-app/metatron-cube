@@ -20,7 +20,6 @@
 package io.druid.segment;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -234,7 +233,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
     if (bitmaps == null) {
       return null;
     }
-    return bitmaps.getBitmap(bitmaps.getIndex(value));
+    return bitmaps.getBitmap(bitmaps.indexOf(value));
   }
 
   @Override

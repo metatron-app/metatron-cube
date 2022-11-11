@@ -23,6 +23,7 @@ import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.BufferRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.segment.Tools;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Iterator;
 import java.util.stream.Stream;
@@ -96,19 +97,31 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
-  public void apply(int index, Tools.Scanner scanner)
-  {
-    throw new UnsupportedOperationException("scan");
-  }
-
-  @Override
   public void scan(Tools.Scanner scanner)
   {
     throw new UnsupportedOperationException("scan");
   }
 
   @Override
-  public <R> Stream<R> stream(Tools.Function<R> scanner)
+  public void scan(IntIterator iterator, Tools.Scanner scanner)
+  {
+    throw new UnsupportedOperationException("scan");
+  }
+
+  @Override
+  public void scan(int index, Tools.Scanner scanner)
+  {
+    throw new UnsupportedOperationException("scan");
+  }
+
+  @Override
+  public void scan(Tools.ObjectScanner<String> scanner)
+  {
+    throw new UnsupportedOperationException("scan");
+  }
+
+  @Override
+  public <R> Stream<R> stream(Tools.Function<R> function)
   {
     throw new UnsupportedOperationException("stream");
   }

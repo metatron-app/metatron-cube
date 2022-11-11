@@ -119,6 +119,7 @@ public final class IntIterators
     return new IntIterators.Mapped(iterator, mapping);
   }
 
+  // inclusive ~ exclusive
   public static final class Range implements IntIterator
   {
     private final int to;
@@ -133,13 +134,13 @@ public final class IntIterators
     @Override
     public boolean hasNext()
     {
-      return index <= to;    // inclusive
+      return index < to;
     }
 
     @Override
     public int next()
     {
-      return index <= to ? index++ : -1;
+      return index < to ? index++ : -1;
     }
 
     @Override

@@ -681,6 +681,33 @@ public class Parser
     };
   }
 
+  public static Expr.Bindable bindable(String name)
+  {
+    return new Expr.Bindable()
+    {
+      private final DSuppliers.HandOver<Object> handOver = new DSuppliers.HandOver<>();
+
+      @Override
+      public Expr.Bindable bind(String name, Object value)
+      {
+        handOver.set(value);
+        return this;
+      }
+
+      @Override
+      public Collection<String> names()
+      {
+        return Arrays.asList(name);
+      }
+
+      @Override
+      public Object get(String name)
+      {
+        return handOver.get();
+      }
+    };
+  }
+
   public static Expr.NumericBinding withSuppliers(final Map<String, Supplier> bindings)
   {
     return new Expr.NumericBinding()

@@ -88,6 +88,7 @@ import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.DictionaryCompareOp;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
@@ -848,7 +849,7 @@ public class Filters
     return null;
   }
 
-  public static Filter ofExpr(final Expr expr)
+  public static Filter ofExpr(final DimFilter source, final Expr expr)
   {
     return new Filter()
     {
@@ -934,22 +935,25 @@ public class Filters
           }
         }
         final List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-        final DSuppliers.HandOver<Object> handOver = new DSuppliers.HandOver<>();
-        final Expr.NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(columnName, handOver));
+        final Expr.Bindable binding = Parser.bindable(columnName);
 
         final BitmapIndex bitmapIndex = selector.getBitmapIndex(columnName);
         if (bitmapIndex != null) {
-          final int cardinality = bitmapIndex.getCardinality();
-          for (int i = 0; i < cardinality; i++) {
-            handOver.set(bitmapIndex.getValue(i));
-            if (expr.eval(binding).asBoolean()) {
-              bitmaps.add(bitmapIndex.getBitmap(i));
-            }
+          Dictionary<String> dictionary = bitmapIndex.getDictionary();
+          if (dictionary instanceof GenericIndexed) {
+            dictionary = ((GenericIndexed) dictionary).asSingleThreaded();
           }
+          IntList ids = new IntList();
+          dictionary.scan((ix, v) -> {
+            if (expr.eval(binding.bind(columnName, v)).asBoolean()) {ids.add(ix);}
+          });
+          if (context.isRoot(source)) {
+            context.range(columnName, RoaringBitmapFactory.from(ids.array()));
+          }
+          ids.stream().mapToObj(ix -> bitmapIndex.getBitmap(ix)).forEach(bitmaps::add);
         } else if (capabilities.getType() == ValueType.BOOLEAN) {
           for (Boolean bool : new Boolean[]{null, true, false}) {
-            handOver.set(bool);
-            if (expr.eval(binding).asBoolean()) {
+            if (expr.eval(binding.bind(columnName, bool)).asBoolean()) {
               bitmaps.add(selector.getBitmapIndex(columnName, bool));
             }
           }
@@ -1042,16 +1046,8 @@ public class Filters
       @Override
       public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
       {
-        return new ValueMatcher()
-        {
-          private final ExprEvalColumnSelector selector = factory.makeMathExpressionSelector(expr);
-
-          @Override
-          public boolean matches()
-          {
-            return selector.get().asBoolean();
-          }
-        };
+        final ExprEvalColumnSelector selector = factory.makeMathExpressionSelector(expr);
+        return () -> selector.get().asBoolean();
       }
     };
   }
@@ -1137,7 +1133,7 @@ public class Filters
         return metric.in(column, values, context);
       case "isnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
-          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap);
+          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap());
           if (withNot) {
             bitmap = DimFilters.complement(context.factory, bitmap, context.numRows());
           }
@@ -1146,7 +1142,7 @@ public class Filters
         return null;
       case "isnotnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
-          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap);
+          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap());
           if (!withNot) {
             bitmap = DimFilters.complement(context.factory, bitmap, context.numRows());
           }
@@ -1191,9 +1187,9 @@ public class Filters
     return Expressions.convertToCNF(current, FACTORY);
   }
 
-  public static boolean isColumnWithoutBitmap(BitmapIndexSelector selector, String dimension)
+  public static boolean isColumnWithoutBitmap(FilterContext context, String dimension)
   {
-    ColumnCapabilities capabilities = selector.getCapabilities(dimension);
+    ColumnCapabilities capabilities = context.selector.getCapabilities(dimension);
     return capabilities != null && !capabilities.hasBitmapIndexes();
   }
 

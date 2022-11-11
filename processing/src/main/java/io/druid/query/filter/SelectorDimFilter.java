@@ -116,7 +116,7 @@ public class SelectorDimFilter extends SingleInput
   public Filter toFilter(TypeResolver resolver)
   {
     if (extractionFn == null) {
-      return new SelectorFilter(dimension, value);
+      return new SelectorFilter(this, dimension, value);
     } else {
       final String valueOrNull = Strings.emptyToNull(value);
       final Predicate<String> predicate = new Predicate<String>()

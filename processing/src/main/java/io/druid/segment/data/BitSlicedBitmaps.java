@@ -185,7 +185,7 @@ public class BitSlicedBitmaps
           query.hasLowerBound() && query.lowerEndpoint().isNaN()) {
         return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
       }
-      final ImmutableBitmap baseBitmap = context == null ? null : context.getBaseBitmap();
+      final ImmutableBitmap baseBitmap = context == null ? null : context.baseBitmap();
       if (Ranges.isPoint(query)) {
         return BitmapHolder.exact(_eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap));
       }
@@ -217,7 +217,7 @@ public class BitSlicedBitmaps
           query.hasLowerBound() && query.lowerEndpoint().isNaN()) {
         return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
       }
-      final ImmutableBitmap baseBitmap = context == null ? null : context.getBaseBitmap();
+      final ImmutableBitmap baseBitmap = context == null ? null : context.baseBitmap();
       if (Ranges.isPoint(query)) {
         return BitmapHolder.exact(_eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap));
       }
@@ -247,7 +247,7 @@ public class BitSlicedBitmaps
       if (query.isEmpty()) {
         return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
       }
-      final ImmutableBitmap baseBitmap = context == null ? null : context.getBaseBitmap();
+      final ImmutableBitmap baseBitmap = context == null ? null : context.baseBitmap();
       if (Ranges.isPoint(query)) {
         return BitmapHolder.exact(_eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap));
       }

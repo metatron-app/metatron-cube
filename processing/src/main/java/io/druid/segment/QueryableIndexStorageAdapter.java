@@ -216,7 +216,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     final boolean fullscan =
         Granularities.isAll(granularity) && Filters.matchAll(matcher) && actualInterval.contains(timeMinMax);
 
-    context.prepared(baseBitmap, matcher, fullscan);  // this can be used for value/predicate filters
+    context.prepared(matcher, fullscan);  // this can be used for value/predicate filters
 
     return Sequences.withBaggage(
         Sequences.filter(
@@ -343,7 +343,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public IntFunction getAttachment(String name)
                     {
-                      return context.getAttachment(name);
+                      return context.attachmentOf(name);
                     }
 
                     @Override
@@ -655,7 +655,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public void scan(Tools.Scanner scanner)
                             {
-                              dictionary.apply(row.get(0), scanner);
+                              dictionary.scan(row.get(0), scanner);
                             }
 
                             @Override

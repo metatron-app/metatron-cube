@@ -27,17 +27,20 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.collections.IntList;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedID;
@@ -54,19 +57,20 @@ import java.math.BigDecimal;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 
 /**
  *
  */
 public class InFilter implements Filter
 {
+  private final DimFilter source;
   private final String dimension;
   private final List<String> values;
   private final ExtractionFn extractionFn;
 
-  public InFilter(String dimension, List<String> values, ExtractionFn extractionFn)
+  public InFilter(DimFilter source, String dimension, List<String> values, ExtractionFn extractionFn)
   {
+    this.source = source;
     this.dimension = dimension;
     this.values = values;
     this.extractionFn = extractionFn;
@@ -75,12 +79,11 @@ public class InFilter implements Filter
   @Override
   public BitmapHolder getBitmapIndex(final FilterContext context)
   {
-    final BitmapIndexSelector selector = context.indexSelector();
-    if (extractionFn != null && Filters.isColumnWithoutBitmap(selector, dimension)) {
+    if (extractionFn != null && Filters.isColumnWithoutBitmap(context, dimension)) {
       return null;  // extractionFn requires bitmap index
     }
     if (extractionFn == null) {
-      return unionBitmaps(dimension, values, selector);
+      return unionBitmaps(source, dimension, values, context);
     } else {
       return BitmapHolder.exact(Filters.matchPredicate(
           dimension,
@@ -91,8 +94,9 @@ public class InFilter implements Filter
   }
 
   // values reagarded to be sorted
-  public static BitmapHolder unionBitmaps(String dimension, List<String> values, BitmapIndexSelector selector)
+  public static BitmapHolder unionBitmaps(DimFilter source, String dimension, List<String> values, FilterContext context)
   {
+    final BitmapIndexSelector selector = context.indexSelector();
     final Column column = selector.getColumn(dimension);
     if (column == null) {
       return BitmapHolder.exact(selector.createBoolean(!values.isEmpty() && "".equals(values.get(0))));
@@ -101,8 +105,14 @@ public class InFilter implements Filter
     if (bitmap == null) {
       return null;
     }
-    final Stream<ImmutableBitmap> stream = bitmap.indexOf(values).mapToObj(v -> bitmap.getBitmap(v));
-    return BitmapHolder.exact(DimFilters.union(selector.getBitmapFactory(), () -> stream.iterator()));
+    IntList indices = new IntList();
+    bitmap.indexOf(values).forEach(indices::add);
+
+    ImmutableBitmap union = DimFilters.union(selector.getBitmapFactory(), indices.transform(v -> bitmap.getBitmap(v)));
+    if (context.isRoot(source)) {
+      context.range(dimension, RoaringBitmapFactory.from(indices.array()));
+    }
+    return BitmapHolder.exact(union);
   }
 
   @Override

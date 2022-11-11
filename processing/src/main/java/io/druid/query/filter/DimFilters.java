@@ -183,10 +183,10 @@ public class DimFilters
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       List<DimFilter> remainings = Lists.newArrayList();
       for (DimFilter child : ((AndDimFilter) current).getChildren()) {
-        BitmapHolder holder = Filters.toBitmapHolder(child, context);
+        BitmapHolder holder = Filters.toBitmapHolder(child, context.root(child));
         if (holder != null) {
           bitmaps.add(holder.bitmap());
-          context.andBaseBitmap(holder.bitmap());
+          context.andBaseBitmap(holder.bitmap());   // for incremental access
         }
         if (holder == null || !holder.exact()) {
           remainings.add(child);
@@ -195,8 +195,9 @@ public class DimFilters
       ImmutableBitmap extracted = bitmaps.isEmpty() ? null : intersection(context.bitmapFactory(), bitmaps);
       return Pair.<ImmutableBitmap, DimFilter>of(extracted, and(remainings));
     } else {
-      BitmapHolder holder = Filters.toBitmapHolder(current, context);
+      BitmapHolder holder = Filters.toBitmapHolder(current, context.root(current));
       if (holder != null) {
+        context.andBaseBitmap(holder.bitmap());
         return Pair.<ImmutableBitmap, DimFilter>of(holder.bitmap(), holder.exact() ? null : current);
       }
       return Pair.<ImmutableBitmap, DimFilter>of(null, current);

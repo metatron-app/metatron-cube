@@ -56,6 +56,8 @@ import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
+import io.druid.query.ordering.Direction;
+import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
@@ -215,38 +217,40 @@ public class QueryUtils
     return majorTypes;
   }
 
-  public static Iterable<DimFilter> toFilters(final String column, final List<String> partitions)
+  public static Iterable<DimFilter> toSplitter(String column, OrderingSpec ordering, Object[] thresholds)
   {
-    return new Iterable<DimFilter>()
+    return () -> new Iterator<DimFilter>()
     {
+      private final Direction direction = ordering.getDirection();
+      private final String comparator = ordering.isNaturalOrdering() ? null : ordering.getDimensionOrder();
+
+      private int i = 1;
+
       @Override
-      public Iterator<DimFilter> iterator()
+      public boolean hasNext()
       {
-        return new Iterator<DimFilter>()
-        {
-          private int index = 1;
+        return i < thresholds.length;
+      }
 
-          @Override
-          public boolean hasNext()
-          {
-            return index < partitions.size();
-          }
-
-          @Override
-          public DimFilter next()
-          {
-            DimFilter filter;
-            if (index == 1) {
-              filter = BoundDimFilter.lt(column, partitions.get(index));
-            } else if (index == partitions.size() - 1) {
-              filter = BoundDimFilter.gte(column, partitions.get(index - 1));
-            } else {
-              filter = BoundDimFilter.between(column, partitions.get(index - 1), partitions.get(index));
-            }
-            index++;
-            return filter;
-          }
-        };
+      @Override
+      public DimFilter next()
+      {
+        BoundDimFilter filter;
+        if (i == 1) {
+          filter = direction == Direction.ASCENDING ?
+                   BoundDimFilter.lt(column, thresholds[i]) :
+                   BoundDimFilter.gte(column, thresholds[i]);
+        } else if (i < thresholds.length - 1) {
+          filter = direction == Direction.ASCENDING ?
+                   BoundDimFilter.between(column, thresholds[i - 1], thresholds[i]) :
+                   BoundDimFilter.between(column, thresholds[i], thresholds[i - 1]);
+        } else {
+          filter = direction == Direction.ASCENDING ?
+                   BoundDimFilter.gte(column, thresholds[i - 1]) :
+                   BoundDimFilter.lt(column, thresholds[i - 1]);
+        }
+        i++;
+        return filter.withComparatorType(comparator);
       }
     };
   }

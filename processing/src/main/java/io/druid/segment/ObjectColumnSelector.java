@@ -60,4 +60,9 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
       }
     };
   }
+
+  public static <T> Typed<T> string(Supplier<T> supplier)
+  {
+    return with(ValueDesc.STRING, supplier);
+  }
 }

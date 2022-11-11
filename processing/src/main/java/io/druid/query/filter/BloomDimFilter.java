@@ -25,10 +25,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.collect.Iterables;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
@@ -55,9 +55,10 @@ import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
-import io.druid.segment.data.Dictionary;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.MatcherContext;
@@ -74,7 +75,7 @@ import static io.druid.query.filter.DimFilter.LogProvider;
 @JsonTypeName("bloom")
 public class BloomDimFilter implements LogProvider, BestEffort
 {
-  private static final float BULKSCAN_THRESHOLD_RATIO = 0.4f;
+  private static final float BULKSCAN_THRESHOLD_RATIO = 1.33f;
 
   public static BloomDimFilter of(List<String> fieldNames, BloomKFilter filter)
   {
@@ -137,6 +138,9 @@ public class BloomDimFilter implements LogProvider, BestEffort
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
+        if (!context.isRoot(BloomDimFilter.this)) {
+          return null;
+        }
         // todo support multi dimension by looping ?
         final String onlyDimension;
         if (fields != null && fields.size() == 1 && fields.get(0) instanceof DefaultDimensionSpec) {
@@ -153,20 +157,19 @@ public class BloomDimFilter implements LogProvider, BestEffort
         }
         final BitmapIndex bitmapIndex = column.getBitmapIndex();
         if (bitmapIndex != null) {
-          final Dictionary<String> dictionary = column.getDictionary();
-          if (dictionary.size() > context.numRows() * BULKSCAN_THRESHOLD_RATIO) {
-            return null;
-          }
           final IntList ids = new IntList();
           final BloomKFilter filter = supplier.get();
-          dictionary.scan((x, b, o, l) -> {
+          final ImmutableBitmap range = context.rangeOf(onlyDimension);
+          column.getDictionary().scan(range == null ? null : range.iterator(), (x, b, o, l) -> {
             if (filter.testHash(Murmur3.hash64(b, o, l))) {
               ids.add(x);
             }
           });
-          return BitmapHolder.notExact(
-              selector.getBitmapFactory().union(Iterables.transform(ids, x -> bitmapIndex.getBitmap(x)))
-          );
+          context.range(onlyDimension, RoaringBitmapFactory.from(ids.array()));
+
+          // actually it's not exact. but if matcher cannot improve that, it can be said it's exact
+          final GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();
+          return BitmapHolder.exact(selector.getBitmapFactory().union(ids.transform(x -> bitmaps.get(x))));
         }
         return null;
       }

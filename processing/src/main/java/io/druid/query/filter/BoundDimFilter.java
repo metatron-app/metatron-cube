@@ -301,13 +301,16 @@ public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedI
 
   public BoundDimFilter withComparatorType(String comparatorType)
   {
+    if (Objects.equals(this.comparatorType, comparatorType)) {
+      return this;
+    }
     return new BoundDimFilter(
         dimension,
         lower,
         upper,
         lowerStrict,
         upperStrict,
-        Preconditions.checkNotNull(comparatorType),
+        comparatorType,
         extractionFn
     );
   }

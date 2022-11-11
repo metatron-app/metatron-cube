@@ -60,6 +60,11 @@ public interface Expr extends Expression
     Object get(String name);
   }
 
+  interface Bindable extends NumericBinding
+  {
+    Bindable bind(String dimension, Object value);
+  }
+
   interface TypedBinding extends NumericBinding, TypeResolver
   {
   }

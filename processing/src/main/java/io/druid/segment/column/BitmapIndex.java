@@ -57,7 +57,7 @@ public interface BitmapIndex
    * @param value value to search for
    * @return index of value, or negative number equal to (-(insertion point) - 1).
    */
-  default int getIndex(String value)
+  default int indexOf(String value)
   {
     return getDictionary().indexOf(value);
   }

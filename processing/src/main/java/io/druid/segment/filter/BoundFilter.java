@@ -31,6 +31,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.BitmapIndex.CumulativeSupport;
 
@@ -77,6 +78,11 @@ public class BoundFilter implements Filter
       return selector.createBoolean(true);
     } else if (range == NONE || range[0] >= range[1]) {
       return selector.createBoolean(false);
+    }
+
+    LOG.debug("range.. %d ~ %d (%d)", range[0], range[1], range[1] - range[0] + 1);
+    if (context.isRoot(boundDimFilter)) {
+      context.range(boundDimFilter.getDimension(), RoaringBitmapFactory.from(range[0], range[1]));
     }
 
     if (bitmapIndex instanceof CumulativeSupport) {
@@ -146,7 +152,7 @@ public class BoundFilter implements Filter
     if (lower == null) {
       startIndex = boundDimFilter.isLowerStrict() ? 1 : 0;
     } else {
-      final int found = bitmapIndex.getIndex(lower);
+      final int found = bitmapIndex.indexOf(lower);
       if (found >= 0) {
         startIndex = boundDimFilter.isLowerStrict() ? found + 1 : found;
       } else {
@@ -160,7 +166,7 @@ public class BoundFilter implements Filter
     if (upper == null) {
       endIndex = bitmapIndex.getCardinality();
     } else {
-      final int found = bitmapIndex.getIndex(upper);
+      final int found = bitmapIndex.indexOf(upper);
       if (found >= 0) {
         endIndex = boundDimFilter.isUpperStrict() ? found : found + 1;
       } else {

@@ -459,7 +459,7 @@ public class LikeDimFilter extends SingleInput
     if (extractionFn == null) {
       switch (matcher.represent()) {
         case "L":
-          return new SelectorFilter(dimension, matcher.prefix);
+          return new SelectorFilter(this, dimension, matcher.prefix);
         case "L%":
           return new PrefixFilter(dimension, matcher.prefix);
       }

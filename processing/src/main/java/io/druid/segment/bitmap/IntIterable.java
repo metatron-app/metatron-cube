@@ -28,12 +28,17 @@ public interface IntIterable
 {
   IntIterator iterator();
 
-  interface MaxAware extends IntIterable
+  interface MinMaxAware extends IntIterable
   {
+    int min();
+
     int max();
   }
 
-  class Range implements MaxAware
+  IntIterable EMPTY = () -> IntIterators.EMPTY;
+
+  // inclusive ~ exclusive
+  class Range implements MinMaxAware
   {
     private final int from;
     private final int to;
@@ -45,9 +50,15 @@ public interface IntIterable
     }
 
     @Override
+    public int min()
+    {
+      return from;
+    }
+
+    @Override
     public int max()
     {
-      return to;
+      return to - 1;
     }
 
     @Override
@@ -56,38 +67,39 @@ public interface IntIterable
       return new IntIterators.Range(from, to);
     }
 
-    public boolean isEmpty()
-    {
-      return from > to;
-    }
-
     public boolean get(int index)
     {
-      return from <= index && index <= to;
+      return from <= index && index < to;
     }
 
     public void or(BitSet bitSet)
     {
-      bitSet.set(from, to + 1);   // exclusive
+      bitSet.set(from, to);
     }
 
     public void and(BitSet bitSet)
     {
       bitSet.clear(0, from);
-      bitSet.clear(to + 1, Math.max(to + 1, bitSet.length()));
+      bitSet.clear(to, Math.max(to, bitSet.length()));
     }
 
     public void andNot(BitSet bitSet)
     {
-      bitSet.clear(from, to + 1);
+      bitSet.clear(from, to);
     }
   }
 
-  class FromArray implements MaxAware
+  class FromArray implements MinMaxAware
   {
     private final int[] array;
 
     public FromArray(int[] array) {this.array = array;}
+
+    @Override
+    public int min()
+    {
+      return array[0];
+    }
 
     @Override
     public int max()

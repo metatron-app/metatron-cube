@@ -162,6 +162,12 @@ public class IntList implements Iterable<Integer>, IntConsumer
     return this;
   }
 
+  public int forward(int value)
+  {
+    add(value);
+    return value;
+  }
+
   public <T> Iterable<T> transform(final IntFunction<T> function)
   {
     return () -> new Iterator<T>()

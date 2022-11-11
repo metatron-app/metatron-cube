@@ -57,10 +57,9 @@ import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.ordering.Direction;
 import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.Cuboids;
@@ -307,30 +306,10 @@ public class GroupByQueryRunnerFactory
     OrderByColumnSpec orderingSpec = DimensionSpecs.asOrderByColumnSpec(dimensionSpec);
     String dimension = mapping.getOrDefault(dimensionSpec.getOutputName(), dimensionSpec.getOutputName());
 
-    Direction direction = orderingSpec.getDirection();
     List<GroupByQuery> splits = Lists.newArrayList();
-    for (int i = 1; i < thresholds.length; i++) {
-      BoundDimFilter filter;
-      if (i == 1) {
-        filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.lt(dimension, thresholds[i]) :
-                     BoundDimFilter.gte(dimension, thresholds[i]);
-      } else if (i < thresholds.length - 1) {
-        filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.between(dimension, thresholds[i - 1], thresholds[i]) :
-                     BoundDimFilter.between(dimension, thresholds[i], thresholds[i - 1]);
-      } else {
-        filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.gte(dimension, thresholds[i - 1]) :
-                     BoundDimFilter.lt(dimension, thresholds[i - 1]);
-      }
-      if (type.isString() && !orderingSpec.isNaturalOrdering()) {
-        filter = filter.withComparatorType(orderingSpec.getDimensionOrder());
-      }
-      logger.debug("--> filter : %s", filter);
-      splits.add(
-          query.withFilter(DimFilters.and(query.getFilter(), filter))
-      );
+    for (DimFilter filter : QueryUtils.toSplitter(dimension, orderingSpec, thresholds)) {
+      logger.debug("--> split filter : %s", filter);
+      splits.add(query.withFilter(DimFilters.and(query.getFilter(), filter)));
     }
     return splits;
   }

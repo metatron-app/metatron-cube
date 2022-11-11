@@ -95,13 +95,13 @@ public class QueryableIndexSelector implements BitmapIndexSelector
   {
     final Column column = index.getColumn(dimension);
     if (column == null) {
-      return makeBooleanBitmap(Strings.isNullOrEmpty(value));
+      return createBoolean(Strings.isNullOrEmpty(value));
     }
     if (column.getType().isBitSet() && Strings.isNullOrEmpty(value)) {
       return null;    // todo write null bitmap for complex column
     }
     final BitmapIndex bitmap = column.getBitmapIndex();
-    return bitmap == null ? null : bitmap.getBitmap(bitmap.getIndex(value));
+    return bitmap == null ? null : bitmap.getBitmap(bitmap.indexOf(value));
   }
 
   @Override
@@ -109,7 +109,7 @@ public class QueryableIndexSelector implements BitmapIndexSelector
   {
     final Column column = index.getColumn(dimension);
     if (column == null) {
-      return makeBooleanBitmap(value == null);
+      return createBoolean(value == null);
     }
     final GenericColumn genericColumn = column.getGenericColumn();
     if (genericColumn instanceof BooleanGenericColumn) {
@@ -222,14 +222,5 @@ public class QueryableIndexSelector implements BitmapIndexSelector
   public QueryableIndex internal()
   {
     return index;
-  }
-
-  private ImmutableBitmap makeBooleanBitmap(boolean bool)
-  {
-    if (bool) {
-      return DimFilters.makeTrue(bitmapFactory, numRows);
-    } else {
-      return DimFilters.makeFalse(bitmapFactory);
-    }
   }
 }

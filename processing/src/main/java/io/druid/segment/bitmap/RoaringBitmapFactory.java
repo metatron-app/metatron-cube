@@ -16,6 +16,7 @@
 
 package io.druid.segment.bitmap;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
@@ -191,7 +192,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
       return makeEmptyImmutableBitmap();
     }
     if (b.isEmpty()) {
-      return from(length, new IntIterable.Range(0, length - 1));
+      return from(0, length);
     }
     return _complement(unwrapLazy(b), length);
   }
@@ -366,8 +367,8 @@ public final class RoaringBitmapFactory implements BitmapFactory
     if (cookie == RANGE_COOKIE) {
       bbf.position(position + 4);   // skip
       final int from = VLongUtils.readUnsignedVarInt(bbf);
-      final int to = from + VLongUtils.readUnsignedVarInt(bbf);
-      return from(to - from + 1, new IntIterable.Range(from, to));
+      final int to = from + VLongUtils.readUnsignedVarInt(bbf); // inclusive
+      return from(from, to + 1);
     } else if (cookie == SMALL_COOKIE) {
       bbf.position(position + 4);   // skip
       final int size = magic >>> 16;
@@ -375,14 +376,13 @@ public final class RoaringBitmapFactory implements BitmapFactory
         return makeEmptyImmutableBitmap();
       }
       if (size == 1) {
-        final int ix = VLongUtils.readUnsignedVarInt(bbf);
-        return from(1, new IntIterable.Range(ix, ix));
+        return of(VLongUtils.readUnsignedVarInt(bbf));
       }
       final int[] indices = new int[size];
       for (int i = 0; i < indices.length; i++) {
         indices[i] = (i == 0 ? 0 : indices[i - 1]) + VLongUtils.readUnsignedVarInt(bbf);
       }
-      return from(size, new IntIterable.FromArray(indices));
+      return from(indices);
     }
     return new WrappedImmutableRoaringBitmap(new ImmutableRoaringBitmap(bbf));
   }
@@ -394,6 +394,26 @@ public final class RoaringBitmapFactory implements BitmapFactory
     } else {
       return bitmap;
     }
+  }
+
+  // inclusive ~ exclusive
+  public static LazyImmutableBitmap from(int from, int to)
+  {
+    Preconditions.checkArgument(from <= to, "invalid range %d ~ %d", from, to);
+    if (from == to) {
+      return from(0, IntIterable.EMPTY);
+    }
+    return from(to - from, new IntIterable.Range(from, to));
+  }
+
+  public static LazyImmutableBitmap of(int index)
+  {
+    return index < 0 ? from(0, IntIterable.EMPTY) : from(new int[]{index});
+  }
+
+  public static LazyImmutableBitmap from(int[] indices)
+  {
+    return indices.length == 0 ? from(0, IntIterable.EMPTY) : from(indices.length, new IntIterable.FromArray(indices));
   }
 
   public static LazyImmutableBitmap from(final int cardinality, final IntIterable iterable)
@@ -410,8 +430,8 @@ public final class RoaringBitmapFactory implements BitmapFactory
       public BitSet toBitSet()
       {
         final BitSet bitSet;
-        if (iterable instanceof IntIterable.MaxAware) {
-          bitSet = new BitSet(((IntIterable.MaxAware) iterable).max());
+        if (iterable instanceof IntIterable.MinMaxAware) {
+          bitSet = new BitSet(((IntIterable.MinMaxAware) iterable).max());
         } else {
           bitSet = new BitSet();
         }

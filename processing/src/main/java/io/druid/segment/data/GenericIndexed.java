@@ -36,6 +36,7 @@ import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.Tools;
 import io.druid.segment.serde.ColumnPartSerde;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -300,9 +301,31 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
+  public void scan(IntIterator iterator, Tools.Scanner scanner)
+  {
+    if (iterator == null) {
+      bufferIndexed.scan(scanner);
+    } else {
+      bufferIndexed.scan(iterator, scanner);
+    }
+  }
+
+  @Override
+  public void scan(int index, Tools.Scanner scanner)
+  {
+    bufferIndexed.scan(validateIndex(index), scanner);
+  }
+
+  @Override
+  public void scan(Tools.ObjectScanner<T> scanner)
+  {
+    bufferIndexed.scan(scanner);
+  }
+
+  @Override
   public <R> Stream<R> stream(Tools.Function<R> function)
   {
-    return bufferIndexed.scan(function);
+    return bufferIndexed.stream(function);
   }
 
   @Override
@@ -321,12 +344,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   public BufferRef getAsRef(int index)
   {
     return bufferIndexed.getAsRef(validateIndex(index));
-  }
-
-  @Override
-  public void apply(int index, Tools.Scanner scanner)
-  {
-    bufferIndexed.apply(validateIndex(index), scanner);
   }
 
   @Override
@@ -631,11 +648,49 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         final int length = valueLength(index, offset);
         final int header = valueHeaderLength(index, length);
         scanner.scan(index, buffer, offset + header, length);
-        offset += scanDelta(length, header);
+        offset += scanDelta(index, length, header);
       }
     }
 
-    private <R> Stream<R> scan(Tools.Function<R> function)
+    private void scan(IntIterator iterator, Tools.Scanner scanner)
+    {
+      if (!iterator.hasNext()) {
+        return;
+      }
+      final ByteBuffer buffer = supplier.get();
+      int index = iterator.next();
+      int offset = valueOffset(index);
+      while (true) {
+        final int length = valueLength(index, offset);
+        final int header = valueHeaderLength(index, length);
+        scanner.scan(index, buffer, offset + header, length);
+        if (!iterator.hasNext()) {
+          return;
+        }
+        final int next = iterator.next();
+        if (next == index + 1) {
+          offset += scanDelta(index, length, header);
+        } else {
+          offset = valueOffset(next);
+        }
+        index = next;
+      }
+    }
+
+    private void scan(Tools.ObjectScanner<T> scanner)
+    {
+      final ByteBuffer buffer = supplier.get();
+      int offset = valuesOffset;
+      for (int index = 0; index < size; index++) {
+        final int length = valueLength(index, offset);
+        final int header = valueHeaderLength(index, length);
+        buffer.limit(offset + header + length).position(offset + header);
+        scanner.scan(index, strategy.fromByteBuffer(buffer));
+        offset += scanDelta(index, length, header);
+      }
+    }
+
+    private <R> Stream<R> stream(Tools.Function<R> function)
     {
       Iterator<R> iterator = new Iterator<R>()
       {
@@ -655,7 +710,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
           final int length = valueLength(index, offset);
           final int header = valueHeaderLength(index, length);
           final R ret = function.apply(index, buffer, offset + header, length);
-          offset += scanDelta(length, header);
+          offset += scanDelta(index, length, header);
           index++;
           return ret;
         }
@@ -663,7 +718,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return StreamSupport.stream(Spliterators.spliterator(iterator, size, 0), false);
     }
 
-    protected int scanDelta(int length, int header)
+    protected int scanDelta(int index, int length, int header)
     {
       return header + length;
     }
@@ -718,7 +773,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return reuse;
     }
 
-    public final void apply(final int index, final Tools.Scanner function)
+    public final void scan(final int index, final Tools.Scanner function)
     {
       final int offset = valueOffset(index);
       final int length = valueLength(index, offset);
@@ -842,7 +897,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         buffer.position(offset + header);
         final int comparison = comparator.compare(strategy.fromByteBuffer(buffer, length), target);
         if (comparison < 0) {
-          offset += scanDelta(length, header);
+          offset += scanDelta(index, length, header);
           continue;
         }
         return comparison == 0 ? index : -index -1;
@@ -860,7 +915,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         final int header = valueHeaderLength(index, length);
         final int comparison = compareTo(buffer, offset + header, length, target);
         if (comparison < 0) {
-          offset += scanDelta(length, header);
+          offset += scanDelta(index, length, header);
           continue;
         }
         return comparison == 0 ? index : -index -1;
@@ -986,9 +1041,9 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     }
 
     @Override
-    protected int scanDelta(int length, int header)
+    protected int scanDelta(int index, int length, int header)
     {
-      return maxLength + 1;
+      return hasNull && index == 0 ? 0 : maxLength + 1;
     }
   }
 
@@ -1035,9 +1090,9 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     }
 
     @Override
-    protected int scanDelta(int length, int header)
+    protected int scanDelta(int index, int length, int header)
     {
-      return fixed;
+      return hasNull && index == 0 ? 0 : fixed;
     }
   }
 }

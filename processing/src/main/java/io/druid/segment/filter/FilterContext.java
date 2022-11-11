@@ -35,6 +35,7 @@ import io.druid.segment.QueryableIndex;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.function.IntFunction;
 
@@ -42,11 +43,15 @@ public class FilterContext implements Closeable
 {
   private static final Logger LOG = new Logger(Filters.class);
 
+  private DimFilter root;
+
   protected final BitmapIndexSelector selector;
   protected final BitmapFactory factory;
-  protected ImmutableBitmap baseBitmap;
-  protected final Map<String, IntFunction> attached;    // vc from filter (like lucene)
-  protected final Map<Object, ImmutableBitmap> possibles;
+
+  private ImmutableBitmap baseBitmap;
+  private final Map<String, IntFunction> attached;    // vc from filter (like lucene)
+  private final Map<Object, ImmutableBitmap> possibles;
+  private final Map<String, ImmutableBitmap> ranges;  // range on dictionary
 
   private Filter matcher;
   private boolean fullScan;
@@ -57,6 +62,18 @@ public class FilterContext implements Closeable
     this.factory = Preconditions.checkNotNull(selector.getBitmapFactory());
     this.attached = Maps.newHashMap();
     this.possibles = Maps.newHashMap();
+    this.ranges = Maps.newHashMap();
+  }
+
+  public FilterContext root(DimFilter filter)
+  {
+    root = filter;
+    return this;
+  }
+
+  public boolean isRoot(DimFilter current)
+  {
+    return root == current;
   }
 
   public BitmapHolder createBitmap(DimFilter filter)
@@ -90,7 +107,7 @@ public class FilterContext implements Closeable
     return factory;
   }
 
-  public ImmutableBitmap getBaseBitmap()
+  public ImmutableBitmap baseBitmap()
   {
     return baseBitmap;
   }
@@ -115,6 +132,16 @@ public class FilterContext implements Closeable
     baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(factory, baseBitmap, newBaseBitmap);
   }
 
+  public void range(String dimension, ImmutableBitmap range)
+  {
+    ranges.compute(dimension, (k, prev) -> prev == null ? range : factory.intersection(Arrays.asList(prev, range)));
+  }
+
+  public ImmutableBitmap rangeOf(String dimension)
+  {
+    return ranges.get(dimension);
+  }
+
   public void attach(String column, IntFunction attachment)
   {
     attached.put(column, attachment);
@@ -125,7 +152,7 @@ public class FilterContext implements Closeable
     possibles.put(column, attachment);
   }
 
-  public IntFunction getAttachment(String name)
+  public IntFunction attachmentOf(String name)
   {
     return attached.get(name);
   }
@@ -147,12 +174,11 @@ public class FilterContext implements Closeable
 
   public boolean isAll(ImmutableBitmap bitmap)
   {
-    return bitmap.size() == targetNumRows();
+    return bitmap.size() == selector.getNumRows();
   }
 
-  public void prepared(ImmutableBitmap baseBitmap, Filter matcher, boolean fullscan)
+  public void prepared(Filter matcher, boolean fullscan)
   {
-    this.baseBitmap = baseBitmap;
     this.matcher = matcher;
     this.fullScan = fullscan;
   }

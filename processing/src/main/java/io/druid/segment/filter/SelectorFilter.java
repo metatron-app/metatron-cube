@@ -29,12 +29,15 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
+import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.IndexedID;
 
@@ -46,11 +49,13 @@ import java.util.Objects;
  */
 public class SelectorFilter implements Filter
 {
+  private final DimFilter source;
   private final String dimension;
   private final String value;
 
-  public SelectorFilter(String dimension, String value)
+  public SelectorFilter(DimFilter source, String dimension, String value)
   {
+    this.source = source;
     this.dimension = dimension;
     this.value = value;
   }
@@ -59,9 +64,17 @@ public class SelectorFilter implements Filter
   public BitmapHolder getBitmapIndex(FilterContext context)
   {
     final BitmapIndexSelector selector = context.indexSelector();
-    final ColumnCapabilities capabilities = selector.getCapabilities(dimension);
-    if (capabilities == null || capabilities.hasBitmapIndexes()) {
-      return BitmapHolder.exact(selector.getBitmapIndex(dimension, value));
+    final Column column = selector.getColumn(dimension);
+    if (column == null) {
+      return BitmapHolder.exact(selector.createBoolean(Strings.isNullOrEmpty(value)));
+    }
+    if (column.getCapabilities().hasBitmapIndexes()) {
+      final BitmapIndex bitmapIndex = column.getBitmapIndex();
+      final int index = bitmapIndex.indexOf(value);
+      if (context.isRoot(source)) {
+        context.range(dimension, RoaringBitmapFactory.of(index));
+      }
+      return BitmapHolder.exact(bitmapIndex.getBitmap(index));
     }
     final SecondaryIndex index = selector.getExternalIndex(dimension, null);
     return index == null ? null : index.eq(dimension, value, context);

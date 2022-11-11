@@ -23,6 +23,11 @@ import java.nio.ByteBuffer;
 
 public interface Tools
 {
+  public interface ObjectScanner<T>
+  {
+    void scan(int number, T value);
+  }
+
   public interface Scanner
   {
     void scan(int number, ByteBuffer buffer, int offset, int length);

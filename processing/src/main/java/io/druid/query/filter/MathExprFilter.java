@@ -91,7 +91,7 @@ public class MathExprFilter implements DimFilter, DimFilter.BestEffort
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return Filters.ofExpr(Expressions.convertToCNF(Parser.parse(expression, resolver), Parser.EXPR_FACTORY));
+    return Filters.ofExpr(this, Expressions.convertToCNF(Parser.parse(expression, resolver), Parser.EXPR_FACTORY));
   }
 
   @Override

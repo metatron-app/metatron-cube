@@ -23,8 +23,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.IntTagged;
-import io.druid.common.guava.BufferWindow;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
@@ -39,9 +39,11 @@ import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
 import org.apache.commons.lang.mutable.MutableLong;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
 import java.util.List;
@@ -507,27 +509,41 @@ public class ColumnSelectors
     };
   }
 
-  private static final int THRESHOLD = 4194304;
+  private static final int THRESHOLD = 2097152;
 
-  public static ObjectColumnSelector<UTF8Bytes> asRawAccess(final WithRawAccess selector, final int rowCount)
+  public static ObjectColumnSelector asRawAccess(WithRawAccess selector, ImmutableBitmap bitmap, int rowCount)
   {
     Dictionary dictionary = selector.getDictionary();
-    if (rowCount > 0 && rowCount > dictionary.size() << 1 && dictionary.getSerializedSize() < THRESHOLD) {
-      UTF8Bytes[] cached = new UTF8Bytes[dictionary.size()];
-      if (dictionary instanceof GenericIndexed) {
-        GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
-        indexed.scan((ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer, offset, length));
+    int dictionaryCache = bitmap == null ? dictionary.size() : bitmap.size();
+    long estimation = dictionary.getSerializedSize() * dictionaryCache / dictionary.size();
+    if (rowCount > 0 && rowCount > dictionaryCache >> 1 && estimation < THRESHOLD) {
+      if (dictionary.size() > dictionaryCache << 1) {
+        Int2ObjectOpenHashMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>();
+        IntIterator iterator = bitmap == null ? null : bitmap.iterator();
+        if (dictionary instanceof GenericIndexed) {
+          GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
+          indexed.scan(iterator, (ix, buffer, offset, length) -> map.put(ix, UTF8Bytes.read(buffer, offset, length)));
+        } else {
+          dictionary.scan(
+              iterator, (ix, buffer, offset, length) -> map.put(ix, UTF8Bytes.read(buffer.duplicate(), offset, length))
+          );
+        }
+        return ObjectColumnSelector.string(() -> map.get(selector.getRow().get(0)));
       } else {
-        BufferWindow window = new BufferWindow();
-        dictionary.scan(
-            (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.of(window.set(buffer, offset, length).toBytes())
-        );
+        UTF8Bytes[] cached = new UTF8Bytes[dictionary.size()];
+        IntIterator iterator = bitmap == null ? null : bitmap.iterator();
+        if (dictionary instanceof GenericIndexed) {
+          GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
+          indexed.scan(iterator, (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer, offset, length));
+        } else {
+          dictionary.scan(
+              iterator, (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer.duplicate(), offset, length)
+          );
+        }
+        return ObjectColumnSelector.string(() -> cached[selector.getRow().get(0)]);
       }
-      return ObjectColumnSelector.with(ValueDesc.STRING, () -> cached[selector.getRow().get(0)]);
     }
-    return ObjectColumnSelector.with(
-        ValueDesc.STRING, () -> UTF8Bytes.of(selector.lookupRaw(selector.getRow().get(0)))
-    );
+    return ObjectColumnSelector.string(() -> UTF8Bytes.of(selector.lookupRaw(selector.getRow().get(0))));
   }
 
   public static ObjectColumnSelector<String> asSingleValued(final SingleValued selector)

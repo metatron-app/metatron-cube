@@ -41,11 +41,9 @@ import io.druid.query.RowResolver;
 import io.druid.query.FilterMetaQuery;
 import io.druid.query.FilterMetaQueryEngine;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.QueryableIndex;
@@ -151,30 +149,10 @@ public class StreamQueryRunnerFactory
     }
     logger.info("split %s on values : %s (%d msec)", sortColumn, Arrays.toString(thresholds), elapsed);
 
-    Direction direction = orderingSpec.getDirection();
     List<StreamQuery> splits = Lists.newArrayList();
-    for (int i = 1; i < thresholds.length; i++) {
-      BoundDimFilter filter;
-      if (i == 1) {
-        filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.lt(sortColumn, thresholds[i]) :
-                     BoundDimFilter.gte(sortColumn, thresholds[i]);
-      } else if (i < thresholds.length - 1) {
-        filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.between(sortColumn, thresholds[i - 1], thresholds[i]) :
-                     BoundDimFilter.between(sortColumn, thresholds[i], thresholds[i - 1]);
-      } else {
-        filter = direction == Direction.ASCENDING ?
-                     BoundDimFilter.gte(sortColumn, thresholds[i - 1]) :
-                     BoundDimFilter.lt(sortColumn, thresholds[i - 1]);
-      }
-      if (!orderingSpec.isNaturalOrdering()) {
-        filter = filter.withComparatorType(orderingSpec.getDimensionOrder());
-      }
-      logger.debug("--> filter : %s", filter);
-      splits.add(
-          query.withFilter(DimFilters.and(query.getFilter(), filter))
-      );
+    for (DimFilter filter : QueryUtils.toSplitter(sortColumn, orderingSpec, thresholds)) {
+      logger.debug("--> split filter : %s", filter);
+      splits.add(query.withFilter(DimFilters.and(query.getFilter(), filter)));
     }
     return splits;
   }

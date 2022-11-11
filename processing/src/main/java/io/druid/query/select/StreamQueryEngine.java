@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -100,6 +101,7 @@ public class StreamQueryEngine
       {
         final int size = cursor.size();
         final List<String> orderingColumns = Lists.newArrayList(Iterables.transform(orderings, o -> o.getDimension()));
+
         int index = 0;
         boolean optimizeOrdering = !orderingColumns.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings);
         final DimensionSelector[] dimensions = new DimensionSelector[columns.length];
@@ -112,7 +114,8 @@ public class StreamQueryEngine
                 dimensions[index] = selector;
               }
               if (useRawUTF8 && selector instanceof WithRawAccess) {
-                selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector, size);
+                ImmutableBitmap dictionary = cursor.getFilterContext().rangeOf(column);
+                selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector, dictionary, size);
               } else {
                 selectors[index] = ColumnSelectors.asSingleValued((SingleValued) selector);
               }
