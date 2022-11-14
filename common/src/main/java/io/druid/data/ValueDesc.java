@@ -230,7 +230,10 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static boolean isDimension(String typeName)
   {
-    return isPrefixed(typeName, DIMENSION_PREFIX);
+    if (typeName != null && typeName.length() > DIMENSION_PREFIX.length()) {
+      return isPrefixed(typeName, DIMENSION_PREFIX);
+    }
+    return false;
   }
 
   public static boolean isIndexedId(ValueDesc valueType)

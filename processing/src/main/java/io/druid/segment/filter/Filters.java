@@ -668,7 +668,7 @@ public class Filters
   @SuppressWarnings("unchecked")
   private static ImmutableBitmap scanForPredicate(GenericColumn column, Predicate predicate, FilterContext context)
   {
-    final BitmapFactory factory = context.indexSelector().getBitmapFactory();
+    final BitmapFactory factory = context.factory;
     try {
       if (column instanceof GenericColumn.FloatType) {
         return ((GenericColumn.FloatType) column).collect(factory, context.getBaseIterator(), f -> predicate.apply(f));
@@ -689,7 +689,7 @@ public class Filters
 
   private static ImmutableBitmap scanForRange(GenericColumn column, Range range, FilterContext context)
   {
-    final BitmapFactory factory = context.indexSelector().getBitmapFactory();
+    final BitmapFactory factory = context.factory;
     try {
       final BoundType lowerType = range.hasLowerBound() ? range.lowerBoundType() : null;
       final BoundType upperType = range.hasUpperBound() ? range.upperBoundType() : null;
@@ -742,7 +742,7 @@ public class Filters
 
   private static ImmutableBitmap scanForEqui(GenericColumn column, String value, FilterContext context)
   {
-    final BitmapFactory factory = context.indexSelector().getBitmapFactory();
+    final BitmapFactory factory = context.factory;
     try {
       if (StringUtils.isNullOrEmpty(value)) {
         return column.getNulls();
@@ -780,7 +780,7 @@ public class Filters
 
   private static ImmutableBitmap scanForEqui(GenericColumn column, List<String> values, FilterContext context)
   {
-    final BitmapFactory factory = context.indexSelector().getBitmapFactory();
+    final BitmapFactory factory = context.factory;
 
     final boolean containsNull = values.contains("");
     final List<BigDecimal> decimals = ImmutableList.copyOf(
@@ -969,6 +969,9 @@ public class Filters
 
       private BitmapHolder handleBiDimension(Expr expr, boolean withNot, FilterContext context)
       {
+        if (context.targetNumRows() << 2 < context.numRows()) {
+          return null;
+        }
         BitmapIndexSelector selector = context.selector;
         Parser.SimpleBinaryOp binaryOp =
             Parser.isBinaryRangeOpWith(expr, c -> selector.getCapabilities(c) != null &&
@@ -993,9 +996,9 @@ public class Filters
           GuavaUtils.swap(bitmaps, 0, 1);
         }
 
+        final int numRows = context.numRows();
+        final BufferWindow window = new BufferWindow();
         try {
-          final int numRows = context.numRows();
-          final BufferWindow window = new BufferWindow();
           final Stream<BinaryRef> stream = bitmaps[0].getDictionary().stream(
               (ix, buffer, offset, length) -> window.set(buffer, offset, length)
           );
@@ -1003,16 +1006,16 @@ public class Filters
 
           ImmutableBitmap bitmap;
           if (context.factory instanceof RoaringBitmapFactory) {
-            long p = System.currentTimeMillis();
+            final IntIterator it0 = encoded[0].getSingleValueRows();
+            final IntIterator it1 = encoded[1].getSingleValueRows();
             final long[] words = makeWords(numRows);
             for (int i = 0; i < words.length; i++) {
               final int offset = i << ADDRESS_BITS_PER_WORD;
               final int limit = Math.min(numRows - offset, BITS_PER_WORD);
               long v = 0;
               for (int x = 0; x < limit; x++) {
-                final int index = offset + x;
-                if (op.compare(indices[encoded[0].getSingleValueRow(index)], encoded[1].getSingleValueRow(index))) {
-                  v |= 1L << x;
+                if (op.compare(indices[it0.next()], it1.next())) {
+                  v += 1L << x;
                 }
               }
               words[i] = v;
@@ -1022,11 +1025,12 @@ public class Filters
               bitSet.flip(0, numRows);
             }
             bitmap = RoaringBitmapFactory.from(bitSet);
-            logger.info("Bitmap from index map, took %,d msec", System.currentTimeMillis() - p);
           } else {
+            final IntIterator it0 = encoded[0].getSingleValueRows();
+            final IntIterator it1 = encoded[1].getSingleValueRows();
             final MutableBitmap mutable = context.factory.makeEmptyMutableBitmap();
             for (int i = 0; i < numRows; i++) {
-              if (op.compare(indices[encoded[0].getSingleValueRow(i)], encoded[1].getSingleValueRow(i))) {
+              if (op.compare(indices[it0.next()], it1.next())) {
                 mutable.add(i);
               }
             }

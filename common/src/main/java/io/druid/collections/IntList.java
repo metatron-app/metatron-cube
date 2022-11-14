@@ -98,6 +98,13 @@ public class IntList implements Iterable<Integer>, IntConsumer
     size += values.length;
   }
 
+  public void addAll(int[] values, int offset, int length)
+  {
+    reserve(length);
+    System.arraycopy(values, offset, baseArray, size, length);
+    size += length;
+  }
+
   public void addAll(IntList intList)
   {
     reserve(intList.size);
@@ -160,12 +167,6 @@ public class IntList implements Iterable<Integer>, IntConsumer
   {
     Arrays.sort(baseArray, 0, size);
     return this;
-  }
-
-  public int forward(int value)
-  {
-    add(value);
-    return value;
   }
 
   public <T> Iterable<T> transform(final IntFunction<T> function)

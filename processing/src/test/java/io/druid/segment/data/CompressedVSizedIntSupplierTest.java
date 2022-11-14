@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import io.druid.collections.IntList;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 import org.junit.After;
@@ -31,6 +32,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.roaringbitmap.IntIterator;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -359,6 +361,21 @@ public class CompressedVSizedIntSupplierTest extends CompressionStrategyTest
       Assert.assertEquals(expected, actual);
       indices[i] = i;
     }
+    int[] bulk = new int[3];
+    IntList collect = new IntList();
+    for(int ix = 0, n; ix < indexed.size() && (n = indexed.get(ix, bulk)) > 0; ix += n) {
+      collect.addAll(bulk, 0, n);
+    }
+    for (int i = 0; i < indexed.size(); ++i) {
+      Assert.assertEquals(vals[i], collect.get(i));
+    }
+
+    IntIterator iterator = indexed.iterator();
+    for (int i = 0; i < indexed.size(); ++i) {
+      Assert.assertTrue(iterator.hasNext());
+      Assert.assertEquals(vals[i], iterator.next());
+    }
+    Assert.assertFalse(iterator.hasNext());
 
     Collections.shuffle(Arrays.asList(indices));
     // random access

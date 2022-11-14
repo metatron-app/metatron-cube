@@ -19,18 +19,18 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.bitmap.IntIterable;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.IntScanner;
-import it.unimi.dsi.fastutil.ints.IntIterable;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.function.IntSupplier;
-import java.util.stream.IntStream;
 
 /**
- * Get a int an index (array or list lookup abstraction without boxing).
+ * Get an int an index (array or list lookup abstraction without boxing).
  */
 public interface IndexedInts extends IntIterable, Closeable
 {
@@ -94,20 +94,25 @@ public interface IndexedInts extends IntIterable, Closeable
 
   int get(int index);
 
-  default IntStream stream()
+  default int get(int index, int[] convey)
   {
-    return IntStream.range(0, size()).map(this::get);
+    int limit = Math.min(size() - index, convey.length);
+    for (int i = 0; i < limit; i++) {
+      convey[i] = get(index + i);
+    }
+    return limit;
   }
 
-  default it.unimi.dsi.fastutil.ints.IntIterator iterator()
+  @Override
+  default IntIterator iterator()
   {
-    return new it.unimi.dsi.fastutil.ints.IntIterator()
+    return new IntIterators.Abstract()
     {
       private final int limit = size();
       private int index;
 
       @Override
-      public int nextInt()
+      public int next()
       {
         return get(index++);
       }

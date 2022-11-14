@@ -24,7 +24,7 @@ import io.druid.segment.data.IndexedInts;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
-import java.util.stream.IntStream;
+import java.util.function.IntUnaryOperator;
 
 /**
  */
@@ -33,13 +33,28 @@ public interface DictionaryEncodedColumn extends Closeable
   int length();
   boolean hasMultipleValues();
   int getSingleValueRow(int rowNum);
+  int getSingleValueRow(int rowNum, int[] handover);
   IndexedInts getMultiValueRow(int rowNum);
   void scan(IntIterator iterator, IntScanner scanner);
   String lookupName(int id);
   int lookupId(String name);
   int getCardinality();
 
-  IntStream getSingleValueRows();
+  IntIterator getSingleValueRows();
   Dictionary<String> dictionary();
   DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary);
+
+  default IntUnaryOperator asSupplier(int cache)
+  {
+    final int[] range = new int[]{-1, -1};
+    final int[] cached = new int[cache];
+    return x -> {
+      if (x < range[0] || x >= range[1]) {
+        final int valid = getSingleValueRow(x, cached);
+        range[0] = x;
+        range[1] = x + valid;
+      }
+      return cached[x  - range[0]];
+    };
+  }
 }

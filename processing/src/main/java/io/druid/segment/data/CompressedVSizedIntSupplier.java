@@ -27,6 +27,8 @@ import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.bitmap.IntIterators;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -352,6 +354,50 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       return pvalue = _get((pindex = index) & rem);
     }
 
+    @Override
+    public int get(int index, int[] convey)
+    {
+      final int bufferNum = index >> div;
+      if (bufferNum != currIndex) {
+        loadBuffer(bufferNum);
+      }
+      final int offset = index & rem;
+      final int n = Math.min(totalSize - index, Math.min(sizePer - offset, convey.length));
+      for (int i = 0; i < n; i++) {
+        convey[i] = _get(offset + i);
+      }
+      return n;
+    }
+
+    @Override
+    public IntIterator iterator()
+    {
+      return new IntIterators.Abstract()
+      {
+        private final int[] bulk = new int[Math.min(totalSize, 4096)];
+
+        private IntIterator iterator = IntIterators.EMPTY;
+        private int index;
+
+        @Override
+        public int next()
+        {
+          if (!iterator.hasNext()) {
+            final int n = get(index, bulk);
+            iterator = IntIterators.from(bulk, n);
+            index += n;
+          }
+          return iterator.next();
+        }
+
+        @Override
+        public boolean hasNext()
+        {
+          return index < totalSize || iterator.hasNext();
+        }
+      };
+    }
+
     /**
      * Returns the value at the given index in the current decompression buffer
      *
@@ -396,5 +442,13 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       Closeables.close(holder, false);
       Closeables.close(singleThreaded, false);
     }
+  }
+
+  public static void main(String[] args)
+  {
+    System.out.println(maxIntsInBufferForBytes(1));
+    System.out.println(maxIntsInBufferForBytes(2));
+    System.out.println(maxIntsInBufferForBytes(3));
+    System.out.println(maxIntsInBufferForBytes(4));
   }
 }

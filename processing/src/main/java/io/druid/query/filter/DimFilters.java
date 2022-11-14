@@ -518,7 +518,7 @@ public class DimFilters
       return -1;
     }
     if (bitmap instanceof WrappedImmutableRoaringBitmap) {
-      return ((WrappedImmutableRoaringBitmap) bitmap).getBitmap().getReverseIntIterator().next();
+      return ((WrappedImmutableRoaringBitmap) bitmap).getBitmap().last();
     } else if (bitmap instanceof WrappedBitSetBitmap) {
       return ((WrappedBitSetBitmap) bitmap).bitset().previousSetBit(limit);
     } else if (bitmap instanceof WrappedConciseBitmap) {

@@ -20,12 +20,33 @@
 package io.druid.segment.data;
 
 import io.druid.common.guava.BufferRef;
+import org.roaringbitmap.IntIterator;
+
+import java.util.Iterator;
 
 public interface Indexed<T> extends Iterable<T>
 {
   int size();
 
   T get(int index);
+
+  default Iterator<T> get(IntIterator iterator)
+  {
+    return new Iterator<T>()
+    {
+      @Override
+      public boolean hasNext()
+      {
+        return iterator.hasNext();
+      }
+
+      @Override
+      public T next()
+      {
+        return get(iterator.next());
+      }
+    };
+  }
 
   /**
    * Returns the index of "value" in this Indexed object, or a negative number if the value is not present.

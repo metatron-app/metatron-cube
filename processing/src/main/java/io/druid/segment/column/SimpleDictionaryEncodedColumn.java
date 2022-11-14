@@ -26,7 +26,6 @@ import io.druid.segment.data.IndexedMultivalue;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
-import java.util.stream.IntStream;
 
 /**
  */
@@ -66,9 +65,15 @@ public class SimpleDictionaryEncodedColumn implements DictionaryEncodedColumn
   }
 
   @Override
-  public IntStream getSingleValueRows()
+  public int getSingleValueRow(int rowNum, int[] handover)
   {
-    return column.stream();
+    return column.get(rowNum, handover);
+  }
+
+  @Override
+  public IntIterator getSingleValueRows()
+  {
+    return column.iterator();
   }
 
   @Override

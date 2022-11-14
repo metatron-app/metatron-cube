@@ -76,12 +76,15 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.IntFunction;
+import java.util.function.IntUnaryOperator;
 
 /**
  */
 public class QueryableIndexStorageAdapter implements StorageAdapter
 {
   private static final Logger LOG = new Logger(QueryableIndexStorageAdapter.class);
+
+  private static final int ID_CACHE_SIZE = 64;
 
   private final QueryableIndex index;
   private final DataSegment segment;
@@ -563,9 +566,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       } else {
                         // using an anonymous class is faster than creating a class that stores a copy of the value
-                        final IndexedInts row = IndexedInts.from(
-                            () -> column.getSingleValueRow(offset())
-                        );
+                        final IntUnaryOperator supplier = column.asSupplier(ID_CACHE_SIZE);
+                        final IndexedInts row = IndexedInts.from(() -> supplier.applyAsInt(offset()));
                         if (extractionFn != null) {
                           return new DimensionSelector()
                           {
@@ -892,6 +894,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         } else {
                           cachedSelector = new ObjectColumnSelector.WithRawAccess<String>()
                           {
+                            private final IntUnaryOperator supplier = columnVals.asSupplier(ID_CACHE_SIZE);
                             private final Dictionary<String> dictionary = columnVals.dictionary();
 
                             @Override
@@ -909,19 +912,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public String get()
                             {
-                              return dictionary.get(columnVals.getSingleValueRow(offset()));
+                              return dictionary.get(supplier.applyAsInt(offset()));
                             }
 
                             @Override
                             public byte[] getAsRaw()
                             {
-                              return dictionary.getAsRaw(columnVals.getSingleValueRow(offset()));
+                              return dictionary.getAsRaw(supplier.applyAsInt(offset()));
                             }
 
                             @Override
                             public BufferRef getAsRef()
                             {
-                              return dictionary.getAsRef(columnVals.getSingleValueRow(offset()));
+                              return dictionary.getAsRef(supplier.applyAsInt(offset()));
                             }
 
                             @Override
