@@ -196,12 +196,6 @@ public class CompressedVSizedIndexedIntSupplier implements WritableSupplier<Inde
     }
 
     @Override
-    public int indexOf(IndexedInts value)
-    {
-      throw new UnsupportedOperationException("Reverse lookup not allowed.");
-    }
-
-    @Override
     public Iterator<IndexedInts> iterator()
     {
       return IndexedIterable.create(this).iterator();

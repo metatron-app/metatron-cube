@@ -54,7 +54,7 @@ public final class IndexedLongsGenericColumn extends GenericColumn.LongType
   }
 
   @Override
-  public int getNumRows()
+  public int size()
   {
     return column.size();
   }

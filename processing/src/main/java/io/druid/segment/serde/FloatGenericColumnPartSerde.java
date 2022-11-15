@@ -141,7 +141,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                 }
 
                 @Override
-                public int getNumRows()
+                public int size()
                 {
                   return numRows;
                 }

@@ -37,7 +37,7 @@ public interface ComplexColumn extends ColumnAccess
 
   CompressionStrategy compressionType();
 
-  int getNumRows();
+  int size();
 
   class Compressed extends ColumnAccess.Compressed implements ComplexColumn
   {
@@ -71,7 +71,7 @@ public interface ComplexColumn extends ColumnAccess
     }
 
     @Override
-    public int getNumRows()
+    public int size()
     {
       return numRows();
     }

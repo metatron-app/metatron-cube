@@ -48,7 +48,7 @@ public final class IndexedDoublesGenericColumn extends GenericColumn.DoubleType
   }
 
   @Override
-  public int getNumRows()
+  public int size()
   {
     return column.size();
   }

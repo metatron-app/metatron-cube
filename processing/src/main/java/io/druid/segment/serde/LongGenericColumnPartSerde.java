@@ -142,7 +142,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
                 }
 
                 @Override
-                public int getNumRows()
+                public int size()
                 {
                   return numRows;
                 }

@@ -54,7 +54,7 @@ public final class IndexedFloatsGenericColumn extends GenericColumn.FloatType
   }
 
   @Override
-  public int getNumRows()
+  public int size()
   {
     return column.size();
   }

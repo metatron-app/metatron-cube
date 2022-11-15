@@ -19,17 +19,6 @@
 
 package io.druid.segment.data;
 
-import io.druid.common.guava.BinaryRef;
-import io.druid.segment.Tools;
-import org.roaringbitmap.IntIterator;
-
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.ToIntBiFunction;
-import java.util.function.ToIntFunction;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
 import static io.druid.segment.data.DictionaryCompareOp.EQ;
 import static io.druid.segment.data.DictionaryCompareOp.GT;
 import static io.druid.segment.data.DictionaryCompareOp.GTE;
@@ -38,7 +27,7 @@ import static io.druid.segment.data.DictionaryCompareOp.LTE;
 import static io.druid.segment.data.DictionaryCompareOp.NEQ;
 
 // common interface of non-compressed(GenericIndexed) and compressed dictionary
-public interface Dictionary<T> extends Indexed.BufferBacked<T>
+public interface Dictionary<T> extends Indexed.Searchable<T>
 {
   int flag();
 
@@ -49,68 +38,9 @@ public interface Dictionary<T> extends Indexed.BufferBacked<T>
 
   Boolean containsNull();     // null for unknown
 
-  @Override
-  default int indexOf(T value)
-  {
-    return indexOf(value, 0, size(), true);
-  }
-
-  int indexOf(T value, int start, int end, boolean binary);
-
-  default IntStream indexOf(List<T> values)
-  {
-    return indexOf(values.stream()).filter(x -> x >= 0);
-  }
-
-  default IntStream indexOf(Stream<T> stream)
-  {
-    return search(stream, (v, s) -> indexOf(v, s, size(), true));
-  }
-
-  default IntStream indexOfRaw(Stream<BinaryRef> stream)
-  {
-    return search(stream, (v, s) -> indexOf(v, s, size(), true));
-  }
-
-  int indexOf(BinaryRef bytes, int start, int end, boolean binary);
-
-  byte[] getAsRaw(int index);
-
   long getSerializedSize();
 
-  void scan(Tools.Scanner scanner);
-
-  void scan(IntIterator iterator, Tools.Scanner scanner);
-
-  void scan(int index, Tools.Scanner scanner);
-
-  void scan(Tools.ObjectScanner<T> scanner);
-
-  <R> Stream<R> stream(Tools.Function<R> function);
-
-  <R> R apply(int index, Tools.Function<R> function);
-
   void close();
-
-  // for searching stream of sorted value
-  public static <F> IntStream search(Stream<F> stream, ToIntBiFunction<F, Integer> function)
-  {
-    return search(stream, function, 0);
-  }
-
-  public static <F> IntStream search(Stream<F> stream, ToIntBiFunction<F, Integer> function, int start)
-  {
-    return stream.mapToInt(new ToIntFunction<F>()
-    {
-      private int p = start;
-
-      @Override
-      public int applyAsInt(F input)
-      {
-        return p = function.applyAsInt(input, p < 0 ? -p - 1 : p);
-      }
-    });
-  }
 
   public static DictionaryCompareOp compareOp(String name)
   {

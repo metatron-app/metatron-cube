@@ -204,12 +204,6 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
       }
 
       @Override
-      public int indexOf(T value)
-      {
-        throw new UnsupportedOperationException("indexOf");
-      }
-
-      @Override
       public Iterator<T> iterator()
       {
         throw new UnsupportedOperationException("iterator");

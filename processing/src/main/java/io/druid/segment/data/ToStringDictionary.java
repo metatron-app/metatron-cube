@@ -91,12 +91,6 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
-  public <R> R apply(int index, Tools.Function<R> function)
-  {
-    throw new UnsupportedOperationException("apply");
-  }
-
-  @Override
   public void scan(Tools.Scanner scanner)
   {
     throw new UnsupportedOperationException("scan");
@@ -121,9 +115,21 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
-  public <R> Stream<R> stream(Tools.Function<R> function)
+  public void scan(IntIterator iterator, Tools.ObjectScanner<String> scanner)
   {
-    throw new UnsupportedOperationException("stream");
+    throw new UnsupportedOperationException("scan");
+  }
+
+  @Override
+  public <R> R apply(int index, Tools.Function<R> function)
+  {
+    throw new UnsupportedOperationException("apply");
+  }
+
+  @Override
+  public <R> Stream<R> apply(Tools.Function<R> function)
+  {
+    throw new UnsupportedOperationException("apply");
   }
 
   @Override

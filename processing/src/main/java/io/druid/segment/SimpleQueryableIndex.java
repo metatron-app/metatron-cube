@@ -96,7 +96,7 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.stats = Suppliers.memoize(() -> {
       final GenericColumn column = columns.get(Column.TIME_COLUMN_NAME).get().getGenericColumn();
       try {
-        final int numRows = column.getNumRows();
+        final int numRows = column.size();
         return new TimeStats(numRows, Intervals.utc(column.getLong(0), column.getLong(numRows - 1)));
       }
       finally {

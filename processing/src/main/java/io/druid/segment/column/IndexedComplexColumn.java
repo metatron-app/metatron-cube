@@ -53,7 +53,7 @@ public class IndexedComplexColumn implements ComplexColumn, ColumnAccess.WithRaw
   }
 
   @Override
-  public int getNumRows()
+  public int size()
   {
     return column.size();
   }

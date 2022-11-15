@@ -25,7 +25,6 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -40,7 +39,6 @@ import io.druid.collections.IntList;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.BufferWindow;
-import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.utils.StringUtils;
@@ -89,6 +87,7 @@ import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.DictionaryCompareOp;
 import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
@@ -107,7 +106,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -441,54 +439,31 @@ public class Filters
     }
     // Apply predicate to all dimension values and union the matching bitmaps
     final BitmapIndex bitmapIndex = column.getBitmapIndex();
-    final int cardinality = bitmapIndex.getCardinality();
-    if (bitmapIndex == null || cardinality < 0) {
+    if (bitmapIndex == null) {
+      final GenericColumn generic = column.getGenericColumn();
+      if (generic instanceof Indexed.Scannable) {
+        final Indexed.Scannable<String> scannable = (Indexed.Scannable) generic;
+        final MutableBitmap mutable = selector.getBitmapFactory().makeEmptyMutableBitmap();
+        scannable.scan(context.getBaseIterator(), (ix, v) -> {
+          if (matcher.matches(v)) {mutable.add(ix);}
+        });
+        return selector.getBitmapFactory().makeImmutableBitmap(mutable);
+      }
       return null;
     }
     final Dictionary<String> dictionary = column.getDictionary();
     if (dictionary == null) {
       return null;
     }
-    return DimFilters.union(
-        selector.getBitmapFactory(),
-        new Iterable<ImmutableBitmap>()
-        {
-          @Override
-          public Iterator<ImmutableBitmap> iterator()
-          {
-            return new Iterator<ImmutableBitmap>()
-            {
-              private int currIndex = matcher.start(dictionary);
 
-              @Override
-              public boolean hasNext()
-              {
-                return currIndex < cardinality;
-              }
-
-              @Override
-              public ImmutableBitmap next()
-              {
-                while (currIndex < cardinality && !matcher.matches(dictionary, currIndex)) {
-                  currIndex++;
-                }
-
-                if (currIndex == cardinality) {
-                  return bitmapIndex.getBitmapFactory().makeEmptyImmutableBitmap();
-                }
-
-                return bitmapIndex.getBitmap(currIndex++);
-              }
-
-              @Override
-              public void remove()
-              {
-                throw new UnsupportedOperationException();
-              }
-            };
-          }
-        }
-    );
+    final IntList matched = new IntList();
+    final int cardinality = dictionary.size();
+    for (int index = matcher.start(dictionary); index < cardinality; index++) {
+      if (matcher.matches(dictionary, index)) {
+        matched.add(index);
+      }
+    }
+    return DimFilters.union(selector.getBitmapFactory(), matched.transform(bitmapIndex::getBitmap));
   }
 
   public static Set<String> getDependents(Iterable<DimFilter> filters)
@@ -547,7 +522,7 @@ public class Filters
           return BitmapHolder.of(exact, factory.makeImmutableBitmap(mutable));
         }
         final BitmapHolder holder = populator.get();
-        if (holder != null && holder.size() < targetNumRows()) {
+        if (holder != null) {
           byte exact = holder.exact() ? (byte) 0x01 : 0x00;
           cache.put(key, StringUtils.concat(new byte[]{bitmapCode, exact}, holder.bitmap().toBytes()));
         }
@@ -999,7 +974,7 @@ public class Filters
         final int numRows = context.numRows();
         final BufferWindow window = new BufferWindow();
         try {
-          final Stream<BinaryRef> stream = bitmaps[0].getDictionary().stream(
+          final Stream<BinaryRef> stream = bitmaps[0].getDictionary().apply(
               (ix, buffer, offset, length) -> window.set(buffer, offset, length)
           );
           final int[] indices = bitmaps[1].getDictionary().indexOfRaw(stream).map(op::ix).toArray();

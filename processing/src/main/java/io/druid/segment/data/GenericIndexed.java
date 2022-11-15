@@ -323,7 +323,17 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public <R> Stream<R> stream(Tools.Function<R> function)
+  public void scan(IntIterator iterator, Tools.ObjectScanner<T> scanner)
+  {
+    if (iterator == null) {
+      bufferIndexed.scan(scanner);
+    } else {
+      bufferIndexed.scan(iterator, scanner);
+    }
+  }
+
+  @Override
+  public <R> Stream<R> apply(Tools.Function<R> function)
   {
     return bufferIndexed.stream(function);
   }
@@ -687,6 +697,32 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         buffer.limit(offset + header + length).position(offset + header);
         scanner.scan(index, strategy.fromByteBuffer(buffer));
         offset += scanDelta(index, length, header);
+      }
+    }
+
+    private void scan(IntIterator iterator, Tools.ObjectScanner<T> scanner)
+    {
+      if (!iterator.hasNext()) {
+        return;
+      }
+      final ByteBuffer buffer = supplier.get();
+      int index = iterator.next();
+      int offset = valueOffset(index);
+      while (true) {
+        final int length = valueLength(index, offset);
+        final int header = valueHeaderLength(index, length);
+        buffer.limit(offset + header + length).position(offset + header);
+        scanner.scan(index, strategy.fromByteBuffer(buffer));
+        if (!iterator.hasNext()) {
+          return;
+        }
+        final int next = iterator.next();
+        if (next == index + 1) {
+          offset += scanDelta(index, length, header);
+        } else {
+          offset = valueOffset(next);
+        }
+        index = next;
       }
     }
 

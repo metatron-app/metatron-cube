@@ -19,13 +19,20 @@
 
 package io.druid.segment.column;
 
+import io.druid.common.guava.BufferRef;
 import io.druid.data.ValueDesc;
+import io.druid.segment.Tools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.Indexed;
+import org.roaringbitmap.IntIterator;
+
+import java.util.Iterator;
+import java.util.stream.Stream;
 
 /**
  */
-public class IndexedStringsGenericColumn implements GenericColumn
+public class IndexedStringsGenericColumn implements GenericColumn, Indexed.Scannable<String>
 {
   private final GenericIndexed<String> indexed;
   private final CompressionStrategy compressionType;
@@ -49,7 +56,7 @@ public class IndexedStringsGenericColumn implements GenericColumn
   }
 
   @Override
-  public int getNumRows()
+  public int size()
   {
     return indexed.size();
   }
@@ -64,5 +71,65 @@ public class IndexedStringsGenericColumn implements GenericColumn
   public Object getValue(int rowNum)
   {
     return getString(rowNum);
+  }
+
+  @Override
+  public String get(int index)
+  {
+    return getString(index);
+  }
+
+  @Override
+  public BufferRef getAsRef(int index)
+  {
+    return indexed.getAsRef(index);
+  }
+
+  @Override
+  public void scan(Tools.Scanner scanner)
+  {
+    indexed.scan(scanner);
+  }
+
+  @Override
+  public void scan(IntIterator iterator, Tools.Scanner scanner)
+  {
+    indexed.scan(iterator, scanner);
+  }
+
+  @Override
+  public void scan(int index, Tools.Scanner scanner)
+  {
+    indexed.scan(index, scanner);
+  }
+
+  @Override
+  public void scan(Tools.ObjectScanner<String> scanner)
+  {
+    indexed.scan(scanner);
+  }
+
+  @Override
+  public void scan(IntIterator iterator, Tools.ObjectScanner<String> scanner)
+  {
+    indexed.scan(iterator, scanner);
+  }
+
+  @Override
+  public <R> Stream<R> apply(Tools.Function<R> function)
+  {
+    return indexed.apply(function);
+  }
+
+  @Override
+  public <R> R apply(int index, Tools.Function<R> function)
+  {
+    return indexed.apply(index, function);
+  }
+
+  @Override
+  public Iterator<String> iterator()
+  {
+    return indexed.iterator();
   }
 }
