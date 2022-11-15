@@ -109,7 +109,7 @@ public class SelectorDimFilter extends SingleInput
   @Override
   public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    return new InDimFilter(dimension, ImmutableList.of(value), extractionFn).optimize(segment, virtualColumns);
+    return new InDimFilter(dimension, extractionFn, ImmutableList.<String>of(value), null).optimize(segment, virtualColumns);
   }
 
   @Override

@@ -521,7 +521,7 @@ public class Filters
   )
   {
     final byte bitmapCode = codeOfFactory(selector.getBitmapFactory());
-    if (cache == null || cache == Cache.NULL || segmentId == null || bitmapCode >= BITMAP_FACTORIES.length) {
+    if (cache == null || segmentId == null || bitmapCode >= BITMAP_FACTORIES.length) {
       return new FilterContext(selector);
     }
     final byte[] namespace = StringUtils.toUtf8(segmentId);

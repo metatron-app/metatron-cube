@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.CombiningSequence;
@@ -293,7 +294,7 @@ public class GroupByQueryRunnerFactory
     long start = System.currentTimeMillis();
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
     Object[] thresholds = Queries.makeColumnHistogramOn(
-        resolver, segments, segmentWalker, query, dimensionSpec, numSplit, strategy, maxResults, cache
+        resolver, segments, segmentWalker, query, dimensionSpec, numSplit, strategy, maxResults, cache(query)
     );
     if (thresholds == null || thresholds.length < 3) {
       return null;
@@ -315,7 +316,7 @@ public class GroupByQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Row> _createRunner(final Segment segment, final Supplier<Object> optimizer)
+  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return (query, response) ->
     {

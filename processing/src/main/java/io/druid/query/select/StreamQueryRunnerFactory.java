@@ -24,11 +24,13 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.Sequence;
 import io.druid.data.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
+import io.druid.query.FilterMetaQuery;
+import io.druid.query.FilterMetaQueryEngine;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -38,15 +40,13 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
-import io.druid.query.FilterMetaQuery;
-import io.druid.query.FilterMetaQueryEngine;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.QueryableIndex;
+import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
@@ -120,7 +120,7 @@ public class StreamQueryRunnerFactory
     if (numSplit < 2) {
       int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
       if (splitRows > SPLIT_MIN_ROWS) {
-        int numRows = getNumRows(query, segments, resolver, splitRows);
+        int numRows = getNumRows(query, segments, resolver, splitRows, cache(query));
         if (numRows >= 0) {
           logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
           numSplit = numRows / splitRows;
@@ -141,7 +141,7 @@ public class StreamQueryRunnerFactory
     DimensionSpec ordering = orderingSpec.asDimensionSpec();
     long start = System.currentTimeMillis();
     Object[] thresholds = Queries.makeColumnHistogramOn(
-        resolver, segments, segmentWalker, query.asTimeseriesQuery(), ordering, numSplit, strategy, -1, cache
+        resolver, segments, segmentWalker, query.asTimeseriesQuery(), ordering, numSplit, strategy, -1, cache(query)
     );
     long elapsed = System.currentTimeMillis() - start;
     if (thresholds == null || thresholds.length < 3) {
@@ -157,7 +157,13 @@ public class StreamQueryRunnerFactory
     return splits;
   }
 
-  private int getNumRows(StreamQuery query, List<Segment> segments, Supplier<RowResolver> resolver, int splitRows)
+  private int getNumRows(
+      StreamQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      int splitRows,
+      Cache cache
+  )
   {
     final DimFilter filter = query.getFilter();
     final int numRows = segments.stream().mapToInt(Segment::getNumRows).sum();
@@ -187,15 +193,8 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Object[]> _createRunner(final Segment segment, final Supplier<Object> optimizer)
+  public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
-    return new QueryRunner<Object[]>()
-    {
-      @Override
-      public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
-      {
-        return engine.process((StreamQuery) query, config, segment, optimizer, cache);
-      }
-    };
+    return (query, response) -> engine.process((StreamQuery) query, config, segment, optimizer, cache);
   }
 }

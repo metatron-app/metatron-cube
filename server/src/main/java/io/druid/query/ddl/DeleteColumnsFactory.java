@@ -22,6 +22,7 @@ package io.druid.query.ddl;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.logger.Logger;
@@ -65,7 +66,7 @@ public class DeleteColumnsFactory extends QueryRunnerFactory.Abstract<DDLResult,
   }
 
   @Override
-  public QueryRunner<DDLResult> _createRunner(final Segment segment, final Supplier<Object> optimizer)
+  public QueryRunner<DDLResult> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new QueryRunner<DDLResult>()
     {

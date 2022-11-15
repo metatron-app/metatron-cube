@@ -22,6 +22,8 @@ package io.druid.query.filter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -101,7 +103,10 @@ public class SemiJoinFactory
 
   private static DimFilter toInFilter(String fieldName, Iterator<String> set)
   {
-    return new InDimFilter(fieldName, null, ImmutableList.copyOf(set));
+    List<String> values = ImmutableList.<String>copyOf(set);
+    Hasher hasher = Hashing.murmur3_128().newHasher();
+    values.forEach(v -> hasher.putUnencodedChars(v));
+    return new InDimFilter(fieldName, null, values, hasher.hash().asBytes());
   }
 
   private static InDimsFilter toInsFilter(List<String> fieldNames, Iterator<StringArray> objects)
@@ -110,13 +115,15 @@ public class SemiJoinFactory
     for (int i = 0; i < fieldNames.size(); i++) {
       valuesList.add(Lists.newArrayList());
     }
+    Hasher hasher = Hashing.murmur3_128().newHasher();
     while (objects.hasNext()) {
       StringArray array = objects.next();
       for (int i = 0; i < fieldNames.size(); i++) {
         valuesList.get(i).add(array.get(i));
+        hasher.putUnencodedChars(array.get(i));
       }
     }
-    return new InDimsFilter(fieldNames, valuesList);
+    return new InDimsFilter(fieldNames, valuesList, hasher.hash().asBytes());
   }
 
   public static int sizeOf(DimFilter filter)
@@ -140,13 +147,17 @@ public class SemiJoinFactory
   {
     final CloseableIterator<Object[]> iterator = Sequences.toIterator(sequence);
     try {
+      Hasher hasher = Hashing.murmur3_128().newHasher();
       if (fieldNames.size() == 1) {
         boolean hasDuplication = false;
         final Object2IntMap<String> mapping = new Object2IntAVLTreeMap<>();
         while (iterator.hasNext()) {
-          mapping.computeInt(Objects.toString(iterator.next()[0], ""), (k, v) -> v == null ? 1 : v + 1);
+          String key = Objects.toString(iterator.next()[0], "");
+          mapping.computeInt(key, (k, v) -> v == null ? 1 : v + 1);
+          hasher.putUnencodedChars(key);
         }
-        DimFilter filter = new InDimFilter(fieldNames.get(0), null, ImmutableList.copyOf(mapping.keySet()));
+        ImmutableList<String> values = ImmutableList.copyOf(mapping.keySet());
+        DimFilter filter = new InDimFilter(fieldNames.get(0), null, values, hasher.hash().asBytes());
         Map<String, Integer> duplications = Maps.newHashMap(Maps.filterEntries(mapping, e -> e.getValue() > 1));
         if (!duplications.isEmpty()) {
           return Pair.of(filter, new RowExploder(fieldNames, duplications, null));
@@ -164,9 +175,10 @@ public class SemiJoinFactory
         for (StringArray array : mapping.keySet()) {
           for (int i = 0; i < fieldNames.size(); i++) {
             valuesList.get(i).add(array.get(i));
+            hasher.putUnencodedChars(array.get(i));
           }
         }
-        DimFilter filter = new InDimsFilter(fieldNames, valuesList);
+        DimFilter filter = new InDimsFilter(fieldNames, valuesList, hasher.hash().asBytes());
         StringArray.IntMap duplications = new StringArray.IntMap(Maps.filterEntries(mapping, e -> e.getValue() > 1));
         if (!duplications.isEmpty()) {
           return Pair.of(filter, new RowExploder(fieldNames, null, duplications));

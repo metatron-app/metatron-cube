@@ -33,6 +33,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.BestEffort;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.Filters;
@@ -43,7 +44,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
 
-public class LikeDimFilter extends SingleInput
+public class LikeDimFilter extends SingleInput implements BestEffort
 {
   private final String dimension;
   private final String pattern;

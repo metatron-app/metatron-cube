@@ -321,13 +321,15 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   final long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
                   final long timeEnd = Math.min(interval.getEndMillis(), actualInterval.getEndMillis());
 
+                  // do not skip cursor with empty offset
                   final Offset baseOffset = toBaseOffset(timeStart, timeEnd);
 
                   return new Cursor.ExprSupport()
                   {
                     private final Offset initOffset = baseOffset.clone();
                     private final ValueMatcher filterMatcher =
-                        Filters.matchAll(filter) ? ValueMatcher.TRUE : filter.makeMatcher(context.matcher(this), this);
+                        !baseOffset.withinBounds() || Filters.matchAll(filter)
+                        ? ValueMatcher.TRUE : filter.makeMatcher(context.matcher(this), this);  // matcher can be heavy
                     private Offset cursorOffset = baseOffset;
 
                     {

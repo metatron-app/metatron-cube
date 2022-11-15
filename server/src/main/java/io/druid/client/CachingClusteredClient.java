@@ -175,7 +175,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     }
 
     final CacheStrategy<T, Object, Query<T>> strategy =
-        cache == Cache.NULL || !cacheConfig.isQueryCacheable(query) ? null : toolChest.getCacheStrategyIfExists(query);
+        !cacheConfig.isQueryCacheable(query) ? null : toolChest.getCacheStrategyIfExists(query);
 
     final boolean useCache = strategy != null && cacheConfig.isUseCache() && BaseQuery.isUseCache(query, true);
     final boolean populateCache = strategy != null && cacheConfig.isPopulateCache() && BaseQuery.isPopulateCache(query, true);

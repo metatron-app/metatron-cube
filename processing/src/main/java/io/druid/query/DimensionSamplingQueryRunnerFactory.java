@@ -22,6 +22,7 @@ package io.druid.query;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -91,7 +92,7 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
   }
 
   @Override
-  public QueryRunner<Object[]> _createRunner(final Segment segment, Supplier<Object> optimizer)
+  public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new QueryRunner<Object[]>()
     {

@@ -22,6 +22,7 @@ package io.druid.query.metadata;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
@@ -61,7 +62,7 @@ public class SegmentMetadataQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<SegmentAnalysis> _createRunner(final Segment segment, Supplier<Object> optimizer)
+  public QueryRunner<SegmentAnalysis> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new QueryRunner<SegmentAnalysis>()
     {

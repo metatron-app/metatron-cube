@@ -25,6 +25,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Murmur3;
@@ -73,7 +74,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
   }
 
   @Override
-  public QueryRunner<Object[]> _createRunner(final Segment segment, final Supplier<Object> optimizer)
+  public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new QueryRunner<Object[]>()
     {

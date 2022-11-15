@@ -74,23 +74,26 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
       destLens[i] = ref.length;
       bytes[i] = Arrays.copyOf(compressing, compressed);
     }
-    return new CompressedInsFilter(filter.getDimensions(), destLens, bytes);
+    return new CompressedInsFilter(filter.getDimensions(), destLens, bytes, filter.getHash());
   }
 
   private final List<String> dimensions;
   private final int[] destLens;
   private final byte[][] values;
+  private final byte[] hash;
 
   @JsonCreator
   public CompressedInsFilter(
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("destLens") int[] destLens,
-      @JsonProperty("values") byte[][] values
+      @JsonProperty("values") byte[][] values,
+      @JsonProperty("hash") byte[] hash
   )
   {
     this.dimensions = Preconditions.checkNotNull(dimensions, "dimension can not be null");
     this.destLens = destLens;
     this.values = values;
+    this.hash = hash;
   }
 
   @JsonProperty
@@ -115,7 +118,7 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   @Override
   public DimFilter forLog()
   {
-    return new CompressedInsFilter(dimensions, destLens, null);
+    return new CompressedInsFilter(dimensions, destLens, null, null);
   }
 
   @Override
@@ -130,7 +133,7 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
       }
       list.add(values);
     }
-    return new InDimsFilter(dimensions, list);
+    return new InDimsFilter(dimensions, list, hash);
   }
 
   @Override

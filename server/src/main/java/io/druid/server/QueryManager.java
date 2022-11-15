@@ -29,6 +29,8 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.DateTimes;
 import io.druid.common.Progressing;
 import io.druid.common.Tagged;
@@ -173,6 +175,18 @@ public class QueryManager implements QueryWatcher, Runnable
     return status == null ? config.getMaxQueryTimeout() : status.remaining();
   }
 
+  @Override
+  public Cache getSessionCache(String queryId)
+  {
+    if (queryId != null) {
+      QueryStatus status = queries.get(queryId);
+      if (status != null) {
+        return status.cache;
+      }
+    }
+    return null;
+  }
+
   public List<String> getQueryDatasources(final String queryId)
   {
     QueryStatus status = queries.get(queryId);
@@ -254,6 +268,7 @@ public class QueryManager implements QueryWatcher, Runnable
     private final long start = System.currentTimeMillis();
     private final Map<ListenableFuture, Timer> pendings = new IdentityHashMap<>();
     private final List<Closeable> resources = Lists.newArrayList();   // for cancel
+    private final Cache cache = new SessionCache();
 
     private volatile boolean canceled;
     private volatile long end = -1;
@@ -329,6 +344,7 @@ public class QueryManager implements QueryWatcher, Runnable
         log(Lists.newArrayList(Iterables.filter(pendings.values(), Predicates.notNull())));
       }
       pendings.clear();
+      cache.close(null);
     }
 
     private synchronized long remaining()

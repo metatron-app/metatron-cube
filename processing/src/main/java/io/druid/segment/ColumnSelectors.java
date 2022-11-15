@@ -517,8 +517,8 @@ public class ColumnSelectors
     int dictionaryCache = bitmap == null ? dictionary.size() : bitmap.size();
     long estimation = dictionary.getSerializedSize() * dictionaryCache / dictionary.size();
     if (rowCount > 0 && rowCount > dictionaryCache >> 1 && estimation < THRESHOLD) {
-      if (dictionary.size() > dictionaryCache << 1) {
-        Int2ObjectOpenHashMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>();
+      if (dictionary.size() > dictionaryCache << 2) {
+        Int2ObjectOpenHashMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>(dictionaryCache);
         IntIterator iterator = bitmap == null ? null : bitmap.iterator();
         if (dictionary instanceof GenericIndexed) {
           GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();

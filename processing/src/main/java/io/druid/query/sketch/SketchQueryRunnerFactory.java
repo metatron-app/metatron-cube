@@ -21,6 +21,7 @@ package io.druid.query.sketch;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
@@ -40,7 +41,7 @@ public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object
   }
 
   @Override
-  public QueryRunner<Object[]> _createRunner(final Segment segment, Supplier<Object> optimizer)
+  public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new SketchQueryRunner(segment, cache);
   }

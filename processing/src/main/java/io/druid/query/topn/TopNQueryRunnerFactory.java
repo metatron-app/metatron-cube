@@ -21,12 +21,10 @@ package io.druid.query.topn;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.Sequence;
 import io.druid.guice.annotations.Global;
-import io.druid.java.util.common.ISE;
-import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
@@ -37,23 +35,24 @@ import io.druid.segment.VirtualColumns;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
+ *
  */
 public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<TopNResultValue>, TopNQuery>
 {
-  private final StupidPool<ByteBuffer> computationBufferPool;
+  private final TopNQueryEngine queryEngine;
 
   @Inject
   public TopNQueryRunnerFactory(
       @Global StupidPool<ByteBuffer> computationBufferPool,
       TopNQueryQueryToolChest toolchest,
       QueryWatcher queryWatcher
-  ) {
+  )
+  {
     super(toolchest, queryWatcher);
-    this.computationBufferPool = computationBufferPool;
+    this.queryEngine = new TopNQueryEngine(computationBufferPool);
   }
 
   @Override
@@ -71,24 +70,8 @@ public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<T
   }
 
   @Override
-  public QueryRunner<Result<TopNResultValue>> _createRunner(final Segment segment, Supplier<Object> optimizer)
+  public QueryRunner<Result<TopNResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
-    final TopNQueryEngine queryEngine = new TopNQueryEngine(computationBufferPool);
-    return new QueryRunner<Result<TopNResultValue>>()
-    {
-      @Override
-      public Sequence<Result<TopNResultValue>> run(
-          Query<Result<TopNResultValue>> input,
-          Map<String, Object> responseContext
-      )
-      {
-        if (!(input instanceof TopNQuery)) {
-          throw new ISE("Got a [%s] which isn't a %s", input.getClass(), TopNQuery.class);
-        }
-
-        return queryEngine.query((TopNQuery) input, segment, cache);
-      }
-    };
-
+    return (query, response) -> queryEngine.query((TopNQuery) query, segment, cache);
   }
 }

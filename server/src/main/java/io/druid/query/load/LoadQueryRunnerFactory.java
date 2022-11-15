@@ -23,6 +23,7 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
+import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
 import io.druid.data.Pair;
 import io.druid.query.ForwardingSegmentWalker;
@@ -55,7 +56,7 @@ public class LoadQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Stri
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Supplier<Object> optimizer)
+  public QueryRunner<Map<String, Object>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new QueryRunner<Map<String, Object>>()
     {

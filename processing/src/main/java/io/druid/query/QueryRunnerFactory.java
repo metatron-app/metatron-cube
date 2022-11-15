@@ -125,7 +125,12 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
 
     @BitmapCache
     @Inject(optional = true)
-    protected Cache cache;
+    private Cache cache;
+
+    protected Cache cache(Query<?> query)
+    {
+      return cache == null || cache == Cache.NULL ? queryWatcher.getSessionCache(query.getId()) : cache;
+    }
 
     protected Abstract(QueryToolChest<T, QueryType> toolChest, QueryWatcher queryWatcher)
     {
@@ -149,5 +154,13 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
     {
       return toolChest;
     }
+
+    @Override
+    public final QueryRunner<T> _createRunner(Segment segment, Supplier<Object> optimizer)
+    {
+      return (query, response) -> _createRunner(segment, optimizer, cache(query)).run(query, response);
+    }
+
+    protected abstract QueryRunner<T> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache);
   }
 }

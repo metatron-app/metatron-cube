@@ -88,7 +88,7 @@ public class SelectQueryRunnerFactory
         SelectMetaQuery metaQuery = baseQuery.withQuerySegmentSpec(
             new MultipleIntervalSegmentSpec(Arrays.asList(segment.getInterval()))
         );
-        for (Result<SelectMetaResultValue> result : Sequences.toList(engine.process(metaQuery, segment, cache))) {
+        for (Result<SelectMetaResultValue> result : Sequences.toList(engine.process(metaQuery, segment, cache(query)))) {
           threshold -= result.getValue().getTotalCount();
           if (threshold < 0) {
             LOG.info(
@@ -106,7 +106,7 @@ public class SelectQueryRunnerFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner<Result<SelectResultValue>> _createRunner(final Segment segment, Supplier<Object> optimizer)
+  public QueryRunner<Result<SelectResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     if (optimizer == null || ((Set<String>) optimizer.get()).contains(segment.getIdentifier())) {
       return new SelectQueryRunner(engine, config, segment, cache);

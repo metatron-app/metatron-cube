@@ -32,6 +32,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
@@ -66,26 +68,35 @@ public class InDimFilter extends SingleInput
   private final String dimension;
   private final ExtractionFn extractionFn;
   private final List<String> values;
+  private final byte[] hash;
 
   @JsonCreator
   public InDimFilter(
       @JsonProperty("dimension") String dimension,
       @JsonProperty("values") Collection<String> values,
-      @JsonProperty("extractionFn") ExtractionFn extractionFn
+      @JsonProperty("extractionFn") ExtractionFn extractionFn,
+      @JsonProperty("hash") byte[] hash
   )
   {
     this(
         dimension,
         extractionFn,
-        ImmutableList.copyOf(ImmutableSortedSet.copyOf(Iterables.transform(values, s -> Strings.nullToEmpty(s))))
+        ImmutableList.copyOf(ImmutableSortedSet.copyOf(Iterables.transform(values, s -> Strings.nullToEmpty(s)))),
+        hash
     );
   }
 
-  public InDimFilter(String dimension, ExtractionFn extractionFn, List<String> values)
+  public InDimFilter(String dimension, Collection<String> values, ExtractionFn extractionFn)
+  {
+    this(dimension, values, extractionFn, null);
+  }
+
+  public InDimFilter(String dimension, ExtractionFn extractionFn, List<String> values, byte[] hash)
   {
     this.dimension = Preconditions.checkNotNull(dimension, "dimension can not be null");
     this.extractionFn = extractionFn;
     this.values = Preconditions.checkNotNull(values, "values can not be null");
+    this.hash = hash;
   }
 
   @Override
@@ -98,7 +109,7 @@ public class InDimFilter extends SingleInput
   @Override
   protected DimFilter withDimension(String dimension)
   {
-    return new InDimFilter(dimension, extractionFn, values);
+    return new InDimFilter(dimension, extractionFn, values, hash);
   }
 
   @JsonProperty
@@ -114,13 +125,25 @@ public class InDimFilter extends SingleInput
     return extractionFn;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public byte[] getHash()
+  {
+    return hash;
+  }
+
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheKey.IN_CACHE_ID)
-                  .append(dimension).sp()
-                  .append(values).sp()
-                  .append(extractionFn);
+    builder.append(DimFilterCacheKey.IN_CACHE_ID)
+           .append(dimension).sp()
+           .append(extractionFn);
+    if (hash != null) {
+      builder.append(hash);
+    } else {
+      builder.append(values);
+    }
+    return builder;
   }
 
   @Override
@@ -168,7 +191,10 @@ public class InDimFilter extends SingleInput
       if (keys.isEmpty()) {
         return this;
       } else {
-        return new InDimFilter(dimension, keys, null);
+        Collections.sort(keys);
+        final Hasher hasher = Hashing.murmur3_128().newHasher();
+        keys.forEach(v -> hasher.putUnencodedChars(v));
+        return new InDimFilter(dimension, null, keys, hasher.hash().asBytes());
       }
     }
     return this;
@@ -246,7 +272,8 @@ public class InDimFilter extends SingleInput
       return new InDimFilter(
           dimension,
           extractionFn,
-          GuavaUtils.concat(Iterables.limit(values, 10), String.format("..%d more", values.size() - 10))
+          GuavaUtils.concat(Iterables.limit(values, 10), String.format("..%d more", values.size() - 10)),
+          null
       );
     }
     return this;
@@ -296,7 +323,7 @@ public class InDimFilter extends SingleInput
           }
           List<String> copy = Lists.newArrayList(values);
           copy.add(-index - 1, select.getValue());
-          return new InDimFilter(dimension, extractionFn, copy);
+          return new InDimFilter(dimension, extractionFn, copy, null);
       }
     }
     throw new ISE("merge?? %s %s %s", this, op, other);

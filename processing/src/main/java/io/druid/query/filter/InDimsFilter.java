@@ -20,6 +20,7 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -49,11 +50,13 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
 {
   private final List<List<String>> values;
   private final List<String> dimensions;
+  private final byte[] hash;
 
   @JsonCreator
   public InDimsFilter(
       @JsonProperty("dimensions") List<String> dimensions,
-      @JsonProperty("values") List<List<String>> values
+      @JsonProperty("values") List<List<String>> values,
+      @JsonProperty("hash") byte[] hash
   )
   {
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(dimensions), "dimensions can not be empty");
@@ -61,6 +64,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(values), "values can not be empty");
     this.dimensions = dimensions;
     this.values = values;
+    this.hash = hash;
   }
 
   @Override
@@ -81,19 +85,31 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
     return values;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public byte[] getHash()
+  {
+    return hash;
+  }
+
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheKey.INS_CACHE_ID)
-                  .append(dimensions).sp()
-                  .appendAll(values);
+    builder.append(DimFilterCacheKey.INS_CACHE_ID)
+           .append(dimensions).sp();
+    if (hash != null) {
+      builder.append(hash);
+    } else {
+      builder.appendAll(values);
+    }
+    return builder;
   }
 
   @Override
   public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
     if (dimensions.size() == 1) {
-      return new InDimFilter(dimensions.get(0), values.get(0), null).optimize(segment, virtualColumns);
+      return new InDimFilter(dimensions.get(0), null, values.get(0), hash).optimize(segment, virtualColumns);
     }
     return this;
   }
@@ -103,7 +119,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
   {
     List<String> mapped = GuavaUtils.transform(dimensions, d -> mapping.getOrDefault(d, d));
     if (!mapped.equals(dimensions)) {
-      return new InDimsFilter(mapped, values);
+      return new InDimsFilter(mapped, values, hash);
     }
     return this;
   }
@@ -250,7 +266,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
         subList.add(i == 0 ? String.format("..%d more", values.size() - 10) : "");
         cut.add(subList);
       }
-      return new InDimsFilter(dimensions, cut);
+      return new InDimsFilter(dimensions, cut, null);
     }
     return this;
   }

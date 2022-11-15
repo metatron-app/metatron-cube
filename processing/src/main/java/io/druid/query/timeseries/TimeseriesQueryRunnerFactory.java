@@ -55,7 +55,7 @@ public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Ro
   }
 
   @Override
-  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer)
+  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new TimeseriesQueryRunner(segment, engine, config, cache);
   }

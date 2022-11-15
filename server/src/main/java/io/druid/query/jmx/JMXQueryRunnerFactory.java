@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.guice.annotations.Self;
@@ -66,7 +67,7 @@ public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Strin
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> _createRunner(final Segment segment, final Supplier<Object> optimizer)
+  public QueryRunner<Map<String, Object>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new QueryRunner<Map<String, Object>>()
     {

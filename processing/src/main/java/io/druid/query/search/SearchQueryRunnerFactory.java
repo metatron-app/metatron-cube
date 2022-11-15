@@ -30,30 +30,18 @@ import io.druid.query.search.search.SearchQuery;
 import io.druid.segment.Segment;
 
 /**
+ *
  */
 public class SearchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<SearchResultValue>, SearchQuery>
 {
   @Inject
-  public SearchQueryRunnerFactory(
-      SearchQueryQueryToolChest toolChest,
-      QueryWatcher queryWatcher
-  )
-  {
-    this(toolChest, queryWatcher, null);
-  }
-
-  public SearchQueryRunnerFactory(
-      SearchQueryQueryToolChest toolChest,
-      QueryWatcher queryWatcher,
-      Cache cache
-  )
+  public SearchQueryRunnerFactory(SearchQueryQueryToolChest toolChest, QueryWatcher queryWatcher)
   {
     super(toolChest, queryWatcher);
-    this.cache = cache;
   }
 
   @Override
-  public QueryRunner<Result<SearchResultValue>> _createRunner(final Segment segment, Supplier<Object> optimizer)
+  public QueryRunner<Result<SearchResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new SearchQueryRunner(segment, cache);
   }

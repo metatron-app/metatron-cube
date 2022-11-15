@@ -23,6 +23,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
@@ -49,7 +50,7 @@ public class HistogramQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row
   }
 
   @Override
-  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer)
+  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
   {
     return new QueryRunner<Row>()
     {

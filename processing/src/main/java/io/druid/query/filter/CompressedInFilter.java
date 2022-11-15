@@ -72,7 +72,8 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
         filter.getDimension(),
         ref.length,
         Arrays.copyOf(compressing, compressed),
-        filter.getExtractionFn()
+        filter.getExtractionFn(),
+        filter.getHash()
     );
   }
 
@@ -80,19 +81,22 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
   private final ExtractionFn extractionFn;
   private final int destLen;
   private final byte[] values;
+  private final byte[] hash;
 
   @JsonCreator
   public CompressedInFilter(
       @JsonProperty("dimension") String dimension,
       @JsonProperty("destLen") int destLen,
       @JsonProperty("values") byte[] values,
-      @JsonProperty("extractionFn") ExtractionFn extractionFn
+      @JsonProperty("extractionFn") ExtractionFn extractionFn,
+      @JsonProperty("hash") byte[] hash
   )
   {
     this.dimension = Preconditions.checkNotNull(dimension, "dimension can not be null");
     this.destLen = destLen;
     this.values = values;
     this.extractionFn = extractionFn;
+    this.hash = hash;
   }
 
   @JsonProperty
@@ -121,10 +125,17 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
     return extractionFn;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public byte[] getHash()
+  {
+    return hash;
+  }
+
   @Override
   public DimFilter forLog()
   {
-    return new CompressedInFilter(dimension, destLen, null, extractionFn);
+    return new CompressedInFilter(dimension, destLen, null, extractionFn, hash);
   }
 
   @Override
@@ -135,7 +146,7 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
     while (decompressed.available() > 0) {
       values.add(StringUtils.fromUtf8(decompressed.readVarSizeBytes()));
     }
-    return new InDimFilter(dimension, extractionFn, values);
+    return new InDimFilter(dimension, extractionFn, values, hash);
   }
 
   @Override

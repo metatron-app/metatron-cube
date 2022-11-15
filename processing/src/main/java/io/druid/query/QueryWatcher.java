@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.druid.cache.Cache;
 import io.druid.utils.StopWatch;
 
 import java.io.Closeable;
@@ -66,6 +67,8 @@ public interface QueryWatcher
 
   QueryConfig getQueryConfig();
 
+  Cache getSessionCache(String queryId);
+
   class Abstract implements QueryWatcher
   {
     private static final QueryConfig DUMMY = new QueryConfig();
@@ -98,6 +101,12 @@ public interface QueryWatcher
     public QueryConfig getQueryConfig()
     {
       return DUMMY;
+    }
+
+    @Override
+    public Cache getSessionCache(String queryId)
+    {
+      return null;
     }
   }
 }
