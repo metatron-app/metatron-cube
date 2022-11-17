@@ -121,7 +121,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   @Override
   public int getDimensionCardinality(String dimension)
   {
-    return Column.TIME_COLUMN_NAME.equals(dimension) ? Integer.MAX_VALUE : index.getCardinality(dimension);
+    return index.getCardinality(dimension);
   }
 
   @Override

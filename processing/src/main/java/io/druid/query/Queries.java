@@ -53,7 +53,7 @@ import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
-import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
@@ -74,13 +74,11 @@ import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSpecVirtualColumn;
-import io.druid.segment.QueryableIndex;
-import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
+import io.druid.segment.StorageAdapter;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.Column;
-import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
@@ -442,35 +440,26 @@ public class Queries
     return new long[]{estimated, estimated};
   }
 
-  private static long tryEstimateOnDictionary(GroupByQuery query, List<Segment> segments, long minCardinality)
+  // theoretically, extract-fn can increase cardinality of dimension, but who uses that shit
+  private static long estimateMaximumCardinality(GroupByQuery query, List<Segment> segments, long threshold)
   {
-    long multiply = 1;
-    for (DimensionSpec dimension : query.getDimensions()) {
-      int cardinality = 0;
+    long multiplied = 1;
+    for (String dimension : DimensionSpecs.toInputNames(query.getDimensions())) {
+      int maximum = 0;
       for (Segment segment : segments) {
-        QueryableIndex index = segment.asQueryableIndex(false);
-        if (index == null) {
+        StorageAdapter adapter = segment.asStorageAdapter(false);
+        if (adapter.getColumnCapabilities(dimension) == null) {
+          continue;   // not-existing?
+        }
+        int cardinality = adapter.getDimensionCardinality(dimension);
+        maximum += cardinality < 0 ? adapter.getNumRows() : cardinality;
+        if (multiplied * maximum >= threshold) {
           return -1;
         }
-        BitmapIndexSelector selector = new QueryableIndexSelector(index, TypeResolver.UNKNOWN);
-        Column column = selector.getColumn(dimension.getDimension());
-        if (column == null) {
-          continue;
-        }
-        if (column.getCapabilities().isDictionaryEncoded()) {
-          try (Dictionary<String> dictionary = column.getDictionary()) {
-            cardinality += dictionary.size();
-          }
-        } else {
-          cardinality += column.getNumRows();
-        }
       }
-      multiply *= Math.max(1, cardinality);
-      if (multiply >= minCardinality) {
-        return -1;
-      }
+      multiplied *= Math.max(1, maximum);
     }
-    return minCardinality;
+    return multiplied;
   }
 
   public static long estimateCardinality(
@@ -484,11 +473,9 @@ public class Queries
     if (numRows <= minCardinality) {
       return numRows;
     }
-    if (query.getFilter() == null && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM << 1) {
-      final long estimate = tryEstimateOnDictionary(query, segments, minCardinality);
-      if (estimate >= 0 && estimate < minCardinality) {
-        return estimate;
-      }
+    final long estimate = estimateMaximumCardinality(query, segments, minCardinality);
+    if (estimate >= 0 && estimate < minCardinality) {
+      return estimate;
     }
     return estimateCardinality(query, segmentWalker)[0];
   }

@@ -42,8 +42,7 @@ public interface StorageAdapter extends CursorFactory
 
   /**
    * Returns the number of distinct values for the given dimension column
-   * For dimensions of unknown cardinality, e.g. __time this currently returns
-   * Integer.MAX_VALUE
+   * -1 for not existing or non-dimensional column (including time column)
    *
    * @param column
    * @return

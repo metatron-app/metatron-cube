@@ -524,7 +524,7 @@ public abstract class IncrementalIndex implements Closeable
   public int getCardinality(String dimension)
   {
     DimensionDesc dimSpec = getDimension(dimension);
-    return dimSpec == null ? 0 : dimSpec.getValues().size();
+    return dimSpec == null ? -1 : dimSpec.getValues().size();
   }
 
   public List<String> getDimensionOrder()

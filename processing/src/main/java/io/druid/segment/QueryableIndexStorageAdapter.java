@@ -128,18 +128,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   @Override
   public int getDimensionCardinality(String dimension)
   {
-    if (dimension == null) {
-      return 0;
-    }
-
     Column column = index.getColumn(dimension);
-    if (column == null) {
-      return 0;
+    if (column != null && column.getCapabilities().isDictionaryEncoded()) {
+      return column.getDictionaryEncoding().getCardinality();
     }
-    if (!column.getCapabilities().isDictionaryEncoded()) {
-      return Integer.MAX_VALUE;
-    }
-    return column.getDictionaryEncoding().getCardinality();
+    return -1;
   }
 
   @Override
