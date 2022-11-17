@@ -54,16 +54,16 @@ public class SizePrefixedCompressedObjectStrategy extends CompressedObjectStrate
   }
 
   @Override
-  protected final ResourceHolder<ByteBuffer> decompress(ByteBuffer in, int numBytes)
+  public ResourceHolder<ByteBuffer> fromByteBuffer(ByteBuffer buffer, int numBytes)
   {
-    final int size = in.getInt();
+    final int size = buffer.getInt();
     final ResourceHolder<ByteBuffer> holder;
     if (size < CompressedPools.BUFFER_SIZE - CompressedPools.RESERVE) {
       holder = CompressedPools.getByteBuf(order);
     } else {
       holder = StupidResourceHolder.create(ByteBuffer.allocate(size));
     }
-    decompressor.decompress(in, numBytes - Integer.BYTES, holder.get(), size);
-    return holder;
+    decompressor.decompress(buffer, numBytes - Integer.BYTES, holder.get(), size);
+    return wrap(holder);
   }
 }

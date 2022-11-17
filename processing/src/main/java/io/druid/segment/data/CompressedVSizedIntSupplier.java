@@ -28,6 +28,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.bitmap.IntIterators;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
@@ -49,14 +50,14 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
   private final int bigEndianShift;
   private final int littleEndianMask;
   private final GenericIndexed<ResourceHolder<ByteBuffer>> baseBuffers;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
+  private final CompressionStrategy compression;
 
   CompressedVSizedIntSupplier(
       int totalSize,
       int sizePer,
       int numBytes,
       GenericIndexed<ResourceHolder<ByteBuffer>> baseBuffers,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressionStrategy compression
   )
   {
     Preconditions.checkArgument(
@@ -151,30 +152,28 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
 
   public static CompressedVSizedIntSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
-    byte versionFromBuffer = buffer.get();
-
-    if (versionFromBuffer == VERSION) {
-      final int numBytes = buffer.get();
-      final int totalSize = buffer.getInt();
-      final int sizePer = buffer.getInt();
-      final int chunkBytes = sizePer * numBytes + bufferPadding(numBytes);
-
-      final CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
-
-      return new CompressedVSizedIntSupplier(
-          totalSize,
-          sizePer,
-          numBytes,
-          GenericIndexed.read(
-              buffer,
-              CompressedByteBufferObjectStrategy.getBufferForOrder(order, compression, chunkBytes)
-          ),
-          compression
-      );
-
+    final byte versionFromBuffer = buffer.get();
+    if (versionFromBuffer != VERSION) {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
 
-    throw new IAE("Unknown version[%s]", versionFromBuffer);
+    final int numBytes = buffer.get();
+    final int totalSize = buffer.getInt();
+    final int sizePer = buffer.getInt();
+    final int chunkBytes = sizePer * numBytes + bufferPadding(numBytes);
+
+    final CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
+
+    return new CompressedVSizedIntSupplier(
+        totalSize,
+        sizePer,
+        numBytes,
+        GenericIndexed.read(
+            buffer,
+            CompressedByteBufferObjectStrategy.getBufferForOrder(order, compression, chunkBytes)
+        ),
+        compression
+    );
   }
 
   public static CompressedVSizedIntSupplier fromList(
@@ -182,7 +181,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       final int maxValue,
       final int chunkFactor,
       final ByteOrder byteOrder,
-      CompressedObjectStrategy.CompressionStrategy compression
+      final CompressionStrategy compression
   )
   {
     final int numBytes = VSizedInt.getNumBytesForMax(maxValue);
@@ -262,7 +261,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
 
   private class CompressedFullSizeIndexedInts extends CompressedVSizeIndexedInts
   {
-    IntBuffer intBuffer;
+    private IntBuffer intBuffer;
 
     @Override
     protected void loadBuffer(int bufferNum)
@@ -276,11 +275,20 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     {
       return intBuffer.get(intBuffer.position() + index);
     }
+
+    @Override
+    protected void _get(final int offset, final int n, final int[] convey)
+    {
+      final int pos = intBuffer.position() + offset;
+      for (int i = 0; i < n; i++) {
+        convey[i] = intBuffer.get(pos + i);
+      }
+    }
   }
 
   private class CompressedShortSizeIndexedInts extends CompressedVSizeIndexedInts
   {
-    ShortBuffer shortBuffer;
+    private ShortBuffer shortBuffer;
 
     @Override
     protected void loadBuffer(int bufferNum)
@@ -295,6 +303,15 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       // removes the need for padding
       return shortBuffer.get(shortBuffer.position() + index) & 0xFFFF;
     }
+
+    @Override
+    protected void _get(final int offset, final int n, final int[] convey)
+    {
+      final int pos = shortBuffer.position() + offset;
+      for (int i = 0; i < n; i++) {
+        convey[i] = shortBuffer.get(pos + i) & 0xFFFF;
+      }
+    }
   }
 
   private class CompressedByteSizeIndexedInts extends CompressedVSizeIndexedInts
@@ -305,11 +322,20 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       // removes the need for padding
       return buffer.get(buffer.position() + index) & 0xFF;
     }
+
+    @Override
+    protected void _get(final int offset, final int n, final int[] convey)
+    {
+      final int pos = buffer.position() + offset;
+      for (int i = 0; i < n; i++) {
+        convey[i] = buffer.get(pos + i) & 0xFF;
+      }
+    }
   }
 
   private class CompressedVSizeIndexedInts implements IndexedInts
   {
-    final Indexed.Closeable<ResourceHolder<ByteBuffer>> singleThreaded = baseBuffers.asSingleThreaded();
+    private final GenericIndexed<ResourceHolder<ByteBuffer>> singleThreaded = baseBuffers.asSingleThreaded();
 
     private final int div = Integer.numberOfTrailingZeros(sizePer);
     private final int rem = sizePer - 1;
@@ -363,9 +389,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       }
       final int offset = index & rem;
       final int n = Math.min(totalSize - index, Math.min(sizePer - offset, convey.length));
-      for (int i = 0; i < n; i++) {
-        convey[i] = _get(offset + i);
-      }
+      _get(offset, n, convey);
       return n;
     }
 
@@ -416,10 +440,28 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
              buffer.getInt(pos) & littleEndianMask;
     }
 
+    protected void _get(final int offset, final int n, final int[] convey)
+    {
+      final int pos = buffer.position() + offset * numBytes;
+      if (bigEndian) {
+        for (int i = 0; i < n; i++) {
+          convey[i] = buffer.getInt(pos + numBytes * i) >>> bigEndianShift;
+        }
+      } else {
+        for (int i = 0; i < n; i++) {
+          convey[i] = buffer.getInt(pos + numBytes * i) & littleEndianMask;
+        }
+      }
+    }
+
     protected void loadBuffer(int bufferNum)
     {
-      CloseQuietly.close(holder);
-      holder = singleThreaded.get(bufferNum);
+      if (singleThreaded.isRecyclable()) {
+        holder = singleThreaded.get(bufferNum, holder);
+      } else {
+        CloseQuietly.close(holder);
+        holder = singleThreaded.get(bufferNum);
+      }
       buffer = holder.get();
       currIndex = bufferNum;
       bigEndian = buffer.order().equals(ByteOrder.BIG_ENDIAN);

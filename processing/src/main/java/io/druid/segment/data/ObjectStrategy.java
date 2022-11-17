@@ -19,8 +19,6 @@
 
 package io.druid.segment.data;
 
-import io.druid.common.guava.BytesRef;
-
 import java.nio.ByteBuffer;
 
 public interface ObjectStrategy<T>
@@ -58,6 +56,11 @@ public interface ObjectStrategy<T>
   interface SingleThreadSupport<T> extends ObjectStrategy<T>
   {
     ObjectStrategy<T> singleThreaded();
+  }
+
+  interface Recycling<T> extends ObjectStrategy<T>
+  {
+    T fromByteBuffer(ByteBuffer buffer, int numBytes, T object);
   }
 
   ObjectStrategy<String> STRING_STRATEGY = new ObjectStrategies.StringObjectStrategy();

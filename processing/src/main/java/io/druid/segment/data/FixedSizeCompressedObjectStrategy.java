@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public abstract class FixedSizeCompressedObjectStrategy<T extends Buffer> extends CompressedObjectStrategy<T>
+    implements ObjectStrategy.Recycling<ResourceHolder<T>>
 {
   private final int sizePer;
 
@@ -48,10 +49,16 @@ public abstract class FixedSizeCompressedObjectStrategy<T extends Buffer> extend
   }
 
   @Override
-  protected ResourceHolder<ByteBuffer> decompress(ByteBuffer in, int numBytes)
+  public ResourceHolder<T> fromByteBuffer(ByteBuffer buffer, int numBytes)
   {
-    ResourceHolder<ByteBuffer> holder = CompressedPools.getByteBuf(order);
-    decompressor.decompress(in, numBytes, holder.get(), converter.sizeOf(sizePer));
-    return holder;
+    return fromByteBuffer(buffer, numBytes, null);
+  }
+
+  @Override
+  public ResourceHolder<T> fromByteBuffer(ByteBuffer buffer, int numBytes, ResourceHolder<T> resource)
+  {
+    ResourceHolder<ByteBuffer> holder = resource == null ? CompressedPools.getByteBuf(order) : unwrap(resource);
+    decompressor.decompress(buffer, numBytes, holder.get(), converter.sizeOf(sizePer));
+    return wrap(holder);
   }
 }

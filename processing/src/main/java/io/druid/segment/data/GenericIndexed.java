@@ -344,6 +344,11 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     return bufferIndexed.get(validateIndex(index));
   }
 
+  public T get(int index, T previous)
+  {
+    return bufferIndexed.get(validateIndex(index), previous);
+  }
+
   @Override
   public byte[] getAsRaw(int index)
   {
@@ -566,6 +571,11 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   {
   }
 
+  public boolean isRecyclable()
+  {
+    return false;
+  }
+
   private int validateIndex(int index)
   {
     if (index < 0) {
@@ -611,6 +621,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
           bcached = super.getAsRaw(bcacheId = index);
         }
         return bcached;
+      }
+
+      @Override
+      public boolean isRecyclable()
+      {
+        return bufferIndexed.strategy instanceof ObjectStrategy.Recycling;
       }
     };
   }
@@ -775,6 +791,23 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       final ByteBuffer copyBuffer = supplier.get();
       copyBuffer.position(offset + valueHeaderLength(index, length));
       return strategy.fromByteBuffer(copyBuffer, length);
+    }
+
+    public final T get(final int index, final T prev)
+    {
+      final int offset = valueOffset(index);
+      final int length = valueLength(index, offset);
+      if (length == 0) {
+        return null;
+      }
+      return getValue(index, offset, length, prev);
+    }
+
+    private T getValue(int index, int offset, int length, final T prev)
+    {
+      final ByteBuffer copyBuffer = supplier.get();
+      copyBuffer.position(offset + valueHeaderLength(index, length));
+      return (((ObjectStrategy.Recycling<T>) strategy).fromByteBuffer(copyBuffer, length, prev));
     }
 
     public final byte[] getAsRaw(final int index)

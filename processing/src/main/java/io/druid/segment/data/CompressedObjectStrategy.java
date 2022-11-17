@@ -43,7 +43,7 @@ import java.util.Map;
 
 /**
  */
-public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrategy<ResourceHolder<T>>
+public abstract class CompressedObjectStrategy<T extends Buffer> implements ObjectStrategy<ResourceHolder<T>>
 {
   private static final Logger log = new Logger(CompressedObjectStrategy.class);
   public static final CompressionStrategy DEFAULT_COMPRESSION_STRATEGY = CompressionStrategy.LZ4;
@@ -314,31 +314,42 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
     return (Class) ResourceHolder.class;
   }
 
-  @Override
-  public ResourceHolder<T> fromByteBuffer(ByteBuffer buffer, int numBytes)
+  protected Wrap<T> wrap(ResourceHolder<ByteBuffer> holder)
   {
-    final ResourceHolder<ByteBuffer> holder = decompress(buffer, numBytes);
-    return new ResourceHolder<T>()
-    {
-      @Override
-      public T get()
-      {
-        return converter.convert(holder.get());
-      }
-
-      @Override
-      public void close()
-      {
-        holder.close();
-      }
-    };
+    return new Wrap<T>(holder, converter.convert(holder.get()));
   }
 
-  protected ResourceHolder<ByteBuffer> decompress(ByteBuffer in, int numBytes)
+  protected ResourceHolder<ByteBuffer> unwrap(ResourceHolder<T> holder)
   {
-    ResourceHolder<ByteBuffer> holder = CompressedPools.getByteBuf(order);
-    decompressor.decompress(in, numBytes, holder.get());
-    return holder;
+    ResourceHolder<ByteBuffer> unwrap = ((Wrap<T>) holder).resource;
+    ByteBuffer buffer = unwrap.get();
+    buffer.position(0).limit(buffer.capacity());
+    buffer.order(order);
+    return unwrap;
+  }
+
+  private static class Wrap<T> implements ResourceHolder<T>
+  {
+    private final ResourceHolder<ByteBuffer> resource;
+    private final T obejct;
+
+    public Wrap(ResourceHolder<ByteBuffer> resource, T obejct)
+    {
+      this.resource = resource;
+      this.obejct = obejct;
+    }
+
+    @Override
+    public T get()
+    {
+      return obejct;
+    }
+
+    @Override
+    public void close()
+    {
+      resource.close();
+    }
   }
 
   @Override
