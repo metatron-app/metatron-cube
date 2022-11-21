@@ -278,13 +278,13 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                         }
                         if (matched.rhs.isEmpty()) {
                           return BitmapHolder.exact(
-                              generic.get().collect(factory, context.getBaseIterator(), x -> matched.lhs.contains(x))
+                              generic.get().collect(factory, context.rowIterator(), x -> matched.lhs.contains(x))
                           );
                         }
                         final MutableBitmap match = factory.makeEmptyMutableBitmap();
                         final MutableBitmap possible = factory.makeEmptyMutableBitmap();
                         generic.get().scan(
-                            context.getBaseIterator(),
+                            context.rowIterator(),
                             (x, v) -> {
                               final long key = v.applyAsLong(x);
                               if (matched.lhs.contains(key)) {

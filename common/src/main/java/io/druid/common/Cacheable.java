@@ -23,9 +23,11 @@ package io.druid.common;
  */
 public interface Cacheable
 {
+  int DEFAULT_KEY_LIMIT = 2048;
+
   default byte[] getCacheKey()
   {
-    return getCacheKey(KeyBuilder.get(Integer.MAX_VALUE)).build();
+    return getCacheKey(KeyBuilder.get(DEFAULT_KEY_LIMIT)).build();
   }
 
   KeyBuilder getCacheKey(KeyBuilder builder);

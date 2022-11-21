@@ -511,15 +511,15 @@ public class ColumnSelectors
 
   private static final int THRESHOLD = 2097152;
 
-  public static ObjectColumnSelector asRawAccess(WithRawAccess selector, ImmutableBitmap bitmap, int rowCount)
+  public static ObjectColumnSelector asRawAccess(WithRawAccess selector, ImmutableBitmap ref, int rowCount)
   {
     Dictionary dictionary = selector.getDictionary();
-    int dictionaryCache = bitmap == null ? dictionary.size() : bitmap.size();
+    int dictionaryCache = ref == null ? dictionary.size() : ref.size();
     long estimation = dictionary.getSerializedSize() * dictionaryCache / dictionary.size();
     if (rowCount > 0 && rowCount > dictionaryCache >> 1 && estimation < THRESHOLD) {
+      IntIterator iterator = ref == null ? null : ref.iterator();
       if (dictionary.size() > dictionaryCache << 2) {
         Int2ObjectOpenHashMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>(dictionaryCache);
-        IntIterator iterator = bitmap == null ? null : bitmap.iterator();
         if (dictionary instanceof GenericIndexed) {
           GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
           indexed.scan(iterator, (ix, buffer, offset, length) -> map.put(ix, UTF8Bytes.read(buffer, offset, length)));
@@ -531,7 +531,6 @@ public class ColumnSelectors
         return ObjectColumnSelector.string(() -> map.get(selector.getRow().get(0)));
       } else {
         UTF8Bytes[] cached = new UTF8Bytes[dictionary.size()];
-        IntIterator iterator = bitmap == null ? null : bitmap.iterator();
         if (dictionary instanceof GenericIndexed) {
           GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
           indexed.scan(iterator, (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer, offset, length));

@@ -102,7 +102,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
     this.groupingSets = groupingSets;
     this.bloomFilter = Preconditions.checkNotNull(bloomFilter);
     this.supplier = DSuppliers.memoize(() -> BloomKFilter.deserialize(bloomFilter));
-    this.hash = DSuppliers.memoize(() -> Hashing.sha512().hashBytes(bloomFilter));
+    this.hash = DSuppliers.memoize(() -> Hashing.murmur3_128().hashBytes(bloomFilter));
     Preconditions.checkArgument(
         fieldNames != null ^ fields != null,
         "Must have a valid, non-null fieldNames or fields"
@@ -142,16 +142,16 @@ public class BloomDimFilter implements LogProvider, BestEffort
           return null;
         }
         // todo support multi dimension by looping ?
-        final String onlyDimension;
+        final String dimension;
         if (fields != null && fields.size() == 1 && fields.get(0) instanceof DefaultDimensionSpec) {
-          onlyDimension = fields.get(0).getDimension();
+          dimension = fields.get(0).getDimension();
         } else if (fieldNames != null && fieldNames.size() == 1) {
-          onlyDimension = fieldNames.get(0);
+          dimension = fieldNames.get(0);
         } else {
           return null;
         }
         final BitmapIndexSelector selector = context.indexSelector();
-        final Column column = selector.getColumn(onlyDimension);
+        final Column column = selector.getColumn(dimension);
         if (column == null) {
           return null;
         }
@@ -159,13 +159,10 @@ public class BloomDimFilter implements LogProvider, BestEffort
         if (bitmapIndex != null) {
           final IntList ids = new IntList();
           final BloomKFilter filter = supplier.get();
-          final ImmutableBitmap range = context.rangeOf(onlyDimension);
-          column.getDictionary().scan(range == null ? null : range.iterator(), (x, b, o, l) -> {
-            if (filter.testHash(Murmur3.hash64(b, o, l))) {
-              ids.add(x);
-            }
+          column.getDictionary().scan(context.dictionaryIterator(dimension), (x, b, o, l) -> {
+            if (filter.testHash(Murmur3.hash64(b, o, l))) ids.add(x);
           });
-          context.range(onlyDimension, RoaringBitmapFactory.from(ids.array()));
+          context.dictionaryRef(dimension, RoaringBitmapFactory.from(ids.array()));
 
           // actually it's not exact. but if matcher cannot improve that, it can be said it's exact
           final GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();

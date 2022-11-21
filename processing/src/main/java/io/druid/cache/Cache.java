@@ -20,7 +20,10 @@
 package io.druid.cache;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.primitives.Ints;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.Pair;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -45,7 +48,10 @@ public interface Cache
    *
    * @return
    */
-  Map<NamedKey, byte[]> getBulk(Iterable<NamedKey> keys);
+  default Map<NamedKey, byte[]> getBulk(Iterable<NamedKey> keys)
+  {
+    return GuavaUtils.asMap(Iterables.filter(Iterables.transform(keys, k -> Pair.of(k, get(k))), p -> p.rhs == null));
+  }
 
   void close(String namespace);
 

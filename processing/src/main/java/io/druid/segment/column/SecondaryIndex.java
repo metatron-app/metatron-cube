@@ -130,7 +130,7 @@ public interface SecondaryIndex<T> extends Closeable
 
   interface SupportNull<T> extends SecondaryIndex<T>
   {
-    ImmutableBitmap getNulls(ImmutableBitmap baseBitmap);
+    ImmutableBitmap getNulls();
   }
 
   interface WithRangeAndNull<T extends Comparable> extends WithRange<T>, SupportNull<Range<T>>

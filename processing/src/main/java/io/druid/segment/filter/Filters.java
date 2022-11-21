@@ -444,25 +444,13 @@ public class Filters
       if (generic instanceof Indexed.Scannable) {
         final Indexed.Scannable<String> scannable = (Indexed.Scannable) generic;
         final MutableBitmap mutable = selector.getBitmapFactory().makeEmptyMutableBitmap();
-        scannable.scan(context.getBaseIterator(), (ix, v) -> {
-          if (matcher.matches(v)) {mutable.add(ix);}
-        });
+        scannable.scan(context.rowIterator(), (ix, v) -> {if (matcher.matches(v)) {mutable.add(ix);}});
         return selector.getBitmapFactory().makeImmutableBitmap(mutable);
       }
       return null;
     }
-    final Dictionary<String> dictionary = column.getDictionary();
-    if (dictionary == null) {
-      return null;
-    }
-
     final IntList matched = new IntList();
-    final int cardinality = dictionary.size();
-    for (int index = matcher.start(dictionary); index < cardinality; index++) {
-      if (matcher.matches(dictionary, index)) {
-        matched.add(index);
-      }
-    }
+    column.getDictionary().scan((ix, v) -> {if (matcher.matches(v)) {matched.add(ix);}});
     return DimFilters.union(selector.getBitmapFactory(), matched.transform(bitmapIndex::getBitmap));
   }
 
@@ -505,7 +493,11 @@ public class Filters
       @Override
       public BitmapHolder createBitmap(Cacheable filter, Supplier<BitmapHolder> populator)
       {
-        final Cache.NamedKey key = new Cache.NamedKey(namespace, filter.getCacheKey());
+        final byte[] objKey = filter.getCacheKey();
+        if (objKey == null) {
+          return super.createBitmap(filter, populator);
+        }
+        final Cache.NamedKey key = new Cache.NamedKey(namespace, objKey);
         final byte[] cached = cache.get(key);
         if (cached != null) {
           ByteBuffer wrapped = ByteBuffer.wrap(cached);
@@ -646,11 +638,11 @@ public class Filters
     final BitmapFactory factory = context.factory;
     try {
       if (column instanceof GenericColumn.FloatType) {
-        return ((GenericColumn.FloatType) column).collect(factory, context.getBaseIterator(), f -> predicate.apply(f));
+        return ((GenericColumn.FloatType) column).collect(factory, context.rowIterator(), f -> predicate.apply(f));
       } else if (column instanceof GenericColumn.DoubleType) {
-        return ((GenericColumn.DoubleType) column).collect(factory, context.getBaseIterator(), d -> predicate.apply(d));
+        return ((GenericColumn.DoubleType) column).collect(factory, context.rowIterator(), d -> predicate.apply(d));
       } else if (column instanceof GenericColumn.LongType) {
-        return ((GenericColumn.LongType) column).collect(factory, context.getBaseIterator(), l -> predicate.apply(l));
+        return ((GenericColumn.LongType) column).collect(factory, context.rowIterator(), l -> predicate.apply(l));
       }
     }
     catch (Exception e) {
@@ -672,7 +664,7 @@ public class Filters
         final float lower = range.hasLowerBound() ? (Float) range.lowerEndpoint() : 0;
         final float upper = range.hasUpperBound() ? (Float) range.upperEndpoint() : 0;
         return ((GenericColumn.FloatType) column).collect(
-            factory, context.getBaseIterator(),
+            factory, context.rowIterator(),
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? f -> lower < f && f < upper : f -> lower < f && f <= upper :
@@ -684,7 +676,7 @@ public class Filters
         final double lower = range.hasLowerBound() ? (Double) range.lowerEndpoint() : 0;
         final double upper = range.hasUpperBound() ? (Double) range.upperEndpoint() : 0;
         return ((GenericColumn.DoubleType) column).collect(
-            factory, context.getBaseIterator(),
+            factory, context.rowIterator(),
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? d -> lower < d && d < upper : d -> lower < d && d <= upper :
@@ -696,7 +688,7 @@ public class Filters
         final long lower = range.hasLowerBound() ? (Long) range.lowerEndpoint() : 0;
         final long upper = range.hasUpperBound() ? (Long) range.upperEndpoint() : 0;
         return ((GenericColumn.LongType) column).collect(
-            factory, context.getBaseIterator(),
+            factory, context.rowIterator(),
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? l -> lower < l && l < upper : l -> lower < l && l <= upper :
@@ -725,21 +717,21 @@ public class Filters
         final BigDecimal decimal = Rows.parseDecimal(value);
         final float fv = decimal.floatValue();
         if (decimal.compareTo(BigDecimal.valueOf(fv)) == 0) {
-          return ((GenericColumn.FloatType) column).collect(factory, context.getBaseIterator(), f -> f == fv);
+          return ((GenericColumn.FloatType) column).collect(factory, context.rowIterator(), f -> f == fv);
         }
         return context.factory.makeEmptyImmutableBitmap();
       } else if (column instanceof GenericColumn.DoubleType) {
         final BigDecimal decimal = Rows.parseDecimal(value);
         final double dv = decimal.doubleValue();
         if (decimal.compareTo(BigDecimal.valueOf(dv)) == 0) {
-          return ((GenericColumn.DoubleType) column).collect(factory, context.getBaseIterator(), d -> d == dv);
+          return ((GenericColumn.DoubleType) column).collect(factory, context.rowIterator(), d -> d == dv);
         }
         return context.factory.makeEmptyImmutableBitmap();
       } else if (column instanceof GenericColumn.LongType) {
         final BigDecimal decimal = Rows.parseDecimal(value);
         final long lv = decimal.longValue();
         if (decimal.compareTo(BigDecimal.valueOf(lv)) == 0) {
-          return ((GenericColumn.LongType) column).collect(factory, context.getBaseIterator(), l -> l == lv);
+          return ((GenericColumn.LongType) column).collect(factory, context.rowIterator(), l -> l == lv);
         }
         return context.factory.makeEmptyImmutableBitmap();
       }
@@ -777,7 +769,7 @@ public class Filters
           }
         }
         if (!set.isEmpty()) {
-          collected = floatType.collect(factory, context.getBaseIterator(), f -> set.contains(f));
+          collected = floatType.collect(factory, context.rowIterator(), f -> set.contains(f));
         } else {
           collected = factory.makeEmptyImmutableBitmap();
         }
@@ -791,7 +783,7 @@ public class Filters
           }
         }
         if (!set.isEmpty()) {
-          collected = doubleType.collect(factory, context.getBaseIterator(), d -> set.contains(d));
+          collected = doubleType.collect(factory, context.rowIterator(), d -> set.contains(d));
         } else {
           collected = factory.makeEmptyImmutableBitmap();
         }
@@ -805,7 +797,7 @@ public class Filters
           }
         }
         if (!set.isEmpty()) {
-          collected = longType.collect(factory, context.getBaseIterator(), l -> set.contains(l));
+          collected = longType.collect(factory, context.rowIterator(), l -> set.contains(l));
         } else {
           collected = factory.makeEmptyImmutableBitmap();
         }
@@ -919,11 +911,11 @@ public class Filters
             dictionary = ((GenericIndexed) dictionary).asSingleThreaded();
           }
           IntList ids = new IntList();
-          dictionary.scan((ix, v) -> {
+          dictionary.scan(context.dictionaryIterator(columnName), (ix, v) -> {
             if (expr.eval(binding.bind(columnName, v)).asBoolean()) {ids.add(ix);}
           });
           if (context.isRoot(source)) {
-            context.range(columnName, RoaringBitmapFactory.from(ids.array()));
+            context.dictionaryRef(columnName, RoaringBitmapFactory.from(ids.array()));
           }
           ids.stream().mapToObj(ix -> bitmapIndex.getBitmap(ix)).forEach(bitmaps::add);
         } else if (capabilities.getType() == ValueType.BOOLEAN) {
@@ -1112,7 +1104,7 @@ public class Filters
         return metric.in(column, values, context);
       case "isnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
-          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap());
+          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls();
           if (withNot) {
             bitmap = DimFilters.complement(context.factory, bitmap, context.numRows());
           }
@@ -1121,7 +1113,7 @@ public class Filters
         return null;
       case "isnotnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
-          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap());
+          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls();
           if (!withNot) {
             bitmap = DimFilters.complement(context.factory, bitmap, context.numRows());
           }
@@ -1281,7 +1273,7 @@ public class Filters
       }
 
       @Override
-      public ImmutableBitmap getNulls(ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getNulls()
       {
         return selector.getBitmapIndex(dimension, (String) null);
       }
@@ -1304,7 +1296,7 @@ public class Filters
     return new SecondaryIndex.WithRangeAndNull<Comparable>()
     {
       @Override
-      public ImmutableBitmap getNulls(ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getNulls()
       {
         return column.getNulls();
       }

@@ -51,6 +51,7 @@ public class KeyBuilder
 
   private final BytesOutputStream output;
   private final int limit;
+  private boolean disabled;
 
   private KeyBuilder(BytesOutputStream output, int limit)
   {
@@ -61,7 +62,7 @@ public class KeyBuilder
 
   public KeyBuilder append(byte value)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.write(value);
     }
     return this;
@@ -69,7 +70,7 @@ public class KeyBuilder
 
   public KeyBuilder append(byte[] value)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.write(value);
     }
     return this;
@@ -77,7 +78,7 @@ public class KeyBuilder
 
   public KeyBuilder append(boolean val)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.writeBoolean(val);
     }
     return this;
@@ -85,7 +86,7 @@ public class KeyBuilder
 
   public KeyBuilder append(boolean... vals)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       for (boolean val : vals) {
         output.writeBoolean(val);
       }
@@ -95,7 +96,7 @@ public class KeyBuilder
 
   public KeyBuilder append(int val)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.writeInt(val);
     }
     return this;
@@ -104,7 +105,7 @@ public class KeyBuilder
   public KeyBuilder append(int... vals)
   {
     for (int val : vals) {
-      if (output.size() < limit) {
+      if (isValid()) {
         output.writeInt(val);
       }
     }
@@ -113,7 +114,7 @@ public class KeyBuilder
 
   public KeyBuilder append(float val)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.writeFloat(val);
     }
     return this;
@@ -122,7 +123,7 @@ public class KeyBuilder
   public KeyBuilder append(float... vals)
   {
     for (float val : vals) {
-      if (output.size() < limit) {
+      if (isValid()) {
         output.writeFloat(val);
       }
     }
@@ -131,7 +132,7 @@ public class KeyBuilder
 
   public KeyBuilder append(double val)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.writeDouble(val);
     }
     return this;
@@ -140,7 +141,7 @@ public class KeyBuilder
   public KeyBuilder append(double... vals)
   {
     for (double val : vals) {
-      if (output.size() < limit) {
+      if (isValid()) {
         output.writeDouble(val);
       }
     }
@@ -149,7 +150,7 @@ public class KeyBuilder
 
   public KeyBuilder append(Cacheable cacheable)
   {
-    if (cacheable != null && output.size() < limit) {
+    if (cacheable != null && isValid()) {
       return cacheable.getCacheKey(this);
     }
     return this;
@@ -159,7 +160,7 @@ public class KeyBuilder
   {
     if (!GuavaUtils.isNullOrEmpty(cacheables)) {
       Iterator<? extends Cacheable> iterator = cacheables.iterator();
-      while (iterator.hasNext() && output.size() < limit) {
+      while (iterator.hasNext() && isValid()) {
         iterator.next().getCacheKey(sp());
       }
     }
@@ -168,14 +169,14 @@ public class KeyBuilder
 
   public KeyBuilder appendAll(List<List<String>> strings)
   {
-    if (strings == null || output.size() >= limit) {
+    if (strings == null || !isValid()) {
       return this;
     }
     Iterator<List<String>> iterator = strings.iterator();
     if (!iterator.hasNext()) {
       return this;
     }
-    while (iterator.hasNext() && output.size() < limit) {
+    while (iterator.hasNext() && isValid()) {
       append(iterator.next());
     }
     return this;
@@ -183,7 +184,7 @@ public class KeyBuilder
 
   public KeyBuilder append(Iterable<String> strings)
   {
-    if (strings == null || output.size() >= limit) {
+    if (strings == null || !isValid()) {
       return this;
     }
     Iterator<String> iterator = strings.iterator();
@@ -191,7 +192,7 @@ public class KeyBuilder
       return this;
     }
     output.write(StringUtils.toUtf8WithNullToEmpty(iterator.next()));
-    while (iterator.hasNext() && output.size() < limit) {
+    while (iterator.hasNext() && isValid()) {
       output.write(SEPARATOR);
       output.write(StringUtils.toUtf8WithNullToEmpty(iterator.next()));
     }
@@ -200,7 +201,7 @@ public class KeyBuilder
 
   public KeyBuilder append(String string)
   {
-    if (string != null && output.size() < limit) {
+    if (string != null && isValid()) {
       output.write(StringUtils.toUtf8(string));
     }
     return this;
@@ -208,12 +209,12 @@ public class KeyBuilder
 
   public KeyBuilder append(String first, String... remaining)
   {
-    if (output.size() >= limit) {
+    if (!isValid()) {
       return this;
     }
     output.write(StringUtils.toUtf8WithNullToEmpty(first));
     for (String string : remaining) {
-      if (output.size() >= limit) {
+      if (!isValid()) {
         break;
       }
       output.write(SEPARATOR);
@@ -224,7 +225,7 @@ public class KeyBuilder
 
   public KeyBuilder append(Enum value)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.writeByte(value.ordinal());
     }
     return this;
@@ -233,7 +234,7 @@ public class KeyBuilder
   public KeyBuilder append(EnumSet<?> values)
   {
     for (Enum value : values) {
-      if (output.size() < limit) {
+      if (isValid()) {
         output.writeByte(value.ordinal());
       }
     }
@@ -242,13 +243,13 @@ public class KeyBuilder
 
   public KeyBuilder append(Object value)
   {
-    return output.size() < limit ? append(Objects.toString(value, null)) : this;
+    return isValid() ? append(Objects.toString(value, null)) : this;
   }
 
   public KeyBuilder appendIntervals(List<Interval> intervals)
   {
     for (Interval interval : intervals) {
-      if (output.size() < limit) {
+      if (isValid()) {
         appendInterval(interval);
       }
     }
@@ -257,7 +258,7 @@ public class KeyBuilder
 
   public KeyBuilder appendInterval(Interval interval)
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.writeLong(interval.getStartMillis());
       output.writeLong(interval.getEndMillis());
     }
@@ -266,14 +267,29 @@ public class KeyBuilder
 
   public KeyBuilder sp()
   {
-    if (output.size() < limit) {
+    if (isValid()) {
       output.write(SEPARATOR);
     }
     return this;
   }
 
+  public int available()
+  {
+    return limit - output.size();
+  }
+
+  public void disable()
+  {
+    disabled = true;
+  }
+
   public byte[] build()
   {
-    return output.size() < limit ? output.toByteArray() : null;
+    return isValid() ? output.toByteArray() : null;
+  }
+
+  private boolean isValid()
+  {
+    return !disabled && output.size() < limit;
   }
 }

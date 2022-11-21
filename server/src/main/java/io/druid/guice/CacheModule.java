@@ -23,7 +23,6 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
-import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheProvider;
 import io.druid.guice.annotations.Global;
@@ -54,8 +53,9 @@ public class CacheModule implements Module
     binder.bind(Cache.class).toProvider(Key.get(CacheProvider.class, Global.class)).in(ManageLifecycle.class);
     JsonConfigProvider.bind(binder, prefix, CacheProvider.class, Global.class);
 
-    binder.bind(Cache.class).annotatedWith(BitmapCache.class).toProvider(Key.get(CacheProvider.class, BitmapCache.class)).in(ManageLifecycle.class);
-    JsonConfigProvider.bind(binder, bitmapPrefix, CacheProvider.class, BitmapCache.class);
+    // disable, for now
+//    binder.bind(Cache.class).annotatedWith(BitmapCache.class).toProvider(Key.get(CacheProvider.class, BitmapCache.class)).in(ManageLifecycle.class);
+//    JsonConfigProvider.bind(binder, bitmapPrefix, CacheProvider.class, BitmapCache.class);
 
     binder.install(new HybridCacheModule(prefix));
   }

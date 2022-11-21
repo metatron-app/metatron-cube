@@ -110,7 +110,7 @@ public class InFilter implements Filter
 
     ImmutableBitmap union = DimFilters.union(selector.getBitmapFactory(), indices.transform(v -> bitmap.getBitmap(v)));
     if (context.isRoot(source)) {
-      context.range(dimension, RoaringBitmapFactory.from(indices.array()));
+      context.dictionaryRef(dimension, RoaringBitmapFactory.from(indices.array()));
     }
     return BitmapHolder.exact(union);
   }

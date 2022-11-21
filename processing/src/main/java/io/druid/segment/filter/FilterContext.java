@@ -112,9 +112,14 @@ public class FilterContext implements Closeable
     return baseBitmap;
   }
 
-  public IntIterator getBaseIterator()
+  public IntIterator rowIterator()
   {
     return baseBitmap == null ? null : baseBitmap.iterator();
+  }
+
+  public void andBaseBitmap(ImmutableBitmap newBaseBitmap)
+  {
+    baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(factory, baseBitmap, newBaseBitmap);
   }
 
   public Filter getMatcher()
@@ -127,19 +132,20 @@ public class FilterContext implements Closeable
     return fullScan;
   }
 
-  public void andBaseBitmap(ImmutableBitmap newBaseBitmap)
-  {
-    baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(factory, baseBitmap, newBaseBitmap);
-  }
-
-  public void range(String dimension, ImmutableBitmap range)
+  public void dictionaryRef(String dimension, ImmutableBitmap range)
   {
     ranges.compute(dimension, (k, prev) -> prev == null ? range : factory.intersection(Arrays.asList(prev, range)));
   }
 
-  public ImmutableBitmap rangeOf(String dimension)
+  public ImmutableBitmap dictionaryRef(String dimension)
   {
     return ranges.get(dimension);
+  }
+
+  public IntIterator dictionaryIterator(String dimension)
+  {
+    final ImmutableBitmap range = dictionaryRef(dimension);
+    return range == null ? null : range.iterator();
   }
 
   public void attach(String column, IntFunction attachment)

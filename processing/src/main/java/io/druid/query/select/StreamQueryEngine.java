@@ -114,7 +114,7 @@ public class StreamQueryEngine
                 dimensions[index] = selector;
               }
               if (useRawUTF8 && selector instanceof WithRawAccess) {
-                ImmutableBitmap dictionary = cursor.getFilterContext().rangeOf(column);
+                ImmutableBitmap dictionary = cursor.getFilterContext().dictionaryRef(column);
                 selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector, dictionary, size);
               } else {
                 selectors[index] = ColumnSelectors.asSingleValued((SingleValued) selector);

@@ -72,7 +72,7 @@ public class SelectorFilter implements Filter
       final BitmapIndex bitmapIndex = column.getBitmapIndex();
       final int index = bitmapIndex.indexOf(value);
       if (context.isRoot(source)) {
-        context.range(dimension, RoaringBitmapFactory.of(index));
+        context.dictionaryRef(dimension, RoaringBitmapFactory.of(index));
       }
       return BitmapHolder.exact(bitmapIndex.getBitmap(index));
     }

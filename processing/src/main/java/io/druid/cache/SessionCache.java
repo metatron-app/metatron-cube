@@ -20,7 +20,6 @@
 package io.druid.cache;
 
 import io.druid.common.guava.ByteArray;
-import io.druid.java.util.common.UOE;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 
 import java.util.Map;
@@ -40,12 +39,6 @@ public class SessionCache implements Cache
   public void put(NamedKey key, byte[] value)
   {
     cached.put(ByteArray.wrap(key.toByteArray()), value);
-  }
-
-  @Override
-  public Map<NamedKey, byte[]> getBulk(Iterable<NamedKey> keys)
-  {
-    throw new UOE("getBulk");
   }
 
   @Override

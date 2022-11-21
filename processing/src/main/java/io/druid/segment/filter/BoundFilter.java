@@ -82,7 +82,7 @@ public class BoundFilter implements Filter
 
     LOG.debug("range.. %d ~ %d (%d)", range[0], range[1], range[1] - range[0] + 1);
     if (context.isRoot(boundDimFilter)) {
-      context.range(boundDimFilter.getDimension(), RoaringBitmapFactory.from(range[0], range[1]));
+      context.dictionaryRef(boundDimFilter.getDimension(), RoaringBitmapFactory.from(range[0], range[1]));
     }
 
     if (bitmapIndex instanceof CumulativeSupport) {
