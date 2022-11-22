@@ -175,7 +175,7 @@ public class StreamQueryRunnerFactory
     );
     final MutableInt counter = new MutableInt();
     for (Segment segment : segments) {
-      final DimFilter optimized = filter.optimize(segment, query.getVirtualColumns());
+      final DimFilter optimized = filter.specialize(segment, query.getVirtualColumns());
       final QueryableIndex index = segment.asQueryableIndex(false);
       if (index != null) {
         final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver.get());

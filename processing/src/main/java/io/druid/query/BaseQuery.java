@@ -338,7 +338,7 @@ public abstract class BaseQuery<T> implements Query<T>
       Query.FilterSupport<T> filterSupport = (Query.FilterSupport<T>) query;
       DimFilter filter = filterSupport.getFilter();
       if (filter != null) {
-        DimFilter optimized = DimFilters.convertToCNF(filter).optimize(null, null);
+        DimFilter optimized = DimFilters.convertToCNF(filter).optimize();
         Map<String, String> aliasMapping = QueryUtils.aliasMapping(this);
         if (!aliasMapping.isEmpty()) {
           optimized = optimized.withRedirection(aliasMapping);
@@ -351,13 +351,13 @@ public abstract class BaseQuery<T> implements Query<T>
     return query;
   }
 
-  public static <T> Query<T> optimize(Query<T> query, Segment segment)
+  public static <T> Query<T> specialize(Query<T> query, Segment segment)
   {
     if (query instanceof Query.FilterSupport) {
       Query.FilterSupport<T> filterSupport = (Query.FilterSupport<T>) query;
       DimFilter filter = filterSupport.getFilter();
       if (filter != null) {
-        DimFilter optimized = filter.optimize(segment, filterSupport.getVirtualColumns());
+        DimFilter optimized = filter.specialize(segment, filterSupport.getVirtualColumns());
         if (filter != optimized) {
           query = filterSupport.withFilter(optimized);
         }

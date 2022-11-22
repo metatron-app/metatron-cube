@@ -26,10 +26,6 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
-import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumn;
-
-import java.util.List;
 
 /**
  * This class is deprecated, use SelectorDimFilter instead: {@link io.druid.query.filter.SelectorDimFilter}
@@ -90,9 +86,9 @@ public class ExtractionDimFilter extends SingleInput
   }
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  public DimFilter optimize()
   {
-    return new SelectorDimFilter(dimension, value, extractionFn).optimize(segment, virtualColumns);
+    return new SelectorDimFilter(dimension, value, extractionFn).optimize();
   }
 
   @Override

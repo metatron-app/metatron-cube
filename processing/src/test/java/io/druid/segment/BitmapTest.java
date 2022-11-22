@@ -182,9 +182,9 @@ public class BitmapTest
   @Test
   public void testOptimized()
   {
-    IntIterable set1 = new IntIterable.Range(1, 6);
+    IntIterable set1 = new IntIterable.Range(1, 7);
     IntIterable set2 = new IntIterable.FromArray(new int[] {2, 4, 6, 8});
-    IntIterable set3 = new IntIterable.Range(3, 7);
+    IntIterable set3 = new IntIterable.Range(3, 8);
     IntIterable set4 = new IntIterable.FromArray(new int[] {3, 4, 9});
 
     ImmutableBitmap map1 = RoaringBitmapFactory.from(6, set1);

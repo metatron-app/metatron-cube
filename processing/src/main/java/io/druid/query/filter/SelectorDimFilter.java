@@ -23,13 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
@@ -40,18 +35,18 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.extraction.ExtractionFns;
 import io.druid.query.filter.DimFilter.BooleanColumnSupport;
 import io.druid.query.filter.DimFilter.IndexedIDSupport;
 import io.druid.query.filter.DimFilter.Mergeable;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
-import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
 import io.netty.util.internal.StringUtil;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -61,20 +56,12 @@ import java.util.Objects;
 public class SelectorDimFilter extends SingleInput
     implements RangeFilter, BooleanColumnSupport, Mergeable, IndexedIDSupport
 {
-  public static DimFilter or(final String dimension, String... values)
+  public static DimFilter or(String dimension, String... values)
   {
-    return DimFilters.or(
-        Lists.newArrayList(Iterables.transform(Arrays.asList(values), new Function<String, DimFilter>()
-        {
-          @Override
-          public DimFilter apply(String input)
-          {
-            return of(dimension, input);
-          }
-        })));
+    return DimFilters.or(GuavaUtils.transform(Arrays.asList(values), input -> of(dimension, input)));
   }
 
-  public static SelectorDimFilter of(String dimension, String value)
+  public static DimFilter of(String dimension, String value)
   {
     return new SelectorDimFilter(dimension, value, null);
   }
@@ -107,9 +94,20 @@ public class SelectorDimFilter extends SingleInput
   }
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  public DimFilter optimize()
   {
-    return new InDimFilter(dimension, extractionFn, ImmutableList.<String>of(value), null).optimize(segment, virtualColumns);
+    List<String> rewritten = ExtractionFns.reverseMap(extractionFn, Arrays.asList(value));
+    if (rewritten == null) {
+      return this;
+    }
+    if (rewritten.isEmpty()) {
+      return DimFilters.NONE;
+    }
+    if (rewritten.size() == 1) {
+      return new SelectorDimFilter(dimension, rewritten.get(0), null);
+    }
+    Collections.sort(rewritten);
+    return new InDimFilter(dimension, null, rewritten, null);
   }
 
   @Override
@@ -119,15 +117,7 @@ public class SelectorDimFilter extends SingleInput
       return new SelectorFilter(this, dimension, value);
     } else {
       final String valueOrNull = Strings.emptyToNull(value);
-      final Predicate<String> predicate = new Predicate<String>()
-      {
-        @Override
-        public boolean apply(String input)
-        {
-          return Objects.equals(valueOrNull, input);
-        }
-      };
-      return new DimensionPredicateFilter(dimension, predicate, extractionFn);
+      return new DimensionPredicateFilter(dimension, v -> Objects.equals(valueOrNull, v), extractionFn);
     }
   }
 

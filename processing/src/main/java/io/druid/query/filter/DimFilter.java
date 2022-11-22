@@ -81,11 +81,19 @@ public interface DimFilter extends Expression, Cacheable
 {
   /**
    * @return Returns an optimized filter.
-   * returning the same filter can be a straightforward default implementation.
+   */
+  default DimFilter optimize()
+  {
+    return this;
+  }
+
+  /**
+   * @return Returns a specialized filter.
+   *
    * @param segment
    * @param virtualColumns
    */
-  default public DimFilter optimize(@Nullable Segment segment, @Nullable List<VirtualColumn> virtualColumns)
+  default DimFilter specialize(Segment segment, @Nullable List<VirtualColumn> virtualColumns)
   {
     return this;
   }
@@ -93,7 +101,7 @@ public interface DimFilter extends Expression, Cacheable
   /**
    * replaces referencing column names for optimized filtering
    */
-  default public DimFilter withRedirection(Map<String, String> mapping)
+  default DimFilter withRedirection(Map<String, String> mapping)
   {
     return this;
   }
@@ -101,7 +109,7 @@ public interface DimFilter extends Expression, Cacheable
   /**
    * @param handler accumulate dependent dimensions
    */
-  public void addDependent(Set<String> handler);
+  void addDependent(Set<String> handler);
 
   /**
    * Returns a Filter that implements this DimFilter. This does not generally involve optimizing the DimFilter,
@@ -111,7 +119,7 @@ public interface DimFilter extends Expression, Cacheable
    *
    * @return a Filter that implements this DimFilter, or null if this DimFilter is a no-op.
    */
-  public Filter toFilter(TypeResolver resolver);
+  Filter toFilter(TypeResolver resolver);
 
   abstract class SingleInput implements DimFilter
   {
@@ -158,27 +166,6 @@ public interface DimFilter extends Expression, Cacheable
     }
   }
 
-  class Factory implements Expression.Factory<DimFilter>
-  {
-    @Override
-    public DimFilter or(List<DimFilter> children)
-    {
-      return DimFilters.or(children);
-    }
-
-    @Override
-    public DimFilter and(List<DimFilter> children)
-    {
-      return DimFilters.and(children);
-    }
-
-    @Override
-    public DimFilter not(DimFilter expression)
-    {
-      return new NotDimFilter(expression);
-    }
-  }
-
   // uses lucene index
   public abstract class LuceneFilter implements BestEffort, VCInflator
   {
@@ -217,11 +204,8 @@ public interface DimFilter extends Expression, Cacheable
     }
 
     @Override
-    public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+    public DimFilter specialize(Segment segment, List<VirtualColumn> virtualColumns)
     {
-      if (segment == null) {
-        return this;
-      }
       String field = getField();
       StorageAdapter adapter = segment.asStorageAdapter(false);
 

@@ -51,7 +51,7 @@ public class PrefixFilter extends DimensionPredicateFilter
             private boolean matched = true;
 
             @Override
-            public boolean matches(Dictionary<String> dictionary, int index)
+            public boolean apply(Dictionary<String> dictionary, int index)
             {
               return matched && (matched &= dictionary.get(index).startsWith(prefix));
             }

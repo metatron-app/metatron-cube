@@ -711,7 +711,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         final int length = valueLength(index, offset);
         final int header = valueHeaderLength(index, length);
         buffer.limit(offset + header + length).position(offset + header);
-        scanner.scan(index, strategy.fromByteBuffer(buffer));
+        scanner.scan(index, length == 0 ? null : strategy.fromByteBuffer(buffer));
         offset += scanDelta(index, length, header);
       }
     }
@@ -728,7 +728,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         final int length = valueLength(index, offset);
         final int header = valueHeaderLength(index, length);
         buffer.limit(offset + header + length).position(offset + header);
-        scanner.scan(index, strategy.fromByteBuffer(buffer));
+        scanner.scan(index, length == 0 ? null : strategy.fromByteBuffer(buffer));
         if (!iterator.hasNext()) {
           return;
         }
@@ -780,10 +780,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     {
       final int offset = valueOffset(index);
       final int length = valueLength(index, offset);
-      if (length == 0) {
-        return null;
-      }
-      return getValue(index, offset, length);
+      return length == 0 ? null : getValue(index, offset, length);
     }
 
     private T getValue(int index, int offset, int length)

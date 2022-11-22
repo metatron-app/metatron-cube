@@ -27,18 +27,18 @@ public class MathExprFilterTest
   @Test
   public void testOptimize()
   {
-    Assert.assertTrue(new MathExprFilter("'L_ORDERKEY'=='L_ORDERKEY'").optimize(null, null) == DimFilters.ALL);
-    Assert.assertTrue(new MathExprFilter("'L_ORDERKEY'>='L_ORDERKEY'").optimize(null, null) == DimFilters.ALL);
-    Assert.assertTrue(new MathExprFilter("'L_ORDERKEY'<='L_ORDERKEY'").optimize(null, null) == DimFilters.ALL);
-    Assert.assertTrue(new MathExprFilter("'L_ORDERKEY'!='L_ORDERKEY'").optimize(null, null) == DimFilters.NONE);
-    Assert.assertTrue(new MathExprFilter("'L_ORDERKEY'>'L_ORDERKEY'").optimize(null, null) == DimFilters.NONE);
-    Assert.assertTrue(new MathExprFilter("'L_ORDERKEY'<'L_ORDERKEY'").optimize(null, null) == DimFilters.NONE);
+    Assert.assertSame(new MathExprFilter("'L_ORDERKEY'=='L_ORDERKEY'").optimize(), DimFilters.ALL);
+    Assert.assertSame(new MathExprFilter("'L_ORDERKEY'>='L_ORDERKEY'").optimize(), DimFilters.ALL);
+    Assert.assertSame(new MathExprFilter("'L_ORDERKEY'<='L_ORDERKEY'").optimize(), DimFilters.ALL);
+    Assert.assertSame(new MathExprFilter("'L_ORDERKEY'!='L_ORDERKEY'").optimize(), DimFilters.NONE);
+    Assert.assertSame(new MathExprFilter("'L_ORDERKEY'>'L_ORDERKEY'").optimize(), DimFilters.NONE);
+    Assert.assertSame(new MathExprFilter("'L_ORDERKEY'<'L_ORDERKEY'").optimize(), DimFilters.NONE);
 
-    Assert.assertTrue(new MathExprFilter("L_ORDERKEY == L_ORDERKEY ").optimize(null, null) == DimFilters.ALL);
-    Assert.assertTrue(new MathExprFilter("L_ORDERKEY >= L_ORDERKEY ").optimize(null, null) == DimFilters.ALL);
-    Assert.assertTrue(new MathExprFilter("L_ORDERKEY <= L_ORDERKEY ").optimize(null, null) == DimFilters.ALL);
-    Assert.assertTrue(new MathExprFilter("L_ORDERKEY != L_ORDERKEY ").optimize(null, null) == DimFilters.NONE);
-    Assert.assertTrue(new MathExprFilter("L_ORDERKEY > L_ORDERKEY ").optimize(null, null) == DimFilters.NONE);
-    Assert.assertTrue(new MathExprFilter("L_ORDERKEY < L_ORDERKEY ").optimize(null, null) == DimFilters.NONE);
+    Assert.assertSame(new MathExprFilter("L_ORDERKEY == L_ORDERKEY ").optimize(), DimFilters.ALL);
+    Assert.assertSame(new MathExprFilter("L_ORDERKEY >= L_ORDERKEY ").optimize(), DimFilters.ALL);
+    Assert.assertSame(new MathExprFilter("L_ORDERKEY <= L_ORDERKEY ").optimize(), DimFilters.ALL);
+    Assert.assertSame(new MathExprFilter("L_ORDERKEY != L_ORDERKEY ").optimize(), DimFilters.NONE);
+    Assert.assertSame(new MathExprFilter("L_ORDERKEY > L_ORDERKEY ").optimize(), DimFilters.NONE);
+    Assert.assertSame(new MathExprFilter("L_ORDERKEY < L_ORDERKEY ").optimize(), DimFilters.NONE);
   }
 }

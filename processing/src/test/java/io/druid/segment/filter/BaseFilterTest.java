@@ -49,7 +49,6 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.TestHelper;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -175,7 +174,6 @@ public abstract class BaseFilterTest
     final List<Object[]> constructors = Lists.newArrayList();
 
     final Map<String, BitmapSerdeFactory> bitmapSerdeFactories = ImmutableMap.<String, BitmapSerdeFactory>of(
-        "concise", new ConciseBitmapSerdeFactory(),
         "roaring", new RoaringBitmapSerdeFactory()
     );
 
@@ -260,7 +258,7 @@ public abstract class BaseFilterTest
 
   private DimFilter maybeOptimize(final DimFilter dimFilter)
   {
-    return dimFilter == null || !optimize ? dimFilter : dimFilter.optimize(null, null);
+    return dimFilter == null || !optimize ? dimFilter : dimFilter.optimize();
   }
 
   protected Sequence<Cursor> makeCursorSequence(final DimFilter filter)

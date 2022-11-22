@@ -781,7 +781,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
   private static DimFilter removeFactory(DimFilter filter)
   {
-    return filter == null ? null : DimFilters.rewrite(filter, f -> f instanceof DimFilter.Factory ? null : f);
+    return filter == null ? null : DimFilters.rewrite(filter, f -> f instanceof DimFilter.FilterFactory ? null : f);
   }
 
   private static DimFilter removeTrivials(DimFilter filter, List<String> joinColumns)

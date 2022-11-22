@@ -33,8 +33,6 @@ import io.druid.data.TypeResolver;
 import io.druid.query.Query;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.InFilter;
@@ -106,10 +104,10 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
   }
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  public DimFilter optimize()
   {
     if (dimensions.size() == 1) {
-      return new InDimFilter(dimensions.get(0), null, values.get(0), hash).optimize(segment, virtualColumns);
+      return new InDimFilter(dimensions.get(0), null, values.get(0), hash).optimize();
     }
     return this;
   }

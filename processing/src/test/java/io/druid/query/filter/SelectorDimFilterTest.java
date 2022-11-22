@@ -75,6 +75,6 @@ public class SelectorDimFilterTest
             )
         )
     );
-    Assert.assertEquals(selectorDimFilter, filter.optimize(null, null));
+    Assert.assertEquals(selectorDimFilter, filter.optimize());
   }
 }

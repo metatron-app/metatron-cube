@@ -62,7 +62,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
   default QueryRunner<T> createRunner(final Segment segment, final Supplier<Object> optimizer)
   {
     final QueryRunner<T> runner = _createRunner(segment, optimizer);    // eager instantiate
-    return (query, responseContext) -> runner.run(BaseQuery.optimize(query, segment), responseContext);
+    return (query, responseContext) -> runner.run(BaseQuery.specialize(query, segment), responseContext);
   }
 
   /**

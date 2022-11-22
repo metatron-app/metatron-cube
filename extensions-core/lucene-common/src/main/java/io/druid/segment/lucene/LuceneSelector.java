@@ -35,9 +35,9 @@ public abstract class LuceneSelector extends DimFilter.LuceneFilter
   protected LuceneSelector(String field, String scoreField) {super(field, scoreField);}
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  public DimFilter specialize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    Column column = segment == null ? null : Lucenes.findColumnWithLuceneIndex(field, segment.asQueryableIndex(false));
+    Column column = Lucenes.findColumnWithLuceneIndex(field, segment.asQueryableIndex(false));
     if (column != null) {
       for (Class clazz : column.getExternalIndexKeys()) {
         if (clazz.getClassLoader() != Lucenes.class.getClassLoader() &&
@@ -46,7 +46,7 @@ public abstract class LuceneSelector extends DimFilter.LuceneFilter
         }
       }
     }
-    return super.optimize(segment, virtualColumns);
+    return super.specialize(segment, virtualColumns);
   }
 
   @SuppressWarnings("unchecked")

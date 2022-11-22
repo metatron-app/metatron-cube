@@ -35,6 +35,7 @@ import io.druid.segment.filter.OrFilter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  */
@@ -68,29 +69,33 @@ public class OrDimFilter implements DimFilter, OrExpression
   }
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  public DimFilter optimize()
   {
-    boolean changed = false;
-    List<DimFilter> optimized = Lists.newArrayList();
-    for (DimFilter field : fields) {
-      DimFilter filter = field.optimize(segment, virtualColumns);
-      changed |= field != filter;
-      optimized.add(filter);
-    }
-    return changed ? DimFilters.or(optimized) : this;
+    return optimize(this, DimFilter::optimize);
+  }
+
+  @Override
+  public DimFilter specialize(Segment segment, List<VirtualColumn> virtualColumns)
+  {
+    return optimize(this, f -> f.specialize(segment, virtualColumns));
   }
 
   @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
+    return optimize(this, f -> f.withRedirection(mapping));
+  }
+
+  private static DimFilter optimize(OrDimFilter or, Function<DimFilter, DimFilter> function)
+  {
     boolean changed = false;
-    List<DimFilter> filters = Lists.newArrayList();
-    for (DimFilter filter : fields) {
-      DimFilter optimized = filter.withRedirection(mapping);
-      changed |= optimized != filter;
-      filters.add(optimized);
+    List<DimFilter> optimized = Lists.newArrayList();
+    for (DimFilter field : or.fields) {
+      DimFilter rewritten = function.apply(field);
+      changed |= field != rewritten;
+      optimized.add(rewritten);
     }
-    return changed ? new OrDimFilter(filters) : this;
+    return changed ? DimFilters.or(optimized) : optimized.size() == 1 ? optimized.get(0) : or;
   }
 
   @Override

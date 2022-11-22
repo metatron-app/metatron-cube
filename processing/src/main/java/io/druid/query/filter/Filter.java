@@ -46,10 +46,10 @@ public interface Filter extends Expression
   // used when bitmap filter cannot be applied
   ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory);
 
-  abstract class MatcherOnly implements Filter
+  interface MatcherOnly extends Filter
   {
     @Override
-    public final BitmapHolder getBitmapIndex(FilterContext context)
+    default BitmapHolder getBitmapIndex(FilterContext context)
     {
       return null;
     }

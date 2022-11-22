@@ -65,16 +65,16 @@ public class RegexFSTFilter extends RegexDimFilter
   }
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  public DimFilter specialize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    Column column = segment == null ? null : Lucenes.findColumnWithFST(getDimension(), segment.asQueryableIndex(false));
+    Column column = Lucenes.findColumnWithFST(getDimension(), segment.asQueryableIndex(false));
     if (column != null) {
       Class fstClass = column.getFST().classOfObject();
       if (Automaton.class.getClassLoader() != fstClass.getClassLoader()) {
         return LuceneSelector.swap(this, fstClass.getClassLoader(), getDimension(), getPattern());
       }
     }
-    return super.optimize(segment, virtualColumns);
+    return super.specialize(segment, virtualColumns);
   }
 
   @Override

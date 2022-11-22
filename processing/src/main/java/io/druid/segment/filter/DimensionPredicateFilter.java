@@ -22,6 +22,7 @@ package io.druid.segment.filter;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.extraction.ExtractionFns;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -48,22 +49,19 @@ public class DimensionPredicateFilter implements Filter
   @Override
   public BitmapHolder getBitmapIndex(FilterContext context)
   {
-    return BitmapHolder.exact(Filters.matchDictionary(dimension, context, toMatcher(combine(predicate, extractionFn))));
+    return BitmapHolder.exact(Filters.matchDictionary(
+        dimension, context, toMatcher(ExtractionFns.combine(predicate, extractionFn)))
+    );
   }
 
   @Override
   public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
-    return Filters.toValueMatcher(factory, dimension, combine(predicate, extractionFn));
+    return Filters.toValueMatcher(factory, dimension, ExtractionFns.combine(predicate, extractionFn));
   }
 
   protected Filters.DictionaryMatcher<String> toMatcher(Predicate<String> predicate)
   {
     return v -> predicate.apply(v);
-  }
-
-  private static Predicate<String> combine(Predicate<String> predicate, ExtractionFn extractionFn)
-  {
-    return extractionFn == null ? predicate : s -> predicate.apply(extractionFn.apply(s));
   }
 }

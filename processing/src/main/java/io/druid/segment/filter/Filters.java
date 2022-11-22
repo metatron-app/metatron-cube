@@ -367,19 +367,17 @@ public class Filters
     };
   }
 
-  public static interface DictionaryMatcher<T>
+  public static interface DictionaryMatcher<T> extends Predicate<T>
   {
     default int start(Dictionary<T> dictionary)
     {
       return 0;
     }
 
-    default boolean matches(Dictionary<T> dictionary, int index)
+    default boolean apply(Dictionary<T> dictionary, int index)
     {
-      return matches(dictionary.get(index));
+      return apply(dictionary.get(index));
     }
-
-    boolean matches(T value);
   }
 
   public static class FromPredicate<T> implements DictionaryMatcher<T>
@@ -404,7 +402,7 @@ public class Filters
     }
 
     @Override
-    public boolean matches(T value)
+    public boolean apply(T value)
     {
       return predicate.apply(value);
     }
@@ -435,7 +433,7 @@ public class Filters
     // Missing dimension -> match all rows if the predicate matches null; match no rows otherwise
     final Column column = selector.getColumn(dimension);
     if (column == null) {
-      return selector.createBoolean(matcher.matches(null));
+      return selector.createBoolean(matcher.apply(null));
     }
     // Apply predicate to all dimension values and union the matching bitmaps
     final BitmapIndex bitmapIndex = column.getBitmapIndex();
@@ -444,23 +442,16 @@ public class Filters
       if (generic instanceof Indexed.Scannable) {
         final Indexed.Scannable<String> scannable = (Indexed.Scannable) generic;
         final MutableBitmap mutable = selector.getBitmapFactory().makeEmptyMutableBitmap();
-        scannable.scan(context.rowIterator(), (ix, v) -> {if (matcher.matches(v)) {mutable.add(ix);}});
+        scannable.scan(context.rowIterator(), (ix, v) -> {if (matcher.apply(v)) {mutable.add(ix);}});
         return selector.getBitmapFactory().makeImmutableBitmap(mutable);
       }
       return null;
     }
     final IntList matched = new IntList();
-    column.getDictionary().scan((ix, v) -> {if (matcher.matches(v)) {matched.add(ix);}});
+    column.getDictionary().scan(
+        context.dictionaryIterator(dimension), (ix, v) -> {if (matcher.apply(v)) {matched.add(ix);}}
+    );
     return DimFilters.union(selector.getBitmapFactory(), matched.transform(bitmapIndex::getBitmap));
-  }
-
-  public static Set<String> getDependents(Iterable<DimFilter> filters)
-  {
-    Set<String> handler = Sets.newHashSet();
-    for (DimFilter filter : filters) {
-      filter.addDependent(handler);
-    }
-    return handler;
   }
 
   public static Set<String> getDependents(DimFilter filter)

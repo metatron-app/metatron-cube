@@ -32,8 +32,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
-import com.google.common.hash.Hasher;
-import com.google.common.hash.Hashing;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
@@ -42,19 +40,15 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.extraction.ExtractionFns;
 import io.druid.query.filter.DimFilter.Compressible;
 import io.druid.query.filter.DimFilter.IndexedIDSupport;
 import io.druid.query.filter.DimFilter.LogProvider;
 import io.druid.query.filter.DimFilter.Mergeable;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
-import io.druid.query.lookup.LookupExtractionFn;
-import io.druid.query.lookup.LookupExtractor;
-import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.InFilter;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -147,57 +141,19 @@ public class InDimFilter extends SingleInput
   }
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  public DimFilter optimize()
   {
-    InDimFilter inFilter = optimizeLookup();
-    if (inFilter.values.size() == 1) {
-      return new SelectorDimFilter(inFilter.dimension, inFilter.values.get(0), inFilter.getExtractionFn());
+    InDimFilter optimized = optimizeLookup();
+    if (optimized.values.size() == 1) {
+      return new SelectorDimFilter(optimized.dimension, optimized.values.get(0), optimized.getExtractionFn());
     }
-    return inFilter;
+    return optimized;
   }
 
   private InDimFilter optimizeLookup()
   {
-    if (extractionFn instanceof LookupExtractionFn
-        && ((LookupExtractionFn) extractionFn).isOptimize()) {
-      LookupExtractionFn exFn = (LookupExtractionFn) extractionFn;
-      LookupExtractor lookup = exFn.getLookup();
-
-      final List<String> keys = new ArrayList<>();
-      for (String value : values) {
-
-        // We cannot do an unapply()-based optimization if the selector value
-        // and the replaceMissingValuesWith value are the same, since we have to match on
-        // all values that are not present in the lookup.
-        final String convertedValue = Strings.emptyToNull(value);
-        if (!exFn.isRetainMissingValue() && Objects.equals(convertedValue, exFn.getReplaceMissingValueWith())) {
-          return this;
-        }
-        for (Object key : lookup.unapply(convertedValue)) {
-          if (key instanceof String) {
-            keys.add((String) key);
-          }
-        }
-
-        // If retainMissingValues is true and the selector value is not in the lookup map,
-        // there may be row values that match the selector value but are not included
-        // in the lookup map. Match on the selector value as well.
-        // If the selector value is overwritten in the lookup map, don't add selector value to keys.
-        if (exFn.isRetainMissingValue() && lookup.apply(convertedValue) == null) {
-          keys.add(convertedValue);
-        }
-      }
-
-      if (keys.isEmpty()) {
-        return this;
-      } else {
-        Collections.sort(keys);
-        final Hasher hasher = Hashing.murmur3_128().newHasher();
-        keys.forEach(v -> hasher.putUnencodedChars(v));
-        return new InDimFilter(dimension, null, keys, hasher.hash().asBytes());
-      }
-    }
-    return this;
+    List<String> rewritten = ExtractionFns.reverseMap(extractionFn, values);
+    return rewritten == null ? this : new InDimFilter(dimension, rewritten, null);
   }
 
   @Override

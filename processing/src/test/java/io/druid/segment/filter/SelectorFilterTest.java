@@ -26,6 +26,7 @@ import io.druid.data.input.InputRow;
 import io.druid.java.util.common.Pair;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
@@ -208,14 +209,15 @@ public class SelectorFilterTest extends BaseFilterTest
 
     InDimFilter optFilter2Optimized = new InDimFilter("dim0", Arrays.asList("2", "5"), null);
     SelectorDimFilter optFilter4Optimized = new SelectorDimFilter("dim0", "5", null);
+    SelectorDimFilter optFilter5Optimized = new SelectorDimFilter("dim0", "5", null);
     SelectorDimFilter optFilter6Optimized = new SelectorDimFilter("dim0", "5", null);
 
-    Assert.assertEquals(optFilter1, optFilter1.optimize(null, null));
-    Assert.assertEquals(optFilter2Optimized, optFilter2.optimize(null, null));
-    Assert.assertEquals(optFilter3, optFilter3.optimize(null, null));
-    Assert.assertEquals(optFilter4Optimized, optFilter4.optimize(null, null));
-    Assert.assertEquals(optFilter5, optFilter5.optimize(null, null));
-    Assert.assertEquals(optFilter6Optimized, optFilter6.optimize(null, null));
+    Assert.assertEquals(optFilter1, optFilter1.optimize());
+    Assert.assertEquals(optFilter2Optimized, optFilter2.optimize());
+    Assert.assertEquals(optFilter3, optFilter3.optimize());
+    Assert.assertEquals(optFilter4Optimized, optFilter4.optimize());
+    Assert.assertEquals(DimFilters.NONE, optFilter5.optimize());
+    Assert.assertEquals(optFilter6Optimized, optFilter6.optimize());
 
     assertFilterMatches(optFilter1, ImmutableList.of("0", "1", "2", "5"));
     assertFilterMatches(optFilter2, ImmutableList.of("2", "5"));

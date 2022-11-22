@@ -62,16 +62,24 @@ public class NotDimFilter implements DimFilter, NotExpression
   }
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  public DimFilter optimize()
   {
-    return DimFilters.not(field.optimize(segment, virtualColumns));
+    DimFilter optimized = field.optimize();
+    return optimized != field ? DimFilters.not(optimized) : this;
+  }
+
+  @Override
+  public DimFilter specialize(Segment segment, List<VirtualColumn> virtualColumns)
+  {
+    DimFilter optimized = field.specialize(segment, virtualColumns);
+    return optimized != field ? DimFilters.not(optimized) : this;
   }
 
   @Override
   public DimFilter withRedirection(Map<String, String> mapping)
   {
     DimFilter optimized = field.withRedirection(mapping);
-    return field != optimized ? new NotDimFilter(optimized) : this;
+    return optimized != field ? DimFilters.not(optimized) : this;
   }
 
   @Override

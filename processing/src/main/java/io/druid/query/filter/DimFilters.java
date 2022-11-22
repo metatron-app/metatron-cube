@@ -68,7 +68,27 @@ import java.util.Set;
 public class DimFilters
 {
   private static final Logger LOG = new Logger(DimFilters.class);
-  private static final Expression.Factory<DimFilter> FACTORY = new DimFilter.Factory();
+
+  private static final Expression.Factory<DimFilter> FACTORY = new Expression.Factory<DimFilter>()
+  {
+    @Override
+    public DimFilter or(List<DimFilter> children)
+    {
+      return DimFilters.or(children);
+    }
+
+    @Override
+    public DimFilter and(List<DimFilter> children)
+    {
+      return DimFilters.and(children);
+    }
+
+    @Override
+    public DimFilter not(DimFilter expression)
+    {
+      return new NotDimFilter(expression);
+    }
+  };
 
   public static SelectorDimFilter dimEquals(String dimension, String value)
   {
@@ -120,6 +140,9 @@ public class DimFilters
     if (filters.contains(NONE)) {
       return NONE;
     }
+    if (filters.size() == 1) {
+      return filters.get(0);
+    }
     List<DimFilter> list = Lists.newArrayList();
     for (DimFilter filtered : Iterables.filter(filters, p -> p != null && !ALL.equals(p))) {
       if (filtered instanceof AndDimFilter) {
@@ -146,6 +169,9 @@ public class DimFilters
   {
     if (filters.contains(ALL)) {
       return ALL;
+    }
+    if (filters.size() == 1) {
+      return filters.get(0);
     }
     List<DimFilter> list = Lists.newArrayList();
     for (DimFilter filtered : Iterables.filter(filters, p -> p != null && !NONE.equals(p))) {
@@ -229,7 +255,7 @@ public class DimFilters
     } else if (equalValues.size() == 1) {
       dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
     }
-    DimFilter filter = DimFilters.or(dimFilters).optimize(null, null);
+    DimFilter filter = DimFilters.or(dimFilters).optimize();
     LOG.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, filter);
     return filter;
   }
@@ -325,6 +351,7 @@ public class DimFilters
       @Override
       public DimFilter visit(DimFilter expression)
       {
+        expression = expression.optimize();
         if (expression instanceof DimFilter.Rewriting) {
           expression = ((DimFilter.Rewriting) expression).rewrite(walker, query);
         }

@@ -21,9 +21,16 @@ package io.druid.query.extraction;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import io.druid.query.lookup.LookupExtractionFn;
+import io.druid.query.lookup.LookupExtractor;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 /**
  */
@@ -79,5 +86,46 @@ public class ExtractionFns
         return transformed;
       }
     };
+  }
+
+  public static List<String> reverseMap(ExtractionFn extractionFn, List<String> values)
+  {
+    if (extractionFn instanceof LookupExtractionFn
+        && ((LookupExtractionFn) extractionFn).isOptimize()) {
+      LookupExtractionFn exFn = (LookupExtractionFn) extractionFn;
+      LookupExtractor lookup = exFn.getLookup();
+
+      final List<String> rewritten = new ArrayList<>();
+      for (String value : values) {
+
+        // We cannot do an unapply()-based optimization if the selector value
+        // and the replaceMissingValuesWith value are the same, since we have to match on
+        // all values that are not present in the lookup.
+        final String convertedValue = Strings.emptyToNull(value);
+        if (!exFn.isRetainMissingValue() && Objects.equals(convertedValue, exFn.getReplaceMissingValueWith())) {
+          return null;
+        }
+        for (Object key : lookup.unapply(convertedValue)) {
+          if (key instanceof String) {
+            rewritten.add((String) key);
+          }
+        }
+
+        // If retainMissingValues is true and the selector value is not in the lookup map,
+        // there may be row values that match the selector value but are not included
+        // in the lookup map. Match on the selector value as well.
+        // If the selector value is overwritten in the lookup map, don't add selector value to keys.
+        if (exFn.isRetainMissingValue() && lookup.apply(convertedValue) == null) {
+          rewritten.add(convertedValue);
+        }
+      }
+      return rewritten;
+    }
+    return null;
+  }
+
+  public static Predicate<String> combine(Predicate<String> predicate, ExtractionFn extractionFn)
+  {
+    return extractionFn == null ? predicate : s -> predicate.apply(extractionFn.apply(s));
   }
 }
