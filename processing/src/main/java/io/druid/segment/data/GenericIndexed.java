@@ -339,6 +339,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
+  public <R> Stream<R> apply(IntIterator iterator, Tools.Function<R> function)
+  {
+    return bufferIndexed.stream(iterator, function);
+  }
+
+  @Override
   public T get(int index)
   {
     return bufferIndexed.get(validateIndex(index));
@@ -768,6 +774,50 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         }
       };
       return StreamSupport.stream(Spliterators.spliterator(iterator, size, 0), false);
+    }
+
+    public <R> Stream<R> stream(IntIterator iterator, Tools.Function<R> function)
+    {
+      if (!iterator.hasNext()) {
+        return Stream.empty();
+      }
+      Iterator<R> scanner = new Iterator<R>()
+      {
+        private final ByteBuffer buffer = supplier.get();
+        private int index = iterator.next();
+        private int offset = valuesOffset;
+
+        @Override
+        public boolean hasNext()
+        {
+          return index >= 0;
+        }
+
+        @Override
+        public R next()
+        {
+          final int length = valueLength(index, offset);
+          final int header = valueHeaderLength(index, length);
+          final R ret = function.apply(index, buffer, offset + header, length);
+          index = increment(length, header);
+          return ret;
+        }
+
+        private int increment(int length, int header)
+        {
+          if (!iterator.hasNext()) {
+            return  -1;
+          }
+          final int next = iterator.next();
+          if (next == index + 1) {
+            offset += scanDelta(index, length, header);
+          } else {
+            offset = valueOffset(next);
+          }
+          return next;
+        }
+      };
+      return StreamSupport.stream(Spliterators.spliterator(scanner, size, 0), false);
     }
 
     protected int scanDelta(int index, int length, int header)

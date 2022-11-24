@@ -64,6 +64,12 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<C
   }
 
   @Override
+  public CompressionStrategy compressionType()
+  {
+    return compressionType;
+  }
+
+  @Override
   public long getSerializedSize()
   {
     return indexed.getSerializedSize() + (1L + mapping.length) * Integer.BYTES + indexed.size() * Short.BYTES;

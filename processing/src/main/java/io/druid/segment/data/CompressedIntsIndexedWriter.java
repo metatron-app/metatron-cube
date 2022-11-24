@@ -23,6 +23,7 @@ import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.IndexIO;
+import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,8 +36,6 @@ import java.nio.channels.WritableByteChannel;
  */
 public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
 {
-  private static final byte VERSION = CompressedIntsIndexedSupplier.VERSION;
-
   public static CompressedIntsIndexedWriter create(
       final IOPeon ioPeon,
       final String filenameBase,
@@ -72,7 +71,6 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
         ioPeon, filenameBase, CompressedIntBufferObjectStrategy.getBufferForOrder(byteOrder, compression, chunkFactor)
     );
     this.endBuffer = IntBuffer.allocate(chunkFactor);
-    this.numInserted = 0;
   }
 
   @Override
@@ -122,7 +120,7 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION}));
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(chunkFactor)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));

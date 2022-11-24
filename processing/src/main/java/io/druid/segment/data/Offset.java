@@ -19,6 +19,8 @@
 
 package io.druid.segment.data;
 
+import io.druid.java.util.common.ISE;
+
 /**
  * The "mutable" version of a ReadableOffset.  Introduces "increment()" and "withinBounds()" methods, which are
  * very similar to "next()" and "hasNext()" on the Iterator interface except increment() does not return a value.
@@ -63,4 +65,45 @@ public interface Offset extends ReadableOffset
       return -1;
     }
   };
+
+  class Holder implements Offset
+  {
+    private final Offset initial;
+    private Offset offset;
+
+    public Holder(Offset initial)
+    {
+      this.initial = initial.clone();
+      this.offset = initial;
+    }
+
+    public void reset()
+    {
+      this.offset = initial.clone();
+    }
+
+    @Override
+    public int getOffset()
+    {
+      return offset.getOffset();
+    }
+
+    @Override
+    public boolean increment()
+    {
+      return offset.increment();
+    }
+
+    @Override
+    public boolean withinBounds()
+    {
+      return offset.withinBounds();
+    }
+
+    @Override
+    public Offset clone()
+    {
+      throw new ISE("clone");
+    }
+  }
 }

@@ -27,6 +27,7 @@ import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -38,98 +39,18 @@ import java.util.List;
 
 public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedInts>
 {
-  public static final byte VERSION = 0x2;
   public static final int MAX_INTS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Integer.BYTES;
-
-
-  private final int totalSize;
-  private final int sizePer;
-  private final GenericIndexed<ResourceHolder<IntBuffer>> baseIntBuffers;
-  private final CompressedObjectStrategy.CompressionStrategy compression;
-
-  CompressedIntsIndexedSupplier(
-      int totalSize,
-      int sizePer,
-      GenericIndexed<ResourceHolder<IntBuffer>> baseIntBuffers,
-      CompressedObjectStrategy.CompressionStrategy compression
-  )
-  {
-    this.totalSize = totalSize;
-    this.sizePer = sizePer;
-    this.baseIntBuffers = baseIntBuffers;
-    this.compression = compression;
-  }
-
-  public int numRows()
-  {
-    return totalSize;
-  }
-
-  @Override
-  public IndexedInts get()
-  {
-    final int div = Integer.numberOfTrailingZeros(sizePer);
-    final int rem = sizePer - 1;
-    final boolean powerOf2 = sizePer == (1 << div);
-    if (powerOf2) {
-      return new CompressedIndexedInts()
-      {
-        @Override
-        public int get(final int index)
-        {
-          // optimize division and remainder for powers of 2
-          final int bufferNum = index >> div;
-
-          if (bufferNum != currIndex) {
-            loadBuffer(bufferNum);
-          }
-
-          final int bufferIndex = index & rem;
-          return buffer.get(buffer.position() + bufferIndex);
-        }
-      };
-    } else {
-      return new CompressedIndexedInts();
-    }
-  }
-
-  @Override
-  public long getSerializedSize()
-  {
-    return 1 + // version
-           4 + // totalSize
-           4 + // sizePer
-           1 + // compressionId
-           baseIntBuffers.getSerializedSize(); // data
-  }
-
-  public void writeToChannel(WritableByteChannel channel) throws IOException
-  {
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(totalSize)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
-    channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
-    baseIntBuffers.writeToChannel(channel);
-  }
-
-  /**
-   * For testing.  Do not use unless you like things breaking
-   */
-  GenericIndexed<ResourceHolder<IntBuffer>> getBaseIntBuffers()
-  {
-    return baseIntBuffers;
-  }
 
   public static CompressedIntsIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
-    byte versionFromBuffer = buffer.get();
+    final byte versionFromBuffer = buffer.get();
 
-    if (versionFromBuffer == VERSION) {
-      final int totalSize = buffer.getInt();
+    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+      final int numRows = buffer.getInt();
       final int sizePer = buffer.getInt();
       final CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
       return new CompressedIntsIndexedSupplier(
-          totalSize,
+          numRows,
           sizePer,
           GenericIndexed.read(buffer, CompressedIntBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
           compression
@@ -139,58 +60,121 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
     throw new IAE("Unknown version[%s]", versionFromBuffer);
   }
 
-  public static CompressedIntsIndexedSupplier fromIntBuffer(
-      final IntBuffer buffer, final int chunkFactor, final ByteOrder byteOrder, CompressedObjectStrategy.CompressionStrategy compression
+  private final int numRows;
+  private final int sizePer;
+  private final GenericIndexed<ResourceHolder<IntBuffer>> baseIntBuffers;
+  private final CompressedObjectStrategy.CompressionStrategy compression;
+
+  CompressedIntsIndexedSupplier(
+      int numRows,
+      int sizePer,
+      GenericIndexed<ResourceHolder<IntBuffer>> baseIntBuffers,
+      CompressedObjectStrategy.CompressionStrategy compression
   )
   {
-    Preconditions.checkArgument(
-        chunkFactor <= MAX_INTS_IN_BUFFER, "Chunks must be <= 64k bytes. chunkFactor was[%s]", chunkFactor
-    );
+    this.numRows = numRows;
+    this.sizePer = sizePer;
+    this.baseIntBuffers = baseIntBuffers;
+    this.compression = compression;
+  }
 
-    return new CompressedIntsIndexedSupplier(
-        buffer.remaining(),
-        chunkFactor,
-        GenericIndexed.v2(
-            new Iterable<ResourceHolder<IntBuffer>>()
-            {
-              @Override
-              public Iterator<ResourceHolder<IntBuffer>> iterator()
-              {
-                return new Iterator<ResourceHolder<IntBuffer>>()
-                {
-                  final IntBuffer myBuffer = buffer.asReadOnlyBuffer();
+  @Override
+  public int numRows()
+  {
+    return numRows;
+  }
 
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return myBuffer.hasRemaining();
-                  }
+  @Override
+  public IndexedInts get()
+  {
+    return new CompressedIndexedInts();
+  }
 
-                  @Override
-                  public ResourceHolder<IntBuffer> next()
-                  {
-                    IntBuffer retVal = myBuffer.asReadOnlyBuffer();
+  @Override
+  public long getSerializedSize()
+  {
+    return 1 + // version
+           4 + // numRows
+           4 + // sizePer
+           1 + // compressionId
+           baseIntBuffers.getSerializedSize(); // data
+  }
 
-                    if (chunkFactor < myBuffer.remaining()) {
-                      retVal.limit(retVal.position() + chunkFactor);
-                    }
-                    myBuffer.position(myBuffer.position() + retVal.remaining());
+  public void writeToChannel(WritableByteChannel channel) throws IOException
+  {
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
+    channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
+    baseIntBuffers.writeToChannel(channel);
+  }
 
-                    return StupidResourceHolder.create(retVal);
-                  }
+  private class CompressedIndexedInts implements IndexedInts
+  {
+    private final GenericIndexed<ResourceHolder<IntBuffer>> singleThreaded = baseIntBuffers.asSingleThreaded();
 
-                  @Override
-                  public void remove()
-                  {
-                    throw new UnsupportedOperationException();
-                  }
-                };
-              }
-            },
-            CompressedIntBufferObjectStrategy.getBufferForOrder(byteOrder, compression, chunkFactor)
-        ),
-        compression
-    );
+    private int currIndex = -1;
+    private ResourceHolder<IntBuffer> holder;
+    private IntBuffer buffer;
+    private int bufferPos = -1;
+
+    @Override
+    public int size()
+    {
+      return numRows;
+    }
+
+    @Override
+    public int get(int index)
+    {
+      final int bufferNum = index / sizePer;
+      final int bufferIndex = index % sizePer;
+
+      if (bufferNum != currIndex) {
+        loadBuffer(bufferNum);
+      }
+
+      return buffer.get(bufferPos + bufferIndex);
+    }
+
+    private void loadBuffer(int bufferNum)
+    {
+      if (singleThreaded.isRecyclable()) {
+        holder = singleThreaded.get(bufferNum, holder);
+      } else {
+        CloseQuietly.close(holder);
+        holder = singleThreaded.get(bufferNum);
+      }
+      buffer = holder.get();
+      bufferPos = buffer.position();
+      currIndex = bufferNum;
+    }
+
+    @Override
+    public String toString()
+    {
+      return "CompressedIndexedInts{" +
+             "currIndex=" + currIndex +
+             ", sizePer=" + sizePer +
+             ", numChunks=" + singleThreaded.size() +
+             ", numRows=" + numRows +
+             '}';
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      Closeables.close(holder, false);
+      Closeables.close(singleThreaded, false);
+    }
+  }
+
+  /**
+   * For testing.  Do not use unless you like things breaking
+   */
+  GenericIndexed<ResourceHolder<IntBuffer>> getBaseIntBuffers()
+  {
+    return baseIntBuffers;
   }
 
   public static CompressedIntsIndexedSupplier fromList(
@@ -250,59 +234,5 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
         ),
         compression
     );
-  }
-
-  private class CompressedIndexedInts implements IndexedInts
-  {
-    final Indexed.Closeable<ResourceHolder<IntBuffer>> singleThreaded = baseIntBuffers.asSingleThreaded();
-
-    int currIndex = -1;
-    ResourceHolder<IntBuffer> holder;
-    IntBuffer buffer;
-
-    @Override
-    public int size()
-    {
-      return totalSize;
-    }
-
-    @Override
-    public int get(int index)
-    {
-      final int bufferNum = index / sizePer;
-      final int bufferIndex = index % sizePer;
-
-      if (bufferNum != currIndex) {
-        loadBuffer(bufferNum);
-      }
-
-      return buffer.get(buffer.position() + bufferIndex);
-    }
-
-    protected void loadBuffer(int bufferNum)
-    {
-      CloseQuietly.close(holder);
-      holder = singleThreaded.get(bufferNum);
-      buffer = holder.get();
-      currIndex = bufferNum;
-    }
-
-    @Override
-    public String toString()
-    {
-      return "CompressedIntsIndexedSupplier_Anonymous{" +
-             "currIndex=" + currIndex +
-             ", sizePer=" + sizePer +
-             ", numChunks=" + singleThreaded.size() +
-             ", totalSize=" + totalSize +
-             '}';
-    }
-
-    @Override
-    public void close() throws IOException
-    {
-      Closeables.close(holder, false);
-      Closeables.close(singleThreaded, false);
-    }
   }
 }

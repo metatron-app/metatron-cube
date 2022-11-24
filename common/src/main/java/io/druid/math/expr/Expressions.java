@@ -74,21 +74,26 @@ public class Expressions
       }
     }
 
-
     if (current instanceof AndExpression) {
+      boolean changed = false;
       List<T> children = Lists.newArrayList();
       for (T child : ((AndExpression) current).<T>getChildren()) {
-        children.add(pushDownNot(child, factory));
+        T pushed = pushDownNot(child, factory);
+        changed |= child != pushed;
+        children.add(pushed);
       }
-      return factory.and(children);
+      return changed ? factory.and(children) : current;
     }
 
     if (current instanceof OrExpression) {
+      boolean changed = false;
       List<T> children = Lists.newArrayList();
       for (T child : ((OrExpression) current).<T>getChildren()) {
-        children.add(pushDownNot(child, factory));
+        T pushed = pushDownNot(child, factory);
+        changed |= child != pushed;
+        children.add(pushed);
       }
-      return factory.or(children);
+      return changed ? factory.or(children) : current;
     }
     return current;
   }
@@ -98,14 +103,19 @@ public class Expressions
   private static <T extends Expression> T convertToCNFInternal(T current, Expression.Factory<T> factory)
   {
     if (current instanceof NotExpression) {
-      return factory.not(convertToCNFInternal(((NotExpression) current).<T>getChild(), factory));
+      T child = ((NotExpression) current).<T>getChild();
+      T converted = convertToCNFInternal(child, factory);
+      return child != converted ? factory.not(converted) : current;
     }
     if (current instanceof AndExpression) {
+      boolean changed = false;
       List<T> children = Lists.newArrayList();
       for (T child : ((AndExpression) current).<T>getChildren()) {
-        children.add(convertToCNFInternal(child, factory));
+        T converted = convertToCNFInternal(child, factory);
+        changed |= child != converted;
+        children.add(converted);
       }
-      return factory.and(children);
+      return changed ? factory.and(children) : current;
     }
     if (current instanceof OrExpression) {
       // a list of leaves that weren't under AND expressions
@@ -137,18 +147,29 @@ public class Expressions
   {
     if (root instanceof RelationExpression) {
       RelationExpression parent = (RelationExpression) root;
+      if (parent instanceof NotExpression) {
+        T child = ((NotExpression) parent).getChild();
+        T flatten = flatten(child, factory);
+        if (flatten instanceof NotExpression) {
+          return ((NotExpression) flatten).getChild();
+        }
+        return child != flatten ? factory.not(flatten) : root;
+      }
+      boolean changed = false;
       List<T> children = new ArrayList<>(parent.<T>getChildren());
       // iterate through the index, so that if we add more children,
       // they don't get re-visited
       for (int i = 0; i < children.size(); ++i) {
-        T child = flatten(children.get(i), factory);
-        if (child == null) {
-          throw new IllegalStateException("null child from " + children.get(i));
+        T child = children.get(i);
+        T flatten = flatten(child, factory);
+        if (flatten == null) {
+          throw new IllegalStateException("null child from " + child);
         }
         // do we need to flatten?
-        if (child.getClass() == root.getClass() && !(child instanceof NotExpression)) {
+        if (flatten.getClass() == parent.getClass()) {
+          changed = true;
           boolean first = true;
-          List<T> grandKids = ((RelationExpression) child).getChildren();
+          List<T> grandKids = ((RelationExpression) flatten).getChildren();
           for (T grandkid : grandKids) {
             // for the first grandkid replace the original parent
             if (first) {
@@ -159,16 +180,18 @@ public class Expressions
             }
           }
         } else {
-          children.set(i, child);
+          changed |= child != flatten;
+          children.set(i, flatten);
         }
       }
+      if (!changed) {
+        return root;
+      }
       // if we have a singleton AND or OR, just return the child
-      if (root instanceof AndExpression) {
+      if (parent instanceof AndExpression) {
         return factory.and(children);
-      } else if (root instanceof OrExpression) {
+      } else if (parent instanceof OrExpression) {
         return factory.or(children);
-      } else if (root instanceof NotExpression && children.size() == 1) {
-        return factory.not(children.get(0));
       }
     }
     return root;

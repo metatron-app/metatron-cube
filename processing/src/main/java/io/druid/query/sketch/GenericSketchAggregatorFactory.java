@@ -147,7 +147,7 @@ public class GenericSketchAggregatorFactory extends TypeResolving implements Cub
             public TypedSketch aggregate(TypedSketch current)
             {
               return updateWithValue(
-                  current, UTF8Bytes.of(((WithRawAccess) selector).lookupRaw(selector.getRow().get(0)))
+                  current, UTF8Bytes.of(((WithRawAccess) selector).getAsRaw(selector.getRow().get(0)))
               );
             }
           });

@@ -20,7 +20,9 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
+import io.druid.segment.column.LongScanner;
 import org.apache.commons.lang.mutable.MutableLong;
+import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 
@@ -45,7 +47,10 @@ public interface LongColumnSelector extends ObjectColumnSelector<Long>
     }
   }
 
-  interface WithBaggage extends LongColumnSelector, Closeable
+  interface WithBaggage extends LongColumnSelector, Closeable { }
+
+  interface Scannable extends WithBaggage
   {
+    void scan(IntIterator iterator, LongScanner scanner);
   }
 }

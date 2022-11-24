@@ -57,7 +57,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
   }
 
   private final ByteOrder byteOrder;
-  private Serializer serializer;
+  private final Serializer serializer;
 
   public FloatGenericColumnPartSerde(ByteOrder byteOrder, Serializer serializer)
   {

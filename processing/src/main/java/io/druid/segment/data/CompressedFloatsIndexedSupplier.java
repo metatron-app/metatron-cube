@@ -19,14 +19,12 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
-import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -36,13 +34,38 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Iterator;
 
 /**
  */
-public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>, ColumnPartSerde.Serializer
+public class CompressedFloatsIndexedSupplier implements ColumnPartProvider<IndexedFloats>, ColumnPartSerde.Serializer
 {
   public static final int MAX_FLOATS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Float.BYTES;
+
+  public static CompressedFloatsIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
+  {
+    final byte versionFromBuffer = buffer.get();
+    final int numRows = buffer.getInt();
+    final int sizePer = buffer.getInt();
+
+    final CompressionStrategy compression;
+    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+      compression = CompressedObjectStrategy.forId(buffer.get());
+    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
+      compression = CompressionStrategy.LZF;
+    } else {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
+    }
+
+    final CompressedFloatBufferObjectStrategy strategy =
+        CompressedFloatBufferObjectStrategy.getBufferForOrder(order, compression, sizePer);
+
+    return new CompressedFloatsIndexedSupplier(
+        numRows,
+        sizePer,
+        GenericIndexed.read(buffer, strategy),
+        compression
+    );
+  }
 
   private final int numRows;
   private final int sizePer;
@@ -62,11 +85,13 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     this.compression = compression;
   }
 
-  public int size()
+  @Override
+  public int numRows()
   {
     return numRows;
   }
 
+  @Override
   public CompressionStrategy compressionType()
   {
     return compression;
@@ -75,28 +100,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
   @Override
   public IndexedFloats get()
   {
-    final int div = Integer.numberOfTrailingZeros(sizePer);
-    final int rem = sizePer - 1;
-    final boolean powerOf2 = sizePer == (1 << div);
-    if(powerOf2) {
-      return new CompressedIndexedFloats() {
-        @Override
-        public float get(int index)
-        {
-          // optimize division and remainder for powers of 2
-          final int bufferNum = index >> div;
-
-          if (bufferNum != currIndex) {
-            loadBuffer(bufferNum);
-          }
-
-          final int bufferIndex = index & rem;
-          return buffer.get(bufferPos + bufferIndex);
-        }
-      };
-    } else {
-      return new CompressedIndexedFloats();
-    }
+    return new CompressedIndexedFloats();
   }
 
   @Override
@@ -115,117 +119,14 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     baseFloatBuffers.writeToChannel(channel);
   }
 
-  public CompressedFloatsIndexedSupplier convertByteOrder(ByteOrder order)
-  {
-    return new CompressedFloatsIndexedSupplier(
-        numRows,
-        sizePer,
-        GenericIndexed.v2(baseFloatBuffers, CompressedFloatBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
-        compression
-    );
-  }
-
-  /**
-   * For testing. Do not depend on unless you like things breaking.
-   */
-  GenericIndexed<ResourceHolder<FloatBuffer>> getBaseFloatBuffers()
-  {
-    return baseFloatBuffers;
-  }
-
-  public static CompressedFloatsIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
-  {
-    final byte versionFromBuffer = buffer.get();
-    final int totalSize = buffer.getInt();
-    final int sizePer = buffer.getInt();
-
-    final CompressionStrategy compression;
-    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
-      compression = CompressedObjectStrategy.forId(buffer.get());
-    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
-      compression = CompressionStrategy.LZF;
-    } else {
-      throw new IAE("Unknown version[%s]", versionFromBuffer);
-    }
-
-    final CompressedFloatBufferObjectStrategy strategy =
-        CompressedFloatBufferObjectStrategy.getBufferForOrder(order, compression, sizePer);
-
-    return new CompressedFloatsIndexedSupplier(
-        totalSize,
-        sizePer,
-        GenericIndexed.read(buffer, strategy),
-        compression
-    );
-  }
-
-  public static CompressedFloatsIndexedSupplier fromFloatBuffer(FloatBuffer buffer, final ByteOrder order, CompressionStrategy compression)
-  {
-    return fromFloatBuffer(buffer, MAX_FLOATS_IN_BUFFER, order, compression);
-  }
-
-  public static CompressedFloatsIndexedSupplier fromFloatBuffer(
-      final FloatBuffer buffer, final int chunkFactor, final ByteOrder order, final CompressionStrategy compression
-  )
-  {
-    Preconditions.checkArgument(
-        chunkFactor <= MAX_FLOATS_IN_BUFFER, "Chunks must be <= 64k bytes. chunkFactor was[%s]", chunkFactor
-    );
-
-    return new CompressedFloatsIndexedSupplier(
-        buffer.remaining(),
-        chunkFactor,
-        GenericIndexed.v2(
-            new Iterable<ResourceHolder<FloatBuffer>>()
-            {
-              @Override
-              public Iterator<ResourceHolder<FloatBuffer>> iterator()
-              {
-                return new Iterator<ResourceHolder<FloatBuffer>>()
-                {
-                  FloatBuffer myBuffer = buffer.asReadOnlyBuffer();
-
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return myBuffer.hasRemaining();
-                  }
-
-                  @Override
-                  public ResourceHolder<FloatBuffer> next()
-                  {
-                    final FloatBuffer retVal = myBuffer.asReadOnlyBuffer();
-
-                    if (chunkFactor < myBuffer.remaining()) {
-                      retVal.limit(retVal.position() + chunkFactor);
-                    }
-                    myBuffer.position(myBuffer.position() + retVal.remaining());
-
-                    return StupidResourceHolder.create(retVal);
-                  }
-
-                  @Override
-                  public void remove()
-                  {
-                    throw new UnsupportedOperationException();
-                  }
-                };
-              }
-            },
-            CompressedFloatBufferObjectStrategy.getBufferForOrder(order, compression, chunkFactor)
-        ),
-        compression
-    );
-  }
-
   private class CompressedIndexedFloats implements IndexedFloats
   {
-    final Indexed.Closeable<ResourceHolder<FloatBuffer>> singleThreaded = baseFloatBuffers.asSingleThreaded();
+    private final GenericIndexed<ResourceHolder<FloatBuffer>> singleThreaded = baseFloatBuffers.asSingleThreaded();
 
-    int currIndex = -1;
-    ResourceHolder<FloatBuffer> holder;
-    FloatBuffer buffer;
-    int bufferPos = -1;
+    private int currIndex = -1;
+    private ResourceHolder<FloatBuffer> holder;
+    private FloatBuffer buffer;
+    private int bufferPos = -1;
 
     @Override
     public int size()
@@ -266,10 +167,14 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
       return numToGet;
     }
 
-    protected void loadBuffer(int bufferNum)
+    private void loadBuffer(int bufferNum)
     {
-      CloseQuietly.close(holder);
-      holder = singleThreaded.get(bufferNum);
+      if (singleThreaded.isRecyclable()) {
+        holder = singleThreaded.get(bufferNum, holder);
+      } else {
+        CloseQuietly.close(holder);
+        holder = singleThreaded.get(bufferNum);
+      }
       buffer = holder.get();
       bufferPos = buffer.position();
       currIndex = bufferNum;
@@ -278,7 +183,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     @Override
     public String toString()
     {
-      return "CompressedFloatsIndexedSupplier{" +
+      return "CompressedIndexedFloats{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreaded.size() +

@@ -26,6 +26,7 @@ import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.HashCollector;
 import io.druid.segment.DimensionSelector;
+import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -383,6 +384,11 @@ public class BloomKFilter implements HashCollector.ScanSupport
   public static void collect(ByteBuffer collector, int position, DimensionSelector.Scannable scannable)
   {
     scannable.scan((ix, buffer, offset, length) -> addHash(collector, position, Murmur3.hash64(buffer, offset, length)));
+  }
+
+  public static void collect(IntIterator iterator, ByteBuffer collector, int position, DimensionSelector.Scannable scannable)
+  {
+    scannable.scan(iterator, (ix, buffer, offset, length) -> addHash(collector, position, Murmur3.hash64(buffer, offset, length)));
   }
 
   public boolean test(BytesRef key)

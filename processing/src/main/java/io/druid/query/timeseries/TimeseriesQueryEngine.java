@@ -70,22 +70,23 @@ public class TimeseriesQueryEngine
   {
     return new Function<Cursor, Sequence<Row>>()
     {
+      private final Granularity granularity = query.getGranularity();
+      private final List<String> columns = query.estimatedInitialColumns();
       private final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
       private final String[] aggregatorNames = AggregatorFactory.toNamesAsArray(aggregatorSpecs);
 
       @Override
       public Sequence<Row> apply(final Cursor cursor)
       {
-        final List<String> columns = query.estimatedInitialColumns();
         if (cursor.isDone()) {
           return Sequences.empty(columns);
         }
-        final Granularity granularity = query.getGranularity();
-        final Aggregator[] aggregators = Aggregators.makeAggregators(aggregatorSpecs, cursor);
-        final Object[] values = new Object[aggregators.length];
-        if (Granularities.ALL.equals(granularity)) {
+        if (Granularities.isAll(granularity)) {
           return Sequences.simple(columns, new Iterable<Row>()
           {
+            private final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
+            private final Aggregator[] aggregators = Aggregators.makeAggregators(aggregatorSpecs, cursor);
+
             @Override
             public Iterator<Row> iterator()
             {
@@ -106,7 +107,7 @@ public class TimeseriesQueryEngine
                 @Override
                 public Row next()
                 {
-                  final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
+                  final Object[] values = new Object[aggregators.length];
                   while (!cursor.isDone()) {
                     Aggregators.aggregate(values, aggregators);
                     cursor.advance();
@@ -123,6 +124,9 @@ public class TimeseriesQueryEngine
         }
         return Sequences.simple(columns, new Iterable<Row>()
         {
+          private final Aggregator[] aggregators = Aggregators.makeAggregators(aggregatorSpecs, cursor);
+          private final Object[] values = new Object[aggregators.length];
+
           @Override
           public Iterator<Row> iterator()
           {

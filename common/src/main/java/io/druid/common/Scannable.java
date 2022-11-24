@@ -17,41 +17,27 @@
  * under the License.
  */
 
-package io.druid.segment;
+package io.druid.common;
 
-import io.druid.data.ValueDesc;
-import io.druid.segment.column.DoubleScanner;
-import io.druid.segment.column.LongScanner;
-import org.apache.commons.lang.mutable.MutableDouble;
+import io.druid.segment.Tools;
 import org.roaringbitmap.IntIterator;
 
-import java.io.Closeable;
+import java.util.stream.Stream;
 
-/**
- *
- */
-public interface DoubleColumnSelector extends ObjectColumnSelector<Double>
+public interface Scannable<T>
 {
-  default ValueDesc type()
-  {
-    return ValueDesc.DOUBLE;
-  }
+  void scan(Tools.ObjectScanner<T> scanner);
 
-  default boolean getDouble(MutableDouble handover)
-  {
-    Double dv = get();
-    if (dv == null) {
-      return false;
-    } else {
-      handover.setValue(dv.doubleValue());
-      return true;
-    }
-  }
+  void scan(IntIterator iterator, Tools.ObjectScanner<T> scanner);
 
-  interface WithBaggage extends DoubleColumnSelector, Closeable { }
-
-  interface Scannable extends WithBaggage
+  interface BufferBacked<T> extends Scannable<T>
   {
-    void scan(IntIterator iterator, DoubleScanner scanner);
+    void scan(Tools.Scanner scanner);
+
+    void scan(IntIterator iterator, Tools.Scanner scanner);
+
+    <R> Stream<R> apply(Tools.Function<R> function);
+
+    <R> Stream<R> apply(IntIterator iterator, Tools.Function<R> function);
   }
 }

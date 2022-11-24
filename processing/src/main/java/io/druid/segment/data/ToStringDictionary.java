@@ -133,6 +133,12 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
+  public <R> Stream<R> apply(IntIterator iterator, Tools.Function<R> function)
+  {
+    throw new UnsupportedOperationException("apply");
+  }
+
+  @Override
   public void close()
   {
   }

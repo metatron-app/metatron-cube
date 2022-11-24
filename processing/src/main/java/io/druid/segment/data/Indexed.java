@@ -22,7 +22,6 @@ package io.druid.segment.data;
 import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.BufferRef;
 import io.druid.segment.Tools;
-import org.roaringbitmap.IntIterator;
 
 import java.util.List;
 import java.util.function.ToIntBiFunction;
@@ -62,19 +61,9 @@ public interface Indexed<T> extends Iterable<T>
     }
   }
 
-  interface Scannable<T> extends BufferBacked<T>
+  interface Scannable<T> extends BufferBacked<T>, io.druid.common.Scannable.BufferBacked<T>
   {
-    void scan(Tools.Scanner scanner);
-
-    void scan(IntIterator iterator, Tools.Scanner scanner);
-
     void scan(int index, Tools.Scanner scanner);
-
-    void scan(Tools.ObjectScanner<T> scanner);
-
-    void scan(IntIterator iterator, Tools.ObjectScanner<T> scanner);
-
-    <R> Stream<R> apply(Tools.Function<R> function);
 
     <R> R apply(int index, Tools.Function<R> function);
   }

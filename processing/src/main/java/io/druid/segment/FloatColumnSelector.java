@@ -20,7 +20,9 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
+import io.druid.segment.column.FloatScanner;
 import org.apache.commons.lang.mutable.MutableFloat;
+import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 
@@ -47,7 +49,10 @@ public interface FloatColumnSelector extends ObjectColumnSelector<Float>
     }
   }
 
-  interface WithBaggage extends FloatColumnSelector, Closeable
+  interface WithBaggage extends FloatColumnSelector, Closeable { }
+
+  interface Scannable extends WithBaggage
   {
+    void scan(IntIterator iterator, FloatScanner scanner);
   }
 }

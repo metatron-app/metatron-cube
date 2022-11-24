@@ -24,6 +24,7 @@ import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.IndexIO;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
+import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,8 +36,6 @@ import java.nio.channels.WritableByteChannel;
  */
 public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter implements ColumnPartWriter.Compressed
 {
-  private static final byte VERSION = CompressedVSizedIntSupplier.VERSION;
-
   public static CompressedVSizeIntWriter create(
       final IOPeon ioPeon,
       final String filenameBase,
@@ -144,7 +143,7 @@ public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter imple
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID, (byte) numBytes}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(chunkFactor)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));

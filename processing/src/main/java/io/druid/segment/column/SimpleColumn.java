@@ -121,6 +121,24 @@ class SimpleColumn implements Column
   }
 
   @Override
+  public boolean hasDictionaryEncodedColumn()
+  {
+    return dictionaryEncodedColumn != null;
+  }
+
+  @Override
+  public boolean hasGenericColumn()
+  {
+    return genericColumn != null;
+  }
+
+  @Override
+  public boolean hasComplexColumn()
+  {
+    return complexColumn != null;
+  }
+
+  @Override
   public long getSerializedSize(EncodeType encodeType)
   {
     switch (encodeType) {

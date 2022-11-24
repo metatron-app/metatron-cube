@@ -19,12 +19,12 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -37,11 +37,35 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, ColumnPartSerde.Serializer
+public class CompressedLongsIndexedSupplier implements ColumnPartProvider<IndexedLongs>, ColumnPartSerde.Serializer
 {
-  public static final byte LZF_VERSION = 0x1;
-  public static final byte version = 0x2;
   public static final int MAX_LONGS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Long.BYTES;
+
+  public static CompressedLongsIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
+  {
+    final byte versionFromBuffer = buffer.get();
+    final int numRows = buffer.getInt();
+    final int sizePer = buffer.getInt();
+
+    final CompressionStrategy compression;
+    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+      compression = CompressedObjectStrategy.forId(buffer.get());
+    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
+      compression = CompressionStrategy.LZF;
+    } else {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
+    }
+
+    final CompressedLongBufferObjectStrategy strategy =
+        CompressedLongBufferObjectStrategy.getBufferForOrder(order, compression, sizePer);
+
+    return new CompressedLongsIndexedSupplier(
+        numRows,
+        sizePer,
+        GenericIndexed.read(buffer, strategy),
+        compression
+    );
+  }
 
   private final int numRows;
   private final int sizePer;
@@ -61,11 +85,13 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
     this.compression = compression;
   }
 
-  public int size()
+  @Override
+  public int numRows()
   {
     return numRows;
   }
 
+  @Override
   public CompressionStrategy compressionType()
   {
     return compression;
@@ -74,29 +100,7 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
   @Override
   public IndexedLongs get()
   {
-    final int div = Integer.numberOfTrailingZeros(sizePer);
-    final int rem = sizePer - 1;
-    final boolean powerOf2 = sizePer == (1 << div);
-    if (powerOf2) {
-      return new CompressedIndexedLongs()
-      {
-        @Override
-        public long get(int index)
-        {
-          // optimize division and remainder for powers of 2
-          final int bufferNum = index >> div;
-
-          if (bufferNum != currIndex) {
-            loadBuffer(bufferNum);
-          }
-
-          final int bufferIndex = index & rem;
-          return buffer.get(bufferPos + bufferIndex);
-        }
-      };
-    } else {
-      return new CompressedIndexedLongs();
-    }
+    return new CompressedIndexedLongs();
   }
 
   @Override
@@ -108,55 +112,21 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{version}));
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseLongBuffers.writeToChannel(channel);
   }
 
-  /**
-   * For testing.  Do not use unless you like things breaking
-   */
-  GenericIndexed<ResourceHolder<LongBuffer>> getBaseLongBuffers()
-  {
-    return baseLongBuffers;
-  }
-
-  public static CompressedLongsIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
-  {
-    final byte versionFromBuffer = buffer.get();
-    final int totalSize = buffer.getInt();
-    final int sizePer = buffer.getInt();
-
-    final CompressionStrategy compression;
-    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
-      compression = CompressedObjectStrategy.forId(buffer.get());
-    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
-      compression = CompressionStrategy.LZF;
-    } else {
-      throw new IAE("Unknown version[%s]", versionFromBuffer);
-    }
-
-    final CompressedLongBufferObjectStrategy strategy =
-        CompressedLongBufferObjectStrategy.getBufferForOrder(order, compression, sizePer);
-
-    return new CompressedLongsIndexedSupplier(
-        totalSize,
-        sizePer,
-        GenericIndexed.read(buffer, strategy),
-        compression
-    );
-  }
-
   private class CompressedIndexedLongs implements IndexedLongs
   {
-    final Indexed.Closeable<ResourceHolder<LongBuffer>> singleThreaded = baseLongBuffers.asSingleThreaded();
+    private final GenericIndexed<ResourceHolder<LongBuffer>> singleThreaded = baseLongBuffers.asSingleThreaded();
 
-    int currIndex = -1;
-    ResourceHolder<LongBuffer> holder;
-    LongBuffer buffer;
-    int bufferPos = -1;
+    private int currIndex = -1;
+    private ResourceHolder<LongBuffer> holder;
+    private LongBuffer buffer;
+    private int bufferPos = -1;
 
     @Override
     public int size()
@@ -197,10 +167,14 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
       return numToGet;
     }
 
-    protected void loadBuffer(int bufferNum)
+    private void loadBuffer(int bufferNum)
     {
-      CloseQuietly.close(holder);
-      holder = singleThreaded.get(bufferNum);
+      if (singleThreaded.isRecyclable()) {
+        holder = singleThreaded.get(bufferNum, holder);
+      } else {
+        CloseQuietly.close(holder);
+        holder = singleThreaded.get(bufferNum);
+      }
       buffer = holder.get();
       bufferPos = buffer.position();
       currIndex = bufferNum;
@@ -209,7 +183,7 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
     @Override
     public String toString()
     {
-      return "CompressedLongsIndexedSupplier{" +
+      return "CompressedIndexedLongs{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreaded.size() +

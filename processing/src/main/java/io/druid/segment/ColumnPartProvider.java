@@ -19,52 +19,26 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Supplier;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.Dictionary;
 
 /**
  */
-public interface ColumnPartProvider<T>
+public interface ColumnPartProvider<T> extends Supplier<T>
 {
-  T get();
-
   int numRows();
 
   long getSerializedSize();
 
+  default CompressionStrategy compressionType()
+  {
+    return CompressionStrategy.NONE;
+  }
+
   interface DictionarySupport extends ColumnPartProvider<DictionaryEncodedColumn>
   {
     Dictionary<String> getDictionary();
-
-    class Delegated implements DictionarySupport
-    {
-      private final DictionarySupport delegated;
-
-      public Delegated(DictionarySupport delegated) {this.delegated = delegated;}
-
-      @Override
-      public int numRows()
-      {
-        return delegated.numRows();
-      }
-
-      @Override
-      public long getSerializedSize()
-      {
-        return delegated.getSerializedSize();
-      }
-
-      @Override
-      public Dictionary<String> getDictionary()
-      {
-        return delegated.getDictionary();
-      }
-
-      @Override
-      public DictionaryEncodedColumn get()
-      {
-        return delegated.get();
-      }
-    }
   }
 }

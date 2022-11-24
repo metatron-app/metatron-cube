@@ -31,6 +31,10 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
   {
   }
 
+  interface Scannable<T> extends WithBaggage<T>, io.druid.common.Scannable<T>
+  {
+  }
+
   interface WithRawAccess<T> extends WithBaggage<T>, DSuppliers.WithRawAccess<T>
   {
   }

@@ -77,13 +77,18 @@ public abstract class HashIterator<T extends HashCollector>
     this.consumer = toConsumer(selectorList);
   }
 
+  public boolean useScanning()
+  {
+    return ScanSupport.class.isAssignableFrom(collectorClass()) &&
+           selectorList.size() == 1 && selectorList.get(0) instanceof Scannable;
+  }
+
   // class of collector
   protected abstract Class<T> collectorClass();
 
-  protected Consumer<T> toConsumer(List<DimensionSelector> selectorList)
+  private Consumer<T> toConsumer(List<DimensionSelector> selectorList)
   {
-    if (ScanSupport.class.isAssignableFrom(collectorClass()) &&
-        selectorList.size() == 1 && selectorList.get(0) instanceof Scannable) {
+    if (useScanning()) {
       final Scannable selector = (Scannable) selectorList.get(0);
       return collector -> ((ScanSupport) collector).collect(selector);
     }
@@ -139,7 +144,7 @@ public abstract class HashIterator<T extends HashCollector>
   private static byte[] _toValue(final DimensionSelector selector, final int id, final boolean rawBytes)
   {
     if (rawBytes) {
-      return ((DimensionSelector.WithRawAccess) selector).lookupRaw(id);
+      return ((DimensionSelector.WithRawAccess) selector).getAsRaw(id);
     } else {
       return StringUtils.nullableToUtf8(Objects.toString(selector.lookupName(id), null));
     }

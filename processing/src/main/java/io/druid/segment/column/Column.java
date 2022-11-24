@@ -54,6 +54,10 @@ public interface Column
   ColumnCapabilities getCapabilities();
   int getNumRows();
 
+  boolean hasDictionaryEncodedColumn();
+  boolean hasGenericColumn();
+  boolean hasComplexColumn();
+
   Dictionary<String> getDictionary();
   DictionaryEncodedColumn getDictionaryEncoding();
   RunLengthColumn getRunLengthColumn();

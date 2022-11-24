@@ -122,6 +122,12 @@ public class IndexedStringsGenericColumn implements GenericColumn, Indexed.Scann
   }
 
   @Override
+  public <R> Stream<R> apply(IntIterator iterator, Tools.Function<R> function)
+  {
+    return indexed.apply(iterator, function);
+  }
+
+  @Override
   public <R> R apply(int index, Tools.Function<R> function)
   {
     return indexed.apply(index, function);

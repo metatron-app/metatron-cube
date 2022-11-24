@@ -100,10 +100,10 @@ public abstract class SketchAggregator implements Aggregator<Union>
           final int length = indexed.size();
           final Union union = union(current);
           if (length == 1) {
-            union.update(rawAccess.lookupRaw(indexed.get(0)));
+            union.update(rawAccess.getAsRaw(indexed.get(0)));
           } else if (length > 1) {
             for (int i = 0; i < length; i++) {
-              union.update(rawAccess.lookupRaw(indexed.get(i)));
+              union.update(rawAccess.getAsRaw(indexed.get(i)));
             }
           }
           return union;

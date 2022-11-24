@@ -358,7 +358,7 @@ public class GroupByQueryEngine
           row[i++] = new MutableLong(timestamp.longValue());
           for (int x = 0; x < dimensions.length; x++) {
             if (rawAccess[x]) {
-              row[i++] = UTF8Bytes.of(((WithRawAccess) dimensions[x]).lookupRaw(array[x + BUFFER_POS]));
+              row[i++] = UTF8Bytes.of(((WithRawAccess) dimensions[x]).getAsRaw(array[x + BUFFER_POS]));
             } else {
               row[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(array[x + BUFFER_POS]));
             }

@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.collections.IntList;
 import io.druid.common.guava.BufferRef;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.IntScanner;
@@ -108,7 +109,7 @@ public interface DimensionSelector
   {
     Dictionary getDictionary();
 
-    byte[] lookupRaw(int id);
+    byte[] getAsRaw(int id);
 
     BufferRef getAsRef(int id);
   }
@@ -117,6 +118,14 @@ public interface DimensionSelector
   interface Scannable extends SingleValued, WithRawAccess
   {
     void scan(IntIterator iterator, IntScanner scanner);    // rowID to dictId
+
+    default void scan(IntIterator iterator, Tools.Scanner scanner)
+    {
+      IntList rows = new IntList();
+      Dictionary dictionary = getDictionary();
+      scan(iterator, (x, v) -> rows.add(v.applyAsInt(x)));
+      rows.sort().stream().forEach(x -> dictionary.scan(x, scanner));
+    }
 
     void scan(Tools.Scanner scanner);         // on current
 

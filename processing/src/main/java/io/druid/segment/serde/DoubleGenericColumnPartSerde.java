@@ -38,7 +38,6 @@ import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 import it.unimi.dsi.fastutil.ints.Int2DoubleFunction;
 import org.apache.commons.lang.mutable.MutableDouble;
-import org.apache.commons.lang.mutable.MutableFloat;
 import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
@@ -58,7 +57,7 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
   }
 
   private final ByteOrder byteOrder;
-  private Serializer serializer;
+  private final Serializer serializer;
 
   public DoubleGenericColumnPartSerde(ByteOrder byteOrder, Serializer serializer)
   {

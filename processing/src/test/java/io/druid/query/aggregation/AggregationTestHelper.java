@@ -418,17 +418,7 @@ public class AggregationTestHelper
     final QueryRunner<Row> baseRunner = factory.mergeRunners(
         query,
         Execs.newDirectExecutorService(),
-        Lists.transform(
-            segments,
-            new Function<Segment, QueryRunner>()
-            {
-              @Override
-              public QueryRunner apply(final Segment segment)
-              {
-                return factory.createRunner(segment, null);
-              }
-            }
-        ),
+        Lists.transform(segments, segment -> factory.createRunner(segment, null)),
         null
     );
 

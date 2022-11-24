@@ -100,11 +100,11 @@ public abstract class SketchBufferAggregator extends Aggregators.BufferMapping<U
           final int length = indexed.size();
           if (length == 1) {
             Union union = get(position0, position1);
-            union.update(rawAccess.lookupRaw(indexed.get(0)));
+            union.update(rawAccess.getAsRaw(indexed.get(0)));
           } else if (length > 1) {
             Union union = get(position0, position1);
             for (int i = 0; i < length; i++) {
-              union.update(rawAccess.lookupRaw(indexed.get(i)));
+              union.update(rawAccess.getAsRaw(indexed.get(i)));
             }
           }
         }

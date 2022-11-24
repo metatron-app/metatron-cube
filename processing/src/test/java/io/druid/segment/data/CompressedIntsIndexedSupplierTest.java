@@ -19,9 +19,13 @@
 
 package io.druid.segment.data;
 
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import io.druid.collections.ResourceHolder;
+import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -35,6 +39,7 @@ import java.nio.IntBuffer;
 import java.nio.channels.Channels;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,7 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
 {
-  public CompressedIntsIndexedSupplierTest(CompressedObjectStrategy.CompressionStrategy compressionStrategy)
+  public CompressedIntsIndexedSupplierTest(CompressionStrategy compressionStrategy)
   {
     super(compressionStrategy);
   }
@@ -72,7 +77,7 @@ public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
 
     vals = new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16};
 
-    supplier = CompressedIntsIndexedSupplier.fromIntBuffer(
+    supplier = fromIntBuffer(
         IntBuffer.wrap(vals),
         chunkSize,
         ByteOrder.nativeOrder(),
@@ -94,7 +99,7 @@ public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
     CloseQuietly.close(indexed);
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    final CompressedIntsIndexedSupplier theSupplier = CompressedIntsIndexedSupplier.fromIntBuffer(
+    final CompressedIntsIndexedSupplier theSupplier = fromIntBuffer(
         IntBuffer.wrap(vals), chunkSize, ByteOrder.nativeOrder(), compressionStrategy
     );
     theSupplier.writeToChannel(Channels.newChannel(baos));
@@ -202,7 +207,7 @@ public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
             for (int j = 0; j < indexed.size(); ++j) {
               final long val = vals[j];
               final long indexedVal = indexed.get(j);
-              if (Long.compare(val, indexedVal) != 0) {
+              if (val != indexedVal) {
                 failureHappened.set(true);
                 reason.set(String.format("Thread1[%d]: %d != %d", j, val, indexedVal));
                 stopLatch.countDown();
@@ -241,7 +246,7 @@ public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
               for (int j = indexed2.size() - 1; j >= 0; --j) {
                 final long val = vals[j];
                 final long indexedVal = indexed2.get(j);
-                if (Long.compare(val, indexedVal) != 0) {
+                if (val != indexedVal) {
                   failureHappened.set(true);
                   reason.set(String.format("Thread2[%d]: %d != %d", j, val, indexedVal));
                   stopLatch.countDown();
@@ -290,5 +295,59 @@ public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
       int k = indices[i];
       Assert.assertEquals(vals[k], indexed.get(k), 0.0);
     }
+  }
+
+  public static CompressedIntsIndexedSupplier fromIntBuffer(
+      IntBuffer buffer, int chunkFactor, ByteOrder byteOrder, CompressionStrategy compression
+  )
+  {
+    Preconditions.checkArgument(
+        chunkFactor <= CompressedIntsIndexedSupplier.MAX_INTS_IN_BUFFER,
+        "Chunks must be <= 64k bytes. chunkFactor was[%s]", chunkFactor
+    );
+    return new CompressedIntsIndexedSupplier(
+        buffer.remaining(),
+        chunkFactor,
+        GenericIndexed.v2(
+            new Iterable<ResourceHolder<IntBuffer>>()
+            {
+              @Override
+              public Iterator<ResourceHolder<IntBuffer>> iterator()
+              {
+                return new Iterator<ResourceHolder<IntBuffer>>()
+                {
+                  final IntBuffer myBuffer = buffer.asReadOnlyBuffer();
+
+                  @Override
+                  public boolean hasNext()
+                  {
+                    return myBuffer.hasRemaining();
+                  }
+
+                  @Override
+                  public ResourceHolder<IntBuffer> next()
+                  {
+                    IntBuffer retVal = myBuffer.asReadOnlyBuffer();
+
+                    if (chunkFactor < myBuffer.remaining()) {
+                      retVal.limit(retVal.position() + chunkFactor);
+                    }
+                    myBuffer.position(myBuffer.position() + retVal.remaining());
+
+                    return StupidResourceHolder.create(retVal);
+                  }
+
+                  @Override
+                  public void remove()
+                  {
+                    throw new UnsupportedOperationException();
+                  }
+                };
+              }
+            },
+            CompressedIntBufferObjectStrategy.getBufferForOrder(byteOrder, compression, chunkFactor)
+        ),
+        compression
+    );
   }
 }

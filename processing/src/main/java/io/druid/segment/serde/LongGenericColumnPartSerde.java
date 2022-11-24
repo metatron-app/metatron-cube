@@ -37,7 +37,6 @@ import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 import it.unimi.dsi.fastutil.ints.Int2LongFunction;
-import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 

@@ -25,6 +25,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.IntTagged;
+import io.druid.common.guava.BufferRef;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
@@ -35,16 +36,24 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
+import io.druid.segment.column.ColumnAccess;
+import io.druid.segment.column.ComplexColumn;
+import io.druid.segment.column.DoubleScanner;
+import io.druid.segment.column.FloatScanner;
+import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.LongScanner;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
+import io.druid.segment.data.Offset;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -542,7 +551,7 @@ public class ColumnSelectors
         return ObjectColumnSelector.string(() -> cached[selector.getRow().get(0)]);
       }
     }
-    return ObjectColumnSelector.string(() -> UTF8Bytes.of(selector.lookupRaw(selector.getRow().get(0))));
+    return ObjectColumnSelector.string(() -> UTF8Bytes.of(selector.getAsRaw(selector.getRow().get(0))));
   }
 
   public static ObjectColumnSelector<String> asSingleValued(final SingleValued selector)
@@ -683,7 +692,7 @@ public class ColumnSelectors
       if (selector instanceof SingleValued) {
         if (selector instanceof WithRawAccess) {
           works.add(() -> work.execute(
-              index, wrapWithNull(((WithRawAccess) selector).lookupRaw(selector.getRow().get(0))))
+              index, wrapWithNull(((WithRawAccess) selector).getAsRaw(selector.getRow().get(0))))
           );
         } else {
           works.add(() -> work.execute(index, selector.lookupName(selector.getRow().get(0))));
@@ -693,7 +702,7 @@ public class ColumnSelectors
           works.add(() -> {
             final IndexedInts vals = selector.getRow();
             for (int j = 0; j < vals.size(); ++j) {
-              work.execute(index, wrapWithNull((((WithRawAccess) selector).lookupRaw(vals.get(j)))));
+              work.execute(index, wrapWithNull((((WithRawAccess) selector).getAsRaw(vals.get(j)))));
             }
           });
         } else {
@@ -712,5 +721,339 @@ public class ColumnSelectors
   private static UTF8Bytes wrapWithNull(byte[] bytes)
   {
     return bytes.length == 0 ? null : UTF8Bytes.of(bytes);
+  }
+
+  public static ObjectColumnSelector asSelector(GenericColumn column, Offset offset)
+  {
+    switch (column.getType().type()) {
+      case FLOAT:
+        return ColumnSelectors.asFloat(column, offset);
+      case LONG:
+        return ColumnSelectors.asLong(column, offset);
+      case DOUBLE:
+        return ColumnSelectors.asDouble(column, offset);
+      case STRING:
+        return ColumnSelectors.asString(column, offset);
+      case BOOLEAN:
+        return ColumnSelectors.asBoolean(column, offset);
+      default:
+        return null;
+    }
+  }
+
+  public static LongColumnSelector asLong(GenericColumn column, Offset offset)
+  {
+    if (column == null) {
+      return ColumnSelectors.LONG_NULL;
+    }
+    if (column instanceof GenericColumn.LongType) {
+      return new LongColumnSelector.Scannable()
+      {
+        @Override
+        public void close() throws IOException
+        {
+          column.close();
+        }
+
+        @Override
+        public void scan(IntIterator iterator, LongScanner scanner)
+        {
+          ((GenericColumn.LongType) column).scan(iterator, scanner);
+        }
+
+        @Override
+        public Long get()
+        {
+          return column.getLong(offset.getOffset());
+        }
+
+        @Override
+        public boolean getLong(MutableLong handover)
+        {
+          return column.getLong(offset.getOffset(), handover);
+        }
+      };
+    }
+    return new LongColumnSelector.WithBaggage()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        column.close();
+      }
+
+      @Override
+      public Long get()
+      {
+        return column.getLong(offset.getOffset());
+      }
+
+      @Override
+      public boolean getLong(MutableLong handover)
+      {
+        return column.getLong(offset.getOffset(), handover);
+      }
+    };
+  }
+
+  public static DoubleColumnSelector asDouble(GenericColumn column, Offset offset)
+  {
+    if (column == null) {
+      return ColumnSelectors.DOUBLE_NULL;
+    }
+    if (column instanceof GenericColumn.DoubleType) {
+      return new DoubleColumnSelector.Scannable()
+      {
+        @Override
+        public void close() throws IOException
+        {
+          column.close();
+        }
+
+        @Override
+        public void scan(IntIterator iterator, DoubleScanner scanner)
+        {
+          ((GenericColumn.DoubleType) column).scan(iterator, scanner);
+        }
+
+        @Override
+        public Double get()
+        {
+          return column.getDouble(offset.getOffset());
+        }
+
+        @Override
+        public boolean getDouble(MutableDouble handover)
+        {
+          return column.getDouble(offset.getOffset(), handover);
+        }
+      };
+    }
+    return new DoubleColumnSelector.WithBaggage()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        column.close();
+      }
+
+      @Override
+      public Double get()
+      {
+        return column.getDouble(offset.getOffset());
+      }
+
+      @Override
+      public boolean getDouble(MutableDouble handover)
+      {
+        return column.getDouble(offset.getOffset(), handover);
+      }
+    };
+  }
+
+
+  public static FloatColumnSelector asFloat(GenericColumn column, Offset offset)
+  {
+    if (column == null) {
+      return ColumnSelectors.FLOAT_NULL;
+    }
+    if (column instanceof GenericColumn.FloatType) {
+      return new FloatColumnSelector.Scannable()
+      {
+        @Override
+        public void close() throws IOException
+        {
+          column.close();
+        }
+
+        @Override
+        public void scan(IntIterator iterator, FloatScanner scanner)
+        {
+          ((GenericColumn.FloatType) column).scan(iterator, scanner);
+        }
+
+        @Override
+        public Float get()
+        {
+          return column.getFloat(offset.getOffset());
+        }
+
+        @Override
+        public boolean getFloat(MutableFloat handover)
+        {
+          return column.getFloat(offset.getOffset(), handover);
+        }
+      };
+    }
+    return new FloatColumnSelector.WithBaggage()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        column.close();
+      }
+
+      @Override
+      public Float get()
+      {
+        return column.getFloat(offset.getOffset());
+      }
+
+      @Override
+      public boolean getFloat(MutableFloat handover)
+      {
+        return column.getFloat(offset.getOffset(), handover);
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asString(GenericColumn column, Offset offset)
+  {
+    if (column instanceof io.druid.common.Scannable) {
+      return new ObjectColumnSelector.Scannable<String>()
+      {
+        @Override
+        public ValueDesc type()
+        {
+          return ValueDesc.STRING;
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+          column.close();
+        }
+
+        @Override
+        public String get()
+        {
+          return column.getString(offset.getOffset());
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void scan(Tools.ObjectScanner<String> scanner)
+        {
+          ((io.druid.common.Scannable<String>) column).scan(scanner);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void scan(IntIterator iterator, Tools.ObjectScanner<String> scanner)
+        {
+          ((io.druid.common.Scannable<String>) column).scan(iterator, scanner);
+        }
+      };
+    }
+    return new ObjectColumnSelector.WithBaggage<String>()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.STRING;
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        column.close();
+      }
+
+      @Override
+      public String get()
+      {
+        return column.getString(offset.getOffset());
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asBoolean(GenericColumn column, Offset offset)
+  {
+    return new ObjectColumnSelector.WithBaggage<Boolean>()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.BOOLEAN;
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        column.close();
+      }
+
+      @Override
+      public Boolean get()
+      {
+        return column.getBoolean(offset.getOffset());
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asSelector(ComplexColumn column, Offset offset)
+  {
+    if (column instanceof ColumnAccess.WithRawAccess) {
+      return new ObjectColumnSelector.WithRawAccess<Object>()
+      {
+        private final ColumnAccess.WithRawAccess rawAccess = (ColumnAccess.WithRawAccess) column;
+
+        @Override
+        public ValueDesc type()
+        {
+          return column.getType();
+        }
+
+        @Override
+        public Object get()
+        {
+          return rawAccess.getValue(offset.getOffset());
+        }
+
+        @Override
+        public byte[] getAsRaw()
+        {
+          return rawAccess.getAsRaw(offset.getOffset());
+        }
+
+        @Override
+        public BufferRef getAsRef()
+        {
+          return rawAccess.getAsRef(offset.getOffset());
+        }
+
+        @Override
+        public <R> R apply(Tools.Function<R> function)
+        {
+          return rawAccess.apply(offset.getOffset(), function);
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+          rawAccess.close();
+        }
+      };
+    }
+    return new ObjectColumnSelector.WithBaggage()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        column.close();
+      }
+
+      @Override
+      public ValueDesc type()
+      {
+        return column.getType();
+      }
+
+      @Override
+      public Object get()
+      {
+        return column.getValue(offset.getOffset());
+      }
+    };
   }
 }

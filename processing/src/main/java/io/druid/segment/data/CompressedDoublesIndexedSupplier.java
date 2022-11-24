@@ -19,14 +19,12 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
-import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -36,13 +34,38 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Iterator;
 
 /**
  */
-public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles>, ColumnPartSerde.Serializer
+public class CompressedDoublesIndexedSupplier implements ColumnPartProvider<IndexedDoubles>, ColumnPartSerde.Serializer
 {
   public static final int MAX_DOUBLES_IN_BUFFER = CompressedPools.BUFFER_SIZE / Double.BYTES;
+
+  public static CompressedDoublesIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
+  {
+    final byte versionFromBuffer = buffer.get();
+    final int numRows = buffer.getInt();
+    final int sizePer = buffer.getInt();
+
+    final CompressionStrategy compression;
+    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+      compression = CompressedObjectStrategy.forId(buffer.get());
+    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
+      compression = CompressionStrategy.LZF;
+    } else {
+      throw new IAE("Unknown version[%s]", versionFromBuffer);
+    }
+
+    final CompressedDoubleBufferObjectStrategy strategy =
+        CompressedDoubleBufferObjectStrategy.getBufferForOrder(order, compression, sizePer);
+
+    return new CompressedDoublesIndexedSupplier(
+        numRows,
+        sizePer,
+        GenericIndexed.read(buffer, strategy),
+        compression
+    );
+  }
 
   private final int numRows;
   private final int sizePer;
@@ -62,11 +85,13 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     this.compression = compression;
   }
 
+  @Override
   public int numRows()
   {
     return numRows;
   }
 
+  @Override
   public CompressionStrategy compressionType()
   {
     return compression;
@@ -75,28 +100,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
   @Override
   public IndexedDoubles get()
   {
-    final int div = Integer.numberOfTrailingZeros(sizePer);
-    final int rem = sizePer - 1;
-    final boolean powerOf2 = sizePer == (1 << div);
-    if(powerOf2) {
-      return new CompressedIndexedDoubles() {
-        @Override
-        public double get(int index)
-        {
-          // optimize division and remainder for powers of 2
-          final int bufferNum = index >> div;
-
-          if (bufferNum != currIndex) {
-            loadBuffer(bufferNum);
-          }
-
-          final int bufferIndex = index & rem;
-          return buffer.get(bufferPos + bufferIndex);
-        }
-      };
-    } else {
-      return new CompressedIndexedDoubles();
-    }
+    return new CompressedIndexedDoubles();
   }
 
   @Override
@@ -115,117 +119,14 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     baseDoubleBuffers.writeToChannel(channel);
   }
 
-  public CompressedDoublesIndexedSupplier convertByteOrder(ByteOrder order)
-  {
-    return new CompressedDoublesIndexedSupplier(
-        numRows,
-        sizePer,
-        GenericIndexed.v2(baseDoubleBuffers, CompressedDoubleBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
-        compression
-    );
-  }
-
-  /**
-   * For testing. Do not depend on unless you like things breaking.
-   */
-  GenericIndexed<ResourceHolder<DoubleBuffer>> getBaseDoubleBuffers()
-  {
-    return baseDoubleBuffers;
-  }
-
-  public static CompressedDoublesIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
-  {
-    final byte versionFromBuffer = buffer.get();
-    final int totalSize = buffer.getInt();
-    final int sizePer = buffer.getInt();
-
-    final CompressionStrategy compression;
-    if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
-      compression = CompressedObjectStrategy.forId(buffer.get());
-    } else if (versionFromBuffer == ColumnPartSerde.LZF_FIXED) {
-      compression = CompressionStrategy.LZF;
-    } else {
-      throw new IAE("Unknown version[%s]", versionFromBuffer);
-    }
-
-    final CompressedDoubleBufferObjectStrategy strategy =
-        CompressedDoubleBufferObjectStrategy.getBufferForOrder(order, compression, sizePer);
-
-    return new CompressedDoublesIndexedSupplier(
-        totalSize,
-        sizePer,
-        GenericIndexed.read(buffer, strategy),
-        compression
-    );
-  }
-
-  public static CompressedDoublesIndexedSupplier fromDoubleBuffer(DoubleBuffer buffer, final ByteOrder order, CompressionStrategy compression)
-  {
-    return fromDoubleBuffer(buffer, MAX_DOUBLES_IN_BUFFER, order, compression);
-  }
-
-  public static CompressedDoublesIndexedSupplier fromDoubleBuffer(
-      final DoubleBuffer buffer, final int chunkFactor, final ByteOrder order, final CompressionStrategy compression
-  )
-  {
-    Preconditions.checkArgument(
-        chunkFactor <= MAX_DOUBLES_IN_BUFFER, "Chunks must be <= 64k bytes. chunkFactor was[%s]", chunkFactor
-    );
-
-    return new CompressedDoublesIndexedSupplier(
-        buffer.remaining(),
-        chunkFactor,
-        GenericIndexed.v2(
-            new Iterable<ResourceHolder<DoubleBuffer>>()
-            {
-              @Override
-              public Iterator<ResourceHolder<DoubleBuffer>> iterator()
-              {
-                return new Iterator<ResourceHolder<DoubleBuffer>>()
-                {
-                  final DoubleBuffer myBuffer = buffer.asReadOnlyBuffer();
-
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return myBuffer.hasRemaining();
-                  }
-
-                  @Override
-                  public ResourceHolder<DoubleBuffer> next()
-                  {
-                    final DoubleBuffer retVal = myBuffer.asReadOnlyBuffer();
-
-                    if (chunkFactor < myBuffer.remaining()) {
-                      retVal.limit(retVal.position() + chunkFactor);
-                    }
-                    myBuffer.position(myBuffer.position() + retVal.remaining());
-
-                    return StupidResourceHolder.create(retVal);
-                  }
-
-                  @Override
-                  public void remove()
-                  {
-                    throw new UnsupportedOperationException();
-                  }
-                };
-              }
-            },
-            CompressedDoubleBufferObjectStrategy.getBufferForOrder(order, compression, chunkFactor)
-        ),
-        compression
-    );
-  }
-
   private class CompressedIndexedDoubles implements IndexedDoubles
   {
-    final Indexed.Closeable<ResourceHolder<DoubleBuffer>> singleThreaded = baseDoubleBuffers.asSingleThreaded();
+    private final GenericIndexed<ResourceHolder<DoubleBuffer>> singleThreaded = baseDoubleBuffers.asSingleThreaded();
 
-    int currIndex = -1;
-    ResourceHolder<DoubleBuffer> holder;
-    DoubleBuffer buffer;
-    int bufferPos = -1;
+    private int currIndex = -1;
+    private ResourceHolder<DoubleBuffer> holder;
+    private DoubleBuffer buffer;
+    private int bufferPos = -1;
 
     @Override
     public int size()
@@ -266,10 +167,14 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
       return numToGet;
     }
 
-    protected void loadBuffer(int bufferNum)
+    private void loadBuffer(int bufferNum)
     {
-      CloseQuietly.close(holder);
-      holder = singleThreaded.get(bufferNum);
+      if (singleThreaded.isRecyclable()) {
+        holder = singleThreaded.get(bufferNum, holder);
+      } else {
+        CloseQuietly.close(holder);
+        holder = singleThreaded.get(bufferNum);
+      }
       buffer = holder.get();
       bufferPos = buffer.position();
       currIndex = bufferNum;
@@ -278,7 +183,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     @Override
     public String toString()
     {
-      return "CompressedDoublesIndexedSupplier{" +
+      return "CompressedIndexedDoubles{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreaded.size() +

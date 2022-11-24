@@ -29,6 +29,7 @@ import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
+import io.druid.segment.serde.ColumnPartSerde;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
@@ -42,9 +43,7 @@ import java.util.List;
 
 public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts>
 {
-  public static final byte VERSION = 0x2;
-
-  private final int totalSize;
+  private final int numRows;
   private final int sizePer;
   private final int numBytes;
   private final int bigEndianShift;
@@ -53,7 +52,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
   private final CompressionStrategy compression;
 
   CompressedVSizedIntSupplier(
-      int totalSize,
+      int numRows,
       int sizePer,
       int numBytes,
       GenericIndexed<ResourceHolder<ByteBuffer>> baseBuffers,
@@ -65,7 +64,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
         "Number of entries per chunk must be a power of 2"
     );
 
-    this.totalSize = totalSize;
+    this.numRows = numRows;
     this.sizePer = sizePer;
     this.baseBuffers = baseBuffers;
     this.compression = compression;
@@ -100,9 +99,16 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     return maxIntsInBufferForBytes(VSizedInt.getNumBytesForMax(maxValue));
   }
 
+  @Override
   public int numRows()
   {
-    return totalSize;
+    return numRows;
+  }
+
+  @Override
+  public CompressionStrategy compressionType()
+  {
+    return compression;
   }
 
   @Override
@@ -127,7 +133,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
   {
     return 1 +             // version
            1 +             // numBytes
-           Integer.BYTES + // totalSize
+           Integer.BYTES + // numRows
            Integer.BYTES + // sizePer
            1 +             // compression id
            baseBuffers.getSerializedSize(); // data
@@ -135,8 +141,8 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
 
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(totalSize)));
+    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID, (byte) numBytes}));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseBuffers.writeToChannel(channel);
@@ -153,19 +159,19 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
   public static CompressedVSizedIntSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
     final byte versionFromBuffer = buffer.get();
-    if (versionFromBuffer != VERSION) {
+    if (versionFromBuffer != ColumnPartSerde.WITH_COMPRESSION_ID) {
       throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
 
     final int numBytes = buffer.get();
-    final int totalSize = buffer.getInt();
+    final int numRows = buffer.getInt();
     final int sizePer = buffer.getInt();
     final int chunkBytes = sizePer * numBytes + bufferPadding(numBytes);
 
     final CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
 
     return new CompressedVSizedIntSupplier(
-        totalSize,
+        numRows,
         sizePer,
         numBytes,
         GenericIndexed.read(
@@ -352,7 +358,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     @Override
     public int size()
     {
-      return totalSize;
+      return numRows;
     }
 
     /**
@@ -388,7 +394,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
         loadBuffer(bufferNum);
       }
       final int offset = index & rem;
-      final int n = Math.min(totalSize - index, Math.min(sizePer - offset, convey.length));
+      final int n = Math.min(numRows - index, Math.min(sizePer - offset, convey.length));
       _get(offset, n, convey);
       return n;
     }
@@ -398,7 +404,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     {
       return new IntIterators.Abstract()
       {
-        private final int[] bulk = new int[Math.min(totalSize, 4096)];
+        private final int[] bulk = new int[Math.min(numRows, 4096)];
 
         private IntIterator iterator = IntIterators.EMPTY;
         private int index;
@@ -417,7 +423,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
         @Override
         public boolean hasNext()
         {
-          return index < totalSize || iterator.hasNext();
+          return index < numRows || iterator.hasNext();
         }
       };
     }
@@ -470,11 +476,11 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     @Override
     public String toString()
     {
-      return "CompressedVSizedIntsIndexedSupplier{" +
+      return "CompressedVSizeIndexedInts{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreaded.size() +
-             ", totalSize=" + totalSize +
+             ", numRows=" + numRows +
              '}';
     }
 
@@ -484,13 +490,5 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       Closeables.close(holder, false);
       Closeables.close(singleThreaded, false);
     }
-  }
-
-  public static void main(String[] args)
-  {
-    System.out.println(maxIntsInBufferForBytes(1));
-    System.out.println(maxIntsInBufferForBytes(2));
-    System.out.println(maxIntsInBufferForBytes(3));
-    System.out.println(maxIntsInBufferForBytes(4));
   }
 }
