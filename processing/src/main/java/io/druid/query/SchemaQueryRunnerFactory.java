@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.segment.Segment;
@@ -39,7 +39,7 @@ public class SchemaQueryRunnerFactory extends QueryRunnerFactory.Abstract<Schema
   }
 
   @Override
-  public QueryRunner<Schema> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Schema> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return new QueryRunner<Schema>()
     {

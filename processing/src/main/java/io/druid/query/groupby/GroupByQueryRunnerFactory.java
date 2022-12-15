@@ -26,7 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.CombiningSequence;
@@ -316,7 +316,7 @@ public class GroupByQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return (query, response) ->
     {

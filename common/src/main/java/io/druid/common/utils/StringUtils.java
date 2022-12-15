@@ -22,6 +22,7 @@ package io.druid.common.utils;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import io.druid.common.guava.BinaryRef;
 import io.druid.data.input.BytesOutputStream;
 
 import javax.annotation.Nullable;
@@ -85,6 +86,13 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     scratch.ensureCapacity(length);
     buffer.get(scratch.unwrap(), 0, length);
     return fromUtf8(scratch.unwrap(), 0, length);
+  }
+
+  public static String fromUtf8(BinaryRef ref, BytesOutputStream scratch)
+  {
+    scratch.clear();
+    scratch.ensureCapacity(ref.length());
+    return fromUtf8(ref.copyTo(scratch).unwrap(), 0, ref.length());
   }
 
   // should be used only for estimation

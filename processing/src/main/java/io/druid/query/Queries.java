@@ -30,7 +30,7 @@ import com.google.common.collect.Sets;
 import com.yahoo.sketches.quantiles.DictionarySketch;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -529,7 +529,7 @@ public class Queries
       int numSplits,
       String splitType,
       int maxThreshold,
-      Cache cache
+      SessionCache cache
   )
   {
     if (!Granularities.isAll(metaQuery.getGranularity())) {
@@ -587,7 +587,7 @@ public class Queries
     return histogram;
   }
 
-  public static ItemsSketch<String> makeColumnSketch(List<Segment> segments, HistogramQuery query, Cache cache)
+  public static ItemsSketch<String> makeColumnSketch(List<Segment> segments, HistogramQuery query, SessionCache cache)
   {
     ItemsUnion<String> union = null;
     for (Segment segment : segments) {
@@ -624,7 +624,7 @@ public class Queries
     return union == null ? null : DictionarySketch.getResult(union);
   }
 
-  private static Object[] makeColumnHistogramOn(Segment segment, TimeseriesQuery query, Cache cache)
+  private static Object[] makeColumnHistogramOn(Segment segment, TimeseriesQuery query, SessionCache cache)
   {
     TimeseriesQueryEngine engine = new TimeseriesQueryEngine();
     Row row = Sequences.only(engine.process(Segments.prepare(query, segment), segment, false, cache), null);

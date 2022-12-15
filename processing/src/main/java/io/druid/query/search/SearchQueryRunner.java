@@ -19,10 +19,9 @@
 
 package io.druid.query.search;
 
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.ISE;
-
-import io.druid.cache.Cache;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
@@ -36,9 +35,9 @@ import java.util.Map;
 public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
 {
   private final Segment segment;
-  private final Cache cache;
+  private final SessionCache cache;
 
-  public SearchQueryRunner(Segment segment, Cache cache)
+  public SearchQueryRunner(Segment segment, SessionCache cache)
   {
     this.segment = segment;
     this.cache = cache;

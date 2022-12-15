@@ -26,7 +26,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -71,7 +71,7 @@ public class StreamQueryEngine
       final QueryConfig config,
       final Segment segment,
       final Supplier optimizer,
-      final Cache cache
+      final SessionCache cache
   )
   {
     return QueryRunnerHelper.makeCursorBasedQueryConcat(

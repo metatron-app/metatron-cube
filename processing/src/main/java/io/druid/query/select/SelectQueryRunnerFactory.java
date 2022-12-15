@@ -23,7 +23,7 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
@@ -106,7 +106,7 @@ public class SelectQueryRunnerFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public QueryRunner<Result<SelectResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Result<SelectResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     if (optimizer == null || ((Set<String>) optimizer.get()).contains(segment.getIdentifier())) {
       return new SelectQueryRunner(engine, config, segment, cache);
@@ -119,9 +119,9 @@ public class SelectQueryRunnerFactory
     private final SelectQueryEngine engine;
     private final SelectQueryConfig config;
     private final Segment segment;
-    private final Cache cache;
+    private final SessionCache cache;
 
-    private SelectQueryRunner(SelectQueryEngine engine, SelectQueryConfig config, Segment segment, Cache cache)
+    private SelectQueryRunner(SelectQueryEngine engine, SelectQueryConfig config, Segment segment, SessionCache cache)
     {
       this.engine = engine;
       this.segment = segment;

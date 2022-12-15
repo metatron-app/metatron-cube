@@ -90,11 +90,8 @@ public class Sequences
       @Override
       public void cleanup(Iterator<T> iterator)
       {
-        try {
-          ((Closeable) iterator).close();
-        }
-        catch (Exception e) {
-          // ignore
+        if (iterator instanceof Closeable) {
+          IOUtils.closeQuietly((Closeable) iterator);
         }
       }
     });

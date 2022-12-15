@@ -24,7 +24,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.java.util.common.logger.Logger;
@@ -162,7 +162,7 @@ public class StreamQueryRunnerFactory
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       int splitRows,
-      Cache cache
+      SessionCache cache
   )
   {
     final DimFilter filter = query.getFilter();
@@ -193,7 +193,7 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return (query, response) -> engine.process((StreamQuery) query, config, segment, optimizer, cache);
   }

@@ -22,7 +22,7 @@ package io.druid.query;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.data.ValueDesc;
@@ -189,7 +189,7 @@ public class ColumnExpanderTest
         RowResolver resolver,
         Granularity granularity,
         boolean descending,
-        Cache cache
+        SessionCache cache
     )
     {
       return null;

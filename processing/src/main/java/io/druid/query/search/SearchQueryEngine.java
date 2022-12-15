@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -58,14 +58,14 @@ import java.util.Objects;
 public class SearchQueryEngine
 {
   private static final EmittingLogger log = new EmittingLogger(SearchQueryEngine.class);
-  private final Cache cache;
+  private final SessionCache cache;
 
   public SearchQueryEngine()
   {
     this(null);
   }
 
-  public SearchQueryEngine(Cache cache)
+  public SearchQueryEngine(SessionCache cache)
   {
     this.cache = cache;
   }

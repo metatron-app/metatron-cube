@@ -19,6 +19,7 @@
 
 package io.druid.segment.data;
 
+import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
@@ -54,6 +55,12 @@ public class ObjectStrategies
     }
 
     @Override
+    public String fromByteBuffer(BinaryRef ref)
+    {
+      return ref.toUTF8();
+    }
+
+    @Override
     public byte[] toBytes(String val)
     {
       return StringUtils.toUtf8WithNullToEmpty(val);
@@ -78,6 +85,12 @@ public class ObjectStrategies
           return numBytes > SCRATCH_LIMIT
                  ? StringUtils.fromUtf8(buffer, numBytes)
                  : StringUtils.fromUtf8(buffer, numBytes, scratch);
+        }
+
+        @Override
+        public String fromByteBuffer(BinaryRef ref)
+        {
+          return ref.length() > SCRATCH_LIMIT ? ref.toUTF8() : StringUtils.fromUtf8(ref, scratch);
         }
       };
     }

@@ -21,7 +21,7 @@ package io.druid.query.topn;
 
 import com.google.common.base.Function;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.Sequence;
 import io.druid.guice.annotations.Global;
@@ -58,7 +58,7 @@ public class TopNQueryEngine
     return query(query, segment, null);
   }
 
-  public Sequence<Result<TopNResultValue>> query(final TopNQuery query, final Segment segment, final Cache cache)
+  public Sequence<Result<TopNResultValue>> query(final TopNQuery query, final Segment segment, final SessionCache cache)
   {
     final StorageAdapter adapter = segment.asStorageAdapter(true);
     if (adapter == null) {

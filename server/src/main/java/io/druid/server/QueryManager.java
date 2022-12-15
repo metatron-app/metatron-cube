@@ -29,7 +29,6 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
 import io.druid.cache.SessionCache;
 import io.druid.common.DateTimes;
 import io.druid.common.Progressing;
@@ -176,7 +175,7 @@ public class QueryManager implements QueryWatcher, Runnable
   }
 
   @Override
-  public Cache getSessionCache(String queryId)
+  public SessionCache getSessionCache(String queryId)
   {
     if (queryId != null) {
       QueryStatus status = queries.get(queryId);
@@ -268,7 +267,7 @@ public class QueryManager implements QueryWatcher, Runnable
     private final long start = System.currentTimeMillis();
     private final Map<ListenableFuture, Timer> pendings = new IdentityHashMap<>();
     private final List<Closeable> resources = Lists.newArrayList();   // for cancel
-    private final Cache cache = new SessionCache();
+    private final SessionCache cache = new SessionCache();
 
     private volatile boolean canceled;
     private volatile long end = -1;

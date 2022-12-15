@@ -31,10 +31,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.collections.IntList;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.BinaryRef;
@@ -75,7 +74,6 @@ import io.druid.segment.DelegatedDimensionSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.bitmap.BitSetBitmapFactory;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.column.BitmapIndex;
@@ -103,7 +101,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -464,66 +461,23 @@ public class Filters
     return handler;
   }
 
-  private static final BitmapFactory[] BITMAP_FACTORIES = new BitmapFactory[]{
-      new BitSetBitmapFactory(), new ConciseBitmapFactory(), new RoaringBitmapFactory()
-  };
-
   public static FilterContext createFilterContext(
       final BitmapIndexSelector selector,
-      final Cache cache,
+      final SessionCache cache,
       final String segmentId
   )
   {
-    final byte bitmapCode = codeOfFactory(selector.getBitmapFactory());
-    if (cache == null || segmentId == null || bitmapCode >= BITMAP_FACTORIES.length) {
+    if (cache == null || segmentId == null) {
       return new FilterContext(selector);
     }
-    final byte[] namespace = StringUtils.toUtf8(segmentId);
     return new FilterContext(selector)
     {
       @Override
       public BitmapHolder createBitmap(Cacheable filter, Supplier<BitmapHolder> populator)
       {
-        final byte[] objKey = filter.getCacheKey();
-        if (objKey == null) {
-          return super.createBitmap(filter, populator);
-        }
-        final Cache.NamedKey key = new Cache.NamedKey(namespace, objKey);
-        final byte[] cached = cache.get(key);
-        if (cached != null) {
-          ByteBuffer wrapped = ByteBuffer.wrap(cached);
-          byte code = wrapped.get();
-          boolean exact = wrapped.get() != 0;
-          if (code == bitmapCode) {
-            return BitmapHolder.of(exact, factory.mapImmutableBitmap(wrapped));
-          }
-          MutableBitmap mutable = factory.makeEmptyMutableBitmap();
-          IntIterator iterators = BITMAP_FACTORIES[code].mapImmutableBitmap(wrapped).iterator();
-          while (iterators.hasNext()) {
-            mutable.add(iterators.next());
-          }
-          return BitmapHolder.of(exact, factory.makeImmutableBitmap(mutable));
-        }
-        final BitmapHolder holder = populator.get();
-        if (holder != null) {
-          byte exact = holder.exact() ? (byte) 0x01 : 0x00;
-          cache.put(key, StringUtils.concat(new byte[]{bitmapCode, exact}, holder.bitmap().toBytes()));
-        }
-        return holder;
+        return cache.get(segmentId, filter, populator);
       }
     };
-  }
-
-  private static byte codeOfFactory(BitmapFactory factory)
-  {
-    if (factory instanceof BitSetBitmapFactory) {
-      return 0x00;
-    } else if (factory instanceof ConciseBitmapFactory) {
-      return 0x01;
-    } else if (factory instanceof RoaringBitmapFactory) {
-      return 0x02;
-    }
-    return 0x7f;
   }
 
   public static BitmapHolder toBitmapHolder(DimFilter filter, FilterContext context)
@@ -927,7 +881,7 @@ public class Filters
 
       private BitmapHolder handleBiDimension(Expr expr, boolean withNot, FilterContext context)
       {
-        if (context.targetNumRows() << 2 < context.numRows()) {
+        if (context.targetNumRows() < (context.numRows() >> 3)) {
           return null;
         }
         BitmapIndexSelector selector = context.selector;
@@ -960,7 +914,8 @@ public class Filters
           final Stream<BinaryRef> stream = bitmaps[0].getDictionary().apply(
               (ix, buffer, offset, length) -> window.set(buffer, offset, length)
           );
-          final int[] indices = bitmaps[1].getDictionary().indexOfRaw(stream).map(op::ix).toArray();
+          final int ratio = bitmaps[0].getCardinality() / bitmaps[1].getCardinality();
+          final int[] indices = bitmaps[1].getDictionary().indexOfRaw(stream, ratio >= 8).map(op::ix).toArray();
 
           ImmutableBitmap bitmap;
           if (context.factory instanceof RoaringBitmapFactory) {

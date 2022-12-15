@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -61,7 +61,7 @@ public class ConfigQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<St
   }
 
   @Override
-  public QueryRunner<Map<String, Object>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Map<String, Object>> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return new QueryRunner<Map<String, Object>>()
     {

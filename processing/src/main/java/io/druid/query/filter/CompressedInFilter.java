@@ -155,7 +155,7 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
     return "CompressedInFilter{" +
            "dimension='" + dimension + '\'' +
            (extractionFn == null ? "" : ", extractionFn=" + extractionFn) +
-           ", sourceLen=" + values.length +
+           (values == null ? "" : ", sourceLen=" + values.length) +
            ", destLen=" + destLen +
            '}';
   }

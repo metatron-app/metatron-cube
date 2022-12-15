@@ -22,7 +22,7 @@ package io.druid.query.kmeans;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -75,7 +75,7 @@ public class FindNearestQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<CentroidDesc> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<CentroidDesc> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return new QueryRunner<CentroidDesc>()
     {

@@ -22,7 +22,7 @@ package io.druid.query;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -92,7 +92,7 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
   }
 
   @Override
-  public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return new QueryRunner<Object[]>()
     {
@@ -170,7 +170,7 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
     {
       for (int i = 0; i < array.length; i++) {
         DimensionSelector selector = selectors.get(i);
-        array[i] = selector.lookupName(selector.getRow().get(0));    // todo muti-value?
+        array[i] = selector.lookupName(selector.getRow().get(0));    // todo multi-value?
       }
     }
 

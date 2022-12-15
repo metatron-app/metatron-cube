@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
@@ -42,7 +42,7 @@ public class QueryRunnerHelper
   public static <T> Sequence<T> makeCursorBasedQuery(
       final CursorFactory factory,
       final Query<?> query,
-      final Cache cache,
+      final SessionCache cache,
       final Function<Cursor, T> mapFn
   )
   {
@@ -54,7 +54,7 @@ public class QueryRunnerHelper
   public static <T> Sequence<T> makeCursorBasedQueryConcat(
       final Segment segment,
       final Query<?> query,
-      final Cache cache,
+      final SessionCache cache,
       final Function<Cursor, Sequence<T>> mapFn
   )
   {

@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.filter.DimFilter;
@@ -35,7 +35,7 @@ import org.joda.time.Interval;
  */
 public class FilterMetaQueryEngine
 {
-  public static Sequence<long[]> process(final FilterMetaQuery query, final Segment segment, final Cache cache)
+  public static Sequence<long[]> process(final FilterMetaQuery query, final Segment segment, final SessionCache cache)
   {
     final DimFilter filter = query.getFilter();
     final Interval interval = Iterables.getOnlyElement(query.getIntervals(), null);

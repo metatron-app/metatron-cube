@@ -77,6 +77,11 @@ public interface Offset extends ReadableOffset
       this.offset = initial;
     }
 
+    public Offset unwrap()
+    {
+      return offset;
+    }
+
     public void reset()
     {
       this.offset = initial.clone();

@@ -21,7 +21,7 @@ package io.druid.query.datasourcemetadata;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.BaseSequence;
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.ISE;
@@ -52,7 +52,7 @@ public class DataSourceMetadataQueryRunnerFactory
 
   @Override
   public QueryRunner<Result<DataSourceMetadataResultValue>> _createRunner(
-      Segment segment, Supplier<Object> optimizer, Cache cache
+      Segment segment, Supplier<Object> optimizer, SessionCache cache
   )
   {
     return new DataSourceMetadataQueryRunner(segment);

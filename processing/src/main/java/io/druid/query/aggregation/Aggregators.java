@@ -38,6 +38,20 @@ import java.util.Map;
  */
 public class Aggregators
 {
+  public static boolean isCountAll(List<AggregatorFactory> factories)
+  {
+    return factories.size() == 1 && isCountAll(factories.get(0));
+  }
+
+  public static boolean isCountAll(AggregatorFactory factory)
+  {
+    if (factory instanceof CountAggregatorFactory) {
+      CountAggregatorFactory counter = (CountAggregatorFactory) factory;
+      return counter.getFieldName() == null && counter.getPredicate() == null;
+    }
+    return false;
+  }
+
   public static Aggregator[] makeAggregators(List<AggregatorFactory> factories, ColumnSelectorFactory factory)
   {
     return makeAggregators(factories, factory, false);

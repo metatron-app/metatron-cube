@@ -21,7 +21,7 @@ package io.druid.query.timeseries;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
@@ -55,7 +55,7 @@ public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Ro
   }
 
   @Override
-  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Row> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return new TimeseriesQueryRunner(segment, engine, config, cache);
   }
@@ -65,9 +65,9 @@ public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Ro
     private final Segment segment;
     private final TimeseriesQueryEngine engine;
     private final QueryConfig config;
-    private final Cache cache;
+    private final SessionCache cache;
 
-    private TimeseriesQueryRunner(Segment segment, TimeseriesQueryEngine engine, QueryConfig config, Cache cache)
+    private TimeseriesQueryRunner(Segment segment, TimeseriesQueryEngine engine, QueryConfig config, SessionCache cache)
     {
       this.engine = engine;
       this.segment = segment;

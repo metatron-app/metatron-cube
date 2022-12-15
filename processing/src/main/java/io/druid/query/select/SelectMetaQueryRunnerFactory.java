@@ -21,7 +21,7 @@ package io.druid.query.select;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -52,7 +52,7 @@ public class SelectMetaQueryRunnerFactory
 
   @Override
   public QueryRunner<Result<SelectMetaResultValue>> _createRunner(
-      Segment segment, Supplier<Object> optimizer, Cache cache
+      Segment segment, Supplier<Object> optimizer, SessionCache cache
   )
   {
     return new QueryRunner<Result<SelectMetaResultValue>>()

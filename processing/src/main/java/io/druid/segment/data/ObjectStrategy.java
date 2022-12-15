@@ -19,6 +19,8 @@
 
 package io.druid.segment.data;
 
+import io.druid.common.guava.BinaryRef;
+
 import java.nio.ByteBuffer;
 
 public interface ObjectStrategy<T>
@@ -28,6 +30,11 @@ public interface ObjectStrategy<T>
   default T fromByteBuffer(ByteBuffer buffer)
   {
     return fromByteBuffer(buffer, buffer.remaining());
+  }
+
+  default T fromByteBuffer(BinaryRef ref)
+  {
+    return fromByteBuffer(ref.toBuffer(), ref.length());
   }
 
   /**

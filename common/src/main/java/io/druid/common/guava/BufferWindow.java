@@ -20,6 +20,7 @@
 package io.druid.common.guava;
 
 import com.google.common.primitives.Ints;
+import io.druid.data.input.BytesOutputStream;
 
 import java.nio.ByteBuffer;
 
@@ -60,9 +61,21 @@ public class BufferWindow implements Comparable<BufferWindow>, BinaryRef
   @Override
   public byte[] toBytes()
   {
-    byte[] bytes = new byte[length];
-    toBuffer().get(bytes);
+    final byte[] bytes = new byte[length];
+    for (int i = 0; i < length; i++) {
+      bytes[i] = buffer.get(from + i);
+    }
     return bytes;
+  }
+
+  @Override
+  public BytesOutputStream copyTo(BytesOutputStream output)
+  {
+    output.ensureCapacity(length);
+    for (int i = 0; i < length; i++) {
+      output.write(buffer.get(from + i));
+    }
+    return output;
   }
 
   @Override

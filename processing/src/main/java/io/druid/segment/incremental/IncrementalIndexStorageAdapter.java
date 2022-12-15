@@ -24,7 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.collections.IntList;
 import io.druid.common.Intervals;
 import io.druid.common.guava.Sequence;
@@ -206,7 +206,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       final RowResolver resolver,
       final Granularity granularity,
       final boolean descending,
-      final Cache cache
+      final SessionCache cache
   )
   {
     if (index.isEmpty()) {

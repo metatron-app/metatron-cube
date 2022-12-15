@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.Intervals;
 import io.druid.common.guava.BufferRef;
 import io.druid.common.guava.IntPredicate;
@@ -175,7 +175,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       final RowResolver resolver,
       final Granularity granularity,
       final boolean descending,
-      final Cache cache
+      final SessionCache cache
   )
   {
     final Interval timeMinMax = index.getTimeMinMax();

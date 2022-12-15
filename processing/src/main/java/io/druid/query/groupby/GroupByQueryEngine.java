@@ -27,7 +27,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.collections.IntList;
 import io.druid.collections.StupidPool;
 import io.druid.common.IntTagged;
@@ -108,7 +108,7 @@ public class GroupByQueryEngine
       final QueryConfig config,
       final Segment segment,
       final boolean compact,
-      final Cache cache
+      final SessionCache cache
   )
   {
     Sequence<Object[]> sequence = QueryRunnerHelper.makeCursorBasedQueryConcat(

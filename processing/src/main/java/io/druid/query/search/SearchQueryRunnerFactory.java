@@ -21,7 +21,7 @@ package io.druid.query.search;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
@@ -41,7 +41,7 @@ public class SearchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result
   }
 
   @Override
-  public QueryRunner<Result<SearchResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Result<SearchResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return new SearchQueryRunner(segment, cache);
   }

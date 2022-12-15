@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -40,12 +40,12 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.QueryableIndex;
+import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
@@ -63,9 +63,9 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
   private static final Logger LOG = new Logger(SketchQueryRunner.class);
 
   private final Segment segment;
-  private final Cache cache;
+  private final SessionCache cache;
 
-  public SketchQueryRunner(Segment segment, Cache cache)
+  public SketchQueryRunner(Segment segment, SessionCache cache)
   {
     this.segment = segment;
     this.cache = cache;

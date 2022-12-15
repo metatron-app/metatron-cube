@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.segment.Segment;
 
 import java.util.List;
@@ -127,9 +128,9 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
     @Inject(optional = true)
     private Cache cache;
 
-    protected Cache cache(Query<?> query)
+    protected SessionCache cache(Query<?> query)
     {
-      return cache == null || cache == Cache.NULL ? queryWatcher.getSessionCache(query.getId()) : cache;
+      return queryWatcher.getSessionCache(query.getId()).wrap(cache);
     }
 
     protected Abstract(QueryToolChest<T, QueryType> toolChest, QueryWatcher queryWatcher)
@@ -161,6 +162,6 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
       return (query, response) -> _createRunner(segment, optimizer, cache(query)).run(query, response);
     }
 
-    protected abstract QueryRunner<T> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache);
+    protected abstract QueryRunner<T> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache);
   }
 }

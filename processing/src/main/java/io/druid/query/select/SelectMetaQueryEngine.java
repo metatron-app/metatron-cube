@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -48,7 +48,7 @@ public class SelectMetaQueryEngine
   public Sequence<Result<SelectMetaResultValue>> process(
       final SelectMetaQuery query,
       final Segment segment,
-      final Cache cache
+      final SessionCache cache
   )
   {
     final StorageAdapter adapter = segment.asStorageAdapter(false);

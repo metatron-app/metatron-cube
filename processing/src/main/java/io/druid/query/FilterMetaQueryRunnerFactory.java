@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.segment.Segment;
 
 /**
@@ -35,7 +35,7 @@ public class FilterMetaQueryRunnerFactory extends QueryRunnerFactory.Abstract<lo
   }
 
   @Override
-  public QueryRunner<long[]> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<long[]> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return (query, responseContext) -> FilterMetaQueryEngine.process((FilterMetaQuery) query, segment, cache);
   }

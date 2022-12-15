@@ -79,17 +79,17 @@ public interface Indexed<T> extends Iterable<T>
 
     default IntStream indexOf(List<T> values)
     {
-      return indexOf(values.stream()).filter(x -> x >= 0);
+      return indexOf(values.stream(), true).filter(x -> x >= 0);
     }
 
-    default IntStream indexOf(Stream<T> stream)
+    default IntStream indexOf(Stream<T> stream, boolean binary)
     {
-      return search(stream, (v, s) -> indexOf(v, s, size(), true));
+      return search(stream, (v, s) -> indexOf(v, s, size(), binary));
     }
 
-    default IntStream indexOfRaw(Stream<BinaryRef> stream)
+    default IntStream indexOfRaw(Stream<BinaryRef> stream, boolean binary)
     {
-      return search(stream, (v, s) -> indexOf(v, s, size(), true));
+      return search(stream, (v, s) -> indexOf(v, s, size(), binary));
     }
 
     int indexOf(BinaryRef bytes, int start, int end, boolean binary);

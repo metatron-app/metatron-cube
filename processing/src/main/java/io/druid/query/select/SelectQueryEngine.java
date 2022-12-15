@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.Sequence;
 import io.druid.query.QueryRunnerHelper;
@@ -62,7 +62,7 @@ public class SelectQueryEngine
       final SelectQuery query,
       final SelectQueryConfig config,
       final Segment segment,
-      final Cache cache
+      final SessionCache cache
   )
   {
     // at the point where this code is called, only one datasource should exist.

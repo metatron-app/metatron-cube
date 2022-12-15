@@ -20,6 +20,7 @@
 package io.druid.common.guava;
 
 import io.druid.common.utils.StringUtils;
+import io.druid.data.input.BytesOutputStream;
 
 import java.nio.ByteBuffer;
 
@@ -37,5 +38,12 @@ public interface BinaryRef
   {
     final byte[] bytes = toBytes();
     return StringUtils.toUTF8String(bytes, 0, bytes.length);
+  }
+
+  default BytesOutputStream copyTo(BytesOutputStream output)
+  {
+    final byte[] bytes = toBytes();
+    output.write(bytes);
+    return output;
   }
 }

@@ -547,6 +547,16 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
+  public IntStream indexOfRaw(Stream<BinaryRef> stream, boolean binary)
+  {
+    if (theStrategy instanceof ObjectStrategy.RawComparable) {
+      return Searchable.search(stream, (v, s) -> bufferIndexed._rawIndexOf(v, s, size, binary || s == 0));
+    } else {
+      return Searchable.search(stream, (v, s) -> bufferIndexed._indexOf(v, s, size, binary || s == 0));
+    }
+  }
+
+  @Override
   public Iterator<T> iterator()
   {
     return bufferIndexed.iterator();
@@ -939,6 +949,14 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @SuppressWarnings("unchecked")
     private int _indexOf(T value, int start, int end, boolean binary)
     {
+      final Comparator<T> comparator = (Comparator<T>) strategy;
+      return binary ? binarySearch(value, comparator, start, end) : linearSearch(value, comparator, start, end);
+    }
+
+    @SuppressWarnings("unchecked")
+    private int _indexOf(final BinaryRef target, final int start, final int end, boolean binary)
+    {
+      final T value = strategy.fromByteBuffer(target);
       final Comparator<T> comparator = (Comparator<T>) strategy;
       return binary ? binarySearch(value, comparator, start, end) : linearSearch(value, comparator, start, end);
     }

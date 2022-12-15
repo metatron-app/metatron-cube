@@ -21,7 +21,7 @@ package io.druid.query.topn;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.guice.annotations.Global;
@@ -70,7 +70,7 @@ public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<T
   }
 
   @Override
-  public QueryRunner<Result<TopNResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, Cache cache)
+  public QueryRunner<Result<TopNResultValue>> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)
   {
     return (query, response) -> queryEngine.query((TopNQuery) query, segment, cache);
   }

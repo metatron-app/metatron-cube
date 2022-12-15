@@ -20,7 +20,7 @@
 package io.druid.query;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.utils.StopWatch;
 
 import java.io.Closeable;
@@ -67,7 +67,7 @@ public interface QueryWatcher
 
   QueryConfig getQueryConfig();
 
-  Cache getSessionCache(String queryId);
+  SessionCache getSessionCache(String queryId);
 
   class Abstract implements QueryWatcher
   {
@@ -104,9 +104,9 @@ public interface QueryWatcher
     }
 
     @Override
-    public Cache getSessionCache(String queryId)
+    public SessionCache getSessionCache(String queryId)
     {
-      return null;
+      return new SessionCache();
     }
   }
 }

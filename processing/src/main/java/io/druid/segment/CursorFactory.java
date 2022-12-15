@@ -20,7 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.collect.Iterables;
-import io.druid.cache.Cache;
+import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -36,7 +36,7 @@ import java.util.Optional;
  */
 public interface CursorFactory extends SchemaProvider
 {
-  default Sequence<Cursor> makeCursors(Query<?> query, Cache cache)
+  default Sequence<Cursor> makeCursors(Query<?> query, SessionCache cache)
   {
     return makeCursors(
         BaseQuery.getDimFilter(query),
@@ -54,6 +54,6 @@ public interface CursorFactory extends SchemaProvider
       RowResolver resolver,
       Granularity granularity,
       boolean descending,
-      Cache cache
+      SessionCache cache
   );
 }
