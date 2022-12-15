@@ -183,6 +183,10 @@ public class QueryConfig
         query.getContextBoolean(Query.GBY_USE_BULK_ROW, groupBy.get().isUseBulkRow())) {
       return true;
     }
+    if (query instanceof DimensionSamplingQuery &&
+        query.getContextBoolean(Query.STREAM_USE_BULK_ROW, groupBy.get().isUseBulkRow())) {
+      return true;
+    }
     if (query instanceof StreamQuery &&
         query.getContextBoolean(Query.STREAM_USE_BULK_ROW, select.get().isUseBulkRow())) {
       return true;

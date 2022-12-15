@@ -21,16 +21,19 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.inject.Inject;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
+import io.druid.data.input.BulkRow;
+import io.druid.data.input.BulkSequence;
+
+import javax.annotation.Nullable;
+import java.util.function.ToIntFunction;
 
 /**
  *
  */
 public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[], DimensionSamplingQuery>
 {
-  public static final TypeReference<Object[]> TYPE_REFERENCE = new TypeReference<Object[]>()
-  {
-  };
-
   private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
@@ -52,8 +55,42 @@ public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[], Di
   }
 
   @Override
-  protected TypeReference<Object[]> getResultTypeReference(DimensionSamplingQuery query)
+  @SuppressWarnings("unchecked")
+  public TypeReference getResultTypeReference(@Nullable DimensionSamplingQuery query)
   {
-    return TYPE_REFERENCE;
+    if (query != null && query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      return BulkRow.TYPE_REFERENCE;
+    } else {
+      return ARRAY_TYPE_REFERENCE;
+    }
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public Sequence<Object[]> deserializeSequence(DimensionSamplingQuery query, Sequence sequence)
+  {
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> Sequences.once(bulk.decompose()));
+    }
+    return super.deserializeSequence(query, sequence);
+  }
+
+  @Override
+  public Sequence serializeSequence(DimensionSamplingQuery query, Sequence<Object[]> sequence, QuerySegmentWalker segmentWalker)
+  {
+    // see CCC.prepareQuery()
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      return BulkSequence.fromArray(sequence, Queries.relaySchema(query, segmentWalker), -1);
+    }
+    return super.serializeSequence(query, sequence, segmentWalker);
+  }
+
+  @Override
+  public ToIntFunction numRows(DimensionSamplingQuery query)
+  {
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      return v -> ((BulkRow) v).count();
+    }
+    return super.numRows(query);
   }
 }

@@ -39,7 +39,7 @@ import java.util.Map;
  *
  */
 @JsonTypeName(Query.DIMENSION_SAMPLING)
-public class DimensionSamplingQuery extends BaseQuery<Object[]>
+public class DimensionSamplingQuery extends BaseQuery<Object[]> implements Query.DimensionSupport<Object[]>
 {
   private final DimFilter filter;
   private final List<VirtualColumn> virtualColumns;
@@ -143,6 +143,48 @@ public class DimensionSamplingQuery extends BaseQuery<Object[]>
         dimensions,
         sampleRatio,
         getContext()
+    );
+  }
+
+  @Override
+  public DimensionSupport<Object[]> withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new DimensionSamplingQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        virtualColumns,
+        dimensions,
+        sampleRatio,
+        context
+    );
+  }
+
+  @Override
+  public DimensionSupport<Object[]> withFilter(DimFilter filter)
+  {
+    return new DimensionSamplingQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        virtualColumns,
+        dimensions,
+        sampleRatio,
+        context
+    );
+  }
+
+  @Override
+  public DimensionSupport<Object[]> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new DimensionSamplingQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        virtualColumns,
+        dimensions,
+        sampleRatio,
+        context
     );
   }
 

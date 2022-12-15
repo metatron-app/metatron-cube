@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -52,7 +51,7 @@ import io.druid.segment.VirtualColumn;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -258,7 +257,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static List<VirtualColumn> getVirtualColumns(Query query)
   {
-    return query instanceof VCSupport ? ((VCSupport<?>) query).getVirtualColumns() : ImmutableList.<VirtualColumn>of();
+    return query instanceof VCSupport ? ((VCSupport<?>) query).getVirtualColumns() : Collections.emptyList();
   }
 
   public static DimFilter getDimFilter(Query query)
@@ -268,24 +267,24 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static List<DimensionSpec> getDimensions(Query query)
   {
-    return query instanceof DimensionSupport ? ((DimensionSupport<?>) query).getDimensions() : Arrays.asList();
+    return query instanceof DimensionSupport ? ((DimensionSupport<?>) query).getDimensions() : Collections.emptyList();
   }
 
   public static List<String> getMetrics(Query query)
   {
-    return query instanceof MetricSupport ? ((MetricSupport<?>) query).getMetrics() : Arrays.asList();
+    return query instanceof MetricSupport ? ((MetricSupport<?>) query).getMetrics() : Collections.emptyList();
   }
 
   public static List<AggregatorFactory> getAggregators(Query query)
   {
     return query instanceof AggregationsSupport
-           ? ((AggregationsSupport<?>) query).getAggregatorSpecs() : Arrays.asList();
+           ? ((AggregationsSupport<?>) query).getAggregatorSpecs() : Collections.emptyList();
   }
 
   public static List<PostAggregator> getPostAggregators(Query query)
   {
     return query instanceof AggregationsSupport
-           ? ((AggregationsSupport<?>) query).getPostAggregatorSpecs() : Arrays.asList();
+           ? ((AggregationsSupport<?>) query).getPostAggregatorSpecs() : Collections.emptyList();
   }
 
   public static LimitSpec getLimitSpec(Query query)

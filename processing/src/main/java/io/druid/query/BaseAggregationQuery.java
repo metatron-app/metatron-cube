@@ -508,7 +508,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
         getVirtualColumns(),
         getDimensions(),
         sampleRatio,
-        copyContextForMeta(context)
+        copyContextForMeta(context, Query.USE_BULK_ROW, true)
     );
   }
 

@@ -213,7 +213,7 @@ public class DataSources
   {
     if (query instanceof Query.AggregationsSupport) {
       List<DimensionSpec> dimensions = BaseQuery.getDimensions(query);
-      if (!DimensionSpecs.isAllDefault(dimensions)) {
+      if (dimensions.isEmpty() || !DimensionSpecs.isAllDefault(dimensions)) {
         return null;
       }
       int[] indices = GuavaUtils.indexOf(DimensionSpecs.toOutputNames(dimensions), columns, true);
