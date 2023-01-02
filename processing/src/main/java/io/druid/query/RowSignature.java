@@ -253,6 +253,14 @@ public class RowSignature implements io.druid.data.RowSignature
     );
   }
 
+  public RowSignature append(List<String> names, List<ValueDesc> types)
+  {
+    return RowSignature.of(
+        GuavaUtils.concat(getColumnNames(), names),
+        GuavaUtils.concat(getColumnTypes(), types)
+    );
+  }
+
   public RowSignature relay(Query<?> query, boolean finalzed)
   {
     return Queries.relay(this, query, finalzed);

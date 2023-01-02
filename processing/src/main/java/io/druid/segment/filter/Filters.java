@@ -252,6 +252,9 @@ public class Filters
     // Check every value in the dimension, as a String.
     final int cardinality = selector.getValueCardinality();
     if (cardinality < 0) {
+      if (selector instanceof DimensionSelector.SingleValued) {
+        return () -> predicate.apply(selector.lookupName(selector.getRow().get(0)));
+      }
       return new ValueMatcher()
       {
         @Override
@@ -279,6 +282,9 @@ public class Filters
       if (predicate.apply(selector.lookupName(i))) {
         valueIds.set(i);
       }
+    }
+    if (selector instanceof DimensionSelector.SingleValued) {
+      return () -> valueIds.get(selector.getRow().get(0));
     }
     return new ValueMatcher()
     {
@@ -344,23 +350,21 @@ public class Filters
       final boolean allowNull
   )
   {
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        final IndexedInts row = selector.getRow();
-        final int length = row.size();
-        if (length == 0) {
-          return allowNull;
-        }
-        for (int i = 0; i < length; i++) {
-          if (predicate.apply(row.get(i))) {
-            return true;
-          }
-        }
-        return false;
+    if (selector instanceof DimensionSelector.SingleValued) {
+      return () -> predicate.apply(selector.getRow().get(0));
+    }
+    return () -> {
+      final IndexedInts row = selector.getRow();
+      final int length = row.size();
+      if (length == 0) {
+        return allowNull;
       }
+      for (int i = 0; i < length; i++) {
+        if (predicate.apply(row.get(i))) {
+          return true;
+        }
+      }
+      return false;
     };
   }
 

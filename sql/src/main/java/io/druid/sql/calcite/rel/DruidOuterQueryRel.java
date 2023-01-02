@@ -76,7 +76,7 @@ public class DruidOuterQueryRel extends DruidRel
         sourceRel.getTraitSet().plus(partialQuery.getCollation()),
         sourceRel,
         partialQuery,
-        sourceRel.getQueryMaker()
+        sourceRel.queryMaker
     );
   }
 
@@ -99,7 +99,7 @@ public class DruidOuterQueryRel extends DruidRel
         getTraitSet().plus(newQueryBuilder.getCollation()),
         sourceRel,
         newQueryBuilder,
-        getQueryMaker()
+        queryMaker
     );
   }
 
@@ -154,7 +154,7 @@ public class DruidOuterQueryRel extends DruidRel
         getTraitSet().plus(DruidConvention.instance()),
         RelOptRule.convert(sourceRel, DruidConvention.instance()),
         partialQuery,
-        getQueryMaker()
+        queryMaker
     );
   }
 
@@ -187,7 +187,7 @@ public class DruidOuterQueryRel extends DruidRel
         traitSet,
         Iterables.getOnlyElement(inputs),
         getPartialDruidQuery(),
-        getQueryMaker()
+        queryMaker
     );
   }
 

@@ -334,7 +334,7 @@ public class RegressionQuery extends BaseQuery<Object[]>
         QueryRunners.run(
             new StreamQuery(
                 getDataSource(), getQuerySegmentSpec(), isDescending(),
-                filter, Arrays.asList("__time", y), virtualColumns, null, null, null, null, context
+                filter, null, Arrays.asList("__time", y), virtualColumns, null, null, null, null, context
             ), segmentWalker),
         input -> {
           final Object[] row = Arrays.copyOf(input, input.length + 1);

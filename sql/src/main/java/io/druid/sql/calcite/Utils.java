@@ -49,6 +49,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -167,6 +168,21 @@ public class Utils
       }
     }
     return true;
+  }
+
+  public static IntList extractInputRef(List<RexNode> nodes)
+  {
+    final IntList indices = new IntList();
+    for (RexNode node : nodes) {
+      if (node.isA(SqlKind.INPUT_REF)) {
+        indices.add(((RexInputRef) node).getIndex());
+      } else if (node.isA(SqlKind.FIELD_ACCESS)) {
+        indices.add(((RexFieldAccess) node).getField().getIndex());
+      } else {
+        return null;
+      }
+    }
+    return indices;
   }
 
   public static IntList collectInputRefs(List<RexNode> nodes)

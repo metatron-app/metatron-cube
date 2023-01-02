@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.collections.IntList;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
@@ -80,9 +81,11 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -107,6 +110,9 @@ public class DruidBaseQuery implements DruidQuery
   private final DataSource dataSource;
   private final RowSignature sourceRowSignature;
   private final PlannerContext plannerContext;
+
+  @Nullable
+  private final TableExplode tableExplode;
 
   @Nullable
   private final Filtration filtration;
@@ -152,6 +158,10 @@ public class DruidBaseQuery implements DruidQuery
 
     // Now the fun begins.
     this.filtration = computeWhereFilter(partialQuery, plannerContext, inputRowSignature);
+    this.tableExplode = computeTableExplode(partialQuery, plannerContext, inputRowSignature);
+    if (tableExplode != null) {
+      inputRowSignature = tableExplode.getOutputRowSignature();
+    }
     this.selectProjection = computeSelectProjection(partialQuery, plannerContext, inputRowSignature);
     if (selectProjection != null) {
       inputRowSignature = selectProjection.getOutputRowSignature();
@@ -180,29 +190,49 @@ public class DruidBaseQuery implements DruidQuery
   }
 
   @Nullable
+  private static TableExplode computeTableExplode(
+      PartialDruidQuery partialQuery,
+      PlannerContext plannerContext,
+      RowSignature sourceRowSignature
+  )
+  {
+    PartialDruidQuery tableFunction = partialQuery.getTableFunction();
+    if (tableFunction == null) {
+      return null;
+    }
+    final TableFunctionScan tableScan = (TableFunctionScan) tableFunction.getScan();
+    final RexCall tableFn = (RexCall) tableScan.getCall();
+
+    final IntList inputRefs = Utils.extractInputRef(tableFn.operands);
+    if (inputRefs == null) {
+      throw new CannotBuildQueryException(tableScan, tableFn);
+    }
+    RowSignature appending = sourceRowSignature.subset(inputRefs);
+    Filtration filtration = toFiltration(plannerContext, appending, tableFunction.getScanFilter());
+    return new TableExplode(tableFn.op.getName(), appending.getColumnNames(), filtration, sourceRowSignature.append(appending));
+  }
+
+  @Nullable
   private static Filtration computeWhereFilter(
       final PartialDruidQuery partialQuery,
       final PlannerContext plannerContext,
       final RowSignature sourceRowSignature
   )
   {
-    final Filter whereFilter = partialQuery.getScanFilter();
+    return toFiltration(plannerContext, sourceRowSignature, partialQuery.getScanFilter());
+  }
 
-    if (whereFilter == null) {
+  private static Filtration toFiltration(PlannerContext plannerContext, RowSignature sourceRowSignature, Filter filter)
+  {
+    if (filter == null) {
       return Filtration.create(null);
     }
-
-    final RexNode condition = whereFilter.getCondition();
-    final DimFilter dimFilter = Expressions.toFilter(
-        plannerContext,
-        sourceRowSignature,
-        condition
-    );
+    final RexNode condition = filter.getCondition();
+    final DimFilter dimFilter = Expressions.toFilter(plannerContext, sourceRowSignature, condition);
     if (dimFilter == null) {
-      throw new CannotBuildQueryException(whereFilter, condition);
-    } else {
-      return Filtration.create(dimFilter).optimize(sourceRowSignature);
+      throw new CannotBuildQueryException(filter, condition);
     }
+    return Filtration.create(dimFilter).optimize(sourceRowSignature);
   }
 
   @Nullable
@@ -875,7 +905,7 @@ public class DruidBaseQuery implements DruidQuery
   @Nullable
   public TimeseriesQuery toTimeseriesQuery()
   {
-    if (grouping == null || grouping.getDimensions().size() > 1) {
+    if (grouping == null || grouping.getDimensions().size() > 1 || tableExplode != null) {
       return null;
     }
     boolean descending = false;
@@ -938,6 +968,9 @@ public class DruidBaseQuery implements DruidQuery
   @Nullable
   public TopNQuery toTopNQuery()
   {
+    if (tableExplode != null) {
+      return null;
+    }
     // Must have GROUP BY one column, ORDER BY zero or one column, limit less than maxTopNLimit, and no HAVING.
     final boolean topNOk = grouping != null
                            && grouping.getDimensions().size() == 1
@@ -1016,7 +1049,7 @@ public class DruidBaseQuery implements DruidQuery
   @Nullable
   public GroupByQuery toGroupByQuery()
   {
-    if (grouping == null) {
+    if (grouping == null || tableExplode != null) {
       return null;
     }
     Granularity granularity = null;
@@ -1092,6 +1125,7 @@ public class DruidBaseQuery implements DruidQuery
         filtration.getQuerySegmentSpec(),
         descending,
         filtration.getDimFilter(),
+        tableExplode == null ? null : tableExplode.asSpec(),
         ImmutableList.copyOf(rowOrder),
         selectProjection == null ? null : selectProjection.getVirtualColumns(),
         null,

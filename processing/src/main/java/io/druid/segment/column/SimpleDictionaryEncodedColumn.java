@@ -82,10 +82,13 @@ public class SimpleDictionaryEncodedColumn implements DictionaryEncodedColumn
     column.scan(iterator, scanner);
   }
 
+  private IndexedInts cached;
+  private int index = -1;
+
   @Override
   public IndexedInts getMultiValueRow(int rowNum)
   {
-    return multiValueColumn.get(rowNum);
+    return index == rowNum ? cached : (cached = multiValueColumn.get(index = rowNum));
   }
 
   @Override

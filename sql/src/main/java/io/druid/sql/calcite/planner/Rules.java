@@ -31,6 +31,7 @@ import io.druid.sql.calcite.rule.DruidJoinProjectRule;
 import io.druid.sql.calcite.rule.DruidProjectableTableScanRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
+import io.druid.sql.calcite.rule.DruidTableFunctionScanRule;
 import io.druid.sql.calcite.rule.DruidTableScanRule;
 import io.druid.sql.calcite.rule.DruidValuesRule;
 import io.druid.sql.calcite.rule.PreFilteringRule;
@@ -352,6 +353,7 @@ public class Rules
     rules.add(new DruidFilterableTableScanRule(queryMaker));
     rules.add(new DruidProjectableTableScanRule(queryMaker));
     rules.add(new DruidTableScanRule(queryMaker));
+    rules.add(new DruidTableFunctionScanRule(queryMaker));
     rules.add(new DruidValuesRule(queryMaker));
 
     rules.addAll(DruidRules.RULES);

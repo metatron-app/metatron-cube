@@ -51,6 +51,7 @@ import io.druid.query.search.search.SearchSortSpec;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
+import io.druid.query.select.TableFunctionSpec;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -801,6 +802,7 @@ public class Druids
     private Map<String, Object> context;
     private DimFilter dimFilter;
     private Granularity granularity;
+    private TableFunctionSpec tableFunction;
     private List<DimensionSpec> dimensions;
     private List<String> metrics;
     private List<String> columns;
@@ -841,6 +843,7 @@ public class Druids
           querySegmentSpec,
           descending,
           dimFilter,
+          tableFunction,
           columns,
           virtualColumns,
           orderingSpecs,

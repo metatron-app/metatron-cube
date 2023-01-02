@@ -76,10 +76,11 @@ public class StreamQuery extends BaseQuery<Object[]>
 {
   public static Query projection(DataSource dataSource, List<String> columns)
   {
-    return new StreamQuery(dataSource, null, false, null, columns, null, null, null, null, null, null);
+    return new StreamQuery(dataSource, null, false, null, null, columns, null, null, null, null, null, null);
   }
 
   private final DimFilter filter;
+  private final TableFunctionSpec tableFunction;
   private final List<String> columns;
   private final List<OrderByColumnSpec> orderingSpecs;
   private final List<VirtualColumn> virtualColumns;
@@ -92,6 +93,7 @@ public class StreamQuery extends BaseQuery<Object[]>
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("descending") boolean descending,
       @JsonProperty("filter") DimFilter filter,
+      @JsonProperty("tableFunction") TableFunctionSpec tableFunction,
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("orderingSpecs") List<OrderByColumnSpec> orderingSpecs,
@@ -103,6 +105,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   {
     super(dataSource, querySegmentSpec, descending, context);
     this.filter = filter;
+    this.tableFunction = tableFunction;
     this.columns = columns == null ? ImmutableList.<String>of() : columns;
     this.orderingSpecs = orderingSpecs == null ? ImmutableList.<OrderByColumnSpec>of() : orderingSpecs;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
@@ -137,6 +140,13 @@ public class StreamQuery extends BaseQuery<Object[]>
   public Granularity getGranularity()
   {
     return Granularities.ALL;
+  }
+
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public TableFunctionSpec getTableFunction()
+  {
+    return tableFunction;
   }
 
   @Override
@@ -228,6 +238,7 @@ public class StreamQuery extends BaseQuery<Object[]>
           getQuerySegmentSpec(),
           isDescending(),
           getFilter(),
+          getTableFunction(),
           getColumns(),
           getVirtualColumns(),
           first.getRequiredOrdering(),
@@ -242,6 +253,7 @@ public class StreamQuery extends BaseQuery<Object[]>
           getQuerySegmentSpec(),
           isDescending(),
           getFilter(),
+          getTableFunction(),
           getColumns(),
           getVirtualColumns(),
           limitSpec.getColumns(),
@@ -344,6 +356,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -362,6 +375,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -380,6 +394,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         spec,
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -398,6 +413,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -416,6 +432,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         filter,
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -434,6 +451,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         virtualColumns,
         getOrderingSpecs(),
@@ -452,6 +470,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         columns,
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -470,6 +489,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -488,6 +508,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -505,6 +526,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -523,6 +545,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getQuerySegmentSpec(),
         isDescending(),
         getFilter(),
+        getTableFunction(),
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
@@ -601,6 +624,9 @@ public class StreamQuery extends BaseQuery<Object[]>
     if (filter != null) {
       builder.append(", filter=").append(filter);
     }
+    if (tableFunction != null) {
+      builder.append(", tableFunction=").append(tableFunction);
+    }
     if (!GuavaUtils.isNullOrEmpty(columns)) {
       builder.append(", columns=").append(columns);
     }
@@ -645,6 +671,9 @@ public class StreamQuery extends BaseQuery<Object[]>
     if (!Objects.equals(filter, that.filter)) {
       return false;
     }
+    if (!Objects.equals(tableFunction, that.tableFunction)) {
+      return false;
+    }
     if (!Objects.equals(columns, that.columns)) {
       return false;
     }
@@ -672,9 +701,10 @@ public class StreamQuery extends BaseQuery<Object[]>
   {
     int result = super.hashCode();
     result = 31 * result + (filter != null ? filter.hashCode() : 0);
-    result = 31 * result + (columns != null ? columns.hashCode() : 0);
-    result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
-    result = 31 * result + (orderingSpecs != null ? orderingSpecs.hashCode() : 0);
+    result = 31 * result + (tableFunction != null ? tableFunction.hashCode() : 0);
+    result = 31 * result + (columns.isEmpty() ? columns.hashCode() : 0);
+    result = 31 * result + (virtualColumns.isEmpty() ? virtualColumns.hashCode() : 0);
+    result = 31 * result + (orderingSpecs.isEmpty() ? orderingSpecs.hashCode() : 0);
     result = 31 * result + (concatString != null ? concatString.hashCode() : 0);
     result = 31 * result + limitSpec.hashCode();
     result = 31 * result + Objects.hash(outputColumns);

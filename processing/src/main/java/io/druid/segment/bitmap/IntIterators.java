@@ -57,6 +57,11 @@ public final class IntIterators
     }
   };
 
+  public static IntIterator upto(int limit)
+  {
+    return limit == 0 ? EMPTY : new UpTo(limit);
+  }
+
   public static IntIterator from(int[] array)
   {
     return from(array, array.length);

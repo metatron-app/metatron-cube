@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.rule;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
@@ -57,12 +58,18 @@ public class DruidRules
       DruidRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
       DruidUnionRule.INSTANCE,
       DruidSortUnionRule.INSTANCE,
-      DruidJoinRule.instance()
+      DruidJoinRule.instance(),
+      DruidCorrelateRule.instance()
   );
 
   static RelOptRuleOperand anyDruid()
   {
     return DruidRel.of(DruidRel.class, druidRel -> true);
+  }
+
+  static RelOptRuleOperand druid(Predicate<PartialDruidQuery> predicate)
+  {
+    return DruidRel.of(DruidRel.class, druidRel -> predicate.apply(druidRel.getPartialDruidQuery()));
   }
 
   private DruidRules()
@@ -136,14 +143,13 @@ public class DruidRules
     {
       final Union unionRel = call.rel(0);
       final DruidRel someDruidRel = call.rel(1);
-      final List<RelNode> inputs = unionRel.getInputs();
 
       if (unionRel.all) {
         // Can only do UNION ALL.
         call.transformTo(DruidUnionRel.create(
             someDruidRel.getQueryMaker(),
             unionRel.getRowType(),
-            inputs,
+            unionRel.getInputs(),
             -1
         ));
       }

@@ -423,6 +423,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
         getQuerySegmentSpec(),
         false,
         filter,
+        null,
         columns,
         virtualColumns,
         orderings,

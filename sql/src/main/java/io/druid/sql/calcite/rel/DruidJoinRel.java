@@ -68,7 +68,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
         joinInfo.leftKeys,
         joinInfo.rightKeys,
         null,
-        left.getQueryMaker()
+        left.queryMaker
     );
   }
 
@@ -112,7 +112,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
         leftExpressions,
         rightExpressions,
         outputColumns,
-        getQueryMaker()
+        queryMaker
     );
   }
 
@@ -226,7 +226,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
         leftExpressions,
         rightExpressions,
         outputColumns,
-        getQueryMaker()
+        queryMaker
     );
   }
 
@@ -296,7 +296,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
         leftExpressions,
         rightExpressions,
         outputColumns,
-        getQueryMaker()
+        queryMaker
     );
   }
 

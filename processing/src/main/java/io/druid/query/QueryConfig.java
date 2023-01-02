@@ -194,6 +194,12 @@ public class QueryConfig
     return false;
   }
 
+  public boolean useUTF8(StreamQuery query)
+  {
+    return !BaseQuery.isLocalFinalizingQuery(query) &&
+           query.getContextBoolean(Query.STREAM_USE_RAW_UTF8, select.get().isUseRawUTF8());
+  }
+
   public boolean isUseCuboids()
   {
     return useCuboids;

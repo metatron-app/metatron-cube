@@ -167,7 +167,7 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
     return new DruidUnionRel(
         getCluster(),
         getTraitSet().replace(DruidConvention.instance()),
-        getQueryMaker(),
+        queryMaker,
         rowType,
         rels.stream().map(rel -> RelOptRule.convert(rel, DruidConvention.instance())).collect(Collectors.toList()),
         limit
@@ -200,7 +200,7 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
     return new DruidUnionRel(
         getCluster(),
         traitSet,
-        getQueryMaker(),
+        queryMaker,
         rowType,
         inputs,
         limit

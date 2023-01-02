@@ -475,6 +475,15 @@ public class ValueDesc implements Serializable, Cacheable
 
   public ValueDesc subElement(ValueDesc defaultType)
   {
+    if (this == DIM_STRING || this == MV_STRING || this == STRING_ARRAY) {
+      return ValueDesc.STRING;
+    } else if (this == FLOAT_ARRAY) {
+      return ValueDesc.FLOAT;
+    } else if (this == DOUBLE_ARRAY) {
+      return ValueDesc.DOUBLE;
+    } else if (this == LONG_ARRAY) {
+      return ValueDesc.LONG;
+    }
     int index = typeName.indexOf('.');
     if (index > 0) {
       return ValueDesc.of(typeName.substring(index + 1));

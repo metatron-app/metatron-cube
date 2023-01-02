@@ -83,7 +83,7 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
         queryOp,
         boundaryOp,
         flip,
-        query.getQueryMaker()
+        query.queryMaker
     );
   }
 
@@ -215,7 +215,7 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
         queryOp,
         boundaryOp,
         flip,
-        getQueryMaker()
+        queryMaker
     );
   }
 
@@ -271,7 +271,7 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
         queryOp,
         boundaryOp,
         flip,
-        getQueryMaker()
+        queryMaker
     );
   }
 

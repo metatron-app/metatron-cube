@@ -783,6 +783,17 @@ public class GuavaUtils
     return peekingIterator;
   }
 
+  @SafeVarargs
+  public static <T> T nvl(T... values)
+  {
+    for (T v : values) {
+      if (v != null) {
+        return v;
+      }
+    }
+    return null;
+  }
+
   public static <F, T> Iterator<T> map(final Iterator<F> iterator, final Function<F, T> function)
   {
     Iterator<T> mapped = Iterators.transform(iterator, function);

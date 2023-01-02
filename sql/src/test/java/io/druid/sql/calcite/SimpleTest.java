@@ -525,4 +525,75 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{4L, null, 5L, null, 3L, null}
     );
   }
+
+  @Test
+  public void test4157() throws Exception
+  {
+    String query = "SELECT age_group, _d0 FROM %s, LATERAL TABLE(explode(bks_event_d0)) AS t(_d0)";
+    Object[][] expected = {
+        {"10", "T114"}, {"10", "APP"}, {"10", "T114"}, {"10", "APP"},
+        {"", "T114"}, {"", "APP"}, {"", "T114"}, {"", "APP"}
+    };
+    testQuery(
+        String.format(query, "cdis"),
+        "DruidCorrelateRel(correlation=[$cor0], scanProject=[$1, $6])\n"
+        + "  DruidQueryRel(table=[druid.cdis])\n"
+        + "  DruidTableFunctionScanRel(invocation=[EXPLODE($cor0.bks_event_d0)])\n",
+        expected
+    );
+    testQuery(String.format(query, "cdis_i"), expected);
+
+    query = "SELECT age_group, _d0, _d1 FROM %s, LATERAL TABLE(explode(bks_event_d0, bks_event_d1)) AS t(_d0, _d1)";
+    expected = new Object[][] {
+        {"10", "T114", "금융"}, {"10", "APP", "IT"}, {"10", "T114", "음식"}, {"10", "APP", "생활"},
+        {"", "T114", "금융"}, {"", "APP", "IT"}, {"", "T114", "음식"}, {"", "APP", "생활"}
+    };
+    testQuery(
+        String.format(query, "cdis"),
+        "DruidCorrelateRel(correlation=[$cor0], scanProject=[$1, $6, $7])\n"
+        + "  DruidQueryRel(table=[druid.cdis])\n"
+        + "  DruidTableFunctionScanRel(invocation=[EXPLODE($cor0.bks_event_d0, $cor0.bks_event_d1)])\n",
+        expected
+    );
+    testQuery(String.format(query, "cdis_i"), expected);
+
+    query = "SELECT age_group, _d0, _d1 FROM %s, LATERAL TABLE(explode(bks_event_d0, bks_event_d1)) AS t(_d0, _d1) WHERE age_group = 10";
+    expected = new Object[][] {
+        {"10", "T114", "금융"}, {"10", "APP", "IT"}, {"10", "T114", "음식"}, {"10", "APP", "생활"}
+    };
+    testQuery(
+        String.format(query, "cdis"),
+        "DruidCorrelateRel(correlation=[$cor0], scanProject=[$1, $6, $7])\n"
+        + "  DruidQueryRel(table=[druid.cdis], scanFilter=[=($1, 10)])\n"
+        + "  DruidTableFunctionScanRel(invocation=[EXPLODE($cor0.bks_event_d0, $cor0.bks_event_d1)])\n",
+        expected
+    );
+    testQuery(String.format(query, "cdis_i"), expected);
+
+    query = "SELECT age_group, _d0 FROM %s, LATERAL TABLE(explode(bks_event_d0, bks_event_d1)) AS t(_d0, _d1) WHERE _d0 = 'T114'";
+    expected = new Object[][] {
+        {"10", "T114"}, {"10", "T114"}, {"", "T114"}, {"", "T114"}
+    };
+    testQuery(
+        String.format(query, "cdis"),
+        "DruidCorrelateRel(correlation=[$cor0], scanProject=[$1, $6])\n"
+        + "  DruidQueryRel(table=[druid.cdis])\n"
+        + "  DruidTableFunctionScanRel(invocation=[EXPLODE($cor0.bks_event_d0, $cor0.bks_event_d1)], scanFilter=[=($0, 'T114')])\n",
+        expected
+    );
+    testQuery(String.format(query, "cdis_i"), expected);
+
+    query = "SELECT age_group, _d0, _d1, _d2 FROM %s, LATERAL TABLE(explode(bks_event_d0, bks_event_d1, bks_event_d2)) AS t(_d0, _d1, _d2) WHERE age_group = 10 AND _d0 = 'T114'";
+    expected = new Object[][] {
+        {"10", "T114", "금융", "신용카드사"}, {"10", "T114", "음식", "치킨"}
+    };
+    testQuery(
+        String.format(query, "cdis"),
+        "DruidCorrelateRel(correlation=[$cor0], scanProject=[$1, $6, $7, $8])\n"
+        + "  DruidQueryRel(table=[druid.cdis], scanFilter=[=($1, 10)])\n"
+        + "  DruidTableFunctionScanRel(invocation=[EXPLODE($cor0.bks_event_d0, $cor0.bks_event_d1, $cor0.bks_event_d2)], scanFilter=[=($0, 'T114')])\n",
+        expected
+    );
+    testQuery(String.format(query, "cdis_i"), expected);
+  }
 }

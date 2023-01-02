@@ -32,8 +32,6 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.BaseQuery;
-import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -44,6 +42,7 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
+import io.druid.segment.Cursors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
@@ -90,15 +89,18 @@ public class StreamQueryEngine
   {
     return new Function<Cursor, Sequence<Object[]>>()
     {
+      private final TableFunctionSpec tableFunction = query.getTableFunction();
       private final List<OrderByColumnSpec> orderings = query.getOrderingSpecs();
-      private final boolean useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
-                                         query.getContextBoolean(Query.STREAM_USE_RAW_UTF8, config.getSelect().isUseRawUTF8());
       private final String[] columns = query.getColumns().toArray(new String[0]);
+
+      private final boolean useRawUTF8 = config.useUTF8(query);
       private final String concatString = query.getConcatString();
 
       @Override
-      public Sequence<Object[]> apply(final Cursor cursor)
+      public Sequence<Object[]> apply(Cursor source)
       {
+        final Cursor cursor = Cursors.explode(source, tableFunction);
+
         final int size = cursor.size();
         final List<String> orderingColumns = Lists.newArrayList(Iterables.transform(orderings, o -> o.getDimension()));
 
@@ -201,35 +203,28 @@ public class StreamQueryEngine
         }
 
         final int limit = orderings.isEmpty() ? query.getSimpleLimit() : -1;
-        Sequence<Object[]> sequence = Sequences.simple(
+        Sequence<Object[]> sequence = Sequences.once(
             query.getColumns(),
-            new Iterable<Object[]>()
+            new Iterator<Object[]>()
             {
               @Override
-              public Iterator<Object[]> iterator()
+              public boolean hasNext()
               {
-                return new Iterator<Object[]>()
-                {
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return !cursor.isDone() && (limit <= 0 || counter.intValue() < limit);
-                  }
+                return !cursor.isDone() && (limit <= 0 || counter.intValue() < limit);
+              }
 
-                  @Override
-                  public Object[] next()
-                  {
-                    final Object[] theEvent = new Object[selectors.length];
+              @Override
+              public Object[] next()
+              {
+                final Object[] theEvent = new Object[selectors.length];
 
-                    int index = 0;
-                    for (ObjectColumnSelector selector : selectors) {
-                      theEvent[index++] = selector == null ? null : selector.get();
-                    }
-                    counter.increment();
-                    cursor.advance();
-                    return theEvent;
-                  }
-                };
+                int index = 0;
+                for (ObjectColumnSelector selector : selectors) {
+                  theEvent[index++] = selector == null ? null : selector.get();
+                }
+                counter.increment();
+                cursor.advance();
+                return theEvent;
               }
             }
         );

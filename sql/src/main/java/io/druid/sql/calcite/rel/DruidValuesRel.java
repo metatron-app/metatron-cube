@@ -165,7 +165,7 @@ public class DruidValuesRel extends DruidRel
         leaf,
         values,
         tableName,
-        getQueryMaker()
+        queryMaker
     );
   }
 

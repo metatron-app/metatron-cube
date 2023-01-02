@@ -68,6 +68,8 @@ public class PartialDruidQuery
   private static final Logger LOG = new Logger(PartialDruidQuery.class);
 
   private final RelNode scan;
+  private final PartialDruidQuery tableFunction;
+
   private final Filter scanFilter;
   private final Project scanProject;
 
@@ -175,6 +177,7 @@ public class PartialDruidQuery
 
   public PartialDruidQuery(
       final RelNode scan,
+      final PartialDruidQuery tableFunction,
       final Filter scanFilter,
       final Project scanProject,
       final Aggregate aggregate,
@@ -187,6 +190,7 @@ public class PartialDruidQuery
   )
   {
     this.scan = Preconditions.checkNotNull(scan, "scan");
+    this.tableFunction = tableFunction;
     this.scanFilter = scanFilter;
     this.scanProject = scanProject;
     this.aggregate = aggregate;
@@ -200,13 +204,14 @@ public class PartialDruidQuery
 
   public static PartialDruidQuery create(RelNode scanRel, PlannerContext context)
   {
-    return new PartialDruidQuery(scanRel, null, null, null, null, null, null, null, null, context);
+    return new PartialDruidQuery(scanRel, null, null, null, null, null, null, null, null, null, context);
   }
 
   public static PartialDruidQuery create(DruidRel inner)
   {
     return new PartialDruidQuery(
         inner.getLeafRel(),
+        null,
         null,
         null,
         null,
@@ -222,6 +227,11 @@ public class PartialDruidQuery
   public RelNode getScan()
   {
     return scan;
+  }
+
+  public PartialDruidQuery getTableFunction()
+  {
+    return tableFunction;
   }
 
   public Filter getScanFilter()
@@ -269,7 +279,12 @@ public class PartialDruidQuery
     return scanFilter == null && scanProject == null && stage() == Stage.SELECT;
   }
 
-  public boolean isProjectOnly()
+  public boolean isFilterScan()
+  {
+    return scanProject == null && stage() == Stage.SELECT;
+  }
+
+  public boolean isProjectScan()
   {
     return scanFilter == null && stage() == Stage.SELECT;
   }
@@ -287,12 +302,70 @@ public class PartialDruidQuery
     );
   }
 
+  public PartialDruidQuery withScan(RelNode scan)
+  {
+    return new PartialDruidQuery(
+        scan,
+        tableFunction,
+        scanFilter,
+        scanProject,
+        aggregate,
+        aggregateFilter,
+        aggregateProject,
+        window,
+        sort,
+        sortProject,
+        context
+    );
+  }
+
+  public PartialDruidQuery withTableFunction(PartialDruidQuery tableFunction)
+  {
+    return new PartialDruidQuery(
+        scan,
+        tableFunction,
+        scanFilter,
+        scanProject,
+        aggregate,
+        aggregateFilter,
+        aggregateProject,
+        window,
+        sort,
+        sortProject,
+        context
+    );
+  }
+
+  public PartialDruidQuery mergeScanFilter(Filter filter)
+  {
+    RelBuilder relBuilder = relBuilder().push(scan);
+    if (scanFilter == null) {
+      relBuilder.filter(filter.getCondition());
+    } else {
+      relBuilder.filter(scanFilter.getCondition(), filter.getCondition());
+    }
+    return new PartialDruidQuery(
+        scan,
+        tableFunction,
+        (Filter) relBuilder.build(),
+        scanProject,
+        aggregate,
+        aggregateFilter,
+        aggregateProject,
+        window,
+        sort,
+        sortProject,
+        context
+    );
+  }
+
   public PartialDruidQuery withFilter(final Filter newFilter)
   {
     switch (stage()) {
       case SELECT:
         return new PartialDruidQuery(
             scan,
+            tableFunction,
             mergeFilter(newFilter, scanFilter, scanProject),
             scanProject,
             aggregate,
@@ -306,6 +379,7 @@ public class PartialDruidQuery
       case AGGREGATE:
         return new PartialDruidQuery(
             scan,
+            tableFunction,
             scanFilter,
             scanProject,
             aggregate,
@@ -349,6 +423,7 @@ public class PartialDruidQuery
       case SELECT:
         return new PartialDruidQuery(
             scan,
+            tableFunction,
             scanFilter,
             mergeProject(newProject, scanProject),
             aggregate,
@@ -362,6 +437,7 @@ public class PartialDruidQuery
       case AGGREGATE:
         return new PartialDruidQuery(
             scan,
+            tableFunction,
             scanFilter,
             scanProject,
             aggregate,
@@ -382,6 +458,7 @@ public class PartialDruidQuery
       case AGGREGATE_SORT:
         return new PartialDruidQuery(
             scan,
+            tableFunction,
             scanFilter,
             scanProject,
             aggregate,
@@ -424,6 +501,7 @@ public class PartialDruidQuery
   {
     return new PartialDruidQuery(
         source,
+        tableFunction,
         scanFilter,
         scanProject,
         aggregate,
@@ -449,6 +527,7 @@ public class PartialDruidQuery
       case SELECT:
         return new PartialDruidQuery(
             scan,
+            tableFunction,
             scanFilter,
             scanProject,
             newAggregate,
@@ -471,6 +550,7 @@ public class PartialDruidQuery
       case AGGREGATE:
         return new PartialDruidQuery(
             scan,
+            tableFunction,
             scanFilter,
             scanProject,
             aggregate,
@@ -498,6 +578,7 @@ public class PartialDruidQuery
       case AGGREGATE_WINDOW:
         return new PartialDruidQuery(
             scan,
+            tableFunction,
             scanFilter,
             scanProject,
             aggregate,
@@ -521,6 +602,7 @@ public class PartialDruidQuery
     // todo: try simplify rex
     return new PartialDruidQuery(
         scan,
+        tableFunction == null ? null : tableFunction.rewrite(shuttle),
         Utils.apply(scanFilter, shuttle),
         Utils.apply(scanProject, shuttle),
         Utils.apply(aggregate, shuttle),

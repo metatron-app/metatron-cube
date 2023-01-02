@@ -37,7 +37,6 @@ import io.druid.query.DummyQuery;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;

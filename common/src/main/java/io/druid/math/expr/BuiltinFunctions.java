@@ -73,6 +73,7 @@ import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  */
@@ -2160,6 +2161,27 @@ public interface BuiltinFunctions extends Function.Library
           String[] split = input.split(splitter);
           return index >= split.length ? null : split[index];
         }
+      };
+    }
+  }
+
+  @Function.Named("explode")
+  final class Explode extends NamedFactory
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      String[] names = IntStream.range(0, args.size()).mapToObj(x -> "e" + x).toArray(s -> new String[s]);
+      ValueDesc[] types = args.stream().map(e -> e.returns().subElement(ValueDesc.STRING)).toArray(s -> new ValueDesc[s]);
+      return new Function()
+      {
+        private final ValueDesc struct = ValueDesc.ofStruct(names, types);
+
+        @Override
+        public ValueDesc returns() {return struct;}
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings) {return null;}
       };
     }
   }

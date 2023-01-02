@@ -23,6 +23,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.collections.IntList;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
@@ -104,6 +106,11 @@ public class RowSignature extends io.druid.query.RowSignature
 
   public RowSignature subset(ImmutableIntList indices)
   {
+    return subset(IntList.of(indices.toIntArray()));
+  }
+
+  public RowSignature subset(IntList indices)
+  {
     List<String> newColumnNames = Lists.newArrayList();
     List<ValueDesc> newColumnTypes = Lists.newArrayList();
     for (int i = 0; i < indices.size(); i++) {
@@ -112,6 +119,29 @@ public class RowSignature extends io.druid.query.RowSignature
       newColumnTypes.add(columnTypes.get(index));
     }
     return new RowSignature(newColumnNames, newColumnTypes);
+  }
+
+  @Override
+  public RowSignature append(String name, ValueDesc type)
+  {
+    return new RowSignature(
+        GuavaUtils.concat(getColumnNames(), name),
+        GuavaUtils.concat(getColumnTypes(), type)
+    );
+  }
+
+  @Override
+  public RowSignature append(List<String> names, List<ValueDesc> types)
+  {
+    return new RowSignature(
+        GuavaUtils.concat(getColumnNames(), names),
+        GuavaUtils.concat(getColumnTypes(), types)
+    );
+  }
+
+  public RowSignature append(RowSignature signature)
+  {
+    return append(signature.getColumnNames(), signature.getColumnTypes());
   }
 
   public static Builder builder()

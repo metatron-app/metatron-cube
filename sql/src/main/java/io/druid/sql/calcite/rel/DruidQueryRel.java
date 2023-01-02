@@ -52,8 +52,8 @@ public class DruidQueryRel extends DruidRel
       final RelTraitSet traitSet,
       final RelOptTable table,
       final DruidTable druidTable,
-      final QueryMaker queryMaker,
-      final PartialDruidQuery partialQuery
+      final PartialDruidQuery partialQuery,
+      final QueryMaker queryMaker
   )
   {
     super(cluster, traitSet, queryMaker);
@@ -77,8 +77,8 @@ public class DruidQueryRel extends DruidRel
         scanRel.getCluster().traitSetOf(Convention.NONE),
         table,
         druidTable,
-        queryMaker,
-        PartialDruidQuery.create(scanRel, queryMaker.getPlannerContext())
+        PartialDruidQuery.create(scanRel, queryMaker.getPlannerContext()),
+        queryMaker
     );
   }
 
@@ -103,8 +103,8 @@ public class DruidQueryRel extends DruidRel
         getTraitSet().replace(DruidConvention.instance()),
         table,
         druidTable,
-        getQueryMaker(),
-        partialQuery
+        partialQuery,
+        queryMaker
     );
   }
 
@@ -128,8 +128,8 @@ public class DruidQueryRel extends DruidRel
         getTraitSet().plus(newQueryBuilder.getCollation()),
         table,
         druidTable,
-        getQueryMaker(),
-        newQueryBuilder
+        newQueryBuilder,
+        queryMaker
     );
   }
 
