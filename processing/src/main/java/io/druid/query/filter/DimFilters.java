@@ -305,7 +305,7 @@ public class DimFilters
   // called for non-historical nodes (see QueryResource.prepareQuery)
   public static DimFilter rewrite(DimFilter filter, Expressions.Rewriter<DimFilter> visitor)
   {
-    return Expressions.rewrite(filter, FACTORY, visitor);
+    return filter == null ? null : Expressions.rewrite(filter, FACTORY, visitor);
   }
 
   public static Query rewrite(Query query, Expressions.Rewriter<DimFilter> visitor)

@@ -37,6 +37,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.groupby.GroupByQueryEngine.RowIterator;
+import io.druid.query.select.TableFunctionSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.Cursor;
@@ -112,7 +113,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
         if (maxPage < 1 || (grouping != null && grouping.length > 0) || !QueryUtils.coveredBy(innerQuery, groupBy)) {
           return super.run(groupBy, responseContext);
         }
-        if (groupBy.getDimensions().size() > 1 && config.isGroupedUnfoldDimensions(query)) {
+        if (groupBy.getDimensions().size() > 1 && TableFunctionSpec.from(groupBy) != null) {
           return super.run(groupBy, responseContext);
         }
         // this is about using less heap, not about performance

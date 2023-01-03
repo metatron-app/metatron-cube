@@ -77,12 +77,6 @@ public class GroupByQueryConfig
   private int maxMultiValueDimensions = -1;
 
   @JsonProperty
-  private boolean groupedUnfoldDimensions = false;
-
-  @JsonProperty
-  private boolean multiValueDimensionFiltering = false;
-
-  @JsonProperty
   private boolean streamingAggregation = false;
 
   public boolean isSingleThreaded()
@@ -238,26 +232,6 @@ public class GroupByQueryConfig
   public int getMaxMultiValueDimensions()
   {
     return maxMultiValueDimensions;
-  }
-
-  public void setGroupedUnfoldDimensions(boolean groupedUnfoldDimensions)
-  {
-    this.groupedUnfoldDimensions = groupedUnfoldDimensions;
-  }
-
-  public boolean isGroupedUnfoldDimensions()
-  {
-    return groupedUnfoldDimensions;
-  }
-
-  public void setMultiValueDimensionFiltering(boolean multiValueDimensionFiltering)
-  {
-    this.multiValueDimensionFiltering = multiValueDimensionFiltering;
-  }
-
-  public boolean isMultiValueDimensionFiltering()
-  {
-    return multiValueDimensionFiltering;
   }
 
   public void setStreamingAggregation(boolean streamingAggregation)

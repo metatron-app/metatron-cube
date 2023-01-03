@@ -7169,7 +7169,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             DefaultDimensionSpec.of("placementish", "d1")
         )
         .aggregators(rowsCount, new LongSumAggregatorFactory("idx", "index"))
-        .addContext(Query.GBY_GROUPED_UNFOLD_DIMENSIONS, false)
+        .addContext(Query.GROUPED_DIMENSIONS, null)
         .build();
 
     String[] columns = new String[] {"d0", "d1", "rows", "idx"};
@@ -7216,7 +7216,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         array("preferred", "preferred", 26L, 12446L),
         array("t", "t", 4L, 420L)
     );
-    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_GROUPED_UNFOLD_DIMENSIONS, true);
+    query = query.withOverriddenContext(Query.GROUPED_DIMENSIONS, "placementish");
+    results = runQuery(query, false);   // todo cardinality estimation (timeseries query)
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    expectedResults = createExpectedRows(columns, array("preferred", "preferred", 26L, 12446L));
+    query = query.withFilter(SelectorDimFilter.of("d0", "preferred"));
     results = runQuery(query, false);   // todo cardinality estimation (timeseries query)
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

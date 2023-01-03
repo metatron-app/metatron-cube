@@ -40,6 +40,7 @@ public interface QueryContextKeys
   String BROKER_SIDE = "#brokerSide";
   String OUTERMOST_JOIN = "#outermostJoin";
   String STREAMING_GBY_SCHEMA = "#streamingGroupBySchema";
+  String GROUPED_DIMENSIONS = "groupedDimensions";
 
   // group-by config.. overriding
   String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
@@ -54,8 +55,6 @@ public interface QueryContextKeys
   String GBY_USE_BULK_ROW = "groupByUseBulkRow";
   String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
   String GBY_MAX_MULTIVALUE_DIMENSIONS = "groupByMaxMultivalueDimensions";
-  String GBY_GROUPED_UNFOLD_DIMENSIONS = "groupByGroupedUnfoldDimensions";
-  String GBY_MULTIVALUE_DIMENSION_FILTERING = "multiValueDimensionFiltering";
   String GBY_STREAMING = "groupByStreaming";
 
   // select.stream
@@ -105,6 +104,7 @@ public interface QueryContextKeys
       QUERYID,
       PRIORITY,
       TIMEOUT,
+      GROUPED_DIMENSIONS,
       GBY_USE_PARALLEL_SORT,
       GBY_CONVERT_TIMESERIES,
       GBY_CONVERT_FREQUENCY,
@@ -117,7 +117,6 @@ public interface QueryContextKeys
       GBY_USE_BULK_ROW,
       GBY_MAX_STREAM_SUBQUERY_PAGE,
       GBY_MAX_MULTIVALUE_DIMENSIONS,
-      GBY_GROUPED_UNFOLD_DIMENSIONS,
       STREAM_USE_RAW_UTF8,
       STREAM_USE_BULK_ROW,
       STREAM_RAW_LOCAL_SPLIT_NUM,

@@ -20,8 +20,10 @@
 package io.druid.common.utils;
 
 import com.google.common.base.Function;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import io.druid.common.guava.BinaryRef;
 import io.druid.data.input.BytesOutputStream;
 
@@ -381,5 +383,11 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     } while (pos > 0);
     sb.append(s, prevPos, s.length());
     return sb.toString();
+  }
+
+  public static Iterable<String> splitAndTrim(String value, char separator)
+  {
+    Splitter splitter = Splitter.on(separator).trimResults();
+    return Lists.newArrayList(splitter.split(value));
   }
 }

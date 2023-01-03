@@ -21,8 +21,8 @@ package io.druid.query.select;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.CharSource;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
@@ -141,15 +141,15 @@ public class MapVirtualColumnTest
   public void testExplode() throws Exception
   {
     List<Map> expectedResults = Arrays.<Map>asList(
-        mapOf("dim", "a", "value", 100L),
-        mapOf("dim", "a", "value", 200L),
-        mapOf("dim", "a", "value", 300L),
-        mapOf("dim", null, "value", 100L),
-        mapOf("dim", null, "value", 500L),
-        mapOf("dim", null, "value", 900L),
-        mapOf("dim", "c", "value", 400L),
-        mapOf("dim", "c", "value", 500L),
-        mapOf("dim", "c", "value", 600L)
+        GuavaUtils.asMap("dim", "a", "value", 100L),
+        GuavaUtils.asMap("dim", "a", "value", 200L),
+        GuavaUtils.asMap("dim", "a", "value", 300L),
+        GuavaUtils.asMap("dim", null, "value", 100L),
+        GuavaUtils.asMap("dim", null, "value", 500L),
+        GuavaUtils.asMap("dim", null, "value", 900L),
+        GuavaUtils.asMap("dim", "c", "value", 400L),
+        GuavaUtils.asMap("dim", "c", "value", 500L),
+        GuavaUtils.asMap("dim", "c", "value", 600L)
     );
     Druids.SelectQueryBuilder builder = testBuilder();
     SelectQuery selectQuery = builder.dimensions("dim")
@@ -165,29 +165,29 @@ public class MapVirtualColumnTest
     Druids.SelectQueryBuilder builder = testBuilder();
 
     List<Map> expectedResults = Arrays.<Map>asList(
-        mapOf(
+        GuavaUtils.asMap(
             "dim", "a",
             "dim_nvl", "a",
             "params.key1", "value1",
             "params.key3", "value3",
             "params.key5", null,
-            "params", mapOf("key1", "value1", "key2", "value2", "key3", "value3")
+            "params", GuavaUtils.asMap("key1", "value1", "key2", "value2", "key3", "value3")
         ),
-        mapOf(
+        GuavaUtils.asMap(
             "dim", null,
             "dim_nvl", "null",
             "params.key1", null,
             "params.key3", null,
             "params.key5", null,
-            "params", mapOf("key4", "value4")
+            "params", GuavaUtils.asMap("key4", "value4")
         ),
-        mapOf(
+        GuavaUtils.asMap(
             "dim", "c",
             "dim_nvl", "c",
             "params.key1", "value1",
             "params.key3", null,
             "params.key5", "value5",
-            "params", mapOf("key1", "value1", "key5", "value5")
+            "params", GuavaUtils.asMap("key1", "value1", "key5", "value5")
         )
     );
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
@@ -207,9 +207,9 @@ public class MapVirtualColumnTest
     Druids.SelectQueryBuilder builder = testBuilder();
 
     List<Map> expectedResults = Arrays.<Map>asList(
-        mapOf("params.key1", "VALUE1", "dim_nvl", "value1-a"),
-        mapOf("params.key1", null, "dim_nvl", "null-a"),
-        mapOf("params.key1", "VALUE1", "dim_nvl", "value1-a")
+        GuavaUtils.asMap("params.key1", "VALUE1", "dim_nvl", "value1-a"),
+        GuavaUtils.asMap("params.key1", null, "dim_nvl", "null-a"),
+        GuavaUtils.asMap("params.key1", "VALUE1", "dim_nvl", "value1-a")
     );
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
         new MapVirtualColumn("keys", "values", null, "params"),
@@ -270,21 +270,21 @@ public class MapVirtualColumnTest
   public void testArrayVC() throws Exception
   {
     List<Map> expectedResults = Arrays.<Map>asList(
-        mapOf(
+        GuavaUtils.asMap(
             "dim", "a",
             "access", Arrays.asList(100L, 200L, 300L),
             "access.0", 100L,
             "access.1", 200L,
             "access.2", 300L
         ),
-        mapOf(
+        GuavaUtils.asMap(
             "dim", null,
             "access", Arrays.asList(100L, 500L, 900L),
             "access.0", 100L,
             "access.1", 500L,
             "access.2", 900L
         ),
-        mapOf(
+        GuavaUtils.asMap(
             "dim", "c",
             "access", Arrays.asList(400L, 500L, 600L),
             "access.0", 400L,
@@ -305,21 +305,21 @@ public class MapVirtualColumnTest
 
     // access via implicit vc
     expectedResults = Arrays.<Map>asList(
-        mapOf(
+        GuavaUtils.asMap(
             "dim", "a",
             "array", Arrays.asList(100L, 200L, 300L),
             "array.0", 100L,
             "array.1", 200L,
             "array.2", 300L
         ),
-        mapOf(
+        GuavaUtils.asMap(
             "dim", null,
             "array", Arrays.asList(100L, 500L, 900L),
             "array.0", 100L,
             "array.1", 500L,
             "array.2", 900L
         ),
-        mapOf(
+        GuavaUtils.asMap(
             "dim", "c",
             "array", Arrays.asList(400L, 500L, 600L),
             "array.0", 400L,
@@ -332,15 +332,6 @@ public class MapVirtualColumnTest
                          .metrics(Arrays.asList("array", "array.0", "array.1", "array.2"))
                          .build();
     checkSelectQuery(selectQuery, expectedResults);
-  }
-
-  private Map mapOf(Object... elements)
-  {
-    Map map = Maps.newHashMap();
-    for (int i = 0; i < elements.length; i += 2) {
-      map.put(elements[i], elements[i + 1]);
-    }
-    return map;
   }
 
   private void checkSelectQuery(SelectQuery searchQuery, List<Map> expected) throws Exception

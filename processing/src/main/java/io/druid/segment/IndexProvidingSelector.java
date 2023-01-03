@@ -32,6 +32,11 @@ public interface IndexProvidingSelector extends DimensionSelector
 
   Set<String> targetColumns();
 
+  default boolean hasFilter()
+  {
+    return false;
+  }
+
   abstract class Delegated extends DelegatedDimensionSelector implements IndexProvidingSelector
   {
     public Delegated(DimensionSelector delegate)

@@ -19,18 +19,25 @@
 
 package io.druid.sql.calcite;
 
+import com.google.common.collect.ImmutableMap;
 import io.druid.math.expr.Parser;
 import io.druid.query.ModuleBuiltinFunctions;
+import io.druid.query.Query;
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
-import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.Map;
 
 public class SimpleTest extends CalciteQueryTestHelper
 {
   private static final MiscQueryHook hook = new MiscQueryHook();
   private static final TestQuerySegmentWalker walker = TestHelper.newWalker().withQueryHook(hook);
+
+  private static final Map<String, Object> GROUP_CONTEXT = ImmutableMap.of(
+      Query.GROUPED_DIMENSIONS, "bks_event_d0,bks_event_d1,bks_event_d2"
+  );
 
   @BeforeClass
   public static void setUp() throws Exception
@@ -41,12 +48,6 @@ public class SimpleTest extends CalciteQueryTestHelper
     walker.populate("cdis");
     walker.populate("cdis_i");
     walker.populate("part_i");
-  }
-
-  @After
-  public void teadown()
-  {
-    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(false);
   }
 
   @Override
@@ -184,9 +185,9 @@ public class SimpleTest extends CalciteQueryTestHelper
   @Test
   public void test3877() throws Exception
   {
-    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
     testQuery(
         "SELECT bks_event_d0, bks_event_d1, bks_event_d2 FROM cdis WHERE svc_mgmt_num = '10000497' limit 10",
+        GROUP_CONTEXT,
         new Object[]{
             "[T114, APP, T114, APP]",
             "[금융, IT, 음식, 생활]",
@@ -196,6 +197,7 @@ public class SimpleTest extends CalciteQueryTestHelper
     testQuery(
         "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
         + "WHERE svc_mgmt_num = '10000497' GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
+        GROUP_CONTEXT,
         new Object[]{"10", "APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L},
         new Object[]{"10", "APP", "생활", "도미노피자(Dominopizza)", 1L},
         new Object[]{"10", "T114", "금융", "신용카드사", 1L},
@@ -231,7 +233,6 @@ public class SimpleTest extends CalciteQueryTestHelper
   @Test
   public void test3891() throws Exception
   {
-    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
     testQuery(
         "SELECT purpose, occupation, count(*) as cnt FROM ("
         + "  SELECT bks_event_d0 as purpose, age_group as occupation FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000498') "
@@ -239,21 +240,22 @@ public class SimpleTest extends CalciteQueryTestHelper
         + "  SELECT bks_event_d1 as purpose, age_group as occupation FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000499')"
         + ") "
         + "GROUP BY purpose, occupation",
-        new Object[]{"APP", "10", 2L},
-        new Object[]{"IT", "10", 1L},
+        GROUP_CONTEXT,
         new Object[]{"T114", "10", 2L},
+        new Object[]{"APP", "10", 2L},
         new Object[]{"금융", "10", 1L},
-        new Object[]{"생활", "10", 1L},
-        new Object[]{"음식", "10", 1L}
+        new Object[]{"IT", "10", 1L},
+        new Object[]{"음식", "10", 1L},
+        new Object[]{"생활", "10", 1L}
     );
     testQuery(
-        PLANNER_CONFIG_DEFAULT,
         "SELECT cdis.age_group, cdis.bks_event_d0, count(*) FROM cdis INNER JOIN cdis cdis2 ON cdis.svc_mgmt_num = cdis2.svc_mgmt_num"
         + " GROUP BY cdis.age_group, cdis.bks_event_d0",
-        new Object[]{"", "APP", 2L},
-        new Object[]{"", "T114", 2L},
+        GROUP_CONTEXT,
+        new Object[]{"10", "T114", 2L},
         new Object[]{"10", "APP", 2L},
-        new Object[]{"10", "T114", 2L}
+        new Object[]{"", "T114", 2L},
+        new Object[]{"", "APP", 2L}
     );
   }
 
@@ -386,47 +388,19 @@ public class SimpleTest extends CalciteQueryTestHelper
   @Test
   public void test3993() throws Exception
   {
-    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
-    walker.getQueryConfig().getGroupBy().setMultiValueDimensionFiltering(false);
-    testQuery(
-        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
-        + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 = 'APP' GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
-        new Object[]{"10", "APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L},
-        new Object[]{"10", "APP", "생활", "도미노피자(Dominopizza)", 1L},
-        new Object[]{"10", "T114", "금융", "신용카드사", 1L},
-        new Object[]{"10", "T114", "음식", "치킨", 1L}
-    );
-
-    walker.getQueryConfig().getGroupBy().setMultiValueDimensionFiltering(true);
-
     final Object[][] expected = {
         new Object[]{"10", "APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L},
         new Object[]{"10", "APP", "생활", "도미노피자(Dominopizza)", 1L}
     };
-    testQuery(
-        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
-        + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 = 'APP' "
-        + "GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
-        expected
-    );
-    testQuery(
-        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis_i "
-        + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 = 'APP' "
-        + "GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
-        expected
-    );
-    testQuery(
-        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
-        + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 <= 'APP' "
-        + "GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
-        expected
-    );
-    testQuery(
-        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis_i "
-        + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 <= 'APP' "
-        + "GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
-        expected
-    );
+    String query = "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM %s "
+                 + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 = 'APP' GROUP BY 1, 2, 3, 4";
+    testQuery(String.format(query, "cdis"), GROUP_CONTEXT, expected);
+    testQuery(String.format(query, "cdis_i"), GROUP_CONTEXT, expected);
+
+    query = "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM %s "
+                 + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 <= 'APP' GROUP BY 1, 2, 3, 4";
+    testQuery(String.format(query, "cdis"), GROUP_CONTEXT, expected);
+    testQuery(String.format(query, "cdis_i"), GROUP_CONTEXT, expected);
   }
 
   static {
@@ -452,7 +426,6 @@ public class SimpleTest extends CalciteQueryTestHelper
   @Test
   public void test3995() throws Exception
   {
-    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
     String query = "SELECT age_group, bks_event_d2, count(*) as cnt FROM %s GROUP BY age_group, bks_event_d2";
     Object[][] expected = {
         new Object[]{"", "도미노피자(Dominopizza)", 1L},
@@ -464,30 +437,27 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{"10", "치킨", 1L},
         new Object[]{"10", "티월드다이렉트(tworlddirect.com)", 1L}
     };
-    testQuery(String.format(query, "cdis"), expected);
-    testQuery(String.format(query, "cdis_i"), expected);
+    testQuery(String.format(query, "cdis"), GROUP_CONTEXT, expected);
+    testQuery(String.format(query, "cdis_i"), GROUP_CONTEXT, expected);
   }
 
   @Test
   public void test3998() throws Exception
   {
-    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
-    walker.getQueryConfig().getGroupBy().setMultiValueDimensionFiltering(true);
     String query = "SELECT bks_event_d0, bks_event_d1, bks_event_d2,"
                    + "count(*) FILTER (WHERE bks_event_d0 = 'APP'),"
                    + "count(*) FILTER (WHERE bks_event_d0 = 'T114'),"
                    + "count(*) FILTER (WHERE bks_event_d1 = 'IT'),"
                    + "count(*) FILTER (WHERE bks_event_d2 = '치킨')"
-                   + " FROM %s "
-                   + " GROUP BY bks_event_d0, bks_event_d1, bks_event_d2";
+                   + " FROM %s GROUP BY 1, 2, 3";
     Object[][] expected1 = {
         new Object[]{"APP", "IT", "티월드다이렉트(tworlddirect.com)", 2L, 0L, 2L, 0L},
         new Object[]{"APP", "생활", "도미노피자(Dominopizza)", 2L, 0L, 0L, 0L},
         new Object[]{"T114", "금융", "신용카드사", 0L, 2L, 0L, 0L},
         new Object[]{"T114", "음식", "치킨", 0L, 2L, 0L, 2L}
     };
-    testQuery(String.format(query, "cdis"), expected1);
-    testQuery(String.format(query, "cdis_i"), expected1);
+    testQuery(String.format(query, "cdis"), GROUP_CONTEXT, expected1);
+    testQuery(String.format(query, "cdis_i"), GROUP_CONTEXT, expected1);
 
     Object[][] expected2 = {
         new Object[]{"APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L, 0L, 1L, 0L},
@@ -495,8 +465,8 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{"T114", "금융", "신용카드사", 0L, 1L, 0L, 0L},
         new Object[]{"T114", "음식", "치킨", 0L, 1L, 0L, 1L}
     };
-    testQuery(String.format(query, "cdis WHERE svc_mgmt_num = '10000497'"), expected2);
-    testQuery(String.format(query, "cdis_i WHERE svc_mgmt_num = '10000497'"), expected2);
+    testQuery(String.format(query, "cdis WHERE svc_mgmt_num = '10000497'"), GROUP_CONTEXT, expected2);
+    testQuery(String.format(query, "cdis_i WHERE svc_mgmt_num = '10000497'"), GROUP_CONTEXT, expected2);
   }
 
   @Test

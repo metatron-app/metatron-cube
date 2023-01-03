@@ -27,14 +27,10 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.MVIteratingSelector;
-import io.druid.segment.filter.Filters;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -71,18 +67,6 @@ public class FilteredAggregatorFactory extends AggregatorFactory
     return Aggregators.wrap(
         columnSelectorFactory.makePredicateMatcher(filter), delegate.factorizeBuffered(columnSelectorFactory)
     );
-  }
-
-  @Override
-  public BufferAggregator factorizeForGroupBy(ColumnSelectorFactory factory, Map<String, MVIteratingSelector> mvs)
-  {
-    Set<String> dependents = Filters.getDependents(filter);
-    dependents.retainAll(mvs.keySet());
-    if (!dependents.isEmpty()) {
-      final ValueMatcher matcher = MVIteratingSelector.toMatcher(factory, filter, dependents, mvs);
-      return Aggregators.wrap(matcher, delegate.factorizeBuffered(factory));
-    }
-    return factorizeBuffered(factory);
   }
 
   @Override

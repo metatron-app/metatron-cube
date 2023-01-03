@@ -55,13 +55,14 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.query.groupby.orderby.TopNSorter;
+import io.druid.query.select.TableFunctionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cuboids;
 import io.druid.segment.Cursor;
+import io.druid.segment.Cursors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.IndexProvidingSelector;
-import io.druid.segment.MVIteratingSelector;
 import io.druid.segment.Rowboat;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumns;
@@ -85,6 +86,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiFunction;
 
 /**
+ *
  */
 public class GroupByQueryEngine
 {
@@ -203,12 +205,12 @@ public class GroupByQueryEngine
     public RowIterator(
         final GroupByQuery query,
         final QueryConfig config,
-        final Cursor cursor,
+        final Cursor source,
         final StupidPool<ByteBuffer> bufferPool,
         final int maxPage
     )
     {
-      this.cursor = cursor;
+      this.cursor = Cursors.explode(source, TableFunctionSpec.from(query));
       this.bufferPool = bufferPool;
       this.metricValues = new ByteBuffer[maxPage];
       this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
@@ -220,9 +222,10 @@ public class GroupByQueryEngine
 
       IntList svDimensions = new IntList(dimensions.length);
       IntList mvDimensions = new IntList(dimensions.length);
+
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
-      Map<String, MVIteratingSelector> mvMap = Maps.newHashMap();
+
       for (int i = 0; i < dimensions.length; i++) {
         DimensionSpec dimensionSpec = dimensionSpecs.get(i);
         dimensions[i] = cursor.makeDimensionSelector(dimensionSpec);
@@ -237,17 +240,12 @@ public class GroupByQueryEngine
         if (dimensions[i] instanceof DimensionSelector.SingleValued) {
           svDimensions.add(i);
         } else {
-          MVIteratingSelector selector = MVIteratingSelector.wrap(dimensions[i]);
-          mvMap.put(dimensionSpec.getDimension(), selector);
-          dimensions[i] = selector;
           mvDimensions.add(i);
         }
       }
 
-      if (query.getFilter() != null && !mvDimensions.isEmpty() && config.isMultiValueDimensionFiltering(query)) {
-        MVIteratingSelector.rewrite(cursor, mvMap, query.getFilter());
-      }
-
+      // value can be negative with key indexed vc (see MVIteratingSelector#augment).. seemed to be deprecated
+      final boolean keyFiltered = providers.stream().anyMatch(p -> p.hasFilter());
       final KeyPool pool = new KeyPool(dimensions.length);
       if (mvDimensions.isEmpty()) {
         this.rowUpdater = new RowUpdater(pool)
@@ -267,7 +265,7 @@ public class GroupByQueryEngine
             return update(key);
           }
         };
-      } else if (mvDimensions.size() == 1 || config.isGroupedUnfoldDimensions(query)) {
+      } else if (mvDimensions.size() == 1) {
         final int[] svxs = svDimensions.array();
         final int[] mvxs = mvDimensions.array();
         this.rowUpdater = new RowUpdater(pool)
@@ -327,7 +325,7 @@ public class GroupByQueryEngine
       aggregators = new BufferAggregator[aggregatorSpecs.size()];
       increments = new int[aggregatorSpecs.size() + 1];
       for (int i = 0; i < aggregatorSpecs.size(); ++i) {
-        aggregators[i] = aggregatorSpecs.get(i).factorizeForGroupBy(factory, mvMap);
+        aggregators[i] = aggregatorSpecs.get(i).factorizeBuffered(factory);
         increments[i + 1] = increments[i] + aggregatorSpecs.get(i).getMaxIntermediateSize();
       }
       increment = increments[increments.length - 1];

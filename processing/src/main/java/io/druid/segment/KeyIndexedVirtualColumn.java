@@ -188,6 +188,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       {
         return valueColumns;
       }
+
+      @Override
+      public boolean hasFilter()
+      {
+        return keyFilter != null;
+      }
     };
   }
 
