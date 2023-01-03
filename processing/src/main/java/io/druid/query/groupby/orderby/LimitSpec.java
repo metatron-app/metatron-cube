@@ -449,10 +449,10 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     for (WindowingSpec window : windowingSpecs) {
-      schema = window.evolve(query, schema);
+      schema = window.evolve(schema);
     }
     return schema.alias(alias);
   }

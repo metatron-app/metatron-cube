@@ -169,7 +169,7 @@ public class ExplodeSpec implements LateralViewSpec, RowSignature.Evolving
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     int index = schema.getColumnNames().indexOf(column);
     if (index < 0) {

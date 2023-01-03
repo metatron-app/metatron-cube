@@ -165,7 +165,7 @@ public class RowExploder implements PostProcessingOperator.LogProvider, RowSigna
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     return schema;
   }

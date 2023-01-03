@@ -95,7 +95,7 @@ public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<R
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     if (GuavaUtils.isNullOrEmpty(mapping)) {
       return schema;

@@ -37,7 +37,6 @@ import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
-import io.druid.query.Query;
 import io.druid.query.RowSignature;
 import io.druid.query.groupby.orderby.WindowContext.Frame;
 
@@ -373,7 +372,7 @@ public class WindowingSpec implements RowSignature.Evolving
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     if (schema == null || hasPostProcessing()) {
       return null;

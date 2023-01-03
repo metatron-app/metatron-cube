@@ -112,7 +112,7 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     if (GuavaUtils.isNullOrEmpty(postAggregations)) {
       return schema;

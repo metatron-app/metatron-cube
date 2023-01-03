@@ -94,7 +94,7 @@ public class ClassifyPostProcessor implements PostProcessingOperator.UnionSuppor
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     return schema == null ? null : schema.append(tagColumn, ValueDesc.LONG);
   }

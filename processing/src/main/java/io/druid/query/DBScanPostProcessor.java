@@ -120,7 +120,7 @@ public class DBScanPostProcessor extends PostProcessingOperator.ReturnsArray imp
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     return schema == null ? null : schema.append("tag", ValueDesc.LONG);
   }

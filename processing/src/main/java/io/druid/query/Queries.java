@@ -213,11 +213,11 @@ public class Queries
     source = Queries.bestEffortOf(source, query, finalzed);
     Object localProc = query.getContextValue(Query.LOCAL_POST_PROCESSING);
     if (localProc instanceof RowSignature.Evolving) {
-      source = ((RowSignature.Evolving) localProc).evolve(query, source);
+      source = ((RowSignature.Evolving) localProc).evolve(source);
     }
     LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
     if (limitSpec != null) {
-      source = limitSpec.evolve(query, source);
+      source = limitSpec.evolve(source);
     }
     List<String> outputColumns = BaseQuery.getLastProjection(query);
     if (outputColumns != null) {
@@ -225,11 +225,11 @@ public class Queries
     }
     LateralViewSpec lateralView = BaseQuery.getLateralViewSpec(query);
     if (lateralView instanceof RowSignature.Evolving) {
-      source = ((RowSignature.Evolving) lateralView).evolve(query, source);
+      source = ((RowSignature.Evolving) lateralView).evolve(source);
     }
     Object processor = query.getContextValue(Query.POST_PROCESSING);
     if (processor instanceof RowSignature.Evolving) {
-      source = ((RowSignature.Evolving) processor).evolve(query, source);
+      source = ((RowSignature.Evolving) processor).evolve(source);
     }
     return source;
   }

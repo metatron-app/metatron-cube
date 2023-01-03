@@ -142,6 +142,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     return Granularities.ALL;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
   public TableFunctionSpec getTableFunction()
@@ -454,6 +455,25 @@ public class StreamQuery extends BaseQuery<Object[]>
         getTableFunction(),
         getColumns(),
         virtualColumns,
+        getOrderingSpecs(),
+        getConcatString(),
+        getLimitSpec(),
+        getOutputColumns(),
+        getContext()
+    );
+  }
+
+  @Override
+  public StreamQuery withTableFunction(TableFunctionSpec tableFunction)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getFilter(),
+        tableFunction,
+        getColumns(),
+        getVirtualColumns(),
         getOrderingSpecs(),
         getConcatString(),
         getLimitSpec(),

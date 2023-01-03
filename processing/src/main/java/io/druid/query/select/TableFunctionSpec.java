@@ -27,19 +27,29 @@ import io.druid.query.filter.DimFilter;
 import java.util.List;
 import java.util.Objects;
 
+// todo schema evolving
 public class TableFunctionSpec
 {
+  private final String operation;
   private final List<String> parameters;
   private final DimFilter filter;
 
   @JsonCreator
   public TableFunctionSpec(
+      @JsonProperty("operation") String operation,
       @JsonProperty("parameters") List<String> parameters,
       @JsonProperty("filter") DimFilter filter
   )
   {
+    this.operation = operation;
     this.parameters = parameters;
     this.filter = filter;
+  }
+
+  @JsonProperty
+  public String getOperation()
+  {
+    return operation;
   }
 
   @JsonProperty
@@ -65,19 +75,22 @@ public class TableFunctionSpec
       return false;
     }
     TableFunctionSpec that = (TableFunctionSpec) o;
-    return parameters.equals(that.parameters) && Objects.equals(filter, that.filter);
+    return operation.equals(that.operation) &&
+           parameters.equals(that.parameters) &&
+           Objects.equals(filter, that.filter);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(parameters, filter);
+    return Objects.hash(operation, parameters, filter);
   }
 
   @Override
   public String toString()
   {
     return "TableFunctionSpec{" +
+           "operation=" + operation +
            "parameters=" + parameters +
            (filter == null ? "" : ", filter=" + filter) +
            '}';

@@ -112,7 +112,7 @@ public class DruidBaseQuery implements DruidQuery
   private final PlannerContext plannerContext;
 
   @Nullable
-  private final TableExplode tableExplode;
+  private final TableFunction tableFunction;
 
   @Nullable
   private final Filtration filtration;
@@ -158,9 +158,9 @@ public class DruidBaseQuery implements DruidQuery
 
     // Now the fun begins.
     this.filtration = computeWhereFilter(partialQuery, plannerContext, inputRowSignature);
-    this.tableExplode = computeTableExplode(partialQuery, plannerContext, inputRowSignature);
-    if (tableExplode != null) {
-      inputRowSignature = tableExplode.getOutputRowSignature();
+    this.tableFunction = computeTableExplode(partialQuery, plannerContext, inputRowSignature);
+    if (tableFunction != null) {
+      inputRowSignature = tableFunction.getOutputRowSignature();
     }
     this.selectProjection = computeSelectProjection(partialQuery, plannerContext, inputRowSignature);
     if (selectProjection != null) {
@@ -190,7 +190,7 @@ public class DruidBaseQuery implements DruidQuery
   }
 
   @Nullable
-  private static TableExplode computeTableExplode(
+  private static TableFunction computeTableExplode(
       PartialDruidQuery partialQuery,
       PlannerContext plannerContext,
       RowSignature sourceRowSignature
@@ -209,7 +209,9 @@ public class DruidBaseQuery implements DruidQuery
     }
     RowSignature appending = sourceRowSignature.subset(inputRefs);
     Filtration filtration = toFiltration(plannerContext, appending, tableFunction.getScanFilter());
-    return new TableExplode(tableFn.op.getName(), appending.getColumnNames(), filtration, sourceRowSignature.append(appending));
+    return new TableFunction(
+        tableFn.op.getName(), appending.getColumnNames(), filtration, sourceRowSignature.append(appending)
+    );
   }
 
   @Nullable
@@ -905,7 +907,7 @@ public class DruidBaseQuery implements DruidQuery
   @Nullable
   public TimeseriesQuery toTimeseriesQuery()
   {
-    if (grouping == null || grouping.getDimensions().size() > 1 || tableExplode != null) {
+    if (grouping == null || grouping.getDimensions().size() > 1 || tableFunction != null) {
       return null;
     }
     boolean descending = false;
@@ -968,7 +970,7 @@ public class DruidBaseQuery implements DruidQuery
   @Nullable
   public TopNQuery toTopNQuery()
   {
-    if (tableExplode != null) {
+    if (tableFunction != null) {
       return null;
     }
     // Must have GROUP BY one column, ORDER BY zero or one column, limit less than maxTopNLimit, and no HAVING.
@@ -1049,7 +1051,7 @@ public class DruidBaseQuery implements DruidQuery
   @Nullable
   public GroupByQuery toGroupByQuery()
   {
-    if (grouping == null || tableExplode != null) {
+    if (grouping == null || tableFunction != null) {
       return null;
     }
     Granularity granularity = null;
@@ -1125,7 +1127,7 @@ public class DruidBaseQuery implements DruidQuery
         filtration.getQuerySegmentSpec(),
         descending,
         filtration.getDimFilter(),
-        tableExplode == null ? null : tableExplode.asSpec(),
+        tableFunction == null ? null : tableFunction.asSpec(),
         ImmutableList.copyOf(rowOrder),
         selectProjection == null ? null : selectProjection.getVirtualColumns(),
         null,

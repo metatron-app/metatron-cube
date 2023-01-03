@@ -246,7 +246,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     RowSignature signature = hashLeft ? hashSignature.concat(schema) : schema.concat(hashSignature);
     if (outputColumns != null) {

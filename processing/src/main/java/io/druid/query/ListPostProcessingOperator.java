@@ -108,11 +108,11 @@ public class ListPostProcessingOperator<T>
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema)
+  public RowSignature evolve(RowSignature schema)
   {
     for (PostProcessingOperator child : processors) {
       if (child instanceof RowSignature.Evolving) {
-        schema = ((RowSignature.Evolving) child).evolve(query, schema);
+        schema = ((RowSignature.Evolving) child).evolve(schema);
       }
     }
     return schema;

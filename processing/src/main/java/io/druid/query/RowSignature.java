@@ -51,7 +51,16 @@ public class RowSignature implements io.druid.data.RowSignature
   {
     List<String> evolve(List<String> schema);
 
-    RowSignature evolve(Query query, RowSignature schema);
+    RowSignature evolve(RowSignature schema);
+
+    interface Identical extends Evolving
+    {
+      @Override
+      default List<String> evolve(List<String> schema) {return schema;}
+
+      @Override
+      default RowSignature evolve(RowSignature schema) {return schema;}
+    }
   }
 
   public static RowSignature of(List<String> columnNames, List<ValueDesc> columnTypes)

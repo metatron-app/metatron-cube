@@ -46,6 +46,7 @@ import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
+import io.druid.query.select.TableFunctionSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -193,6 +194,10 @@ public interface Query<T> extends QueryContextKeys
 
   interface ColumnsSupport<T> extends FilterSupport<T>
   {
+    TableFunctionSpec getTableFunction();
+
+    ColumnsSupport<T> withTableFunction(TableFunctionSpec tableFunction);
+
     List<String> getColumns();
 
     ColumnsSupport<T> withColumns(List<String> columns);

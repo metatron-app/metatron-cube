@@ -19,51 +19,42 @@
 
 package io.druid.segment;
 
-import io.druid.common.guava.BufferRef;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
-import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.UDTF;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.select.TableFunctionSpec;
-import io.druid.segment.data.Dictionary;
-import io.druid.segment.data.IndexedInts;
-import io.druid.segment.filter.Filters;
-
-import java.util.List;
 
 public class Cursors
 {
   public static Cursor explode(Cursor cursor, TableFunctionSpec tableFn)
   {
-    return tableFn == null ? cursor : new DimensionExploding(cursor, tableFn);
+    return tableFn == null ? cursor : new LateralProvider(cursor, tableFn);
   }
 
-  private static class DimensionExploding extends Cursor.ExprSupport
+  private static class LateralProvider extends Cursor.ExprSupport
   {
     private final Cursor delegated;
-    private final List<String> explodings;
+    private final UDTF function;
     private final ValueMatcher matcher;
 
-    private final DimensionSelector[] sources;
-    private int limit;
-    private int current;
-
-    public DimensionExploding(Cursor delegated, TableFunctionSpec tableFn)
+    public LateralProvider(Cursor delegated, TableFunctionSpec tableFn)
     {
       this.delegated = delegated;
-      this.explodings = tableFn.getParameters();
-      this.sources = explodings.stream()
-                               .map(c -> delegated.makeDimensionSelector(DefaultDimensionSpec.of(c)))
-                               .toArray(x -> new DimensionSelector[x]);
-      if (GuavaUtils.containsAny(explodings, Filters.getDependents(tableFn.getFilter()))) {
-        matcher = tableFn.getFilter().toFilter(this).makeMatcher(this);
-      } else {
-        matcher = ValueMatcher.TRUE;
+      this.function = UDTF.toFunction(delegated, tableFn);
+      this.matcher = toMatcher(this, tableFn);
+      prepare();
+    }
+
+    private static ValueMatcher toMatcher(Cursor wrapped, TableFunctionSpec tableFn)
+    {
+      DimFilter filter = tableFn.getFilter();
+      if (filter != null) {
+        return filter.toFilter(wrapped).makeMatcher(wrapped);
       }
-      _prepare();
+      return ValueMatcher.TRUE;
     }
 
     @Override
@@ -81,16 +72,13 @@ public class Cursors
     @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
-      if (dimensionSpec instanceof DefaultDimensionSpec) {
-        final int index = explodings.indexOf(dimensionSpec.getDimension());
-        if (index >= 0) {
-          if (sources[index] instanceof DimensionSelector.WithRawAccess) {
-            return new WithRawAccess((DimensionSelector.WithRawAccess) sources[index]);
-          }
-          return new SingleValued(sources[index]);
-        }
-      }
-      return delegated.makeDimensionSelector(dimensionSpec);
+      return function.makeDimensionSelector(dimensionSpec);
+    }
+
+    @Override
+    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+    {
+      return function.makeObjectColumnSelector(columnName);
     }
 
     public FloatColumnSelector makeFloatColumnSelector(String columnName)
@@ -109,12 +97,6 @@ public class Cursors
     }
 
     @Override
-    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
-    {
-      return delegated.makeObjectColumnSelector(columnName);
-    }
-
-    @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
     {
       return delegated.makeMathExpressionSelector(expression);
@@ -129,7 +111,7 @@ public class Cursors
     @Override
     public ValueMatcher makePredicateMatcher(DimFilter filter)
     {
-      return super.makePredicateMatcher(filter);    // bitmap is not valid with lateral view
+      return super.makePredicateMatcher(filter);    // bitmap is not valid with lateral view. stick to matcher
     }
 
     @Override
@@ -153,93 +135,37 @@ public class Cursors
     @Override
     public void advanceWithoutMatcher()
     {
-      delegated.advanceWithoutMatcher();
+      function.advance();
     }
 
     @Override
     public void advance()
     {
-      if (_advance()) {
-        while (!matcher.matches() && _advance()) {
+      if (function.advance()) {
+        while (!matcher.matches() && function.advance()) {
         }
       }
     }
 
-    private boolean _advance()
+    private void prepare()
     {
-      if (++current < limit) {
-        return true;
-      }
-      for (limit = 0, current = 0; limit == 0 && !delegated.isDone(); ) {
-        delegated.advance();
-        if (delegated.isDone()) {
-          return false;
+      if (function.prepare()) {
+        while (!matcher.matches() && function.advance()) {
         }
-        limit = sources[0].getRow().size();
       }
-      return true;
     }
 
     @Override
     public boolean isDone()
     {
-      return current >= limit;
+      return function.isDone();
     }
 
     @Override
     public void reset()
     {
       delegated.reset();
-      _prepare();
-    }
-
-    private void _prepare()
-    {
-      for (current = 0, limit = sources[0].getRow().size(); !matcher.matches() && _advance(); ) {
-      }
-    }
-
-    private class SingleValued extends DelegatedDimensionSelector implements DimensionSelector.SingleValued
-    {
-      public SingleValued(DimensionSelector delegate)
-      {
-        super(delegate);
-      }
-
-      @Override
-      public final IndexedInts getRow()
-      {
-        return IndexedInts.from(super.getRow().get(current));
-      }
-    }
-
-    private class WithRawAccess extends SingleValued implements DimensionSelector.WithRawAccess
-    {
-      private final DimensionSelector.WithRawAccess delegate;
-
-      public WithRawAccess(DimensionSelector.WithRawAccess delegate)
-      {
-        super(delegate);
-        this.delegate = delegate;
-      }
-
-      @Override
-      public Dictionary getDictionary()
-      {
-        return delegate.getDictionary();
-      }
-
-      @Override
-      public byte[] getAsRaw(int id)
-      {
-        return delegate.getAsRaw(id);
-      }
-
-      @Override
-      public BufferRef getAsRef(int id)
-      {
-        return delegate.getAsRef(id);
-      }
+      function.prepare();
     }
   }
 }

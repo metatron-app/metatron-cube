@@ -26,14 +26,14 @@ import io.druid.sql.calcite.table.RowSignature;
 import java.util.List;
 import java.util.Objects;
 
-public class TableExplode
+public class TableFunction
 {
   private final String opName;
   private final List<String> arguments;
   private final Filtration filtration;
   private final RowSignature outputRowSignature;
 
-  public TableExplode(String opName, List<String> arguments, Filtration filtration, RowSignature outputRowSignature)
+  public TableFunction(String opName, List<String> arguments, Filtration filtration, RowSignature outputRowSignature)
   {
     this.opName = opName;
     this.arguments = arguments;
@@ -63,7 +63,7 @@ public class TableExplode
 
   public TableFunctionSpec asSpec()
   {
-    return new TableFunctionSpec(arguments, filtration.getDimFilter());
+    return new TableFunctionSpec(opName, arguments, filtration.getDimFilter());
   }
 
   @Override
@@ -75,7 +75,7 @@ public class TableExplode
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    final TableExplode that = (TableExplode) o;
+    final TableFunction that = (TableFunction) o;
     return Objects.equals(opName, that.opName) &&
            Objects.equals(arguments, that.arguments) &&
            Objects.equals(outputRowSignature, that.outputRowSignature);

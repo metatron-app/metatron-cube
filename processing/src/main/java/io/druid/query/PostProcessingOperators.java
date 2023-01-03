@@ -105,7 +105,7 @@ public class PostProcessingOperators
   {
     PostProcessingOperator postProcessor = PostProcessingOperators.load(query);
     if (postProcessor instanceof RowSignature.Evolving) {
-      source = ((RowSignature.Evolving) postProcessor).evolve(query, source);
+      source = ((RowSignature.Evolving) postProcessor).evolve(source);
     }
     return source;
   }
