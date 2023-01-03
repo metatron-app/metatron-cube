@@ -157,7 +157,7 @@ public class LuceneShapeFilter extends LuceneSelector implements DimFilter.LogPr
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, operation, shapeFormat, shapeString, scoreField);
+    return Objects.hash(field, operation, shapeFormat, StringUtils.substring(shapeString, 100), scoreField);
   }
 
   @Override

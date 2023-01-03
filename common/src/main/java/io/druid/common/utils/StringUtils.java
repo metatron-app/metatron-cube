@@ -336,6 +336,11 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     return sb.toString();
   }
 
+  public static String substring(String text, int length)
+  {
+    return text == null || text.length() < length ? text : text.substring(0, length);
+  }
+
   public static String forLog(String text)
   {
     return limit(text, 32);

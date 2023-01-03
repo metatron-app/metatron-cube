@@ -347,7 +347,7 @@ public interface DimFilter extends Expression, Cacheable
   {
   }
 
-  interface LogProvider extends DimFilter
+  interface LogProvider extends DimFilter, Cacheable.PossiblyHeavy
   {
     DimFilter forLog();
   }

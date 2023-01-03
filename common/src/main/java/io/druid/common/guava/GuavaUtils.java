@@ -794,6 +794,11 @@ public class GuavaUtils
     return null;
   }
 
+  public static <T> List<T> sublist(List<T> list, int length)
+  {
+    return list == null || list.size() < length ? list : list.subList(0, length);
+  }
+
   public static <F, T> Iterator<T> map(final Iterator<F> iterator, final Function<F, T> function)
   {
     Iterator<T> mapped = Iterators.transform(iterator, function);

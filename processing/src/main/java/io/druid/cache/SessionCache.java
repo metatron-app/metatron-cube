@@ -21,15 +21,12 @@ package io.druid.cache;
 
 import com.google.common.base.Supplier;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.Cacheable;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
-import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
+import io.druid.segment.bitmap.RoaringBitmapFactory.LazyImmutableBitmap;
 import io.druid.segment.filter.BitmapHolder;
-import org.jboss.netty.util.internal.ConcurrentIdentityHashMap;
-import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -40,7 +37,7 @@ public class SessionCache implements Cache
   private static final RoaringBitmapFactory FACTORY = new RoaringBitmapFactory(true);
 
   private final Cache delegate;
-  private final Map<String, Map<Object, BitmapHolder>> cached;
+  private final Map<String, CacheHolder> cached;
 
   public SessionCache()
   {
@@ -48,7 +45,7 @@ public class SessionCache implements Cache
     cached = new ConcurrentHashMap<>();
   }
 
-  private SessionCache(Cache delegate, Map<String, Map<Object, BitmapHolder>> cached)
+  private SessionCache(Cache delegate, Map<String, CacheHolder> cached)
   {
     this.delegate = delegate == null ? Cache.NULL : delegate;
     this.cached = cached;
@@ -59,56 +56,35 @@ public class SessionCache implements Cache
     return delegate == null || delegate == NULL ? this : new SessionCache(delegate, cached);
   }
 
+  public BitmapHolder cache(String namespace, Cacheable filter, BitmapHolder holder)
+  {
+    return cached.computeIfAbsent(namespace, k -> new CacheHolder()).put(filter, holder);
+  }
+
   public BitmapHolder get(String namespace, Cacheable filter, Supplier<BitmapHolder> populator)
   {
-    final Map<Object, BitmapHolder> map = cached.computeIfAbsent(
-        namespace, k -> new ConcurrentIdentityHashMap<Object, BitmapHolder>()
-    );
-    if (delegate == NULL) {
-      return map.computeIfAbsent(filter, k -> prepare(populator.get()));
+    final CacheHolder cache = cached.computeIfAbsent(namespace, k -> new CacheHolder());
+    if (delegate == NULL || Cacheable.isHeavy(filter)) {
+      return cache.get(filter, populator);
     }
-    BitmapHolder holder = map.get(filter);
+    BitmapHolder holder = cache.get(filter);
     if (holder != null) {
       return holder;
     }
     final byte[] objKey = filter.getCacheKey();
     if (objKey == null) {
-      holder = populator.get();
-      if (holder != null) {
-        map.put(filter, prepare(holder));
-      }
-      return holder;
+      return cache.put(filter, populator);
     }
     final Cache.NamedKey key = new Cache.NamedKey(namespace.getBytes(), objKey);
     final byte[] bytes = delegate.get(key);
     if (bytes != null) {
       ByteBuffer wrapped = ByteBuffer.wrap(bytes);
-      return BitmapHolder.of(wrapped.get() != 0, FACTORY.mapImmutableBitmap(wrapped));
+      return cache.put(filter, BitmapHolder.of(wrapped.get() != 0, FACTORY.mapImmutableBitmap(wrapped)));
     }
-    holder = populator.get();
+    holder = cache.put(filter, populator);
     if (holder != null) {
-      map.put(filter, prepare(holder));
       byte exact = holder.exact() ? (byte) 0x01 : 0x00;
       delegate.put(key, StringUtils.concat(new byte[]{exact}, holder.bitmap().toBytes()));
-    }
-    return holder;
-  }
-
-  private BitmapHolder prepare(BitmapHolder holder)
-  {
-    if (holder == null) {
-      return null;
-    }
-    boolean exact = holder.lhs;
-    ImmutableBitmap bitmap = holder.rhs;
-    if (bitmap instanceof WrappedImmutableRoaringBitmap) {
-      // cannot sure clone thing
-      MutableBitmap mutable = FACTORY.makeEmptyMutableBitmap();
-      IntIterator iterators = bitmap.iterator();
-      while (iterators.hasNext()) {
-        mutable.add(iterators.next());
-      }
-      return BitmapHolder.of(exact, FACTORY.makeImmutableBitmap(mutable));
     }
     return holder;
   }
@@ -151,5 +127,39 @@ public class SessionCache implements Cache
   public void doMonitor(ServiceEmitter emitter)
   {
     delegate.doMonitor(emitter);
+  }
+
+  private static class CacheHolder extends ConcurrentHashMap<Object, BitmapHolder>
+  {
+    private BitmapHolder get(Cacheable filter, Supplier<BitmapHolder> populator)
+    {
+      BitmapHolder holder = get(filter);
+      return holder != null ? holder : put(filter, populator);
+    }
+
+    private BitmapHolder put(Cacheable filter, Supplier<BitmapHolder> populator)
+    {
+      return put(filter, populator.get());
+    }
+
+    private BitmapHolder put(Cacheable filter, BitmapHolder holder)
+    {
+      BitmapHolder prepared = prepare(holder);
+      if (prepared != null) {
+        super.put(filter, prepared);
+      }
+      return holder;
+    }
+
+    private BitmapHolder prepare(BitmapHolder holder)
+    {
+      if (holder == null || holder.rhs instanceof LazyImmutableBitmap) {
+        return holder;
+      }
+      // cannot sure clone thing
+      boolean exact = holder.lhs;
+      ImmutableBitmap bitmap = holder.rhs;
+      return BitmapHolder.of(exact, RoaringBitmapFactory.copyToBitmap(bitmap.iterator()));
+    }
   }
 }

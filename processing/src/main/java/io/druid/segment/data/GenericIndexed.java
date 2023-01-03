@@ -490,7 +490,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return new Searcher<byte[]>(vs, ve, ds, de)
       {
         private final BytesWindow window = new BytesWindow();
-        private final List<byte[]> bytes = values.subList(vs, ve).stream().map(v -> theStrategy.toBytes(v))
+        private final List<byte[]> bytes = values.subList(vs, ve).stream().map(v -> bufferIndexed.strategy.toBytes(v))
                                                  .collect(Collectors.toList());
 
         @Override

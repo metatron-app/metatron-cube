@@ -190,8 +190,8 @@ public class BoundFilter implements Filter
 
     final ImmutableBitmap end;
     if (range[1] < bitmap.getCardinality()) {
-      Cacheable key = builder -> builder.append(DimFilterCacheKey.BOUND_ROWID_CACHE_ID)
-                                        .append(range[1]);
+      Cacheable key = Cacheable.withIdentity(builder -> builder.append(DimFilterCacheKey.BOUND_ROWID_CACHE_ID)
+                                                               .append(range[1]));
       end = context.createBitmap(key, () -> BitmapHolder.exact(getBitmapUpto(bitmap, range[1], numRows))).bitmap();
     } else {
       end = DimFilters.makeTrue(factory, context.numRows());
@@ -199,8 +199,8 @@ public class BoundFilter implements Filter
     if (range[0] == 0) {
       return end;
     }
-    Cacheable key = builder -> builder.append(DimFilterCacheKey.BOUND_ROWID_CACHE_ID)
-                                      .append(range[0]);
+    Cacheable key = Cacheable.withIdentity(builder -> builder.append(DimFilterCacheKey.BOUND_ROWID_CACHE_ID)
+                                                             .append(range[0]));
     BitmapHolder start = context.createBitmap(key, () -> BitmapHolder.exact(getBitmapUpto(bitmap, range[0], numRows)));
     return DimFilters.difference(factory, end, start.bitmap(), context.numRows());
   }

@@ -150,7 +150,7 @@ public class LuceneGeoJsonPolygonFilter extends LuceneSelector implements DimFil
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, geoJson, scoreField);
+    return Objects.hash(field, StringUtils.substring(geoJson, 100), scoreField);
   }
 
   @Override

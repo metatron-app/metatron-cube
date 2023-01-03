@@ -528,7 +528,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
     };
   }
 
-  private static abstract class LazyImmutableBitmap implements ImmutableBitmap
+  public static abstract class LazyImmutableBitmap implements ImmutableBitmap
   {
     private final int cardinality;
     private final Supplier<WrappedImmutableRoaringBitmap> materializer;

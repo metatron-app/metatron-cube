@@ -198,27 +198,36 @@ public class InDimFilter extends SingleInput
     if (!Objects.equals(extractionFn, that.extractionFn)) {
       return false;
     }
+    if (values.size() != that.values.size()) {
+      return false;
+    }
     return Objects.equals(values, that.values);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(dimension, extractionFn, values);
+    return Objects.hash(dimension, extractionFn, values.size(), GuavaUtils.sublist(values, 10));
   }
 
   @Override
   public String toString()
   {
-    Collection<String> logging = values;
-    if (values.size() > 10) {
-      logging = GuavaUtils.concat(Iterables.limit(values, 10), String.format("..%d more", values.size() - 10));
+    List<String> logging = values;
+    if (logging.size() > 10) {
+      logging = GuavaUtils.concat(GuavaUtils.sublist(logging, 10), String.format("..%d more", logging.size() - 10));
     }
     return "InDimFilter{" +
            "dimension='" + dimension + '\'' +
            (extractionFn == null ? "" : ", extractionFn=" + extractionFn) +
            ", values=" + logging +
            '}';
+  }
+
+  @Override
+  public boolean isHeavy()
+  {
+    return values.size() > 10;
   }
 
   @Override

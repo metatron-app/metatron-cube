@@ -171,7 +171,7 @@ public class LuceneLatLonPolygonFilter extends LuceneSelector implements DimFilt
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, shapeFormat, shapeString, scoreField);
+    return Objects.hash(field, shapeFormat, StringUtils.substring(shapeString, 100), scoreField);
   }
 
   @Override

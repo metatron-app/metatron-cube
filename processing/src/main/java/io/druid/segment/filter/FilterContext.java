@@ -92,6 +92,8 @@ public class FilterContext implements Closeable
     return holder;
   }
 
+  public void cache(Cacheable filter, BitmapHolder holder) {}
+
   public QueryableIndex internal()
   {
     return selector.internal();

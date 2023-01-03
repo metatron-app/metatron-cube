@@ -481,6 +481,12 @@ public class Filters
       {
         return cache.get(segmentId, filter, populator);
       }
+
+      @Override
+      public void cache(Cacheable filter, BitmapHolder holder)
+      {
+        cache.cache(segmentId, filter, holder);
+      }
     };
   }
 

@@ -24,10 +24,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.Query;
@@ -50,6 +52,9 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
   private final List<String> dimensions;
   private final byte[] hash;
 
+  private final Supplier<List<List<String>>> deduped;
+  private final Supplier<Map<String, int[]>> mappings;
+
   @JsonCreator
   public InDimsFilter(
       @JsonProperty("dimensions") List<String> dimensions,
@@ -63,6 +68,32 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
     this.dimensions = dimensions;
     this.values = values;
     this.hash = hash;
+    this.deduped = DSuppliers.memoize(() -> {
+      final List<List<String>> converted = Lists.newArrayListWithCapacity(values.size());
+      for (int i = 0; i < values.size(); i++) {
+        converted.add(i == 0 ? GuavaUtils.dedupSorted(values.get(i)) : GuavaUtils.sortAndDedup(values.get(i)));
+      }
+      return converted;
+    });
+    this.mappings = DSuppliers.memoize(() -> {
+      final IntList stash = new IntList();
+      final Map<String, int[]> mapping = Maps.newHashMap();
+      final List<String> strings = values.get(0);
+      String prev = null;
+      for (int i = 0; i < strings.size(); i++) {
+        final String current = strings.get(i);
+        if (prev != null && !current.equals(prev)) {
+          mapping.put(prev, stash.array());
+          stash.clear();
+        }
+        prev = current;
+        stash.add(i);
+      }
+      if (!stash.isEmpty()) {
+        mapping.put(prev, stash.array());
+      }
+      return mapping;
+    });
   }
 
   @Override
@@ -130,10 +161,10 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
+        final List<List<String>> values = deduped.get();
         final List<BitmapHolder> holders = Lists.newArrayList();
         for (int i = 0; i < dimensions.size(); i++) {
-          final List<String> value = values.get(i);
-          final List<String> dedup = i == 0 ? GuavaUtils.dedupSorted(value) : GuavaUtils.sortAndDedup(value);
+          final List<String> dedup = values.get(i);
           final BitmapHolder holder = InFilter.unionBitmaps(InDimsFilter.this, dimensions.get(i), dedup, context);
           if (holder != null) {
             holders.add(holder);
@@ -145,23 +176,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
       @Override
       public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
       {
-        final IntList stash = new IntList();
-        final Map<String, int[]> mapping = Maps.newHashMap();
-        final List<String> strings = values.get(0);
-        String prev = null;
-        for (int i = 0; i < strings.size(); i++) {
-          final String current = strings.get(i);
-          if (prev != null && !current.equals(prev)) {
-            mapping.put(prev, stash.array());
-            stash.clear();
-          }
-          prev = current;
-          stash.add(i);
-        }
-        if (!stash.isEmpty()) {
-          mapping.put(prev, stash.array());
-        }
-
+        final Map<String, int[]> mapping = mappings.get();
         final ObjectColumnSelector[] selectors = dimensions.stream()
                                                            .map(d -> factory.makeObjectColumnSelector(d))
                                                            .toArray(v -> new ObjectColumnSelector[v]);
@@ -213,6 +228,9 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
     if (!Objects.equals(dimensions, that.dimensions)) {
       return false;
     }
+    if (values.get(0).size() != that.values.get(0).size()) {
+      return false;
+    }
     if (!Objects.equals(values, that.values)) {
       return false;
     }
@@ -222,7 +240,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
   @Override
   public int hashCode()
   {
-    return Objects.hash(dimensions, values);
+    return Objects.hash(dimensions, values.size(), values.get(0).size(), GuavaUtils.sublist(values.get(0), 10));
   }
 
   @Override
@@ -251,6 +269,12 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
            "dimensions=" + dimensions +
            ", values=" + builder +
            '}';
+  }
+
+  @Override
+  public boolean isHeavy()
+  {
+    return values.get(0).size() * values.size() > 16;
   }
 
   @Override

@@ -19,7 +19,10 @@
 
 package io.druid.common;
 
+import java.util.Arrays;
+
 /**
+ *
  */
 public interface Cacheable
 {
@@ -31,4 +34,55 @@ public interface Cacheable
   }
 
   KeyBuilder getCacheKey(KeyBuilder builder);
+
+  interface PossiblyHeavy extends Cacheable
+  {
+    default boolean isHeavy() {return true;}
+  }
+
+  static boolean isHeavy(Cacheable cacheable)
+  {
+    return cacheable instanceof PossiblyHeavy && ((PossiblyHeavy) cacheable).isHeavy();
+  }
+
+  static Cacheable withIdentity(Cacheable cacheable)
+  {
+    return new Identity(cacheable);
+  }
+
+  static class Identity implements Cacheable
+  {
+    private final Cacheable cacheable;
+    private final byte[] key;
+
+    private Identity(Cacheable cacheable)
+    {
+      this.cacheable = cacheable;
+      this.key = cacheable.getCacheKey();
+    }
+
+    @Override
+    public byte[] getCacheKey()
+    {
+      return key;
+    }
+
+    @Override
+    public KeyBuilder getCacheKey(KeyBuilder builder)
+    {
+      return cacheable.getCacheKey(builder);
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Arrays.hashCode(key);
+    }
+
+    @Override
+    public boolean equals(Object other)
+    {
+      return other instanceof Identity && Arrays.equals(key, ((Identity) other).key);
+    }
+  }
 }

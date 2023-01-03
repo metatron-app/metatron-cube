@@ -272,7 +272,7 @@ public class LuceneSpatialFilter extends LuceneSelector implements DimFilter.Log
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, operation, shapeFormat, shapeString, scoreField);
+    return Objects.hash(field, operation, shapeFormat, StringUtils.substring(shapeString, 100), scoreField);
   }
 
   @Override
