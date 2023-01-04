@@ -150,6 +150,12 @@ public class FilterContext implements Closeable
     return range == null ? null : range.iterator();
   }
 
+  public int dictionaryRange(String dimension, int cardinality)
+  {
+    final ImmutableBitmap range = dictionaryRef(dimension);
+    return range == null ? cardinality : range.size();
+  }
+
   public void attach(String column, IntFunction attachment)
   {
     attached.put(column, attachment);
@@ -178,6 +184,11 @@ public class FilterContext implements Closeable
   public int targetNumRows()
   {
     return baseBitmap == null ? selector.getNumRows() : baseBitmap.size();
+  }
+
+  public boolean notFiltered()
+  {
+    return baseBitmap == null || baseBitmap.size() == selector.getNumRows();
   }
 
   public boolean isAll(ImmutableBitmap bitmap)

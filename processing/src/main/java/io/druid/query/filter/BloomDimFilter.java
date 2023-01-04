@@ -28,11 +28,13 @@ import com.google.common.base.Supplier;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.utils.IOUtils;
 import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -55,13 +57,18 @@ import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.MatcherContext;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
 import java.util.List;
@@ -157,16 +164,35 @@ public class BloomDimFilter implements LogProvider, BestEffort
         }
         final BitmapIndex bitmapIndex = column.getBitmapIndex();
         if (bitmapIndex != null) {
-          final IntList ids = new IntList();
-          final BloomKFilter filter = supplier.get();
-          column.getDictionary().scan(context.dictionaryIterator(dimension), (x, b, o, l) -> {
-            if (filter.testHash(Murmur3.hash64(b, o, l))) ids.add(x);
-          });
-          context.dictionaryRef(dimension, RoaringBitmapFactory.from(ids.array()));
+          final DictionaryEncodedColumn encoded = column.getDictionaryEncoding();
+          try {
+            final int cardinality = context.dictionaryRange(dimension, encoded.dictionary().size());
+            final IntIterator iterator;
+            if (encoded.hasMultipleValues() || context.notFiltered() || cardinality < context.targetNumRows()) {
+              iterator = context.dictionaryIterator(dimension);
+            } else {
+              final IntSet set = new IntOpenHashSet();
+              encoded.scan(context.rowIterator(), (x, v) -> set.add(v.applyAsInt(x)));
+              iterator = IntIterators.from(IntList.of(set.toIntArray()).sort());
+            }
+            final BitmapFactory factory = selector.getBitmapFactory();
+            if (iterator != null && !iterator.hasNext()) {
+              return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
+            }
+            final IntList ids = new IntList();
+            final BloomKFilter filter = supplier.get();
+            encoded.dictionary().scan(iterator, (x, b, o, l) -> {
+              if (filter.testHash(Murmur3.hash64(b, o, l))) {ids.add(x);}
+            });
+            context.dictionaryRef(dimension, RoaringBitmapFactory.from(ids.array()));
 
-          // actually it's not exact. but if matcher cannot improve that, it can be said it's exact
-          final GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();
-          return BitmapHolder.exact(selector.getBitmapFactory().union(ids.transform(x -> bitmaps.get(x))));
+            // actually it's not exact. but if matcher cannot improve that, it can be said it's exact
+            final GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();
+            return BitmapHolder.exact(factory.union(ids.transform(x -> bitmaps.get(x))));
+          }
+          finally {
+            IOUtils.closePropagate(encoded);
+          }
         }
         return null;
       }
@@ -181,17 +207,10 @@ public class BloomDimFilter implements LogProvider, BestEffort
         if (groupingSets != null) {
           grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
         }
+        final BloomTest tester = new BloomTest(supplier.get());
         final HashAggregator<BloomTest> aggregator = new BloomTestAggregator(selectors, grouping);
-        return new ValueMatcher()
-        {
-          final BloomTest tester = new BloomTest(supplier.get());
 
-          @Override
-          public boolean matches()
-          {
-            return aggregator.aggregate(tester).status;
-          }
-        };
+        return () -> aggregator.aggregate(tester).status;
       }
     };
   }

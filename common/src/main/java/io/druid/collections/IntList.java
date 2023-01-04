@@ -196,6 +196,11 @@ public class IntList implements Iterable<Integer>, IntConsumer
     return Arrays.copyOfRange(baseArray, 0, size);
   }
 
+  public int[] unwrap()
+  {
+    return baseArray;
+  }
+
   public void shuffle()
   {
     shuffle(new Random());
