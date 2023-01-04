@@ -74,11 +74,12 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
       destLens[i] = ref.length;
       bytes[i] = Arrays.copyOf(compressing, compressed);
     }
-    return new CompressedInsFilter(filter.getDimensions(), destLens, bytes, filter.getHash());
+    return new CompressedInsFilter(filter.getDimensions(), destLens, values.get(0).size(), bytes, filter.getHash());
   }
 
   private final List<String> dimensions;
   private final int[] destLens;
+  private final int valueLen;
   private final byte[][] values;
   private final byte[] hash;
 
@@ -86,12 +87,14 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   public CompressedInsFilter(
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("destLens") int[] destLens,
+      @JsonProperty("valueLen") int valueLen,
       @JsonProperty("values") byte[][] values,
       @JsonProperty("hash") byte[] hash
   )
   {
     this.dimensions = Preconditions.checkNotNull(dimensions, "dimension can not be null");
     this.destLens = destLens;
+    this.valueLen = valueLen;
     this.values = values;
     this.hash = hash;
   }
@@ -109,6 +112,12 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   }
 
   @JsonProperty
+  public int getValueLen()
+  {
+    return valueLen;
+  }
+
+  @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public byte[][] getValues()
   {
@@ -118,20 +127,16 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   @Override
   public DimFilter forLog()
   {
-    return new CompressedInsFilter(dimensions, destLens, null, null);
+    return new CompressedInsFilter(dimensions, destLens, valueLen, null, null);
   }
 
   @Override
   public DimFilter decompress(Query parent)
   {
-    List<List<String>> list = Lists.newArrayList();
+    final List<List<String>> list = Lists.newArrayListWithCapacity(destLens.length);
     for (int i = 0; i < destLens.length; i++) {
-      final BytesInputStream decompressed = new BytesInputStream(LZ4_DECOMP.decompress(values[i], destLens[i]));
-      final List<String> values = Lists.newArrayList();
-      while (decompressed.available() > 0) {
-        values.add(StringUtils.fromUtf8(decompressed.readVarSizeBytes()));
-      }
-      list.add(values);
+      BytesInputStream decompressed = new BytesInputStream(LZ4_DECOMP.decompress(values[i], destLens[i]));
+      list.add(decompressed.readVarSizeUTFs(valueLen));
     }
     return new InDimsFilter(dimensions, list, hash);
   }

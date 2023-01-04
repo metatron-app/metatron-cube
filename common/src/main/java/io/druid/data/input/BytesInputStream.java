@@ -25,6 +25,8 @@ import io.druid.data.VLongUtils;
 import io.druid.java.util.common.StringUtils;
 
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.List;
 
 public final class BytesInputStream extends InputStream implements ByteArrayDataInput
 {
@@ -202,6 +204,17 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
     final String value = StringUtils.toUTF8String(bytes, pos, length);
     pos += length;
     return value;
+  }
+
+  public List<String> readVarSizeUTFs(int valueLength)
+  {
+    final String[] values = new String[valueLength];
+    for (int i = 0; i < valueLength; i++) {
+      final int length = readUnsignedVarInt();
+      values[i] = StringUtils.fromUtf8(bytes, pos, length);
+      pos += length;
+    }
+    return Arrays.asList(values);
   }
 
   public byte[] readVarSizeBytes()

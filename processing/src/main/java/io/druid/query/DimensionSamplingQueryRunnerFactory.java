@@ -27,12 +27,14 @@ import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.UTF8Bytes;
 import io.druid.granularity.Granularities;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.Segment;
 
 import java.util.Arrays;
@@ -168,9 +170,15 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
 
     private void select(List<DimensionSelector> selectors, Object[] array)
     {
+      // safe to be mixed because it's converted to string at the end (see SemiJoinFactory.toMap)
       for (int i = 0; i < array.length; i++) {
         DimensionSelector selector = selectors.get(i);
-        array[i] = selector.lookupName(selector.getRow().get(0));    // todo multi-value?
+        int id = selector.getRow().get(0);      // todo multi-value
+        if (selector instanceof WithRawAccess) {
+          array[i] = UTF8Bytes.of(((WithRawAccess) selector).getAsRaw(id));
+        } else {
+          array[i] = selector.lookupName(id);
+        }
       }
     }
 

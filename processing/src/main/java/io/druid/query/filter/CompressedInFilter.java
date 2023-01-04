@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesInputStream;
@@ -71,6 +70,7 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
     return new CompressedInFilter(
         filter.getDimension(),
         ref.length,
+        values.size(),
         Arrays.copyOf(compressing, compressed),
         filter.getExtractionFn(),
         filter.getHash()
@@ -80,6 +80,7 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
   private final String dimension;
   private final ExtractionFn extractionFn;
   private final int destLen;
+  private final int valueLen;
   private final byte[] values;
   private final byte[] hash;
 
@@ -87,6 +88,7 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
   public CompressedInFilter(
       @JsonProperty("dimension") String dimension,
       @JsonProperty("destLen") int destLen,
+      @JsonProperty("valueLen") int valueLen,
       @JsonProperty("values") byte[] values,
       @JsonProperty("extractionFn") ExtractionFn extractionFn,
       @JsonProperty("hash") byte[] hash
@@ -94,6 +96,7 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
   {
     this.dimension = Preconditions.checkNotNull(dimension, "dimension can not be null");
     this.destLen = destLen;
+    this.valueLen = valueLen;
     this.values = values;
     this.extractionFn = extractionFn;
     this.hash = hash;
@@ -109,6 +112,12 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
   public int getDestLen()
   {
     return destLen;
+  }
+
+  @JsonProperty
+  public int getValueLen()
+  {
+    return valueLen;
   }
 
   @JsonProperty
@@ -135,17 +144,14 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
   @Override
   public DimFilter forLog()
   {
-    return new CompressedInFilter(dimension, destLen, null, extractionFn, hash);
+    return new CompressedInFilter(dimension, destLen, valueLen, null, extractionFn, hash);
   }
 
   @Override
   public DimFilter decompress(Query parent)
   {
     final BytesInputStream decompressed = new BytesInputStream(LZ4_DECOMP.decompress(values, destLen));
-    final List<String> values = Lists.newArrayList();
-    while (decompressed.available() > 0) {
-      values.add(StringUtils.fromUtf8(decompressed.readVarSizeBytes()));
-    }
+    final List<String> values = decompressed.readVarSizeUTFs(valueLen);
     return new InDimFilter(dimension, extractionFn, values, hash);
   }
 
