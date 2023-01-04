@@ -27,7 +27,6 @@ import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.data.UTF8Bytes;
 import io.druid.granularity.Granularities;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.dimension.DimensionSpec;
@@ -175,7 +174,7 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
         DimensionSelector selector = selectors.get(i);
         int id = selector.getRow().get(0);      // todo multi-value
         if (selector instanceof WithRawAccess) {
-          array[i] = UTF8Bytes.of(((WithRawAccess) selector).getAsRaw(id));
+          array[i] = ((WithRawAccess) selector).getAsWrap(id);
         } else {
           array[i] = selector.lookupName(id);
         }

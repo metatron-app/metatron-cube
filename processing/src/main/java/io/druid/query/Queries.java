@@ -36,6 +36,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
@@ -571,7 +572,7 @@ public class Queries
 
     Object[] histogram = null;
     if (type.isDimension() && allQueryable && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM << 1) {
-      ItemsSketch<String> sketch = makeColumnSketch(segments, query.toHistogramQuery(column, comparator), cache);
+      ItemsSketch<UTF8Bytes> sketch = makeColumnSketch(segments, query.toHistogramQuery(column, comparator), cache);
       histogram = sketch == null ? null : toHistogram(postAggregator, sketch);
     }
     if (histogram == null && segments.size() == 1) {
@@ -587,13 +588,13 @@ public class Queries
     return histogram;
   }
 
-  public static ItemsSketch<String> makeColumnSketch(List<Segment> segments, HistogramQuery query, SessionCache cache)
+  public static ItemsSketch<UTF8Bytes> makeColumnSketch(List<Segment> segments, HistogramQuery query, SessionCache cache)
   {
-    ItemsUnion<String> union = null;
+    ItemsUnion<UTF8Bytes> union = null;
     for (Segment segment : segments) {
       HistogramQuery prepared = Segments.prepare(query, segment);
       union = segment.asStorageAdapter(true).makeCursors(prepared, cache).accumulate(union, (current, cursor) -> {
-        DictionarySketch sketch = DictionarySketch.of(DictionarySketch.DEFAULT_K);
+        DictionarySketch sketch = DictionarySketch.newInstance();
         DimensionSelector selector = cursor.makeDimensionSelector(prepared.getDimensionSpec());
         ItemsSketch.rand.setSeed(0);
         if (selector instanceof DimensionSelector.Scannable) {
@@ -613,7 +614,7 @@ public class Queries
             }
           }
         }
-        ItemsSketch<String> instance = sketch.convert(selector);
+        ItemsSketch<UTF8Bytes> instance = sketch.convert(selector);
         if (current == null) {
           return DictionarySketch.toUnion(instance);
         }

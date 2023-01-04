@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import io.druid.collections.IntList;
 import io.druid.common.guava.BufferRef;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.IntScanner;
 import io.druid.segment.data.Dictionary;
@@ -112,6 +113,11 @@ public interface DimensionSelector
     byte[] getAsRaw(int id);
 
     BufferRef getAsRef(int id);
+
+    default UTF8Bytes getAsWrap(int id)
+    {
+      return UTF8Bytes.of(getAsRaw(id));
+    }
   }
 
   // aka. dictionary with single value without extract function

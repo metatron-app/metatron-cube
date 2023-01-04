@@ -23,20 +23,30 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.PeekingIterator;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.UTF8Bytes;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.bitmap.IntIterators;
 import it.unimi.dsi.fastutil.PriorityQueue;
+import it.unimi.dsi.fastutil.ints.Int2ObjectFunction;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Objects;
 
 public class DictionarySketch
 {
   public static final int DEFAULT_K = 8192;
 
-  public static DictionarySketch of(int K)
+  public static DictionarySketch newInstance()
+  {
+    return newInstance(DEFAULT_K);
+  }
+
+  public static DictionarySketch newInstance(int K)
   {
     return new DictionarySketch(K);
   }
@@ -162,17 +172,22 @@ public class DictionarySketch
     }
   }
 
-  public ItemsSketch<String> convert(final DimensionSelector selector)
+  public ItemsSketch<UTF8Bytes> convert(final DimensionSelector selector)
   {
-    ItemsSketch<String> qs = ItemsSketch.getInstance(K, GuavaUtils.nullFirstNatural());
+    ItemsSketch<UTF8Bytes> qs = ItemsSketch.getInstance(K, GuavaUtils.nullFirstNatural());
     qs.n_ = N;
     qs.combinedBufferItemCapacity_ = sketch.length;
     qs.combinedBuffer_ = new Object[sketch.length];
     qs.baseBufferCount_ = index;
     qs.bitPattern_ = bitPattern;
 
+    Int2ObjectFunction<UTF8Bytes> handler =
+        selector instanceof WithRawAccess ?
+        x -> ((WithRawAccess) selector).getAsWrap(x) :
+        x -> UTF8Bytes.of(StringUtils.toUtf8(Objects.toString(selector.lookupName(x), "")));
+
     for (int i = 0; i < index; i++) {
-      qs.combinedBuffer_[i] = selector.lookupName(sketch[i]);
+      qs.combinedBuffer_[i] = handler.apply(sketch[i]);
     }
     long current = bitPattern;
     for (int level = 0; current != 0L; level++, current >>>= 1) {
@@ -180,13 +195,13 @@ public class DictionarySketch
         final int position = offset(level);
         final int limit = position + K;
         for (int i = position; i < limit; i++) {
-          qs.combinedBuffer_[i] = selector.lookupName(sketch[i]);
+          qs.combinedBuffer_[i] = handler.apply(sketch[i]);
         }
       }
     }
 
-    qs.minValue_ = (String) selector.lookupName(min);
-    qs.maxValue_ = (String) selector.lookupName(max);
+    qs.minValue_ = handler.apply(min);
+    qs.maxValue_ = handler.apply(max);
 
     return qs;
   }

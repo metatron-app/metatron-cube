@@ -26,6 +26,7 @@ import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.Queries;
@@ -58,7 +59,7 @@ public class HistogramQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row
       public Sequence<Row> run(Query<Row> input, Map<String, Object> responseContext)
       {
         HistogramQuery query = (HistogramQuery) input;
-        ItemsSketch<String> sketch = Queries.makeColumnSketch(Arrays.asList(segment), query, cache);
+        ItemsSketch<UTF8Bytes> sketch = Queries.makeColumnSketch(Arrays.asList(segment), query, cache);
         return Sequences.simple(new MapBasedRow(0, ImmutableMap.of("$SKETCH", sketch)));
       }
     };
