@@ -98,12 +98,6 @@ public class CompressedDoublesIndexedSupplier implements ColumnPartProvider<Inde
   }
 
   @Override
-  public IndexedDoubles get()
-  {
-    return new CompressedIndexedDoubles();
-  }
-
-  @Override
   public long getSerializedSize()
   {
     return baseDoubleBuffers.getSerializedSize() + 1 + 4 + 4 + 1;
@@ -117,6 +111,18 @@ public class CompressedDoublesIndexedSupplier implements ColumnPartProvider<Inde
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseDoubleBuffers.writeToChannel(channel);
+  }
+
+  @Override
+  public Class<? extends IndexedDoubles> provides()
+  {
+    return CompressedIndexedDoubles.class;
+  }
+
+  @Override
+  public IndexedDoubles get()
+  {
+    return new CompressedIndexedDoubles();
   }
 
   private class CompressedIndexedDoubles implements IndexedDoubles

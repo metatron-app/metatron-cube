@@ -25,9 +25,6 @@
   "rollup": false,
   "indexSpec": {
     "allowNullForNumbers": true,
-    "bitmap": { "type": "roaring" },
-    "columnCompression": {
-      "O_COMMENT": "lz4"
-    }
+    "bitmap": { "type": "roaring" }
   }
 }

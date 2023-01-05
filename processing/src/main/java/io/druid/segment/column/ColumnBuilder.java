@@ -163,7 +163,7 @@ public class ColumnBuilder
 
   public ColumnBuilder addSecondaryIndex(ExternalIndexProvider<? extends SecondaryIndex> secondaryIndex)
   {
-    this.secondaryIndex.put(secondaryIndex.classOfObject(), secondaryIndex);
+    this.secondaryIndex.put(secondaryIndex.provides(), secondaryIndex);
     return this;
   }
 

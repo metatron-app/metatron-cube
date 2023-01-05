@@ -133,6 +133,12 @@ class SimpleColumn implements Column
   }
 
   @Override
+  public Class<? extends GenericColumn> getGenericColumnType()
+  {
+    return genericColumn == null ? null : genericColumn.provides();
+  }
+
+  @Override
   public boolean hasComplexColumn()
   {
     return complexColumn != null;

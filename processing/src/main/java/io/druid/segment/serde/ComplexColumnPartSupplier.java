@@ -39,12 +39,6 @@ public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColu
   }
 
   @Override
-  public ComplexColumn get()
-  {
-    return new IndexedComplexColumn(type, column.asSingleThreaded());
-  }
-
-  @Override
   public int numRows()
   {
     return column.size();
@@ -54,5 +48,17 @@ public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColu
   public long getSerializedSize()
   {
     return column.getSerializedSize();
+  }
+
+  @Override
+  public Class<? extends ComplexColumn> provides()
+  {
+    return IndexedComplexColumn.class;
+  }
+
+  @Override
+  public ComplexColumn get()
+  {
+    return new IndexedComplexColumn(type, column.asSingleThreaded());
   }
 }

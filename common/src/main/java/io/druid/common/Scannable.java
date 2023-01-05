@@ -26,17 +26,11 @@ import java.util.stream.Stream;
 
 public interface Scannable<T>
 {
-  void scan(Tools.ObjectScanner<T> scanner);
-
   void scan(IntIterator iterator, Tools.ObjectScanner<T> scanner);
 
   interface BufferBacked<T> extends Scannable<T>
   {
-    void scan(Tools.Scanner scanner);
-
     void scan(IntIterator iterator, Tools.Scanner scanner);
-
-    <R> Stream<R> apply(Tools.Function<R> function);
 
     <R> Stream<R> apply(IntIterator iterator, Tools.Function<R> function);
   }

@@ -213,6 +213,12 @@ public class VSizedIndexedInt implements IndexedMultivalue<IndexedInts>
     }
 
     @Override
+    public Class<? extends IndexedMultivalue<IndexedInts>> provides()
+    {
+      return delegate.getClass();
+    }
+
+    @Override
     public IndexedMultivalue<IndexedInts> get()
     {
       return delegate;

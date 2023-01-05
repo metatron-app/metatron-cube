@@ -35,8 +35,8 @@ import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.BestEffort;
 import io.druid.query.filter.DimFilter.SingleInput;
+import io.druid.segment.filter.DictionaryMatcher;
 import io.druid.segment.filter.DimensionPredicateFilter;
-import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.PrefixFilter;
 import io.druid.segment.filter.SelectorFilter;
 
@@ -471,9 +471,9 @@ public class LikeDimFilter extends SingleInput implements BestEffort
     return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn)
     {
       @Override
-      protected Filters.DictionaryMatcher<String> toMatcher(Predicate<String> predicate)
+      protected DictionaryMatcher<String> toMatcher(Predicate<String> predicate)
       {
-        return new Filters.FromPredicate<String>(matcher.prefix, matcher.asPredicate());
+        return new DictionaryMatcher.WithPrefix(matcher.prefix, matcher.asPredicate());
       }
     };
   }

@@ -30,8 +30,10 @@ import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
+import io.druid.common.Scannable.BufferBacked;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.IOUtils;
@@ -62,6 +64,7 @@ import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
@@ -162,39 +165,54 @@ public class BloomDimFilter implements LogProvider, BestEffort
         if (column == null) {
           return null;
         }
+        final BitmapFactory factory = selector.getBitmapFactory();
         final BitmapIndex bitmapIndex = column.getBitmapIndex();
-        if (bitmapIndex != null) {
-          final DictionaryEncodedColumn encoded = column.getDictionaryEncoding();
-          try {
-            final int cardinality = context.dictionaryRange(dimension, encoded.dictionary().size());
-            final IntIterator iterator;
-            if (encoded.hasMultipleValues() || context.notFiltered() || cardinality < context.targetNumRows()) {
-              iterator = context.dictionaryIterator(dimension);
-            } else {
-              final IntSet set = new IntOpenHashSet();
-              encoded.scan(context.rowIterator(), (x, v) -> set.add(v.applyAsInt(x)));
-              iterator = IntIterators.from(IntList.of(set.toIntArray()).sort());
+        if (bitmapIndex == null) {
+          if (column.hasGenericColumn() && BufferBacked.class.isAssignableFrom(column.getGenericColumnType())) {
+            final GenericColumn generic = column.getGenericColumn();
+            try {
+              final BufferBacked scannable = (BufferBacked) generic;
+              final MutableBitmap mutable = factory.makeEmptyMutableBitmap();
+              final BloomKFilter filter = supplier.get();
+              scannable.scan(context.rowIterator(), (x, b, o, l) -> {
+                if (filter.testHash(Murmur3.hash64(b, o, l))) {mutable.add(x);}
+              });
+              return BitmapHolder.exact(factory.makeImmutableBitmap(mutable));
             }
-            final BitmapFactory factory = selector.getBitmapFactory();
-            if (iterator != null && !iterator.hasNext()) {
-              return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
+            finally {
+              IOUtils.closePropagate(generic);
             }
-            final IntList ids = new IntList();
-            final BloomKFilter filter = supplier.get();
-            encoded.dictionary().scan(iterator, (x, b, o, l) -> {
-              if (filter.testHash(Murmur3.hash64(b, o, l))) {ids.add(x);}
-            });
-            context.dictionaryRef(dimension, RoaringBitmapFactory.from(ids.array()));
-
-            // actually it's not exact. but if matcher cannot improve that, it can be said it's exact
-            final GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();
-            return BitmapHolder.exact(factory.union(ids.transform(x -> bitmaps.get(x))));
           }
-          finally {
-            IOUtils.closePropagate(encoded);
-          }
+          return null;
         }
-        return null;
+        final DictionaryEncodedColumn encoded = column.getDictionaryEncoding();
+        try {
+          final int cardinality = context.dictionaryRange(dimension, encoded.dictionary().size());
+          final IntIterator iterator;
+          if (encoded.hasMultipleValues() || context.notFiltered() || cardinality < context.targetNumRows()) {
+            iterator = context.dictionaryIterator(dimension);
+          } else {
+            final IntSet set = new IntOpenHashSet();
+            encoded.scan(context.rowIterator(), (x, v) -> set.add(v.applyAsInt(x)));
+            iterator = IntIterators.from(IntList.of(set.toIntArray()).sort());
+          }
+          if (iterator != null && !iterator.hasNext()) {
+            return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
+          }
+          final IntList matched = new IntList();
+          final BloomKFilter filter = supplier.get();
+          encoded.dictionary().scan(iterator, (x, b, o, l) -> {
+            if (filter.testHash(Murmur3.hash64(b, o, l))) {matched.add(x);}
+          });
+          context.dictionaryRef(dimension, RoaringBitmapFactory.from(matched.array()));
+
+          // actually it's not exact. but if matcher cannot improve that, it can be said it's exact
+          final GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();
+          return BitmapHolder.exact(factory.union(matched.transform(x -> bitmaps.get(x))));
+        }
+        finally {
+          IOUtils.closePropagate(encoded);
+        }
       }
 
       @Override

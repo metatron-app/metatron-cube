@@ -250,12 +250,6 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                 }
 
                 @Override
-                public Class classOfObject()
-                {
-                  return LuceneIndex.class;
-                }
-
-                @Override
                 public int numRows()
                 {
                   return numRows;
@@ -265,6 +259,12 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                 public long getSerializedSize()
                 {
                   return length;
+                }
+
+                @Override
+                public Class<? extends LuceneIndex> provides()
+                {
+                  return LuceneIndex.class;
                 }
 
                 @Override

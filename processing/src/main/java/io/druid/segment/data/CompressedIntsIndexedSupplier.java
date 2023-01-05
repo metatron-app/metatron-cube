@@ -85,12 +85,6 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
   }
 
   @Override
-  public IndexedInts get()
-  {
-    return new CompressedIndexedInts();
-  }
-
-  @Override
   public long getSerializedSize()
   {
     return 1 + // version
@@ -107,6 +101,18 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseIntBuffers.writeToChannel(channel);
+  }
+
+  @Override
+  public IndexedInts get()
+  {
+    return new CompressedIndexedInts();
+  }
+
+  @Override
+  public Class<? extends IndexedInts> provides()
+  {
+    return CompressedIndexedInts.class;
   }
 
   private class CompressedIndexedInts implements IndexedInts

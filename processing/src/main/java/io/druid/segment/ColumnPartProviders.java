@@ -59,6 +59,13 @@ public class ColumnPartProviders
       }
 
       @Override
+      @SuppressWarnings("unchecked")
+      public Class provides()
+      {
+        return instance.getClass();
+      }
+
+      @Override
       public T get()
       {
         return instance;
@@ -89,6 +96,13 @@ public class ColumnPartProviders
       }
 
       @Override
+      @SuppressWarnings("unchecked")
+      public Class provides()
+      {
+        return strategy.getClass();
+      }
+
+      @Override
       public T get()
       {
         return strategy.fromByteBuffer(buffer.asReadOnlyBuffer(), length);
@@ -116,6 +130,12 @@ public class ColumnPartProviders
       public long getSerializedSize()
       {
         return length;
+      }
+
+      @Override
+      public Class<? extends BitSlicedBitmap> provides()
+      {
+        return BitSlicedBitmap.class;
       }
 
       @Override

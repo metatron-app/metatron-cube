@@ -49,12 +49,6 @@ public class BooleanColumnSupplier implements ColumnPartProvider<GenericColumn>
   }
 
   @Override
-  public GenericColumn get()
-  {
-    return new BooleanGenericColumn(values.get(), nulls.get(), numRows);
-  }
-
-  @Override
   public int numRows()
   {
     return numRows;
@@ -64,5 +58,17 @@ public class BooleanColumnSupplier implements ColumnPartProvider<GenericColumn>
   public long getSerializedSize()
   {
     return serializedLength;
+  }
+
+  @Override
+  public Class<? extends GenericColumn> provides()
+  {
+    return BooleanGenericColumn.class;
+  }
+
+  @Override
+  public GenericColumn get()
+  {
+    return new BooleanGenericColumn(values.get(), nulls.get(), numRows);
   }
 }

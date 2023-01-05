@@ -136,9 +136,14 @@ public class CompressedVSizedIndexedIntV3Supplier implements WritableSupplier<In
   }
 
   @Override
+  public Class<? extends IndexedMultivalue<IndexedInts>> provides()
+  {
+    return CompressedVSizedIndexedIntSupplier.CompressedVSizeIndexed.class;
+  }
+
+  @Override
   public IndexedMultivalue<IndexedInts> get()
   {
     return new CompressedVSizedIndexedIntSupplier.CompressedVSizeIndexed(offsetSupplier.get(), valueSupplier.get());
   }
-
 }

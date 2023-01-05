@@ -62,6 +62,24 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
   }
 
   @Override
+  public int numRows()
+  {
+    return bitmaps.size();
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return bitmaps.getSerializedSize();
+  }
+
+  @Override
+  public Class<? extends BitmapIndex> provides()
+  {
+    return BitmapIndex.CumulativeSupport.class;
+  }
+
+  @Override
   public BitmapIndex get()
   {
     final GenericIndexed<ImmutableBitmap> dedicated = bitmaps.asSingleThreaded();
@@ -119,17 +137,5 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
         return cumulativeBitmaps == null ? null : cumulativeBitmaps.asSingleThreaded();
       }
     };
-  }
-
-  @Override
-  public int numRows()
-  {
-    return bitmaps.size();
-  }
-
-  @Override
-  public long getSerializedSize()
-  {
-    return bitmaps.getSerializedSize();
   }
 }

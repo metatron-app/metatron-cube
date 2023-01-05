@@ -22,7 +22,7 @@ package io.druid.common.utils;
 import com.google.common.base.Throwables;
 
 import java.io.Closeable;
-import java.io.IOException;
+import java.util.concurrent.Callable;
 
 public class IOUtils extends org.apache.commons.io.IOUtils
 {
@@ -41,5 +41,15 @@ public class IOUtils extends org.apache.commons.io.IOUtils
   public static Closeable wrap(Closeable closeable)
   {
     return () -> closePropagate(closeable);
+  }
+
+  public static <T> T callPropagate(Callable<T> callable)
+  {
+    try {
+      return callable.call();
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
   }
 }

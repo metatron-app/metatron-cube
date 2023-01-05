@@ -36,19 +36,6 @@ public class SpatialIndexColumnPartSupplier implements ColumnPartProvider<Spatia
   }
 
   @Override
-  public SpatialIndex get()
-  {
-    return new SpatialIndex()
-    {
-      @Override
-      public ImmutableRTree getRTree()
-      {
-        return indexedTree;
-      }
-    };
-  }
-
-  @Override
   public int numRows()
   {
     return indexedTree.size();
@@ -58,5 +45,17 @@ public class SpatialIndexColumnPartSupplier implements ColumnPartProvider<Spatia
   public long getSerializedSize()
   {
     return indexedTree.size() + Integer.BYTES;
+  }
+
+  @Override
+  public Class<? extends SpatialIndex> provides()
+  {
+    return SpatialIndex.class;
+  }
+
+  @Override
+  public SpatialIndex get()
+  {
+    return () -> indexedTree;
   }
 }

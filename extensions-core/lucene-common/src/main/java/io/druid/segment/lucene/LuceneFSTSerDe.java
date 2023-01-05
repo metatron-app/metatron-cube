@@ -21,7 +21,7 @@ package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Throwables;
+import io.druid.common.utils.IOUtils;
 import io.druid.segment.DictionaryPartBuilder;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.column.ColumnBuilder;
@@ -83,12 +83,6 @@ public abstract class LuceneFSTSerDe extends FSTBuilder implements ColumnPartSer
           }
 
           @Override
-          public Class classOfObject()
-          {
-            return FST.class;
-          }
-
-          @Override
           public int numRows()
           {
             return builder.getNumRows();
@@ -101,25 +95,27 @@ public abstract class LuceneFSTSerDe extends FSTBuilder implements ColumnPartSer
           }
 
           @Override
+          public Class<? extends FSTHolder> provides()
+          {
+            return FSTHolder.class;
+          }
+
+          @Override
           public FSTHolder get()
           {
             final DataInput input = LuceneIndexInput.newInstance("FST", block.slice(), block.remaining());  // slice !
-            try {
-              return new FSTHolder()
-              {
-                private final FST<Long> fst = load(input);
 
-                @Override
-                @SuppressWarnings("unchecked")
-                public <T> T unwrap(Class<T> clazz)
-                {
-                  return clazz == FST.class ? (T) fst : null;
-                }
-              };
-            }
-            catch (Exception e) {
-              throw Throwables.propagate(e);
-            }
+            return new FSTHolder()
+            {
+              private final FST<Long> fst = IOUtils.callPropagate(() -> load(input));
+
+              @Override
+              @SuppressWarnings("unchecked")
+              public <T> T unwrap(Class<T> clazz)
+              {
+                return clazz == FST.class ? (T) fst : null;
+              }
+            };
           }
         });
       }

@@ -60,7 +60,7 @@ public class DimensionPredicateFilter implements Filter
     return Filters.toValueMatcher(factory, dimension, ExtractionFns.combine(predicate, extractionFn));
   }
 
-  protected Filters.DictionaryMatcher<String> toMatcher(Predicate<String> predicate)
+  protected DictionaryMatcher<String> toMatcher(Predicate<String> predicate)
   {
     return v -> predicate.apply(v);
   }

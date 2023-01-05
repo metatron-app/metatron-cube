@@ -112,6 +112,21 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
   }
 
   @Override
+  public Class<? extends IndexedInts> provides()
+  {
+    switch (numBytes) {
+      case Byte.BYTES:
+        return CompressedByteSizeIndexedInts.class;
+      case Short.BYTES:
+        return CompressedShortSizeIndexedInts.class;
+      case Integer.BYTES:
+        return CompressedFullSizeIndexedInts.class;
+      default:
+        return CompressedVSizeIndexedInts.class;
+    }
+  }
+
+  @Override
   public IndexedInts get()
   {
     // optimized versions for int, short, and byte columns

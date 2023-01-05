@@ -60,17 +60,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   @Override
   public Dictionary<String> getDictionary()
   {
-    return dictionary == null ? null : dictionary.get();
-  }
-
-  @Override
-  public DictionaryEncodedColumn get()
-  {
-    return new SimpleDictionaryEncodedColumn(
-        singleValuedColumn != null ? singleValuedColumn.get() : null,
-        multiValuedColumn != null ? multiValuedColumn.get() : null,
-        dictionary == null ? null : dictionary.get()
-    );
+    return dictionary != null ? dictionary.get() : null;
   }
 
   @Override
@@ -85,5 +75,21 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
     return 5 +
            (dictionary == null ? 0 : dictionary.getSerializedSize()) +
            (singleValuedColumn != null ? singleValuedColumn.getSerializedSize() : multiValuedColumn.getSerializedSize());
+  }
+
+  @Override
+  public Class<? extends DictionaryEncodedColumn> provides()
+  {
+    return SimpleDictionaryEncodedColumn.class;
+  }
+
+  @Override
+  public DictionaryEncodedColumn get()
+  {
+    return new SimpleDictionaryEncodedColumn(
+        singleValuedColumn != null ? singleValuedColumn.get() : null,
+        multiValuedColumn != null ? multiValuedColumn.get() : null,
+        dictionary != null ? dictionary.get() : null
+    );
   }
 }

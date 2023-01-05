@@ -68,6 +68,8 @@ public interface Column
   HistogramBitmap getMetricBitmap();
   BitSlicedBitmap getBitSlicedBitmap();
 
+  Class<? extends GenericColumn> getGenericColumnType();
+
   Set<Class> getExternalIndexKeys();
   <T> ExternalIndexProvider<T> getExternalIndex(Class<T> clazz);
 

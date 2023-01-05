@@ -932,13 +932,6 @@ public class ColumnSelectors
 
         @Override
         @SuppressWarnings("unchecked")
-        public void scan(Tools.ObjectScanner<String> scanner)
-        {
-          ((io.druid.common.Scannable<String>) column).scan(scanner);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
         public void scan(IntIterator iterator, Tools.ObjectScanner<String> scanner)
         {
           ((io.druid.common.Scannable<String>) column).scan(iterator, scanner);

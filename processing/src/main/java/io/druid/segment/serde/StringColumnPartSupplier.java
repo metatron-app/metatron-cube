@@ -26,6 +26,7 @@ import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 
 /**
+ *
  */
 public class StringColumnPartSupplier implements ColumnPartProvider<GenericColumn>
 {
@@ -48,6 +49,12 @@ public class StringColumnPartSupplier implements ColumnPartProvider<GenericColum
   public long getSerializedSize()
   {
     return indexed.getSerializedSize();
+  }
+
+  @Override
+  public Class<? extends GenericColumn> provides()
+  {
+    return IndexedStringsGenericColumn.class;
   }
 
   @Override

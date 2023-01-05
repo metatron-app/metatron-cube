@@ -65,15 +65,21 @@ public class CompressedGenericColumnPartSupplier implements ColumnPartProvider<G
   }
 
   @Override
+  public long getSerializedSize()
+  {
+    return indexed.getSerializedSize() + (1L + mapping.length) * Integer.BYTES + indexed.size() * Short.BYTES;
+  }
+
+  @Override
   public CompressionStrategy compressionType()
   {
     return compressionType;
   }
 
   @Override
-  public long getSerializedSize()
+  public Class<? extends GenericColumn> provides()
   {
-    return indexed.getSerializedSize() + (1L + mapping.length) * Integer.BYTES + indexed.size() * Short.BYTES;
+    return GenericColumn.Compressed.class;
   }
 
   @Override

@@ -128,6 +128,12 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
+            public Class<? extends GenericColumn> provides()
+            {
+              return GenericColumn.LongType.class;
+            }
+
+            @Override
             public GenericColumn get()
             {
               return new GenericColumn.LongType()

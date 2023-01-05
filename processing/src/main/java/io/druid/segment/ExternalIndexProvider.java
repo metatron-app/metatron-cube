@@ -22,6 +22,4 @@ package io.druid.segment;
 public interface ExternalIndexProvider<T> extends ColumnPartProvider<T>
 {
   String source();
-
-  Class classOfObject();
 }

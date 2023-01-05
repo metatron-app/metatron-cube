@@ -232,12 +232,6 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                 }
 
                 @Override
-                public Class classOfObject()
-                {
-                  return H3Index.class;
-                }
-
-                @Override
                 public int numRows()
                 {
                   return numRows;
@@ -247,6 +241,12 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                 public long getSerializedSize()
                 {
                   return column.getSerializedSize(Column.EncodeType.GENERIC);
+                }
+
+                @Override
+                public Class<? extends H3Index> provides()
+                {
+                  return H3Index.class;
                 }
 
                 @Override

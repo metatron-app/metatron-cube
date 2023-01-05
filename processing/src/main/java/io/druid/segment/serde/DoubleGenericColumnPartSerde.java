@@ -128,6 +128,12 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
+            public Class<? extends GenericColumn> provides()
+            {
+              return GenericColumn.DoubleType.class;
+            }
+
+            @Override
             public GenericColumn get()
             {
               return new GenericColumn.DoubleType()

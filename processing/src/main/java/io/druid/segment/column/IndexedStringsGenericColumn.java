@@ -86,12 +86,6 @@ public class IndexedStringsGenericColumn implements GenericColumn, Indexed.Scann
   }
 
   @Override
-  public void scan(Tools.Scanner scanner)
-  {
-    indexed.scan(scanner);
-  }
-
-  @Override
   public void scan(IntIterator iterator, Tools.Scanner scanner)
   {
     indexed.scan(iterator, scanner);
@@ -104,21 +98,9 @@ public class IndexedStringsGenericColumn implements GenericColumn, Indexed.Scann
   }
 
   @Override
-  public void scan(Tools.ObjectScanner<String> scanner)
-  {
-    indexed.scan(scanner);
-  }
-
-  @Override
   public void scan(IntIterator iterator, Tools.ObjectScanner<String> scanner)
   {
     indexed.scan(iterator, scanner);
-  }
-
-  @Override
-  public <R> Stream<R> apply(Tools.Function<R> function)
-  {
-    return indexed.apply(function);
   }
 
   @Override

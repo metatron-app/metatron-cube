@@ -69,7 +69,7 @@ public class RegexFSTFilter extends RegexDimFilter
   {
     Column column = Lucenes.findColumnWithFST(getDimension(), segment.asQueryableIndex(false));
     if (column != null) {
-      Class fstClass = column.getFST().classOfObject();
+      Class fstClass = column.getFST().provides();
       if (Automaton.class.getClassLoader() != fstClass.getClassLoader()) {
         return LuceneSelector.swap(this, fstClass.getClassLoader(), getDimension(), getPattern());
       }

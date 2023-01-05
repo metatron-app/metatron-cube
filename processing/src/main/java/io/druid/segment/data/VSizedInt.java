@@ -267,6 +267,12 @@ public class VSizedInt implements IndexedInts, Comparable<VSizedInt>
     }
 
     @Override
+    public Class<? extends IndexedInts> provides()
+    {
+      return delegate.getClass();
+    }
+
+    @Override
     public IndexedInts get()
     {
       return delegate;

@@ -92,18 +92,6 @@ public class CompressedLongsIndexedSupplier implements ColumnPartProvider<Indexe
   }
 
   @Override
-  public CompressionStrategy compressionType()
-  {
-    return compression;
-  }
-
-  @Override
-  public IndexedLongs get()
-  {
-    return new CompressedIndexedLongs();
-  }
-
-  @Override
   public long getSerializedSize()
   {
     return baseLongBuffers.getSerializedSize() + 1 + 4 + 4 + 1;
@@ -117,6 +105,24 @@ public class CompressedLongsIndexedSupplier implements ColumnPartProvider<Indexe
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseLongBuffers.writeToChannel(channel);
+  }
+
+  @Override
+  public CompressionStrategy compressionType()
+  {
+    return compression;
+  }
+
+  @Override
+  public Class<? extends IndexedLongs> provides()
+  {
+    return CompressedIndexedLongs.class;
+  }
+
+  @Override
+  public IndexedLongs get()
+  {
+    return new CompressedIndexedLongs();
   }
 
   private class CompressedIndexedLongs implements IndexedLongs

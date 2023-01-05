@@ -37,6 +37,8 @@ public interface ColumnPartProvider<T> extends Supplier<T>
     return CompressionStrategy.NONE;
   }
 
+  Class<? extends T> provides();
+
   interface DictionarySupport extends ColumnPartProvider<DictionaryEncodedColumn>
   {
     Dictionary<String> getDictionary();

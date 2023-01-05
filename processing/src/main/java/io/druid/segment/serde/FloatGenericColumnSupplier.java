@@ -40,12 +40,6 @@ public class FloatGenericColumnSupplier implements ColumnPartProvider<GenericCol
   }
 
   @Override
-  public GenericColumn get()
-  {
-    return new IndexedFloatsGenericColumn(column.get(), column.compressionType(), nulls.get());
-  }
-
-  @Override
   public int numRows()
   {
     return column.numRows();
@@ -55,5 +49,17 @@ public class FloatGenericColumnSupplier implements ColumnPartProvider<GenericCol
   public long getSerializedSize()
   {
     return column.getSerializedSize();
+  }
+
+  @Override
+  public Class<? extends GenericColumn> provides()
+  {
+    return IndexedFloatsGenericColumn.class;
+  }
+
+  @Override
+  public GenericColumn get()
+  {
+    return new IndexedFloatsGenericColumn(column.get(), column.compressionType(), nulls.get());
   }
 }

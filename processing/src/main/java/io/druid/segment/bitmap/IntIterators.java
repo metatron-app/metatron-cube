@@ -21,6 +21,7 @@ package io.druid.segment.bitmap;
 
 import com.google.common.collect.Lists;
 import io.druid.collections.IntList;
+import io.druid.query.aggregation.IntPredicate;
 import io.druid.segment.Cursor;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
@@ -80,6 +81,21 @@ public final class IntIterators
   public static IntIterator from(int[] array, int start, int limit)
   {
     return new IntIterators.FromArray(array, start, limit);
+  }
+
+  public static IntIterator fromTo(int start, int end)
+  {
+    return start >= end ? EMPTY : new Range(start, end);
+  }
+
+  public static IntIterator advanceTo(IntIterator iterator, IntPredicate predicate)
+  {
+    if (!iterator.hasNext()) {
+      return iterator;
+    }
+    final Peekable peekable = new Peekable(iterator);
+    for (; !predicate.apply(peekable.peek()); peekable.next()) ;
+    return peekable;
   }
 
   public static IntIterator sort(IntIterator... iterators)

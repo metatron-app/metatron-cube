@@ -128,6 +128,12 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
+            public Class<? extends GenericColumn> provides()
+            {
+              return GenericColumn.FloatType.class;
+            }
+
+            @Override
             public GenericColumn get()
             {
               return new GenericColumn.FloatType()

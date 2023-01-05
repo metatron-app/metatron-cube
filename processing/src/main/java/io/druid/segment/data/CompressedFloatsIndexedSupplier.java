@@ -98,12 +98,6 @@ public class CompressedFloatsIndexedSupplier implements ColumnPartProvider<Index
   }
 
   @Override
-  public IndexedFloats get()
-  {
-    return new CompressedIndexedFloats();
-  }
-
-  @Override
   public long getSerializedSize()
   {
     return baseFloatBuffers.getSerializedSize() + 1 + 4 + 4 + 1;
@@ -117,6 +111,18 @@ public class CompressedFloatsIndexedSupplier implements ColumnPartProvider<Index
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseFloatBuffers.writeToChannel(channel);
+  }
+
+  @Override
+  public Class<? extends IndexedFloats> provides()
+  {
+    return CompressedIndexedFloats.class;
+  }
+
+  @Override
+  public IndexedFloats get()
+  {
+    return new CompressedIndexedFloats();
   }
 
   private class CompressedIndexedFloats implements IndexedFloats

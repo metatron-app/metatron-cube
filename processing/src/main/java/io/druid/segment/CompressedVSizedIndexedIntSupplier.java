@@ -81,6 +81,74 @@ public class CompressedVSizedIndexedIntSupplier implements WritableSupplier<Inde
     valueSupplier.writeToChannel(channel);
   }
 
+  @Override
+  public Class<? extends IndexedMultivalue<IndexedInts>> provides()
+  {
+    return CompressedVSizeIndexed.class;
+  }
+
+  @Override
+  public IndexedMultivalue<IndexedInts> get()
+  {
+    return new CompressedVSizeIndexed(offsetSupplier.get(), valueSupplier.get());
+  }
+
+  public static class CompressedVSizeIndexed implements IndexedMultivalue<IndexedInts>
+  {
+    private final IndexedInts offsets;
+    private final IndexedInts values;
+
+    CompressedVSizeIndexed(IndexedInts offsets, IndexedInts values)
+    {
+      this.offsets = offsets;
+      this.values = values;
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      offsets.close();
+      values.close();
+    }
+
+    @Override
+    public int size()
+    {
+      return offsets.size() - 1;
+    }
+
+    @Override
+    public IndexedInts get(int index)
+    {
+      final int offset = offsets.get(index);
+      final int size = offsets.get(index + 1) - offset;
+
+      return new IndexedInts()
+      {
+        @Override
+        public int size()
+        {
+          return size;
+        }
+
+        @Override
+        public int get(int index)
+        {
+          if (index >= size) {
+            throw new IllegalArgumentException(String.format("Index[%s] >= size[%s]", index, size));
+          }
+          return values.get(index + offset);
+        }
+      };
+    }
+
+    @Override
+    public Iterator<IndexedInts> iterator()
+    {
+      return IndexedIterable.create(this).iterator();
+    }
+  }
+
   public static CompressedVSizedIndexedIntSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
     byte versionFromBuffer = buffer.get();
@@ -136,69 +204,5 @@ public class CompressedVSizedIndexedIntSupplier implements WritableSupplier<Inde
         compression
     );
     return new CompressedVSizedIndexedIntSupplier(headerSupplier, valuesSupplier);
-  }
-
-
-  @Override
-  public IndexedMultivalue<IndexedInts> get()
-  {
-    return new CompressedVSizeIndexed(offsetSupplier.get(), valueSupplier.get());
-  }
-
-  public static class CompressedVSizeIndexed implements IndexedMultivalue<IndexedInts>
-  {
-    private final IndexedInts offsets;
-    private final IndexedInts values;
-
-
-    CompressedVSizeIndexed(IndexedInts offsets, IndexedInts values)
-    {
-      this.offsets = offsets;
-      this.values = values;
-    }
-
-    @Override
-    public void close() throws IOException
-    {
-      offsets.close();
-      values.close();
-    }
-
-    @Override
-    public int size()
-    {
-      return offsets.size() - 1;
-    }
-
-    @Override
-    public IndexedInts get(int index)
-    {
-      final int offset = offsets.get(index);
-      final int size = offsets.get(index + 1) - offset;
-
-      return new IndexedInts()
-      {
-        @Override
-        public int size()
-        {
-          return size;
-        }
-
-        @Override
-        public int get(int index)
-        {
-          if (index >= size) {
-            throw new IllegalArgumentException(String.format("Index[%s] >= size[%s]", index, size));
-          }
-          return values.get(index + offset);
-        }
-      };
-    }
-
-    @Override
-    public Iterator<IndexedInts> iterator()
-    {
-      return IndexedIterable.create(this).iterator();
-    }
   }
 }

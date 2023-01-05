@@ -157,6 +157,12 @@ public class BitSetInvertedIndexingSpec implements SecondaryIndexingSpec
                     }
 
                     @Override
+                    public Class<? extends Dictionary<String>> provides()
+                    {
+                      return ToStringDictionary.class;
+                    }
+
+                    @Override
                     public Dictionary<String> get()
                     {
                       return new ToStringDictionary();

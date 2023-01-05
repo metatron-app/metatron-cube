@@ -40,12 +40,6 @@ public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColu
   }
 
   @Override
-  public GenericColumn get()
-  {
-    return new IndexedLongsGenericColumn(column.get(), column.compressionType(), nulls.get());
-  }
-
-  @Override
   public int numRows()
   {
     return column.numRows();
@@ -55,5 +49,17 @@ public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColu
   public long getSerializedSize()
   {
     return column.getSerializedSize();
+  }
+
+  @Override
+  public Class<? extends GenericColumn> provides()
+  {
+    return IndexedLongsGenericColumn.class;
+  }
+
+  @Override
+  public GenericColumn get()
+  {
+    return new IndexedLongsGenericColumn(column.get(), column.compressionType(), nulls.get());
   }
 }

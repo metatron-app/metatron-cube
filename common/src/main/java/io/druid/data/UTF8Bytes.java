@@ -122,16 +122,17 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
 
     final int wordCompare = minWords * Longs.BYTES;
     for (int i = 0; i < wordCompare; i += Longs.BYTES) {
-      long lw = readLong(value, offset + i);
-      long rw = readLong(o.value, o.offset + i);
-      if (lw != rw) {
-        return UnsignedLongs.compare(lw, rw);
+      final long v1 = readLong(value, offset + i);
+      final long v2 = readLong(o.value, o.offset + i);
+      if (v1 != v2) {
+        return UnsignedLongs.compare(v1, v2);
       }
     }
     for (int i = wordCompare; i < minLength; i++) {
-      int result = UnsignedBytes.compare(value[offset + i], o.value[o.offset + i]);
-      if (result != 0) {
-        return result;
+      final byte v1 = value[offset + i];
+      final byte v2 = o.value[o.offset + i];
+      if (v1 != v2) {
+        return UnsignedBytes.compare(v1, v2);
       }
     }
     return Integer.compare(length, o.length);

@@ -22,7 +22,6 @@ package io.druid.segment.filter;
 import com.google.common.base.Strings;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.data.Dictionary;
 
 /**
  */
@@ -45,17 +44,8 @@ public class PrefixFilter extends DimensionPredicateFilter
       return BitmapHolder.exact(selector.createBoolean(Strings.isNullOrEmpty(prefix)));
     }
     if (capabilities.hasBitmapIndexes()) {
-      return BitmapHolder.exact(Filters.matchDictionary(
-          dimension, context, new Filters.FromPredicate<String>(prefix, predicate)
-          {
-            private boolean matched = true;
-
-            @Override
-            public boolean apply(Dictionary<String> dictionary, int index)
-            {
-              return matched && (matched &= dictionary.get(index).startsWith(prefix));
-            }
-          })
+      return BitmapHolder.exact(
+          Filters.matchDictionary(dimension, context, new DictionaryMatcher.WithPrefix(prefix, predicate))
       );
     }
     return null;

@@ -36,10 +36,12 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.cache.SessionCache;
 import io.druid.collections.IntList;
 import io.druid.common.Cacheable;
+import io.druid.common.Scannable;
 import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.BufferWindow;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IntPredicate;
+import io.druid.common.utils.IOUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
@@ -74,6 +76,7 @@ import io.druid.segment.DelegatedDimensionSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.column.BitmapIndex;
@@ -85,16 +88,16 @@ import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.DictionaryCompareOp;
 import io.druid.segment.data.GenericIndexed;
-import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
 import it.unimi.dsi.fastutil.doubles.DoubleSet;
 import it.unimi.dsi.fastutil.floats.FloatOpenHashSet;
 import it.unimi.dsi.fastutil.floats.FloatSet;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import org.apache.commons.io.IOUtils;
 import org.roaringbitmap.IntIterator;
 
 import javax.annotation.Nullable;
@@ -368,47 +371,6 @@ public class Filters
     };
   }
 
-  public static interface DictionaryMatcher<T> extends Predicate<T>
-  {
-    default int start(Dictionary<T> dictionary)
-    {
-      return 0;
-    }
-
-    default boolean apply(Dictionary<T> dictionary, int index)
-    {
-      return apply(dictionary.get(index));
-    }
-  }
-
-  public static class FromPredicate<T> implements DictionaryMatcher<T>
-  {
-    private final T prefix;
-    private final Predicate<T> predicate;
-
-    public FromPredicate(T prefix, Predicate<T> predicate)
-    {
-      this.prefix = prefix;
-      this.predicate = predicate;
-    }
-
-    @Override
-    public int start(Dictionary<T> dictionary)
-    {
-      if (prefix == null) {
-        return 0;
-      }
-      final int index = dictionary.indexOf(prefix);
-      return index < 0 ? -index - 1 : index;
-    }
-
-    @Override
-    public boolean apply(T value)
-    {
-      return predicate.apply(value);
-    }
-  }
-
   /**
    * Return the union of bitmaps for all values matching a particular predicate.
    *
@@ -436,23 +398,52 @@ public class Filters
     if (column == null) {
       return selector.createBoolean(matcher.apply(null));
     }
-    // Apply predicate to all dimension values and union the matching bitmaps
+    final BitmapFactory factory = selector.getBitmapFactory();
     final BitmapIndex bitmapIndex = column.getBitmapIndex();
     if (bitmapIndex == null) {
-      final GenericColumn generic = column.getGenericColumn();
-      if (generic instanceof Indexed.Scannable) {
-        final Indexed.Scannable<String> scannable = (Indexed.Scannable) generic;
-        final MutableBitmap mutable = selector.getBitmapFactory().makeEmptyMutableBitmap();
-        scannable.scan(context.rowIterator(), (ix, v) -> {if (matcher.apply(v)) {mutable.add(ix);}});
-        return selector.getBitmapFactory().makeImmutableBitmap(mutable);
+      if (column.hasGenericColumn() && Scannable.BufferBacked.class.isAssignableFrom(column.getGenericColumnType())) {
+        final GenericColumn generic = column.getGenericColumn();
+        try {
+          final Scannable<String> scannable = (Scannable) generic;
+          final MutableBitmap mutable = factory.makeEmptyMutableBitmap();
+          scannable.scan(
+              context.rowIterator(), (ix, v) -> {if (matcher.apply(v)) {mutable.add(ix);}}
+          );
+          return factory.makeImmutableBitmap(mutable);
+        }
+        finally {
+          IOUtils.closePropagate(generic);
+        }
       }
       return null;
     }
-    final IntList matched = new IntList();
-    column.getDictionary().scan(
-        context.dictionaryIterator(dimension), (ix, v) -> {if (matcher.apply(v)) {matched.add(ix);}}
-    );
-    return DimFilters.union(selector.getBitmapFactory(), matched.transform(bitmapIndex::getBitmap));
+    // Apply predicate to all dimension values and union the matching bitmaps
+    final DictionaryEncodedColumn encoded = column.getDictionaryEncoding();
+    try {
+      final Dictionary<String> dictionary = encoded.dictionary();
+      final int cardinality = context.dictionaryRange(dimension, dictionary.size());
+
+      final IntIterator iterator;
+      if (encoded.hasMultipleValues() || context.notFiltered() || cardinality < context.targetNumRows()) {
+        iterator = context.dictionaryIterator(dimension);
+      } else {
+        final IntSet set = new IntOpenHashSet();
+        encoded.scan(context.rowIterator(), (x, v) -> set.add(v.applyAsInt(x)));
+        iterator = IntIterators.from(IntList.of(set.toIntArray()).sort());
+      }
+      final IntIterator cursor = matcher.wrap(dictionary, iterator);
+      if (cursor != null && !cursor.hasNext()) {
+        return factory.makeEmptyImmutableBitmap();
+      }
+      final IntList matched = new IntList();
+      dictionary.scan(
+          cursor, (ix, v) -> {if (matcher.apply(v)) {matched.add(ix);}}
+      );
+      final GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();
+      return DimFilters.union(factory, matched.transform(x -> bitmaps.get(x)));
+    } finally {
+      IOUtils.closePropagate(encoded);
+    }
   }
 
   public static Set<String> getDependents(DimFilter filter)
@@ -922,7 +913,7 @@ public class Filters
         final BufferWindow window = new BufferWindow();
         try {
           final Stream<BinaryRef> stream = bitmaps[0].getDictionary().apply(
-              (ix, buffer, offset, length) -> window.set(buffer, offset, length)
+              null, (ix, buffer, offset, length) -> window.set(buffer, offset, length)
           );
           final int ratio = bitmaps[0].getCardinality() / bitmaps[1].getCardinality();
           final int[] indices = bitmaps[1].getDictionary().indexOfRaw(stream, ratio >= 8).map(op::ix).toArray();

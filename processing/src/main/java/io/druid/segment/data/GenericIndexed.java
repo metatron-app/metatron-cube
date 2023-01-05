@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.UnsignedBytes;
 import io.druid.collections.IntList;
 import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.BufferRef;
@@ -141,6 +142,13 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       public long getSerializedSize()
       {
         return dictionary.getSerializedSize();
+      }
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public Class provides()
+      {
+        return dictionary.getClass();
       }
 
       @Override
@@ -295,12 +303,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public void scan(Tools.Scanner scanner)
-  {
-    bufferIndexed.scan(scanner);
-  }
-
-  @Override
   public void scan(IntIterator iterator, Tools.Scanner scanner)
   {
     if (iterator == null) {
@@ -317,12 +319,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public void scan(Tools.ObjectScanner<T> scanner)
-  {
-    bufferIndexed.scan(scanner);
-  }
-
-  @Override
   public void scan(IntIterator iterator, Tools.ObjectScanner<T> scanner)
   {
     if (iterator == null) {
@@ -333,15 +329,13 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public <R> Stream<R> apply(Tools.Function<R> function)
-  {
-    return bufferIndexed.stream(function);
-  }
-
-  @Override
   public <R> Stream<R> apply(IntIterator iterator, Tools.Function<R> function)
   {
-    return bufferIndexed.stream(iterator, function);
+    if (iterator == null) {
+      return bufferIndexed.stream(function);
+    } else {
+      return bufferIndexed.stream(iterator, function);
+    }
   }
 
   @Override
@@ -1070,9 +1064,10 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     final int len2 = value.length();
     final int limit = Math.min(len1, len2);
     for (int i = 0; i < limit; i++) {
-      final int cmp = Integer.compare(buffer.get(offset + i) & 0xff, value.get(i) & 0xff);
-      if (cmp != 0) {
-        return cmp;
+      final byte v1 = buffer.get(offset + i);
+      final byte v2 = value.get(i);
+      if (v1 != v2) {
+        return UnsignedBytes.compare(v1, v2);
       }
     }
     return Ints.compare(len1, len2);
