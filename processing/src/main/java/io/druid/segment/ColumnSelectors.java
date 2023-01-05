@@ -366,6 +366,9 @@ public class ColumnSelectors
 
   public static DoubleColumnSelector wrapAsDoubleSelector(final ExprEvalColumnSelector selector)
   {
+    if (selector.getExpression() instanceof DoubleColumnSelector) {
+      return (DoubleColumnSelector) selector.getExpression();
+    }
     return new DoubleColumnSelector()
     {
       @Override
@@ -384,6 +387,9 @@ public class ColumnSelectors
 
   public static FloatColumnSelector wrapAsFloatSelector(final ExprEvalColumnSelector selector)
   {
+    if (selector.getExpression() instanceof FloatColumnSelector) {
+      return (FloatColumnSelector) selector.getExpression();
+    }
     return new FloatColumnSelector()
     {
       @Override
@@ -402,6 +408,9 @@ public class ColumnSelectors
 
   public static LongColumnSelector wrapAsLongSelector(final ExprEvalColumnSelector selector)
   {
+    if (selector.getExpression() instanceof LongColumnSelector) {
+      return (LongColumnSelector) selector.getExpression();
+    }
     return new LongColumnSelector()
     {
       @Override

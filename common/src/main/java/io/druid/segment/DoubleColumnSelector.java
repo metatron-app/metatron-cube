@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.DoubleScanner;
-import io.druid.segment.column.LongScanner;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.roaringbitmap.IntIterator;
 

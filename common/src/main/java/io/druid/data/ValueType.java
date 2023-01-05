@@ -24,13 +24,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.math.expr.Arithmetics;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprEval;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -115,16 +111,6 @@ public enum ValueType
     {
       return Float.SIZE;
     }
-
-    @Override
-    public Expr.FloatOptimized optimize(Supplier supplier1, Supplier supplier2, Arithmetics calculator)
-    {
-      return b -> {
-        Number v1 = (Number) supplier1.get();
-        Number v2 = (Number) supplier2.get();
-        return v1 == null || v2 == null ? ExprEval.NULL_FLOAT : ExprEval.of(calculator.op(v1.floatValue(), v2.floatValue()));
-      };
-    }
   },
   LONG {
     @Override
@@ -162,16 +148,6 @@ public enum ValueType
     {
       return Long.SIZE;
     }
-
-    @Override
-    public Expr.LongOptimized optimize(Supplier supplier1, Supplier supplier2, Arithmetics calculator)
-    {
-      return b -> {
-        Number v1 = (Number) supplier1.get();
-        Number v2 = (Number) supplier2.get();
-        return v1 == null || v2 == null ? ExprEval.NULL_LONG : ExprEval.of(calculator.op(v1.longValue(), v2.longValue()));
-      };
-    }
   },
   DOUBLE {
     @Override
@@ -208,16 +184,6 @@ public enum ValueType
     public int lengthOfBinary()
     {
       return Double.SIZE;
-    }
-
-    @Override
-    public Expr.DoubleOptimized optimize(Supplier supplier1, Supplier supplier2, Arithmetics calculator)
-    {
-      return b -> {
-        Number v1 = (Number) supplier1.get();
-        Number v2 = (Number) supplier2.get();
-        return v1 == null || v2 == null ? ExprEval.NULL_DOUBLE : ExprEval.of(calculator.op(v1.doubleValue(), v2.doubleValue()));
-      };
     }
   },
   STRING {
@@ -336,11 +302,6 @@ public enum ValueType
   public boolean isPrimitive()
   {
     return true;
-  }
-
-  public Expr optimize(Supplier supplier1, Supplier supplier2, Arithmetics calculator)
-  {
-    return null;
   }
 
   @JsonValue

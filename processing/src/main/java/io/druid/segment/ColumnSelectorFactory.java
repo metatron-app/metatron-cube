@@ -108,9 +108,9 @@ public interface ColumnSelectorFactory extends TypeResolver
       return new ExprEvalColumnSelector()
       {
         @Override
-        public ValueDesc typeOfObject()
+        public Expr getExpression()
         {
-          return optimized.returns();
+          return optimized;
         }
 
         @Override

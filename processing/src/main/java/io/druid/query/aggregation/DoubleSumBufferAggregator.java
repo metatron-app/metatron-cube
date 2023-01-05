@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.math.expr.Expr;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -46,6 +47,21 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
 
   public static DoubleSumBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
+    if (selector instanceof Expr.FloatOptimized) {
+      return new DoubleSumBufferAggregator()
+      {
+        private final Expr.FloatOptimized optimized = (Expr.FloatOptimized) selector;
+        private final MutableFloat handover = new MutableFloat();
+
+        @Override
+        public void aggregate(ByteBuffer buf, int position0, int position1)
+        {
+          if (predicate.matches() && optimized.getFloat(handover)) {
+            _aggregate(buf, position1, handover.floatValue());
+          }
+        }
+      };
+    }
     return new DoubleSumBufferAggregator()
     {
       private final MutableFloat handover = new MutableFloat();
@@ -62,6 +78,21 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
 
   public static DoubleSumBufferAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
+    if (selector instanceof Expr.DoubleOptimized) {
+      return new DoubleSumBufferAggregator()
+      {
+        private final Expr.DoubleOptimized optimized = (Expr.DoubleOptimized) selector;
+        private final MutableDouble handover = new MutableDouble();
+
+        @Override
+        public void aggregate(ByteBuffer buf, int position0, int position1)
+        {
+          if (predicate.matches() && optimized.getDouble(handover)) {
+            _aggregate(buf, position1, handover.doubleValue());
+          }
+        }
+      };
+    }
     return new DoubleSumBufferAggregator()
     {
       private final MutableDouble handover = new MutableDouble();

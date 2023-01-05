@@ -24,7 +24,6 @@ import com.google.common.base.Suppliers;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
 import io.druid.common.guava.Accumulator;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularities;
@@ -147,8 +146,15 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
       if (cursor.isDone()) {
         return this;
       }
-      final List<DimensionSelector> selectors =
-          GuavaUtils.transform(dimensions, dimension -> cursor.makeDimensionSelector(dimension));
+      final Supplier[] selectors = new Supplier[dimensions.size()];
+      for (int i = 0; i < selectors.length; i++) {
+        // safe to be mixed because it's converted to string at the end (see SemiJoinFactory.toMap)
+        DimensionSelector selector = cursor.makeDimensionSelector(dimensions.get(i));
+        selectors[i] = selector instanceof WithRawAccess ?
+                       () -> ((WithRawAccess) selector).getAsWrap(selector.getRow().get(0)) :
+                       () -> selector.lookupName(selector.getRow().get(0));
+      }
+
       for (; !cursor.isDone(); cursor.advance(), sampled++) {
         if (index < sample.length) {
           select(selectors, sample[index++]);
@@ -167,17 +173,10 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
       return this;
     }
 
-    private void select(List<DimensionSelector> selectors, Object[] array)
+    private void select(Supplier[] selectors, Object[] array)
     {
-      // safe to be mixed because it's converted to string at the end (see SemiJoinFactory.toMap)
       for (int i = 0; i < array.length; i++) {
-        DimensionSelector selector = selectors.get(i);
-        int id = selector.getRow().get(0);      // todo multi-value
-        if (selector instanceof WithRawAccess) {
-          array[i] = ((WithRawAccess) selector).getAsWrap(id);
-        } else {
-          array[i] = selector.lookupName(id);
-        }
+        array[i] = selectors[i].get();
       }
     }
 

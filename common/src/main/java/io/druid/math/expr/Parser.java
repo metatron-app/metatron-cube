@@ -382,10 +382,10 @@ public class Parser
         } else if (op instanceof BinaryArithmeticOp) {
           ValueDesc commonType = ValueDesc.toCommonType(toType(left, values), toType(right, values));
           if (commonType.isPrimitiveNumeric()) {
-            TypedSupplier supplier1 = toTypedSupplier(left, values, commonType);
-            TypedSupplier supplier2 = toTypedSupplier(right, values, commonType);
+            TypedSupplier supplier1 = Optimizers.toTypedSupplier(left, values, commonType);
+            TypedSupplier supplier2 = Optimizers.toTypedSupplier(right, values, commonType);
             if (supplier1 != null && supplier2 != null) {
-              Expr rewritten = commonType.type().optimize(supplier1, supplier2, Arithmetics.of(op.op()));
+              Expr rewritten = Optimizers.optimize(commonType.type(), supplier1, supplier2, Arithmetics.of(op.op()));
               if (rewritten != null) {
                 return rewritten;
               }
@@ -413,20 +413,6 @@ public class Parser
       return expr.returns();
     }
     return ValueDesc.UNKNOWN;
-  }
-
-  private static TypedSupplier toTypedSupplier(Expr expr, Map<String, TypedSupplier> suppliers, ValueDesc dv)
-  {
-    if (Evals.isIdentifier(expr)) {
-      return suppliers.getOrDefault(Evals.getIdentifier(expr), null);
-    } else if (Evals.isConstant(expr)) {
-      ExprEval eval = Evals.getConstantEval(expr);
-      Object value = dv.equals(eval.type()) ? eval.value() : Evals.castTo(eval, dv).value();
-      return DSuppliers.asTypedSupplier(dv, Suppliers.ofInstance(value));
-    } else if (expr instanceof Expr.Optimized) {
-      return DSuppliers.asTypedSupplier(expr.returns(), () -> expr.eval(null).value());
-    }
-    return null;
   }
 
   private static BooleanOp rewriteCompare(String op, WithRawAccess left, WithRawAccess right)

@@ -19,14 +19,21 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.math.LongMath;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.DSuppliers.TypedSupplier;
+import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.LongColumnSelector;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -100,22 +107,100 @@ public interface Expr extends Expression
   {
   }
 
-  interface FloatOptimized extends Optimized
+  final class FloatOptimized implements Optimized, FloatColumnSelector
   {
+    private final Predicate<MutableFloat> predicate;
+    private final MutableFloat handover = new MutableFloat();
+
+    public FloatOptimized(Predicate<MutableFloat> predicate) {this.predicate = predicate;}
+
     @Override
-    public default ValueDesc returns() {return ValueDesc.FLOAT;}
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
+    }
+
+    @Override
+    public ExprEval eval(NumericBinding bindings)
+    {
+      return ExprEval.of(get());
+    }
+
+    @Override
+    public Float get()
+    {
+      return getFloat(handover) ? handover.floatValue() : null;
+    }
+
+    @Override
+    public boolean getFloat(MutableFloat handover)
+    {
+      return predicate.apply(handover);
+    }
   }
 
-  interface DoubleOptimized extends Optimized
+  final class DoubleOptimized implements Optimized, DoubleColumnSelector
   {
+    private final Predicate<MutableDouble> predicate;
+    private final MutableDouble handover = new MutableDouble();
+
+    public DoubleOptimized(Predicate<MutableDouble> predicate) {this.predicate = predicate;}
+
     @Override
-    public default ValueDesc returns() {return ValueDesc.DOUBLE;}
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
+    }
+
+    @Override
+    public ExprEval eval(NumericBinding bindings)
+    {
+      return ExprEval.of(get());
+    }
+
+    @Override
+    public Double get()
+    {
+      return getDouble(handover) ? handover.doubleValue() : null;
+    }
+
+    @Override
+    public boolean getDouble(MutableDouble handover)
+    {
+      return predicate.apply(handover);
+    }
   }
 
-  interface LongOptimized extends Optimized
+  final class LongOptimized implements Optimized, LongColumnSelector
   {
+    private final Predicate<MutableLong> predicate;
+    private final MutableLong handover = new MutableLong();
+
+    public LongOptimized(Predicate<MutableLong> predicate) {this.predicate = predicate;}
+
     @Override
-    public default ValueDesc returns() {return ValueDesc.LONG;}
+    public ValueDesc returns()
+    {
+      return ValueDesc.DOUBLE;
+    }
+
+    @Override
+    public ExprEval eval(NumericBinding bindings)
+    {
+      return ExprEval.of(get());
+    }
+
+    @Override
+    public Long get()
+    {
+      return getLong(handover) ? handover.longValue() : null;
+    }
+
+    @Override
+    public boolean getLong(MutableLong handover)
+    {
+      return predicate.apply(handover);
+    }
   }
 }
 

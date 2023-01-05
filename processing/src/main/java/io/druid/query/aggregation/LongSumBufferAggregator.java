@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.math.expr.Expr;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -44,6 +45,21 @@ public abstract class LongSumBufferAggregator implements BufferAggregator
 
   public static LongSumBufferAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
+    if (selector instanceof Expr.LongOptimized) {
+      return new LongSumBufferAggregator()
+      {
+        private final Expr.LongOptimized optimized = (Expr.LongOptimized) selector;
+        private final MutableLong handover = new MutableLong();
+
+        @Override
+        public void aggregate(ByteBuffer buf, int position0, int position1)
+        {
+          if (predicate.matches() && optimized.getLong(handover)) {
+            _aggregate(buf, position1, handover.longValue());
+          }
+        }
+      };
+    }
     return new LongSumBufferAggregator()
     {
       private final MutableLong handover = new MutableLong();

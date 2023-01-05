@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import io.druid.common.guava.Comparators;
 import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.math.expr.Expr;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -54,6 +55,25 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
 
   public static DoubleSumAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
+    if (selector instanceof Expr.FloatOptimized) {
+      return new DoubleSumAggregator()
+      {
+        private final MutableFloat handover = new MutableFloat();
+        private final Expr.FloatOptimized optimized = (Expr.FloatOptimized) selector;
+
+        @Override
+        public MutableDouble aggregate(final MutableDouble current)
+        {
+          if (predicate.matches() && optimized.getFloat(handover)) {
+            if (current == null) {
+              return new MutableDouble(handover.floatValue());
+            }
+            current.add(handover.floatValue());
+          }
+          return current;
+        }
+      };
+    }
     return new DoubleSumAggregator()
     {
       private final MutableFloat handover = new MutableFloat();
@@ -74,6 +94,25 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
 
   public static DoubleSumAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
+    if (selector instanceof Expr.DoubleOptimized) {
+      return new DoubleSumAggregator()
+      {
+        private final MutableDouble handover = new MutableDouble();
+        private final Expr.DoubleOptimized optimized = (Expr.DoubleOptimized) selector;
+
+        @Override
+        public MutableDouble aggregate(final MutableDouble current)
+        {
+          if (predicate.matches() && optimized.getDouble(handover)) {
+            if (current == null) {
+              return new MutableDouble(handover.doubleValue());
+            }
+            current.add(handover.doubleValue());
+          }
+          return current;
+        }
+      };
+    }
     return new DoubleSumAggregator()
     {
       private final MutableDouble handover = new MutableDouble();

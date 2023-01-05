@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import io.druid.common.guava.Comparators;
 import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.math.expr.Expr;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -52,6 +53,25 @@ public abstract class LongSumAggregator implements Aggregator.FromMutableLong
 
   public static LongSumAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
+    if (selector instanceof Expr.LongOptimized) {
+      return new LongSumAggregator()
+      {
+        private final MutableLong handover = new MutableLong();
+        private final Expr.LongOptimized optimized = (Expr.LongOptimized) selector;
+
+        @Override
+        public MutableLong aggregate(final MutableLong current)
+        {
+          if (predicate.matches() && optimized.getLong(handover)) {
+            if (current == null) {
+              return new MutableLong(handover.longValue());
+            }
+            current.add(handover.longValue());
+          }
+          return current;
+        }
+      };
+    }
     return new LongSumAggregator()
     {
       private final MutableLong handover = new MutableLong();

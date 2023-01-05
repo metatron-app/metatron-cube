@@ -20,13 +20,19 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 
 /**
  */
 public interface ExprEvalColumnSelector
 {
-  ValueDesc typeOfObject();
+  default ValueDesc typeOfObject()
+  {
+    return getExpression().returns();
+  }
+
+  Expr getExpression();
 
   ExprEval get();
 }
