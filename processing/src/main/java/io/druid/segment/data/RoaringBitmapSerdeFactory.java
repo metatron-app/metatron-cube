@@ -30,8 +30,8 @@ import java.nio.ByteBuffer;
 public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
 {
   public static final ObjectStrategy<ImmutableBitmap> objectStrategy = new ImmutableRoaringBitmapObjectStrategy();
-  public static final BitmapFactory bitmapFactory = new RoaringBitmapFactory();
-  public static final BitmapFactory bitmapFactoryOptimized = new RoaringBitmapFactory(true);
+  public static final RoaringBitmapFactory bitmapFactory = new RoaringBitmapFactory();
+  public static final RoaringBitmapFactory bitmapFactoryOptimized = new RoaringBitmapFactory(true);
 
   @Override
   public ObjectStrategy<ImmutableBitmap> getObjectStrategy()
@@ -66,9 +66,7 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
       if (buffer.remaining() == 0) {
         return bitmapFactory.makeEmptyImmutableBitmap();
       }
-      final ByteBuffer readOnlyBuffer = buffer.asReadOnlyBuffer();
-      readOnlyBuffer.limit(readOnlyBuffer.position() + numBytes);
-      return bitmapFactory.mapImmutableBitmap(readOnlyBuffer);
+      return bitmapFactory.mapImmutableBitmap(buffer, buffer.position(), numBytes);
     }
 
     @Override

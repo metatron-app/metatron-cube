@@ -78,8 +78,9 @@ public class SessionCache implements Cache
     final Cache.NamedKey key = new Cache.NamedKey(namespace.getBytes(), objKey);
     final byte[] bytes = delegate.get(key);
     if (bytes != null) {
-      ByteBuffer wrapped = ByteBuffer.wrap(bytes);
-      return cache.put(filter, BitmapHolder.of(wrapped.get() != 0, FACTORY.mapImmutableBitmap(wrapped)));
+      return cache.put(filter, BitmapHolder.of(
+          bytes[0] != 0, FACTORY.mapImmutableBitmap(ByteBuffer.wrap(bytes), 1, bytes.length - 1))
+      );
     }
     holder = cache.put(filter, populator);
     if (holder != null) {

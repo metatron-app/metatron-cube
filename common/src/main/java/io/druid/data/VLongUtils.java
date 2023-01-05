@@ -25,6 +25,7 @@ import io.druid.data.input.BytesOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * from org.apache.hadoop.io.WritableUtils. modified for using ByteBuffer
@@ -279,6 +280,11 @@ public class VLongUtils
     } else {
       return b << shift;
     }
+  }
+
+  public static int readInt(ByteBuffer buf, int offset, ByteOrder order)
+  {
+    return buf.order() == order ? buf.getInt(offset) : Integer.reverseBytes(buf.getInt(offset));
   }
 
   /**

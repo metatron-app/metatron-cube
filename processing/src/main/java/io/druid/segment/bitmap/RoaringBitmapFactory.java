@@ -361,30 +361,44 @@ public final class RoaringBitmapFactory implements BitmapFactory
   @Override
   public ImmutableBitmap mapImmutableBitmap(ByteBuffer bbf)
   {
-    final int position = bbf.position();
-    final int magic = bbf.order(ByteOrder.LITTLE_ENDIAN).getInt(position);
+    return mapImmutableBitmap(bbf, bbf.position(), bbf.remaining());
+  }
+
+  public ImmutableBitmap mapImmutableBitmap(ByteBuffer bbf, int offset, int length)
+  {
+    final int magic = VLongUtils.readInt(bbf, offset, ByteOrder.LITTLE_ENDIAN);
     final int cookie = magic & 0xFFFF;
     if (cookie == RANGE_COOKIE) {
-      bbf.position(position + 4);   // skip
-      final int from = VLongUtils.readUnsignedVarInt(bbf);
-      final int to = from + VLongUtils.readUnsignedVarInt(bbf); // inclusive
+      offset += Integer.BYTES;
+      final int from = VLongUtils.readUnsignedVarInt(bbf, offset);
+      offset += VLongUtils.sizeOfUnsignedVarInt(from);
+      final int to = from + VLongUtils.readUnsignedVarInt(bbf, offset); // inclusive
       return from(from, to + 1);
     } else if (cookie == SMALL_COOKIE) {
-      bbf.position(position + 4);   // skip
+      offset += Integer.BYTES;
       final int size = magic >>> 16;
       if (size == 0) {
         return makeEmptyImmutableBitmap();
       }
       if (size == 1) {
-        return of(VLongUtils.readUnsignedVarInt(bbf));
+        return of(VLongUtils.readUnsignedVarInt(bbf, offset));
       }
       final int[] indices = new int[size];
       for (int i = 0; i < indices.length; i++) {
-        indices[i] = (i == 0 ? 0 : indices[i - 1]) + VLongUtils.readUnsignedVarInt(bbf);
+        int x = VLongUtils.readUnsignedVarInt(bbf, offset);
+        indices[i] = (i == 0 ? 0 : indices[i - 1]) + x;
+        offset += VLongUtils.sizeOfUnsignedVarInt(x);
       }
       return from(indices);
     }
-    return new WrappedImmutableRoaringBitmap(new ImmutableRoaringBitmap(bbf));
+    final int limit = bbf.limit();
+    bbf.limit(bbf.position() + length);
+    try {
+      return new WrappedImmutableRoaringBitmap(new ImmutableRoaringBitmap(bbf));
+    }
+    finally {
+      bbf.limit(limit);
+    }
   }
 
   private static ImmutableBitmap unwrapLazy(ImmutableBitmap bitmap)
