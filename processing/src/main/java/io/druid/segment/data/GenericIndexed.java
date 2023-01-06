@@ -1154,7 +1154,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     protected int valueOffset(int index)
     {
-      return hasNull && index == 0 ? 0 : valuesOffset + (maxLength + 1) * (hasNull ? index - 1 : index);
+      return valuesOffset + (hasNull && index == 0 ? 0 : (maxLength + 1) * (hasNull ? index - 1 : index));
     }
 
     @Override
@@ -1203,7 +1203,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     protected int valueOffset(int index)
     {
-      return hasNull && index == 0 ? 0 : valuesOffset + fixed * (hasNull ? index - 1 : index);
+      return valuesOffset + (hasNull && index == 0 ? 0 : fixed * (hasNull ? index - 1 : index));
     }
 
     @Override

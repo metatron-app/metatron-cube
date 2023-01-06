@@ -141,7 +141,7 @@ public class GroupByQueryEngine
 
   private static final int P = 31 * 31;
 
-  private static class KeyValue
+  static final class KeyValue
   {
     private final int[] array;
 
@@ -179,7 +179,7 @@ public class GroupByQueryEngine
     }
   }
 
-  public static class RowIterator implements CloseableIterator<KeyValue>
+  static class RowIterator implements CloseableIterator<KeyValue>
   {
     private final Cursor cursor;
     private final RowUpdater rowUpdater;
@@ -199,7 +199,7 @@ public class GroupByQueryEngine
     private final ByteBuffer[] metricValues;
 
     private int counter;
-    private List<int[]> unprocessedKeys;
+    private List<KeyValue> unprocessedKeys;
     private Iterator<KeyValue> delegate;
 
     public RowIterator(
@@ -251,16 +251,16 @@ public class GroupByQueryEngine
         this.rowUpdater = new RowUpdater(pool)
         {
           @Override
-          protected List<int[]> updateValues(final DimensionSelector[] dimensions)
+          protected List<KeyValue> updateValues(final DimensionSelector[] dimensions)
           {
-            final int[] key = pool.get();
+            final KeyValue key = pool.get();
             for (int i = 0; i < dimensions.length; i++) {
               final int v = dimensions[i].getRow().get(0);
               if (v < 0) {
                 pool.done(key);
                 return null;
               }
-              key[BUFFER_POS + i] = v;
+              key.array[BUFFER_POS + i] = v;
             }
             return update(key);
           }
@@ -273,15 +273,15 @@ public class GroupByQueryEngine
           private final IndexedInts[] rows = new IndexedInts[mvxs.length];
 
           @Override
-          protected List<int[]> updateValues(final DimensionSelector[] dimensions)
+          protected List<KeyValue> updateValues(final DimensionSelector[] dimensions)
           {
-            final int[] key = pool.get();
+            final KeyValue key = pool.get();
             for (int x : svxs) {
               final int v = dimensions[x].getRow().get(0);
               if (v < 0) {
                 return null;
               }
-              key[BUFFER_POS + x] = v;
+              key.array[BUFFER_POS + x] = v;
             }
             rows[0] = dimensions[mvxs[0]].getRow();
             final int length = rows[0].size();
@@ -292,16 +292,16 @@ public class GroupByQueryEngine
               rows[i] = dimensions[mvxs[i]].getRow();
               Preconditions.checkArgument(length == rows[i].size(), "Inconsistent length of group dimension");
             }
-            List<int[]> retVal = null;
+            List<KeyValue> retVal = null;
             loop:
             for (int ix = 0; ix < length; ix++) {
-              final int[] copy = svxs.length == 0 ? pool.get() : pool.copyOf(key);
+              final KeyValue copy = svxs.length == 0 ? pool.get() : pool.copyOf(key);
               for (int mx = 0; mx < mvxs.length; mx++) {
                 final int v = rows[mx].get(ix);
                 if (v < 0) {
                   continue loop;
                 }
-                copy[BUFFER_POS + mvxs[mx]] = v;
+                copy.array[BUFFER_POS + mvxs[mx]] = v;
               }
               if (retVal == null) {
                 retVal = update(copy);
@@ -410,8 +410,8 @@ public class GroupByQueryEngine
       final long start = System.currentTimeMillis();
 
       if (unprocessedKeys != null) {
-        for (int[] key : unprocessedKeys) {
-          final List<int[]> unprocUnproc = rowUpdater.update(key);
+        for (KeyValue key : unprocessedKeys) {
+          final List<KeyValue> unprocUnproc = rowUpdater.update(key);
           if (unprocUnproc != null) {
             throw new ISE("Not enough memory to process the request.");
           }
@@ -420,7 +420,7 @@ public class GroupByQueryEngine
         cursor.advance();
       }
 
-      List<int[]> unprocessedKeys = null;
+      List<KeyValue> unprocessedKeys = null;
       while (!cursor.isDone() && unprocessedKeys == null) {
         unprocessedKeys = rowUpdater.updateValues(dimensions);
         if (unprocessedKeys == null) {
@@ -434,7 +434,7 @@ public class GroupByQueryEngine
       return delegate.hasNext();
     }
 
-    protected void nextIteration(long start, List<int[]> unprocessedKeys)
+    protected void nextIteration(long start, List<KeyValue> unprocessedKeys)
     {
       long elapsed = System.currentTimeMillis() - start;
       log.debug("%d iteration.. %,d rows in %,d msec", ++counter, rowUpdater.getNumRows(), elapsed);
@@ -485,12 +485,12 @@ public class GroupByQueryEngine
         return positions.size();
       }
 
-      protected List<int[]> updateValues(final DimensionSelector[] dimensions)
+      protected List<KeyValue> updateValues(final DimensionSelector[] dimensions)
       {
         return updateRecursive(pool.get(), 0, dimensions);
       }
 
-      private List<int[]> updateRecursive(final int[] key, final int index, final DimensionSelector[] dims)
+      private List<KeyValue> updateRecursive(final KeyValue key, final int index, final DimensionSelector[] dims)
       {
         if (index < dims.length) {
           final IndexedInts row = dims[index].getRow();
@@ -503,18 +503,18 @@ public class GroupByQueryEngine
             if (v < 0) {
               return null;
             }
-            key[BUFFER_POS + index] = v;
+            key.array[BUFFER_POS + index] = v;
             return updateRecursive(key, index + 1, dims);
           }
           final int nextIx = index + 1;
-          List<int[]> retVal = null;
+          List<KeyValue> retVal = null;
           for (int i = 0; i < size; i++) {
             final int v = row.get(i);
             if (v < 0) {
               continue;
             }
-            final int[] newKey = i == 0 ? key : pool.copyOf(key);
-            newKey[BUFFER_POS + index] = v;
+            final KeyValue newKey = i == 0 ? key : pool.copyOf(key);
+            newKey.array[BUFFER_POS + index] = v;
             retVal = merge(retVal, updateRecursive(newKey, nextIx, dims));
           }
           return retVal;
@@ -523,9 +523,9 @@ public class GroupByQueryEngine
         }
       }
 
-      protected final List<int[]> update(final int[] key)
+      protected final List<KeyValue> update(final KeyValue key)
       {
-        final KeyValue position = positions.compute(new KeyValue(key), this);
+        final KeyValue position = positions.compute(key, this);
         if (position == null) {
           return Lists.newArrayList(key);   // buffer full
         }
@@ -553,7 +553,7 @@ public class GroupByQueryEngine
           ordering.add(key);
           return key;
         } else {
-          pool.done(key.array);
+          pool.done(key);
           return value;
         }
       }
@@ -605,31 +605,31 @@ public class GroupByQueryEngine
   private static class KeyPool
   {
     private final int length;
-    private final List<int[]> pool = Lists.newArrayList();
+    private final List<KeyValue> pool = Lists.newArrayList();
 
     private KeyPool(int length) {this.length = length;}
 
-    public int[] get()
+    public KeyValue get()
     {
-      return pool.isEmpty() ? new int[BUFFER_POS + length] : pool.remove(pool.size() - 1);
+      return pool.isEmpty() ? new KeyValue(new int[BUFFER_POS + length]) : pool.remove(pool.size() - 1);
     }
 
-    public int[] copyOf(final int[] source)
+    public KeyValue copyOf(final KeyValue source)
     {
-      final int[] cached = get();
+      final KeyValue cached = get();
       if (cached != source) {
-        System.arraycopy(source, BUFFER_POS, cached, BUFFER_POS, length);
+        System.arraycopy(source.array, BUFFER_POS, cached.array, BUFFER_POS, length);
       }
       return cached;
     }
 
-    public void done(final int[] array)
+    public void done(final KeyValue array)
     {
       pool.add(array);
     }
   }
 
-  private static List<int[]> merge(List<int[]> current, List<int[]> merged)
+  private static List<KeyValue> merge(List<KeyValue> current, List<KeyValue> merged)
   {
     if (current == null) {
       return merged;

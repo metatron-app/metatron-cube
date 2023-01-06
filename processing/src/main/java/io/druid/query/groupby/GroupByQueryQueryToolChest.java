@@ -36,6 +36,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
+import io.druid.query.groupby.GroupByQueryEngine.KeyValue;
 import io.druid.query.groupby.GroupByQueryEngine.RowIterator;
 import io.druid.query.select.TableFunctionSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -166,7 +167,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
             Sequence<Object[]> iterator = new RowIterator(groupBy, config, cursor, bufferPool, maxPages)
             {
               @Override
-              protected void nextIteration(long start, List<int[]> unprocessedKeys)
+              protected void nextIteration(long start, List<KeyValue> unprocessedKeys)
               {
                 if (unprocessedKeys != null) {
                   // todo: fall back to incremanl index?
