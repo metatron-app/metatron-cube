@@ -844,7 +844,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return "GroupByQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
-           (granularity == null || Granularities.isAll(granularity) ? "" : ", filter=" + filter) +
+           (granularity == null || Granularities.isAll(granularity) ? "" : ", granularity=" + granularity) +
            ", dimensions=" + dimensions +
            (filter == null ? "" : ", filter=" + filter) +
            (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +

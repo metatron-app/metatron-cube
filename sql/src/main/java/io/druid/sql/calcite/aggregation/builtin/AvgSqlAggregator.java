@@ -19,30 +19,23 @@
 
 package io.druid.sql.calcite.aggregation.builtin;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import io.druid.data.ValueDesc;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
-import io.druid.sql.calcite.aggregation.Aggregation;
+import io.druid.query.filter.DimFilter;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import javax.annotation.Nullable;
-import java.util.List;
+import java.util.Arrays;
 
 public class AvgSqlAggregator implements SqlAggregator
 {
@@ -52,74 +45,40 @@ public class AvgSqlAggregator implements SqlAggregator
     return SqlStdOperatorTable.AVG;
   }
 
-  @Nullable
   @Override
-  public Aggregation toDruidAggregation(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexBuilder rexBuilder,
-      final String name,
-      final AggregateCall aggregateCall,
-      final Project project,
-      final boolean finalizeAggregations
-  )
+  public boolean register(Aggregations aggregations, DimFilter predicate, AggregateCall call, String outputName)
   {
-    if (aggregateCall.isDistinct()) {
-      return null;
+    DruidExpression expression = aggregations.getNonDistinctSingleArgument(call);
+    if (expression == null) {
+      return false;
     }
+    String inputName = aggregations.registerColumn(outputName, expression);
+    ValueDesc outputType = toSumType(call.type);
 
-    final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
-        plannerContext,
-        rowSignature,
-        aggregateCall,
-        project
-    );
+    String sumName = Calcites.makePrefixedName(outputName, "sum");
+    aggregations.register(GenericSumAggregatorFactory.of(sumName, inputName, outputType), predicate);
 
-    if (arguments == null) {
-      return null;
-    }
+    String countName = Calcites.makePrefixedName(outputName, "count");
+    aggregations.register(CountAggregatorFactory.of(countName, inputName), predicate);
 
-    final DruidExpression arg = Iterables.getOnlyElement(arguments);
-    final ValueDesc sumType;
-
-    // Use 64-bit sum regardless of the type of the AVG aggregator.
-    final SqlTypeName typeName = aggregateCall.getType().getSqlTypeName();
-    if (SqlTypeName.INT_TYPES.contains(typeName)) {
-      sumType = ValueDesc.LONG;
-    } else if (SqlTypeName.DECIMAL.equals(typeName)) {
-      sumType = ValueDesc.DECIMAL;
-    } else {
-      sumType = ValueDesc.DOUBLE;
-    }
-
-    final String fieldName;
-    final String expression;
-
-    if (arg.isDirectColumnAccess()) {
-      fieldName = arg.getDirectColumn();
-      expression = null;
-    } else {
-      fieldName = null;
-      expression = arg.getExpression();
-    }
-
-    final String sumName = Calcites.makePrefixedName(name, "sum");
-    final String countName = Calcites.makePrefixedName(name, "count");
-    final AggregatorFactory sum = new GenericSumAggregatorFactory(sumName, fieldName, expression, null, sumType);
-
-    final AggregatorFactory count = CountAggregatorFactory.of(countName);
-
-    return Aggregation.create(
-        rowSignature,
-        ImmutableList.of(sum, count),
+    aggregations.register(
         new ArithmeticPostAggregator(
-            name,
-            "quotient",
-            ImmutableList.of(
-                new FieldAccessPostAggregator(null, sumName),
-                new FieldAccessPostAggregator(null, countName)
-            )
+            outputName, "quotient",
+            Arrays.asList(FieldAccessPostAggregator.of(sumName), FieldAccessPostAggregator.of(countName))
         )
     );
+    return true;
+  }
+
+  private static ValueDesc toSumType(RelDataType type)
+  {
+    // Use 64-bit sum regardless of the type of the AVG aggregator.
+    SqlTypeName typeName = type.getSqlTypeName();
+    if (SqlTypeName.INT_TYPES.contains(typeName)) {
+      return ValueDesc.LONG;
+    } else if (SqlTypeName.DECIMAL.equals(typeName)) {
+      return ValueDesc.DECIMAL;
+    }
+    return ValueDesc.DOUBLE;
   }
 }

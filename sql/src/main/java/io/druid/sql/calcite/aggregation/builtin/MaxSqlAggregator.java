@@ -19,26 +19,18 @@
 
 package io.druid.sql.calcite.aggregation.builtin;
 
-import com.google.common.collect.Iterables;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.sql.calcite.aggregation.Aggregation;
+import io.druid.query.filter.DimFilter;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-
-import javax.annotation.Nullable;
-import java.util.List;
 
 public class MaxSqlAggregator implements SqlAggregator
 {
@@ -48,55 +40,25 @@ public class MaxSqlAggregator implements SqlAggregator
     return SqlStdOperatorTable.MAX;
   }
 
-  @Nullable
   @Override
-  public Aggregation toDruidAggregation(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexBuilder rexBuilder,
-      final String name,
-      final AggregateCall aggregateCall,
-      final Project project,
-      final boolean finalizeAggregations
-  )
+  public boolean register(Aggregations aggregations, DimFilter predicate, AggregateCall call, String outputName)
   {
-    if (aggregateCall.isDistinct()) {
-      return null;
+    DruidExpression expression = aggregations.getNonDistinctSingleArgument(call);
+    if (expression == null) {
+      return false;
     }
-
-    final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
-        plannerContext,
-        rowSignature,
-        aggregateCall,
-        project
-    );
-
-    if (arguments == null) {
-      return null;
-    }
-
-    final DruidExpression arg = Iterables.getOnlyElement(arguments);
-    final ValueDesc valueDesc = Calcites.asValueDesc(aggregateCall.getType());
-
-    final String fieldName;
-    final String expression;
-
-    if (arg.isDirectColumnAccess()) {
-      fieldName = arg.getDirectColumn();
-      expression = null;
-    } else {
-      fieldName = null;
-      expression = arg.getExpression();
-    }
+    String inputName = aggregations.registerColumn(outputName, expression);
+    ValueDesc outputType = Calcites.asValueDesc(call.getType());
 
     AggregatorFactory factory;
-    if (valueDesc.isNumeric() || valueDesc.isArray()) {
-      factory = new GenericMaxAggregatorFactory(name, fieldName, expression, null, valueDesc);
-    } else if (fieldName != null) {
-      factory = RelayAggregatorFactory.max(name, fieldName);
+    if (outputType.isNumeric() || outputType.isArray()) {
+      factory = GenericMaxAggregatorFactory.of(outputName, inputName, outputType);
+    } else if (expression.isDirectColumnAccess()) {
+      factory = RelayAggregatorFactory.max(outputName, expression.getDirectColumn(), outputType.typeName());
     } else {
-      throw new UnsupportedOperationException("Not supports min on non-numeric expression");
+      throw new UnsupportedOperationException("Not supports max on non-numeric expression");
     }
-    return Aggregation.create(rowSignature, factory);
+    aggregations.register(factory, predicate);
+    return true;
   }
 }

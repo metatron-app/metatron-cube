@@ -40,6 +40,11 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
     return new GenericMaxAggregatorFactory(name, fieldName, null, null, null);
   }
 
+  public static GenericMaxAggregatorFactory of(String name, String fieldName, ValueDesc type)
+  {
+    return new GenericMaxAggregatorFactory(name, fieldName, null, null, type);
+  }
+
   public static GenericMaxAggregatorFactory ofLong(String name, String fieldName)
   {
     return new GenericMaxAggregatorFactory(name, fieldName, null, null, ValueDesc.LONG);
@@ -185,6 +190,18 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
         }
     }
     throw new IllegalStateException();
+  }
+
+  @Override
+  public AggregatorFactory withPredicate(String predicate)
+  {
+    return new GenericMaxAggregatorFactory(name, fieldName, fieldExpression, predicate, inputType);
+  }
+
+  @Override
+  public AggregatorFactory withFieldExpression(String fieldExpression)
+  {
+    return new GenericMaxAggregatorFactory(name, null, fieldExpression, predicate, inputType);
   }
 
   @Override

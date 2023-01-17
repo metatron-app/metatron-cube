@@ -19,29 +19,19 @@
 
 package io.druid.sql.calcite.aggregation.builtin;
 
-import com.google.common.collect.Iterables;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.segment.ExprVirtualColumn;
-import io.druid.segment.VirtualColumn;
-import io.druid.sql.calcite.aggregation.Aggregation;
+import io.druid.query.filter.DimFilter;
+import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class RelayAggregator implements SqlAggregator
@@ -61,54 +51,29 @@ public class RelayAggregator implements SqlAggregator
     return function;
   }
 
-  @Nullable
   @Override
-  public Aggregation toDruidAggregation(
-      PlannerContext plannerContext,
-      RowSignature rowSignature,
-      RexBuilder rexBuilder,
-      String name,
-      AggregateCall aggregateCall,
-      Project project,
-      boolean finalizeAggregations
-  )
+  public boolean register(Aggregations aggregations, DimFilter predicate, AggregateCall call, String outputName)
   {
-    final List<Integer> arguments = aggregateCall.getArgList();
+    List<Integer> arguments = call.getArgList();
     if (arguments.size() != 1) {
-      return null; // todo
+      return false; // todo
     }
-    final int field = Iterables.getOnlyElement(aggregateCall.getArgList());
-    final RexNode rexNode = Expressions.fromFieldAccess(rowSignature, project, field);
-
-    final DruidExpression arg = Expressions.toDruidExpression(plannerContext, rowSignature, rexNode);
+    RexNode rexNode = aggregations.toRexNode(arguments.get(0));
+    DruidExpression arg = aggregations.toExpression(rexNode);
     if (arg == null) {
-      return null;
+      return false;
     }
 
-    final String fieldName;
-    final List<VirtualColumn> virtualColumns = new ArrayList<>();
-    final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
-
-    final ValueDesc valueDesc = Calcites.asValueDesc(rexNode.getType());
-    if (arg.isDirectColumnAccess()) {
-      fieldName = arg.getDirectColumn();
-    } else {
-      ExprVirtualColumn virtualColumn = arg.toVirtualColumn(Calcites.makePrefixedName(name, "v"));
-      virtualColumns.add(virtualColumn);
-      fieldName = virtualColumn.getOutputName();
+    String aggregatorName = aggregations.isFinalizing() ? Calcites.makePrefixedName(outputName, "a") : outputName;
+    String inputName = aggregations.registerColumn(outputName, arg);
+    ValueDesc valueDesc = Calcites.asValueDesc(rexNode.getType());
+    AggregatorFactory factory = new RelayAggregatorFactory(
+        aggregatorName, inputName, valueDesc.typeName(), relayType.name()
+    );
+    aggregations.register(factory, predicate);
+    if (aggregations.isFinalizing()) {
+      aggregations.register(AggregatorFactory.asFinalizer(outputName, factory));
     }
-    final AggregatorFactory factory = new RelayAggregatorFactory(
-        aggregatorName,
-        fieldName,
-        valueDesc.typeName(),
-        relayType.name()
-    );
-
-    return Aggregation.create(
-        rowSignature,
-        virtualColumns,
-        Collections.singletonList(factory),
-        finalizeAggregations ? AggregatorFactory.asFinalizer(name, factory) : null
-    );
+    return true;
   }
 }

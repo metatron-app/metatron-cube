@@ -19,9 +19,15 @@
 
 package io.druid.math.expr;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.base.Strings;
+
+import javax.annotation.Nullable;
+
 public enum Arithmetics
 {
-  PLUS {
+  PLUS("+") {
     @Override
     public float op(float v1, float v2) {return v1 + v2;}
 
@@ -31,7 +37,7 @@ public enum Arithmetics
     @Override
     public long op(long v1, long v2) {return v1 + v2;}
   },
-  MINUS {
+  MINUS("-") {
     @Override
     public float op(float v1, float v2) {return v1 - v2;}
 
@@ -41,7 +47,7 @@ public enum Arithmetics
     @Override
     public long op(long v1, long v2) {return v1 - v2;}
   },
-  MULTIPLY {
+  MULTIPLY("*") {
     @Override
     public float op(float v1, float v2) {return v1 * v2;}
 
@@ -51,7 +57,7 @@ public enum Arithmetics
     @Override
     public long op(long v1, long v2) {return v1 * v2;}
   },
-  DIV {
+  DIV("/") {
     @Override
     public float op(float v1, float v2) {return v1 / v2;}
 
@@ -62,20 +68,38 @@ public enum Arithmetics
     public long op(long v1, long v2) {return v1 / v2;}
   };
 
+  private final String name;
+
+  private Arithmetics(String name)
+  {
+    this.name = name;
+  }
+
   public abstract float op(float v1, float v2);
 
   public abstract double op(double v1, double v2);
 
   public abstract long op(long v1, long v2);
 
-  public static Arithmetics of(String v)
+  @Nullable
+  @JsonCreator
+  public static Arithmetics of(@Nullable String name)
   {
-    switch (v) {
+    if (Strings.isNullOrEmpty(name)) {
+      return null;
+    }
+    switch (name) {
       case "+": return PLUS;
       case "-": return MINUS;
       case "*": return MULTIPLY;
       case "/": return DIV;
     }
     return null;
+  }
+
+  @JsonValue
+  public String getName()
+  {
+    return name;
   }
 }

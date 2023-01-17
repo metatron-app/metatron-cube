@@ -19,21 +19,14 @@
 
 package io.druid.sql.calcite.aggregation.builtin;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.filter.DimFilter;
-import io.druid.sql.calcite.aggregation.Aggregation;
+import io.druid.query.filter.DimFilters;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.Expressions;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -53,71 +46,41 @@ public class CountSqlAggregator implements SqlAggregator
 
   @Nullable
   @Override
-  public Aggregation toDruidAggregation(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexBuilder rexBuilder,
-      final String name,
-      final AggregateCall aggregateCall,
-      final Project project,
-      final boolean finalizeAggregations
-  )
+  public boolean register(Aggregations aggregations, DimFilter predicate, AggregateCall call, String outputName)
   {
-    final List<DruidExpression> args = Aggregations.getArgumentsForSimpleAggregator(
-        plannerContext,
-        rowSignature,
-        aggregateCall,
-        project
-    );
-
-    if (args == null) {
-      return null;
-    }
-
-    if (args.isEmpty()) {
+    final List<Integer> fields = call.getArgList();
+    if (fields.isEmpty()) {
       // COUNT(*)
-      return Aggregation.create(rowSignature, CountAggregatorFactory.of(name));
-    } else if (aggregateCall.isDistinct()) {
+      aggregations.register(CountAggregatorFactory.of(outputName), predicate);
+      return true;
+    } else if (call.isDistinct()) {
       // COUNT(DISTINCT x)
-      if (plannerContext.getPlannerConfig().isUseApproximateCountDistinct()) {
-        return APPROX_COUNT_DISTINCT.toDruidAggregation(
-            plannerContext,
-            rowSignature,
-            rexBuilder,
-            name,
-            aggregateCall,
-            project,
-            finalizeAggregations
-        );
-      } else {
-        return null;
+      if (aggregations.useApproximateCountDistinct()) {
+        return APPROX_COUNT_DISTINCT.register(aggregations, predicate, call, outputName);
       }
-    } else {
+    } else if (fields.size() == 1) {
       // Not COUNT(*), not distinct
       // COUNT(x) should count all non-null values of x.
-      final int field = Iterables.getOnlyElement(aggregateCall.getArgList());
-      final RexNode rexNode = Expressions.fromFieldAccess(rowSignature, project, field);
-
+      final RexNode rexNode = aggregations.toRexNode(fields.get(0));
       if (rexNode.getType().isNullable()) {
-        if (args.size() == 1 && args.get(0).isDirectColumnAccess()) {
+        final DruidExpression expression = aggregations.toExpression(rexNode);
+        if (expression.isDirectColumnAccess()) {
           // it's fieldName.. fieldExpression later if really needed
-          return Aggregation.create(rowSignature, CountAggregatorFactory.of(name, args.get(0).getDirectColumn()));
+          aggregations.register(CountAggregatorFactory.of(outputName, expression.getDirectColumn()), predicate);
+        } else {
+          DimFilter filter = aggregations.toFilter(rexNode);
+          if (filter == null) {
+            // Don't expect this to happen.
+            throw new ISE("Could not create not-null filter for rexNode[%s]", rexNode);
+          }
+          String column = aggregations.registerColumn(outputName, expression);
+          aggregations.register(CountAggregatorFactory.of(outputName, column), DimFilters.and(predicate, filter));
         }
-        final DimFilter nonNullFilter = Expressions.toFilter(
-            plannerContext,
-            rowSignature,
-            rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(rexNode))
-        );
-
-        if (nonNullFilter == null) {
-          // Don't expect this to happen.
-          throw new ISE("Could not create not-null filter for rexNode[%s]", rexNode);
-        }
-
-        return Aggregation.create(rowSignature, CountAggregatorFactory.of(name)).filter(rowSignature, nonNullFilter);
       } else {
-        return Aggregation.create(rowSignature, CountAggregatorFactory.of(name));
+        aggregations.register(CountAggregatorFactory.of(outputName), predicate);
       }
+      return true;
     }
+    return false;
   }
 }

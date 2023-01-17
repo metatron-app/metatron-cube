@@ -40,6 +40,11 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
     return new GenericMinAggregatorFactory(name, fieldName, null, null, null);
   }
 
+  public static GenericMinAggregatorFactory of(String name, String fieldName, ValueDesc type)
+  {
+    return new GenericMinAggregatorFactory(name, fieldName, null, null, type);
+  }
+
   public static GenericMinAggregatorFactory ofLong(String name, String fieldName)
   {
     return new GenericMinAggregatorFactory(name, fieldName, null, null, ValueDesc.LONG);
@@ -180,6 +185,18 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
         }
     }
     throw new IllegalStateException();
+  }
+
+  @Override
+  public AggregatorFactory withPredicate(String predicate)
+  {
+    return new GenericMinAggregatorFactory(name, fieldName, fieldExpression, predicate, inputType);
+  }
+
+  @Override
+  public AggregatorFactory withFieldExpression(String fieldExpression)
+  {
+    return new GenericMinAggregatorFactory(name, null, fieldExpression, predicate, inputType);
   }
 
   @Override

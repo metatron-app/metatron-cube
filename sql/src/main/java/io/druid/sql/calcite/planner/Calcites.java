@@ -484,6 +484,11 @@ public class Calcites
     return subSet.isEmpty();
   }
 
+  public static String vcName(String prefix)
+  {
+    return makePrefixedName(prefix, "v");
+  }
+
   public static String makePrefixedName(final String prefix, final String suffix)
   {
     return prefix + ":" + suffix;

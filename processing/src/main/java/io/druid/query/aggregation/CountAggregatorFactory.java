@@ -27,6 +27,8 @@ import com.google.common.collect.ImmutableList;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatchers;
 import io.druid.segment.ColumnSelectorFactory;
@@ -95,7 +97,7 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   {
     ValueMatcher matcher = null;
     if (fieldName != null) {
-      matcher = ColumnSelectors.toMatcher(String.format("!isNull(\"%s\")", fieldName), metricFactory);
+      matcher = metricFactory.makePredicateMatcher(DimFilters.not(SelectorDimFilter.of(fieldName, null)));
     }
     if (predicate != null) {
       matcher = ValueMatchers.and(matcher, ColumnSelectors.toMatcher(predicate, metricFactory));

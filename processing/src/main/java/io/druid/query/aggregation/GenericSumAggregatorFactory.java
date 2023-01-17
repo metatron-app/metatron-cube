@@ -42,6 +42,11 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
     return new GenericSumAggregatorFactory(name, fieldName, null, null, null);
   }
 
+  public static GenericSumAggregatorFactory of(String name, String fieldName, ValueDesc type)
+  {
+    return new GenericSumAggregatorFactory(name, fieldName, null, null, type);
+  }
+
   public static GenericSumAggregatorFactory ofLong(String name, String fieldName)
   {
     return new GenericSumAggregatorFactory(name, fieldName, null, null, ValueDesc.LONG);
@@ -176,6 +181,18 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
         }
     }
     throw new IAE("unsupported type %s", valueType);
+  }
+
+  @Override
+  public AggregatorFactory withPredicate(String predicate)
+  {
+    return new GenericSumAggregatorFactory(name, fieldName, fieldExpression, predicate, inputType);
+  }
+
+  @Override
+  public AggregatorFactory withFieldExpression(String fieldExpression)
+  {
+    return new GenericSumAggregatorFactory(name, null, fieldExpression, predicate, inputType);
   }
 
   @Override

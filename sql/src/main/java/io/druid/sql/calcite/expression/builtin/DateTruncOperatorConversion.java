@@ -107,9 +107,9 @@ public class DateTruncOperatorConversion implements SqlOperatorConversion
               "timestamp_floor",
               ImmutableList.of(
                   inputExpressions.get(1),
-                  DruidExpression.fromExpression(DruidExpression.stringLiteral(truncPeriod.toString())),
-                  DruidExpression.fromExpression(DruidExpression.stringLiteral(null)),
-                  DruidExpression.fromExpression(DruidExpression.stringLiteral(plannerContext.getTimeZone().getID()))
+                  DruidExpression.fromStringLiteral(truncPeriod.toString()),
+                  DruidExpression.fromStringLiteral(null),
+                  DruidExpression.fromStringLiteral(plannerContext.getTimeZone().getID())
               )
           );
         }

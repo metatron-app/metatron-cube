@@ -22,6 +22,8 @@ package io.druid.segment.filter;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.common.utils.IOUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
@@ -38,6 +40,7 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.IndexedID;
 
@@ -76,8 +79,25 @@ public class SelectorFilter implements Filter
       }
       return BitmapHolder.exact(bitmapIndex.getBitmap(index));
     }
+    if (value == null && column.getGenericColumnType() != null) {
+      final GenericColumn generic = column.getGenericColumn();
+      try {
+        ImmutableBitmap nulls = generic.getNulls();
+        if (nulls != null) {
+          return BitmapHolder.exact(nulls);
+        }
+      }
+      finally {
+        IOUtils.closePropagate(generic);
+      }
+    }
     final SecondaryIndex index = selector.getExternalIndex(dimension, null);
-    return index == null ? null : index.eq(dimension, value, context);
+    try {
+      return index == null ? null : index.eq(dimension, value, context);
+    }
+    finally {
+      IOUtils.closePropagate(index);
+    }
   }
 
   @Override

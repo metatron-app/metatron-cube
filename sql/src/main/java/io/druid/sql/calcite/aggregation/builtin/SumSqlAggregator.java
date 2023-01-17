@@ -19,24 +19,16 @@
 
 package io.druid.sql.calcite.aggregation.builtin;
 
-import com.google.common.collect.Iterables;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
-import io.druid.sql.calcite.aggregation.Aggregation;
+import io.druid.query.filter.DimFilter;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-
-import javax.annotation.Nullable;
-import java.util.List;
 
 public class SumSqlAggregator implements SqlAggregator
 {
@@ -46,47 +38,17 @@ public class SumSqlAggregator implements SqlAggregator
     return SqlStdOperatorTable.SUM;
   }
 
-  @Nullable
   @Override
-  public Aggregation toDruidAggregation(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexBuilder rexBuilder,
-      final String name,
-      final AggregateCall aggregateCall,
-      final Project project,
-      final boolean finalizeAggregations
-  )
+  public boolean register(Aggregations aggregations, DimFilter predicate, AggregateCall call, String outputName)
   {
-    if (aggregateCall.isDistinct()) {
-      return null;
+    DruidExpression expression = aggregations.getNonDistinctSingleArgument(call);
+    if (expression == null) {
+      return false;
     }
+    String inputName = aggregations.registerColumn(outputName, expression);
+    ValueDesc outputType = Calcites.asValueDesc(call.getType());
 
-    final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
-        plannerContext,
-        rowSignature,
-        aggregateCall,
-        project
-    );
-
-    if (arguments == null) {
-      return null;
-    }
-
-    final DruidExpression arg = Iterables.getOnlyElement(arguments);
-    final ValueDesc valueDesc = Calcites.asValueDesc(aggregateCall.getType());
-
-    final String fieldName;
-    final String expression;
-
-    if (arg.isDirectColumnAccess()) {
-      fieldName = arg.getDirectColumn();
-      expression = null;
-    } else {
-      fieldName = null;
-      expression = arg.getExpression();
-    }
-
-    return Aggregation.create(rowSignature, new GenericSumAggregatorFactory(name, fieldName, expression, null, valueDesc));
+    aggregations.register(GenericSumAggregatorFactory.of(outputName, inputName, outputType), predicate);
+    return true;
   }
 }

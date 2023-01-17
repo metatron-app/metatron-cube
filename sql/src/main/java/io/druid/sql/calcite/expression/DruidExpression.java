@@ -20,17 +20,23 @@
 package io.druid.sql.calcite.expression;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
+import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -41,7 +47,7 @@ import java.util.function.Function;
  * (1) SimpleExtractions, which are direct column access, possibly with an extractionFn
  * (2) native Druid expressions.
  */
-public class DruidExpression
+public class DruidExpression implements Cacheable
 {
   // Must be sorted
   private static final char[] SAFE_CHARS = " ,._-;:(){}[]<>!@#$%^&*`~?/".toCharArray();
@@ -73,6 +79,11 @@ public class DruidExpression
   public static DruidExpression fromExpression(final String expression)
   {
     return new DruidExpression(null, expression);
+  }
+
+  public static DruidExpression fromStringLiteral(final String n)
+  {
+    return new DruidExpression(null, stringLiteral(n));
   }
 
   public static DruidExpression fromNumericLiteral(final Number n, final SqlTypeName typeName)
@@ -123,21 +134,23 @@ public class DruidExpression
   {
     Preconditions.checkNotNull(functionName, "functionName");
     Preconditions.checkNotNull(args, "args");
-
-    final StringBuilder builder = new StringBuilder(functionName);
-    builder.append("(");
-
     for (int i = 0; i < args.size(); i++) {
-      final DruidExpression arg = Preconditions.checkNotNull(args.get(i), "arg #%s", i);
-      builder.append(arg.getExpression());
-      if (i < args.size() - 1) {
-        builder.append(",");
+      Preconditions.checkNotNull(args.get(i), "arg #%s", i);
+    }
+    return functionCall(functionName, Iterables.transform(args, DruidExpression::getExpression));
+  }
+
+  public static String functionCall(String functionName, Iterable<String> expressions)
+  {
+    final Iterator<String> iterator = expressions.iterator();
+    final StringBuilder builder = new StringBuilder(functionName).append('(');
+    while (iterator.hasNext()) {
+      builder.append(iterator.next());
+      if (iterator.hasNext()) {
+        builder.append(',');
       }
     }
-
-    builder.append(")");
-
-    return builder.toString();
+    return builder.append(')').toString();
   }
 
   public static String functionCall(final String functionName, final DruidExpression... args)
@@ -194,7 +207,7 @@ public class DruidExpression
     return Preconditions.checkNotNull(simpleExtraction);
   }
 
-  public ExprVirtualColumn toVirtualColumn(String name)
+  public VirtualColumn toVirtualColumn(String name)
   {
     return new ExprVirtualColumn(expression, name);
   }
@@ -208,6 +221,17 @@ public class DruidExpression
         simpleExtraction == null ? null : extractionMap.apply(simpleExtraction),
         expressionMap.apply(expression)
     );
+  }
+
+  public boolean isConstant()
+  {
+    return simpleExtraction == null && Evals.isConstant(Parser.parse(expression));
+  }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return builder.append(simpleExtraction).append(expression);
   }
 
   @Override

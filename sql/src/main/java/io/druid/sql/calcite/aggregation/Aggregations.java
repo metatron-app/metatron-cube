@@ -19,35 +19,462 @@
 
 package io.druid.sql.calcite.aggregation;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import io.druid.common.guava.ByteArray;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
+import io.druid.granularity.Granularity;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.Pair;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.FieldExpressionSupport;
+import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.post.FieldAccessPostAggregator;
+import io.druid.query.aggregation.post.MathPostAggregator;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.GroupingSetSpec;
+import io.druid.query.groupby.having.ExpressionHavingSpec;
+import io.druid.query.groupby.having.HavingSpec;
+import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
+import io.druid.sql.calcite.filtration.Filtration;
+import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.rel.CannotBuildQueryException;
+import io.druid.sql.calcite.rel.Grouping;
+import io.druid.sql.calcite.rel.PartialDruidQuery;
 import io.druid.sql.calcite.table.RowSignature;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.util.ImmutableBitSet;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class Aggregations
 {
-  private Aggregations()
+  private final PlannerContext plannerContext;
+  private final RowSignature signature;
+
+  private final Project project;
+  private final Aggregate aggregate;
+
+  private final RexBuilder rexBuilder;
+  private final boolean finalizeAggregations;
+
+  private final List<DimensionExpression> dimensions = Lists.newArrayList();
+  private final BitSet removedDimensions = new BitSet();
+  private final GroupingSetSpec groupingSet;
+
+  private Granularity granularity;
+  private HavingSpec having;
+
+  private final RowSignature output;
+
+  private final Map<DruidExpression, ReferenceCounter<VirtualColumn>> virtualColumns = Maps.newLinkedHashMap();
+  private final Map<ByteArray, AggregatorFactory> aggregators = Maps.newLinkedHashMap();
+  private final List<PostAggregator> postAggregators = Lists.newArrayList();
+
+  public Aggregations(
+      PlannerContext plannerContext,
+      RowSignature signature,
+      RexBuilder rexBuilder,
+      PartialDruidQuery query,
+      boolean finalizeAggregations
+  )
   {
-    // No instantiation.
+    this.plannerContext = plannerContext;
+    this.signature = signature;
+    this.rexBuilder = rexBuilder;
+    this.project = query.getScanProject();
+    this.aggregate = query.getAggregate();
+    this.finalizeAggregations = finalizeAggregations;
+    this.groupingSet = computeGroupingSetSpec();
+    this.output = computeDimensions().computeNotProjectedConstantDimensions(query)
+                                     .computeDimensionVirtualColumns(query)
+                                     .computeAggregations(query);
+  }
+
+  private GroupingSetSpec computeGroupingSetSpec()
+  {
+    switch (aggregate.getGroupType()) {
+      case SIMPLE:
+        return GroupingSetSpec.EMPTY;
+      case ROLLUP:
+        return GroupingSetSpec.ROLLUP;
+      case CUBE:
+        return GroupingSetSpec.CUBE;
+    }
+    ImmutableBitSet groupBySet = aggregate.getGroupSet();
+    Int2IntMap mapping = new Int2IntOpenHashMap();
+    for (int x = groupBySet.nextSetBit(0); x >= 0; x = groupBySet.nextSetBit(x + 1)) {
+      mapping.put(x, mapping.size());
+    }
+    List<List<Integer>> groups = Lists.newArrayList();
+    for (ImmutableBitSet groupSet : aggregate.getGroupSets()) {
+      List<Integer> indices = Lists.newArrayList();
+      for (int x = groupSet.nextSetBit(0); x >= 0; x = groupSet.nextSetBit(x + 1)) {
+        int index = mapping.getOrDefault(x, -1);
+        if (index < 0) {
+          throw new IAE("invalid index %d in %s ", x, groupBySet);
+        }
+        indices.add(index);
+      }
+      groups.add(indices);
+    }
+    return new GroupingSetSpec.Indices(groups);
+  }
+
+  public Aggregations computeDimensions()
+  {
+    int ix = 0;
+    final String prefix = Calcites.findUnusedPrefix("d", signature.getColumnNames());
+    for (int i : aggregate.getGroupSet()) {
+      // Dimension might need to create virtual columns. Avoid giving it a name that would lead to colliding columns.
+      final String outputName = prefix + ix++;
+      final RexNode rexNode = Expressions.fromFieldAccess(signature, project, i);
+      final DruidExpression expression = toExpression(rexNode);
+      if (expression == null) {
+        throw new CannotBuildQueryException(aggregate, rexNode);
+      }
+      dimensions.add(new DimensionExpression(outputName, expression, Calcites.asValueDesc(rexNode)));
+      if (i == 0 && !expression.isSimpleExtraction()) {
+        granularity = Expressions.asGranularity(expression, signature);
+        if (granularity != null) {
+          removedDimensions.set(i);
+          postAggregators.add(0, GuavaUtils.lastOf(dimensions).toPostAggregator());   // for timestamp accessing post processors
+        }
+      }
+    }
+    return this;
+  }
+
+  private Aggregations computeNotProjectedConstantDimensions(PartialDruidQuery query)
+  {
+    Project project = GuavaUtils.nvl(query.getAggregateProject(), query.getSortProject());
+    if (project != null) {
+      ImmutableBitSet bitSet = RelOptUtil.InputFinder.bits(project.getChildExps(), null);
+      for (int i = 0; i < dimensions.size(); i++) {
+        if (!bitSet.get(i) && !removedDimensions.get(i) && dimensions.get(i).isConstant()) {
+          removedDimensions.set(i);
+        }
+      }
+    }
+    return this;
+  }
+
+  private Aggregations computeDimensionVirtualColumns(PartialDruidQuery query)
+  {
+    for (int i = 0; i < dimensions.size(); i++) {
+      if (!removedDimensions.get(i)) {
+        registerDimension(dimensions.get(i));
+      }
+    }
+    return this;
+  }
+
+  private RowSignature computeAggregations(PartialDruidQuery query)
+  {
+    RowSignature signature = translateAggregateCall(query.getAggregate());
+    if (query.getAggregateFilter() != null) {
+      this.having = computeHavingFilter(query.getAggregateFilter(), signature);
+    }
+    if (query.getAggregateProject() != null) {
+      signature = computePostProject(query.getAggregateProject(), "p", signature);
+    }
+    return signature;
+  }
+
+  private RowSignature translateAggregateCall(Aggregate aggregate)
+  {
+    String prefix = Calcites.findUnusedPrefix("a", signature.getColumnNames());
+    List<AggregateCall> calls = aggregate.getAggCallList();
+    List<String> outputNames = Lists.newArrayList(Iterables.transform(dimensions, DimensionExpression::getOutputName));
+    for (int i = 0; i < calls.size(); i++) {
+      String outputName = prefix + i;
+      if (!translateAggregateCall(calls.get(i), outputName)) {
+        throw new CannotBuildQueryException(aggregate, calls.get(i));
+      }
+      outputNames.add(outputName);
+    }
+    return RowSignature.from(outputNames, aggregate.getRowType(), asTypeSolver());
+  }
+
+  private boolean translateAggregateCall(AggregateCall call, String outputName)
+  {
+    DimFilter filter = null;
+    if (call.filterArg >= 0) {
+      if (project == null) {
+        return false;
+      }
+      filter = toAggregateFilter(call.filterArg);
+      if (filter == null) {
+        return false;
+      }
+    }
+    return plannerContext.getOperatorTable().lookupAggregator(this, outputName, call, filter);
   }
 
   @Nullable
-  public static List<DruidExpression> getArgumentsForSimpleAggregator(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final AggregateCall call,
-      final Project project
+  private DimFilter toAggregateFilter(int filterOn)
+  {
+    final RexNode expression = project.getChildExps().get(filterOn);
+    final DimFilter filter = Expressions.toFilter(plannerContext, signature, expression);
+    if (filter != null) {
+      return Filtration.create(filter).optimizeFilterOnly(signature).getDimFilter();
+    }
+    return null;
+  }
+
+  private HavingSpec computeHavingFilter(Filter filter, RowSignature signature)
+  {
+    final DruidExpression expression = Expressions.toDruidExpression(plannerContext, signature, filter.getCondition());
+    if (expression == null) {
+      throw new CannotBuildQueryException(filter, filter.getCondition());
+    }
+    return new ExpressionHavingSpec(expression.getExpression());
+  }
+
+  public RowSignature computePostProject(Project project, String base, RowSignature signature)
+  {
+    if (project == null) {
+      return signature;
+    }
+    int ix = 0;
+    final List<String> outputNames = new ArrayList<>();
+    final String prefix = Calcites.findUnusedPrefix(base, signature.getColumnNames());
+    for (RexNode rexNode : project.getChildExps()) {
+      // Dimension might need to create virtual columns. Avoid giving it a name that would lead to colliding columns.
+      final DruidExpression expression = toExpression(signature, rexNode);
+      if (expression == null) {
+        throw new CannotBuildQueryException(project, rexNode);
+      }
+      if (expression.isDirectColumnAccess()) {
+        outputNames.add(expression.getDirectColumn());
+      } else if (expression.getExpression() != null) {
+        String outputName = prefix + ix++;
+        register(new MathPostAggregator(outputName, expression.getExpression()));
+        outputNames.add(outputName);
+      } else {
+        throw new UnsupportedOperationException("?");
+      }
+    }
+    return RowSignature.from(outputNames, project.getRowType(), asTypeSolver());
+  }
+
+  public boolean isFinalizing()
+  {
+    return finalizeAggregations;
+  }
+
+  public ValueDesc resolve(String column)
+  {
+    return signature.resolve(column);
+  }
+
+  @Nullable
+  public List<DruidExpression> argumentsToExpressions(List<Integer> fields)
+  {
+    List<DruidExpression> expressions = fields.stream()
+                                              .map(this::fieldToExpression).filter(v -> v != null)
+                                              .collect(Collectors.toList());
+    return expressions.size() == fields.size() ? expressions : null;
+  }
+
+  public static List<DruidExpression> argumentsToExpressions(
+      List<Integer> fields,
+      PlannerContext plannerContext,
+      RowSignature signature,
+      Project project
   )
   {
-    return call.getArgList().stream()
-               .map(field -> Expressions.fromFieldAccess(rowSignature, project, field))
-               .map(rexNode -> Expressions.toDruidExpression(plannerContext, rowSignature, rexNode))
-               .collect(Collectors.toList());
+    List<DruidExpression> expressions =
+        fields.stream()
+              .map(x -> Expressions.fromFieldAccess(signature, project, x))
+              .map(rex -> Expressions.toDruidExpression(plannerContext, signature, rex))
+              .filter(v -> v != null)
+              .collect(Collectors.toList());
+    return expressions.size() == fields.size() ? expressions : null;
+  }
+
+  @Nullable
+  public DruidExpression fieldToExpression(int field)
+  {
+    return toExpression(Expressions.fromFieldAccess(signature, project, field));
+  }
+
+  public DruidExpression toExpression(RexNode rexNode)
+  {
+    return Expressions.toDruidExpression(plannerContext, signature, rexNode);
+  }
+
+  public DruidExpression toExpression(RowSignature signature, RexNode rexNode)
+  {
+    return Expressions.toDruidExpression(plannerContext, signature, rexNode);
+  }
+
+  public void registerDimension(DimensionExpression dimension)
+  {
+    if (!dimension.getDruidExpression().isSimpleExtraction()) {
+      _register(dimension.getOutputName(), dimension.getDruidExpression());
+    }
+  }
+
+  public String registerColumn(String outputName, DruidExpression expression)
+  {
+    if (expression.isDirectColumnAccess()) {
+      return expression.getDirectColumn();
+    }
+    return _register(outputName, expression).getOutputName();
+  }
+
+  public DimensionSpec registerDimension(String outputName, DruidExpression expression)
+  {
+    if (expression.isSimpleExtraction()) {
+      return expression.getSimpleExtraction().toDimensionSpec(null);
+    }
+    return DefaultDimensionSpec.of(_register(outputName, expression).getOutputName());
+  }
+
+  private VirtualColumn _register(String outputName, DruidExpression expression)
+  {
+    ReferenceCounter<VirtualColumn> vc = virtualColumns.computeIfAbsent(
+        expression, k -> new ReferenceCounter<>(expression.toVirtualColumn(Calcites.vcName(outputName)))
+    );
+    vc.counter++;
+    return vc.object;
+  }
+
+  public void register(AggregatorFactory factory, DimFilter predicate)
+  {
+    factory = AggregatorFactory.wrap(factory, predicate);
+    AggregatorFactory prev = aggregators.putIfAbsent(ByteArray.wrap(factory.getCacheKey()), factory);
+    if (prev != null) {
+      postAggregators.add(FieldAccessPostAggregator.of(factory.getName(), prev));
+    }
+  }
+
+  public void register(PostAggregator postAggregator)
+  {
+    postAggregators.add(postAggregator);
+  }
+
+  public boolean useApproximateCountDistinct()
+  {
+    return plannerContext.getPlannerConfig().isUseApproximateCountDistinct();
+  }
+
+  public RexNode toRexNode(int field)
+  {
+    return Expressions.fromFieldAccess(signature, project, field);
+  }
+
+  public DimFilter toFilter(RexNode rexNode)
+  {
+    DimFilter filter = Expressions.toFilter(
+        plannerContext,
+        signature,
+        rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(rexNode))
+    );
+    return filter == null ? null : Filtration.create(filter).optimizeFilterOnly(signature).getDimFilter();
+  }
+
+  public RowSignature asTypeSolver()
+  {
+    RowSignature.Builder builder = RowSignature.builderFrom(signature);
+    for (ReferenceCounter<VirtualColumn> vc : virtualColumns.values()) {
+      builder.add(vc.object.getOutputName(), vc.object.resolveType(signature));
+    }
+    for (AggregatorFactory factory : aggregators.values()) {
+      builder.add(factory.getName(), factory.getOutputType());
+    }
+    return builder.build();
+  }
+
+  public RowSignature getOutputRowSignature()
+  {
+    return output;
+  }
+
+  public Grouping build()
+  {
+    List<DimensionSpec> dimensionSpecs = IntStream.range(0, dimensions.size())
+                                                  .filter(x -> !removedDimensions.get(x))
+                                                  .mapToObj(x -> dimensions.get(x).toDimensionSpec())
+                                                  .collect(Collectors.toList());
+
+    Pair<List<VirtualColumn>, List<AggregatorFactory>> optimized = optimize();
+    return new Grouping(
+        granularity,
+        dimensions,
+        dimensionSpecs,
+        groupingSet,
+        optimized.lhs,
+        optimized.rhs,
+        postAggregators,
+        having,
+        output
+    );
+  }
+
+  private Pair<List<VirtualColumn>, List<AggregatorFactory>> optimize()
+  {
+    Map<String, VirtualColumn> mapping = Maps.newLinkedHashMap();
+    virtualColumns.values().stream().filter(h -> h.counter == 1 && h.object instanceof ExprVirtualColumn)
+                  .forEach(h -> mapping.put(h.object.getOutputName(), h.object));
+    if (mapping.isEmpty() || !Iterables.any(aggregators.values(), f -> f instanceof FieldExpressionSupport)) {
+      return Pair.of(
+          GuavaUtils.transform(virtualColumns.values(), vc -> vc.object),
+          ImmutableList.copyOf(aggregators.values())
+      );
+    }
+    List<AggregatorFactory> inlined = Lists.newArrayList();
+    for (AggregatorFactory factory : aggregators.values()) {
+      if (factory instanceof FieldExpressionSupport) {
+        FieldExpressionSupport exprSupport = ((FieldExpressionSupport) factory);
+        VirtualColumn vc = mapping.remove(exprSupport.getFieldName());
+        if (vc != null) {
+          factory = exprSupport.withFieldExpression(((ExprVirtualColumn) vc).getExpression());
+        }
+      }
+      inlined.add(factory);
+    }
+    return Pair.of(ImmutableList.copyOf(mapping.values()), inlined);
+  }
+
+  private static class ReferenceCounter<T>
+  {
+    private final T object;
+    int counter;
+
+    public ReferenceCounter(T object) {this.object = object;}
+  }
+
+  public DruidExpression getNonDistinctSingleArgument(AggregateCall call)
+  {
+    if (!call.isDistinct() && call.getArgList().size() == 1) {
+      return fieldToExpression(call.getArgList().get(0));
+    }
+    return null;
   }
 }

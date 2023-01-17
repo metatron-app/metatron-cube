@@ -19,82 +19,63 @@
 
 package io.druid.sql.calcite.rel;
 
-import com.google.common.collect.ImmutableList;
-import io.druid.java.util.common.ISE;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.having.HavingSpec;
-import io.druid.sql.calcite.aggregation.Aggregation;
+import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.aggregation.DimensionExpression;
 import io.druid.sql.calcite.table.RowSignature;
 
 import javax.annotation.Nullable;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class Grouping
 {
+  private final Granularity granularity;
   private final List<DimensionExpression> dimensions;
-  private final List<Aggregation> aggregations;
-  private final GroupingSetSpec groupingSets;
+  private final List<DimensionSpec> dimensionSpecs;
+  private final GroupingSetSpec groupingSet;
+  private final List<VirtualColumn> virtualColumns;
+  private final List<AggregatorFactory> aggregations;
+  private final List<PostAggregator> postAggregators;
   private final HavingSpec havingFilter;
   private final RowSignature outputRowSignature;
 
-  private Grouping(
+  public Grouping(
+      final Granularity granularity,
       final List<DimensionExpression> dimensions,
-      final List<Aggregation> aggregations,
-      final GroupingSetSpec groupingSets,
+      final List<DimensionSpec> dimensionSpecs,
+      final GroupingSetSpec groupingSet,
+      final List<VirtualColumn> virtualColumns,
+      final List<AggregatorFactory> aggregations,
+      final List<PostAggregator> postAggregators,
       final HavingSpec havingFilter,
       final RowSignature outputRowSignature
   )
   {
-    this.dimensions = ImmutableList.copyOf(dimensions);
-    this.aggregations = ImmutableList.copyOf(aggregations);
-    this.groupingSets = groupingSets;
+    this.granularity = granularity;
+    this.dimensions = dimensions;
+    this.dimensionSpecs = dimensionSpecs;
+    this.groupingSet = groupingSet;
+    this.virtualColumns = virtualColumns;
+    this.aggregations = aggregations;
     this.havingFilter = havingFilter;
+    this.postAggregators = postAggregators;
     this.outputRowSignature = outputRowSignature;
-
-    // Verify no collisions.
-    final Set<String> seen = new HashSet<>();
-    for (DimensionExpression dimensionExpression : dimensions) {
-      if (!seen.add(dimensionExpression.getOutputName())) {
-        throw new ISE("Duplicate field name: %s", dimensionExpression.getOutputName());
-      }
-    }
-    for (Aggregation aggregation : aggregations) {
-      for (AggregatorFactory aggregatorFactory : aggregation.getAggregatorFactories()) {
-        if (!seen.add(aggregatorFactory.getName())) {
-          throw new ISE("Duplicate field name: %s", aggregatorFactory.getName());
-        }
-      }
-      PostAggregator postAggregator = aggregation.getPostAggregator();
-      if (postAggregator != null && !seen.add(postAggregator.getName())) {
-        throw new ISE("Duplicate field name: %s", postAggregator.getName());
-      }
-    }
-
-    // Verify that items in the output signature exist.
-    for (final String field : outputRowSignature.getColumnNames()) {
-      if (!seen.contains(field)) {
-        throw new ISE("Missing field in rowOrder: %s", field);
-      }
-    }
   }
 
-  public static Grouping create(
-      final List<DimensionExpression> dimensions,
-      final List<Aggregation> aggregations,
-      final GroupingSetSpec groupingSets,
-      final HavingSpec havingFilter,
-      final RowSignature outputRowSignature
-  )
+  public Granularity getGranularity()
   {
-    return new Grouping(dimensions, aggregations, groupingSets, havingFilter, outputRowSignature);
+    return granularity;
+  }
+
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   public List<DimensionExpression> getDimensions()
@@ -102,40 +83,30 @@ public class Grouping
     return dimensions;
   }
 
-  public List<Aggregation> getAggregations()
+  public List<DimensionSpec> getDimensionSpecs()
+  {
+    return dimensionSpecs;
+  }
+
+  public List<AggregatorFactory> getAggregatorFactories()
   {
     return aggregations;
   }
 
+  public List<PostAggregator> getPostAggregators()
+  {
+    return postAggregators;
+  }
+
   public GroupingSetSpec getGroupingSets()
   {
-    return groupingSets;
+    return groupingSet;
   }
 
   @Nullable
   public HavingSpec getHavingFilter()
   {
     return havingFilter;
-  }
-
-  public List<DimensionSpec> getDimensionSpecs()
-  {
-    return dimensions.stream().map(DimensionExpression::toDimensionSpec).collect(Collectors.toList());
-  }
-
-  public List<AggregatorFactory> getAggregatorFactories()
-  {
-    return aggregations.stream()
-                       .flatMap(aggregation -> aggregation.getAggregatorFactories().stream())
-                       .collect(Collectors.toList());
-  }
-
-  public List<PostAggregator> getPostAggregators()
-  {
-    return aggregations.stream()
-                       .map(Aggregation::getPostAggregator)
-                       .filter(Objects::nonNull)
-                       .collect(Collectors.toList());
   }
 
   public RowSignature getOutputRowSignature()
@@ -153,7 +124,8 @@ public class Grouping
       return false;
     }
     final Grouping grouping = (Grouping) o;
-    return Objects.equals(dimensions, grouping.dimensions) &&
+    return Objects.equals(dimensionSpecs, grouping.dimensionSpecs) &&
+           Objects.equals(virtualColumns, grouping.virtualColumns) &&
            Objects.equals(aggregations, grouping.aggregations) &&
            Objects.equals(havingFilter, grouping.havingFilter) &&
            Objects.equals(outputRowSignature, grouping.outputRowSignature);
@@ -162,14 +134,15 @@ public class Grouping
   @Override
   public int hashCode()
   {
-    return Objects.hash(dimensions, aggregations, havingFilter, outputRowSignature);
+    return Objects.hash(dimensionSpecs, virtualColumns, aggregations, havingFilter, outputRowSignature);
   }
 
   @Override
   public String toString()
   {
     return "Grouping{" +
-           "dimensions=" + dimensions +
+           "dimensions=" + dimensionSpecs +
+           ", virtualColumns=" + virtualColumns +
            ", aggregations=" + aggregations +
            ", havingFilter=" + havingFilter +
            ", outputRowSignature=" + outputRowSignature +

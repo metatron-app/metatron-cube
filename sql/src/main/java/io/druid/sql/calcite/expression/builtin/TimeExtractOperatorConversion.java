@@ -56,9 +56,9 @@ public class TimeExtractOperatorConversion implements SqlOperatorConversion
     return DruidExpression.fromFunctionCall(
         "timestamp_extract",
         ImmutableList.of(
-            DruidExpression.fromExpression(DruidExpression.stringLiteral(unit.name())),
+            DruidExpression.fromStringLiteral(unit.name()),
             timeExpression,
-            DruidExpression.fromExpression(DruidExpression.stringLiteral(timeZone.getID()))
+            DruidExpression.fromStringLiteral(timeZone.getID())
         )
     );
   }

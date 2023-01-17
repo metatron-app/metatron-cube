@@ -27,6 +27,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.util.Comparator;
@@ -36,6 +37,15 @@ import java.util.Set;
 
 public class FilteredAggregatorFactory extends AggregatorFactory
 {
+  public static FilteredAggregatorFactory of(AggregatorFactory factory, DimFilter predicate)
+  {
+    if (factory instanceof FilteredAggregatorFactory) {
+      FilteredAggregatorFactory inner = (FilteredAggregatorFactory) factory;
+      return new FilteredAggregatorFactory(inner.getAggregator(), DimFilters.and(inner.getFilter(), predicate));
+    }
+    return new FilteredAggregatorFactory(factory, predicate);
+  }
+
   private static final byte CACHE_TYPE_ID = 0x9;
 
   private final AggregatorFactory delegate;

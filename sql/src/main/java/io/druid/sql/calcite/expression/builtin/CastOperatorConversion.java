@@ -150,7 +150,7 @@ public class CastOperatorConversion implements SqlOperatorConversion
         ImmutableList.of(
             operand,
             DruidExpression.fromExpression(DruidExpression.nullLiteral()),
-            DruidExpression.fromExpression(DruidExpression.stringLiteral(plannerContext.getTimeZone().getID()))
+            DruidExpression.fromStringLiteral(plannerContext.getTimeZone().getID())
         )
     );
 
@@ -177,8 +177,8 @@ public class CastOperatorConversion implements SqlOperatorConversion
         "timestamp_format",
         ImmutableList.of(
             operand,
-            DruidExpression.fromExpression(DruidExpression.stringLiteral(dateTimeFormatString(fromType))),
-            DruidExpression.fromExpression(DruidExpression.stringLiteral(plannerContext.getTimeZone().getID()))
+            DruidExpression.fromStringLiteral(dateTimeFormatString(fromType)),
+            DruidExpression.fromStringLiteral(plannerContext.getTimeZone().getID())
         )
     );
   }

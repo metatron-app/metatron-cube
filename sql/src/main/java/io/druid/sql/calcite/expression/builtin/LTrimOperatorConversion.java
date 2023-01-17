@@ -72,7 +72,7 @@ public class LTrimOperatorConversion implements SqlOperatorConversion
             return TrimOperatorConversion.makeTrimExpression(
                 SqlTrimFunction.Flag.LEADING,
                 druidExpressions.get(0),
-                DruidExpression.fromExpression(DruidExpression.stringLiteral(" "))
+                DruidExpression.fromStringLiteral(" ")
             );
           }
         }

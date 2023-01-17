@@ -20,13 +20,15 @@
 package io.druid.sql.calcite.aggregation;
 
 import io.druid.data.ValueDesc;
+import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.post.FieldAccessPostAggregator;
+import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.planner.Calcites;
 
-import javax.annotation.Nullable;
 import java.util.Objects;
 
 public class DimensionExpression
@@ -66,19 +68,26 @@ public class DimensionExpression
     if (expression.isSimpleExtraction()) {
       return expression.getSimpleExtraction().toDimensionSpec(outputName);
     } else {
-      return DefaultDimensionSpec.of(getVirtualColumnName(), getOutputName());
+      return DefaultDimensionSpec.of(Calcites.vcName(outputName), getOutputName());
     }
   }
 
-  public ExprVirtualColumn toVirtualColumn()
+  public boolean isConstant()
   {
-    return expression.isSimpleExtraction() ? null : expression.toVirtualColumn(getVirtualColumnName());
+    return expression.isConstant();
   }
 
-  @Nullable
-  public String getVirtualColumnName()
+  public VirtualColumn toVirtualColumn()
   {
-    return expression.isSimpleExtraction() ? null : Calcites.makePrefixedName(outputName, "v");
+    return expression.isSimpleExtraction() ? null : expression.toVirtualColumn(Calcites.vcName(outputName));
+  }
+
+  public PostAggregator toPostAggregator()
+  {
+    if (expression.isSimpleExtraction()) {
+      return new FieldAccessPostAggregator(outputName, expression.getDirectColumn());
+    }
+    return new MathPostAggregator(outputName, expression.getExpression());
   }
 
   @Override

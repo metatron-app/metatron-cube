@@ -217,8 +217,8 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
         new Object[]{"def", 1L}
     );
     hook.verifyHooked(
-        "6GI+Zm6l4zL6feFAx28Iyw==",
-        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], aggregatorSpecs=[FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a0'}, filter=!(dim2=='a')}, CountAggregatorFactory{name='a1'}, FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a2'}, filter=!(dim2=='a')}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(a0 / a1)', finalize=true}], havingSpec=ExpressionHavingSpec{expression='((a2 / a1) == 1)'}, outputColumns=[d0, p0]}"
+        "lXp6mw7qQxNnn//aD6tkOw==",
+        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], aggregatorSpecs=[FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a0'}, filter=!(dim2=='a')}, CountAggregatorFactory{name='a1'}], postAggregatorSpecs=[FieldAccessPostAggregator{name='a2', fieldName='a0'}, MathPostAggregator{name='p0', expression='(a0 / a1)', finalize=true}], havingSpec=ExpressionHavingSpec{expression='((a2 / a1) == 1)'}, outputColumns=[d0, p0]}"
     );
   }
 

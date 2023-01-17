@@ -36,14 +36,11 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import io.druid.math.expr.WindowFunctions;
-import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.WindowContext;
-import io.druid.segment.ExprVirtualColumn;
-import io.druid.segment.VirtualColumn;
-import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.ApproxCountDistinctSqlAggregator;
@@ -105,9 +102,7 @@ import io.druid.sql.calcite.expression.builtin.TrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.TruncateOperatorConversion;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
@@ -127,7 +122,6 @@ import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.util.Optionality;
 import org.apache.commons.lang.StringEscapeUtils;
 
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -388,31 +382,16 @@ public class DruidOperatorTable implements SqlOperatorTable
     }
   }
 
-  public Aggregation lookupAggregator(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexBuilder rexBuilder,
-      final String name,
-      final AggregateCall aggregateCall,
-      final Project project,
-      final boolean finalizeAggregations
+  public boolean lookupAggregator(
+      Aggregations aggregations,
+      String outputName,
+      AggregateCall aggregateCall,
+      DimFilter predicate
   )
   {
     final SqlAggFunction aggregation = aggregateCall.getAggregation();
     final SqlAggregator sqlAggregator = aggregators.get(OperatorKey.of(aggregation));
-    if (sqlAggregator != null) {
-      return sqlAggregator.toDruidAggregation(
-          plannerContext,
-          rowSignature,
-          rexBuilder,
-          name,
-          aggregateCall,
-          project,
-          finalizeAggregations
-      );
-    } else {
-      return null;
-    }
+    return sqlAggregator != null && sqlAggregator.register(aggregations, predicate, aggregateCall, outputName);
   }
 
   public SqlOperatorConversion lookupOperatorConversion(final SqlOperator operator)
@@ -538,65 +517,43 @@ public class DruidOperatorTable implements SqlOperatorTable
       return function;
     }
 
-    @Nullable
     @Override
-    public Aggregation toDruidAggregation(
-        PlannerContext plannerContext,
-        RowSignature rowSignature,
-        RexBuilder rexBuilder,
-        String name,
-        AggregateCall aggregateCall,
-        Project project,
-        boolean finalize
-    )
+    public boolean register(Aggregations aggregations, DimFilter predicate, AggregateCall call, String outputName)
     {
-      if (aggregateCall.isDistinct()) {
-        return null;
+      if (call.isDistinct()) {
+        return false;
       }
-      final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
-          plannerContext,
-          rowSignature,
-          aggregateCall,
-          project
-      );
+      final List<DruidExpression> arguments = aggregations.argumentsToExpressions(call.getArgList());
       if (arguments == null) {
-        return null;
+        return false;
       }
-      List<String> fieldNames = Lists.newArrayList();
-      List<VirtualColumn> virtualColumns = Lists.newArrayList();
-      for (DruidExpression expression : arguments) {
-        if (expression.isDirectColumnAccess()) {
-          fieldNames.add(expression.getDirectColumn());
-        } else {
-          ExprVirtualColumn virtualColumn = expression.toVirtualColumn(Calcites.makePrefixedName(name, "v"));
-          fieldNames.add(virtualColumn.getOutputName());
-          virtualColumns.add(virtualColumn);
-        }
-      }
-      TypeResolver resolver = rowSignature;
-      if (!virtualColumns.isEmpty()) {
-        resolver = RowResolver.of(rowSignature, virtualColumns);
-      }
-      if (postAggregator != null || finalize) {
-        final String aggregatorName = Calcites.makePrefixedName(name, "a");
-        final AggregatorFactory rewritten = aggregator.rewrite(aggregatorName, fieldNames, resolver);
+      List<String> fieldNames = arguments.stream()
+                                         .map(expr -> aggregations.registerColumn(outputName, expr))
+                                         .collect(Collectors.toList());
+
+      if (postAggregator != null || aggregations.isFinalizing()) {
+        final String aggregatorName = Calcites.makePrefixedName(outputName, "a");
+        final AggregatorFactory rewritten = aggregator.rewrite(aggregatorName, fieldNames, aggregations.asTypeSolver());
         if (rewritten != null) {
-          return Aggregation.create(
-              rowSignature, virtualColumns, ImmutableList.of(rewritten), postAggregator(name, rewritten, finalize)
-          );
+          aggregations.register(rewritten, predicate);
+          aggregations.register(postAggregator(outputName, rewritten));
+          return true;
+        }
+      } else {
+        final AggregatorFactory rewritten = aggregator.rewrite(outputName, fieldNames, aggregations.asTypeSolver());
+        if (rewritten != null) {
+          aggregations.register(rewritten, predicate);
+          return true;
         }
       }
-      final AggregatorFactory rewritten = aggregator.rewrite(name, fieldNames, resolver);
-      return rewritten == null ? null : Aggregation.create(rowSignature, virtualColumns, rewritten);
+      return false;
     }
 
-    private PostAggregator postAggregator(String name, AggregatorFactory rewritten, boolean finalize)
+    private PostAggregator postAggregator(String name, AggregatorFactory rewritten)
     {
-      if (postAggregator != null) {
-        return postAggregator.rewrite(name, rewritten.getName());
-      } else {
-        return finalize ? AggregatorFactory.asFinalizer(name, rewritten) : null;
-      }
+      return postAggregator != null
+             ? postAggregator.rewrite(name, rewritten.getName())
+             : AggregatorFactory.asFinalizer(name, rewritten);
     }
   }
 

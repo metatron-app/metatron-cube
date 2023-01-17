@@ -20,6 +20,8 @@
 package io.druid.sql.calcite.expression;
 
 import com.google.common.base.Preconditions;
+import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -31,7 +33,7 @@ import io.druid.query.extraction.ExtractionFn;
  * This is useful since identifying simple extractions and treating them specially can allow Druid to perform
  * additional optimizations.
  */
-public class SimpleExtraction
+public class SimpleExtraction implements Cacheable
 {
   public static SimpleExtraction of(String column, ExtractionFn extractionFn)
   {
@@ -70,6 +72,12 @@ public class SimpleExtraction
     return extractionFn == null
            ? new DefaultDimensionSpec(column, outputName)
            : new ExtractionDimensionSpec(column, outputName, extractionFn);
+  }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return builder.append(column).append(extractionFn);
   }
 
   @Override

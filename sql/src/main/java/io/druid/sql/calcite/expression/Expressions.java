@@ -183,7 +183,7 @@ public class Expressions
         final Comparable value = RexLiteral.value(rexNode);
         final SqlTypeName sqlTypeName = Calcites.getTypeName(rexNode.getType());
         if (SqlTypeName.NUMERIC_TYPES.contains(sqlTypeName)) {
-          return DruidExpression.fromExpression(DruidExpression.numberLiteral((Number) value, sqlTypeName));
+          return DruidExpression.fromNumericLiteral((Number) value, sqlTypeName);
         } else if (SqlTypeFamily.INTERVAL_DAY_TIME == sqlTypeName.getFamily()) {
           // Calcite represents DAY-TIME intervals in milliseconds.
           final long milliseconds = ((Number) value).longValue();
@@ -193,7 +193,7 @@ public class Expressions
           final long months = ((Number) value).longValue();
           return DruidExpression.numberLiteral(months);
         } else if (SqlTypeName.STRING_TYPES.contains(sqlTypeName)) {
-          return DruidExpression.fromExpression(DruidExpression.stringLiteral(RexLiteral.stringValue(rexNode)));
+          return DruidExpression.fromStringLiteral(RexLiteral.stringValue(rexNode));
         } else if (SqlTypeName.TIMESTAMP == sqlTypeName || SqlTypeName.DATE == sqlTypeName) {
           return DruidExpression.numberLiteral(
               Calcites.calciteDateTimeLiteralToJoda(rexNode, plannerContext.getTimeZone()).getMillis()

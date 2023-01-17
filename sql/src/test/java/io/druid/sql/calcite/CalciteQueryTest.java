@@ -1883,12 +1883,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   RelayAggregatorFactory.min("a3", "dim1", ValueDesc.STRING_DIMENSION_TYPE),
                   RelayAggregatorFactory.max("a4", "dim1", ValueDesc.STRING_DIMENSION_TYPE),
                   GenericSumAggregatorFactory.ofLong("a5:sum", "cnt"),
-                  CountAggregatorFactory.of("a5:count"),
-                  GenericSumAggregatorFactory.ofLong("a6", "cnt"),
                   GenericMinAggregatorFactory.ofLong("a7", "cnt"),
                   GenericMaxAggregatorFactory.ofLong("a8", "cnt")
               )
               .postAggregators(
+                  new FieldAccessPostAggregator("a5:count", "a1"),
                   new ArithmeticPostAggregator(
                       "a5",
                       "quotient",
@@ -1897,6 +1896,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           new FieldAccessPostAggregator(null, "a5:count")
                       )
                   ),
+                  new FieldAccessPostAggregator("a6", "a5:sum"),
                   EXPR_POST_AGG("p0", "((a6 + a7) + a8)")
               )
               .outputColumns("a0", "a1", "a2", "a3", "a4", "a5", "a6", "p0")
@@ -2021,10 +2021,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       NOT(SELECTOR("dim1", "1"))
                   ),
                   new FilteredAggregatorFactory(
-                      CountAggregatorFactory.of("a5"),
-                      NOT(SELECTOR("dim1", "1"))
-                  ),
-                  new FilteredAggregatorFactory(
                       GenericSumAggregatorFactory.ofLong("a6", "cnt"),
                       SELECTOR("dim2", "a")
                   ),
@@ -2044,6 +2040,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       NOT(SELECTOR("dim1", "1"))
                   )
               )
+              .postAggregators(new FieldAccessPostAggregator("a5", "a4"))
               .outputColumns("a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9")
               .build(),
         new Object[]{1L, 5L, 1L, 2L, 5L, 5L, 2L, 1L, 5L, 1L}
@@ -3227,7 +3224,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   GenericMaxAggregatorFactory.ofLong("_a0", "a0"),
                   GenericMinAggregatorFactory.ofLong("_a1", "a0"),
                   GenericSumAggregatorFactory.ofLong("_a2:sum", "a0"),
-                  CountAggregatorFactory.of("_a2:count"),
+                  CountAggregatorFactory.of("_a2:count", "a0"),
                   GenericMaxAggregatorFactory.ofLong("_a3", "d0"),
                   CountAggregatorFactory.of("_a4")
               )
@@ -3271,7 +3268,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               )
               .aggregators(
                   GenericSumAggregatorFactory.ofLong("_a0:sum", "a0"),
-                  CountAggregatorFactory.of("_a0:count")
+                  CountAggregatorFactory.of("_a0:count", "a0")
               )
               .postAggregators(
                   new ArithmeticPostAggregator(
@@ -4211,7 +4208,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .granularity(Granularities.YEAR)
             .dimensions(DefaultDimensionSpec.of("dim2", "d1"))
-            .virtualColumns(EXPR_VC("d0:v", "timestamp_floor(__time,'P1Y','','UTC')"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .postAggregators(
                 EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1Y','','UTC')")

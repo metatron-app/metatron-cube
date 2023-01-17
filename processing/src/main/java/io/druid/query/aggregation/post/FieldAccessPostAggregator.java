@@ -22,20 +22,37 @@ package io.druid.query.aggregation.post;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  */
 public class FieldAccessPostAggregator extends PostAggregator.Stateless
 {
+  public static FieldAccessPostAggregator of(String fieldName)
+  {
+    return new FieldAccessPostAggregator(null, fieldName);
+  }
+
+  public static FieldAccessPostAggregator of(String name, AggregatorFactory field)
+  {
+    return new FieldAccessPostAggregator(name, field.getName())
+    {
+      @Override
+      public Comparator getComparator() {return field.getComparator();}
+    };
+  }
+
   private final String name;
   private final String fieldName;
 
@@ -46,7 +63,7 @@ public class FieldAccessPostAggregator extends PostAggregator.Stateless
   )
   {
     this.name = name;
-    this.fieldName = fieldName;
+    this.fieldName = Preconditions.checkNotNull(fieldName, "'fieldName' should not be null");
   }
 
   @Override
@@ -89,7 +106,6 @@ public class FieldAccessPostAggregator extends PostAggregator.Stateless
   }
 
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
@@ -99,8 +115,8 @@ public class FieldAccessPostAggregator extends PostAggregator.Stateless
   public String toString()
   {
     return "FieldAccessPostAggregator{" +
-           "name='" + name + '\'' +
-           ", fieldName='" + fieldName + '\'' +
+           (name == null ? "": "name='" + name + "', ") +
+           "fieldName='" + fieldName + '\'' +
            '}';
   }
 
@@ -108,21 +124,22 @@ public class FieldAccessPostAggregator extends PostAggregator.Stateless
   public boolean equals(Object o)
   {
     if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (!(o instanceof FieldAccessPostAggregator)) return false;
 
     FieldAccessPostAggregator that = (FieldAccessPostAggregator) o;
 
-    if (fieldName != null ? !fieldName.equals(that.fieldName) : that.fieldName != null) return false;
-    if (name != null ? !name.equals(that.name) : that.name != null) return false;
-
+    if (!Objects.equals(name, that.name)) {
+      return false;
+    }
+    if (!Objects.equals(fieldName, that.fieldName)) {
+      return false;
+    }
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    int result = name != null ? name.hashCode() : 0;
-    result = 31 * result + (fieldName != null ? fieldName.hashCode() : 0);
-    return result;
+    return Objects.hash(name, fieldName);
   }
 }

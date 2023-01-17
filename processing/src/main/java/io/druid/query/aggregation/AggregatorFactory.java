@@ -36,6 +36,8 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.MathExprFilter;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
 import org.joda.time.DateTime;
@@ -461,6 +463,42 @@ public abstract class AggregatorFactory implements Cacheable
       this.aggregator = Preconditions.checkNotNull(aggregator);
       this.postAggregator = postAggregator;
     }
+  }
+
+  public static interface PredicateSupport
+  {
+    String getPredicate();
+
+    AggregatorFactory withPredicate(String predicate);
+
+    default AggregatorFactory andPredicate(String predicate)
+    {
+      if (getPredicate() != null) {
+        predicate = String.format("(%s) AND (%s)", getPredicate(), predicate);
+      }
+      return withPredicate(predicate);
+    }
+  }
+
+  public static AggregatorFactory wrap(AggregatorFactory factory, DimFilter predicate)
+  {
+    if (predicate == null) {
+      return factory;
+    }
+    if (factory instanceof PredicateSupport &&
+        predicate instanceof MathExprFilter && ((MathExprFilter) predicate).getExpression() == null) {
+      return ((PredicateSupport) factory).andPredicate(((MathExprFilter) predicate).getExpression());
+    }
+    return FilteredAggregatorFactory.of(factory, predicate);
+  }
+
+  public static interface FieldExpressionSupport
+  {
+    String getFieldName();
+
+    String getFieldExpression();
+
+    AggregatorFactory withFieldExpression(String fieldExpression);
   }
 
   public static PostAggregator asFinalizer(final String outputName, final AggregatorFactory factory)

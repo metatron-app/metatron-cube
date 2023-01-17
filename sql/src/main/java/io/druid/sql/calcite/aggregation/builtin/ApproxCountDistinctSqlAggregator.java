@@ -19,31 +19,21 @@
 
 package io.druid.sql.calcite.aggregation.builtin;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupingSetSpec;
-import io.druid.segment.ExprVirtualColumn;
-import io.druid.segment.VirtualColumn;
-import io.druid.sql.calcite.aggregation.Aggregation;
+import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
@@ -53,9 +43,6 @@ import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Optionality;
 
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class ApproxCountDistinctSqlAggregator implements SqlAggregator
@@ -69,58 +56,36 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     return FUNCTION_INSTANCE;
   }
 
-  @Nullable
   @Override
-  public Aggregation toDruidAggregation(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexBuilder rexBuilder,
-      final String name,
-      final AggregateCall aggregateCall,
-      final Project project,
-      final boolean finalizeAggregations
-  )
+  public boolean register(Aggregations aggregations, DimFilter predicate, AggregateCall call, String outputName)
   {
-    // Don't use Aggregations.getArgumentsForSimpleAggregator, since it won't let us use direct column access
-    // for string columns.
-    final List<RexNode> rexNodes = Expressions.fromFieldAccesses(rowSignature, project, aggregateCall.getArgList());
-    final List<DruidExpression> args = Expressions.toDruidExpressions(plannerContext, rowSignature, rexNodes);
-    if (GuavaUtils.isNullOrEmpty(args)) {
-      return null;
+    final List<DruidExpression> expressions = aggregations.argumentsToExpressions(call.getArgList());
+    if (GuavaUtils.isNullOrEmpty(expressions)) {
+      return false;
     }
 
-    final List<VirtualColumn> virtualColumns = new ArrayList<>();
-    final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
+    final String aggregatorName = aggregations.isFinalizing() ? Calcites.makePrefixedName(outputName, "a") : outputName;
 
-    final DruidExpression first = args.get(0);
+    final DruidExpression first = expressions.get(0);
     final AggregatorFactory factory;
-    if (args.size() == 1 && first.isDirectColumnAccess() &&
-        HyperLogLogCollector.HLL_TYPE.equals(rowSignature.resolve(first.getDirectColumn()))) {
+    if (expressions.size() == 1 && first.isDirectColumnAccess() &&
+        HyperLogLogCollector.HLL_TYPE.equals(aggregations.resolve(first.getDirectColumn()))) {
       factory = HyperUniquesAggregatorFactory.of(aggregatorName, first.getDirectColumn());
-    } else if (Iterables.all(args, DruidExpression::isDirectColumnAccess)) {
-      List<String> fields = ImmutableList.copyOf(Iterables.transform(args, DruidExpression::getDirectColumn));
+    } else if (Iterables.all(expressions, DruidExpression::isDirectColumnAccess)) {
+      List<String> fields = GuavaUtils.transform(expressions, DruidExpression::getDirectColumn);
       factory = CardinalityAggregatorFactory.fields(aggregatorName, fields, GroupingSetSpec.EMPTY);
     } else {
-      List<DimensionSpec> dimensions = Lists.newArrayListWithCapacity(args.size());
-      for (DruidExpression arg : args) {
-        if (arg.isSimpleExtraction()) {
-          dimensions.add(arg.getSimpleExtraction().toDimensionSpec(null));
-        } else {
-          String suffix = dimensions.isEmpty() ? "v" : "v" + dimensions.size();
-          ExprVirtualColumn vc = arg.toVirtualColumn(Calcites.makePrefixedName(name, suffix));
-          virtualColumns.add(vc);
-          dimensions.add(DefaultDimensionSpec.of(vc.getOutputName()));
-        }
-      }
+      List<DimensionSpec> dimensions = GuavaUtils.transform(
+          expressions, expression -> aggregations.registerDimension(aggregatorName, expression)
+      );
       factory = CardinalityAggregatorFactory.dimensions(aggregatorName, dimensions, GroupingSetSpec.EMPTY);
     }
+    aggregations.register(factory, predicate);
 
-    return Aggregation.create(
-        rowSignature,
-        virtualColumns,
-        Collections.singletonList(factory),
-        finalizeAggregations ? new HyperUniqueFinalizingPostAggregator(name, factory.getName(), true) : null
-    );
+    if (aggregations.isFinalizing()) {
+      aggregations.register(new HyperUniqueFinalizingPostAggregator(outputName, factory.getName(), true));
+    }
+    return true;
   }
 
   private static class ApproxCountDistinctSqlAggFunction extends SqlAggFunction

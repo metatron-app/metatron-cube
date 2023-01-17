@@ -42,10 +42,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import static io.druid.query.aggregation.AggregatorFactory.*;
+
 /**
  */
-public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeResolving
-    implements AggregatorFactory.CubeSupport
+public abstract class GenericAggregatorFactory extends TypeResolving
+    implements CubeSupport, PredicateSupport, FieldExpressionSupport
 {
   protected final String fieldName;
   protected final String name;

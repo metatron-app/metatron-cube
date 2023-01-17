@@ -75,7 +75,7 @@ public class LPadOperatorConversion implements SqlOperatorConversion
                 ImmutableList.of(
                     druidExpressions.get(0),
                     druidExpressions.get(1),
-                    DruidExpression.fromExpression(DruidExpression.stringLiteral(" "))
+                    DruidExpression.fromStringLiteral(" ")
                 )
             );
           }
