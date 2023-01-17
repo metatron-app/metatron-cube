@@ -236,11 +236,8 @@ public class Calcites
 
   public static String getStringComparatorForValueType(ValueDesc valueDesc)
   {
-    valueDesc = valueDesc.unwrapDimension();
-    if (valueDesc.isNumeric()) {
+    if (valueDesc.unwrapDimension().isNumeric()) {
       return StringComparators.NUMERIC_NAME;
-    } else if (valueDesc.isString()) {
-      return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
       return null;    // regard as natural ordering
     }

@@ -667,7 +667,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0", StringComparators.LEXICOGRAPHIC_NAME)))
+            .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
             .outputColumns("d0")
             .build(),
         new Object[]{"def"},
@@ -1114,7 +1114,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim1", "d0"))
             .postAggregators(EXPR_POST_AGG("s0", "substring(d0, 1, -1)"))
-            .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
+            .metric(new DimensionTopNMetricSpec(null, null))
             .outputColumns("d0", "s0")
             .threshold(10)
             .build(),
@@ -1503,7 +1503,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
             .filters(
                 OR(
-                    BOUND("dim1", "d", null, true, false, null, StringComparators.LEXICOGRAPHIC_NAME),
+                    BOUND("dim1", "d", null, true, false, null, null),
                     SELECTOR("dim2", "a")
                 )
             )
@@ -2295,7 +2295,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT COUNT(*) FROM druid.foo WHERE (dim1 >= 'a' and dim1 < 'b') OR dim1 = 'ab'",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .filters(BOUND("dim1", "a", "b", false, true, null, StringComparators.LEXICOGRAPHIC_NAME))
+              .filters(BOUND("dim1", "a", "b", false, true, null, null))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
               .build(),
@@ -2836,7 +2836,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new TopNQueryBuilder()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim2", "d0"))
-            .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
+            .metric(new DimensionTopNMetricSpec(null, null))
             .threshold(10)
             .outputColumns("d0")
             .build(),
@@ -2854,7 +2854,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new TopNQueryBuilder()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim2", "d0"))
-            .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
+            .metric(new DimensionTopNMetricSpec(null, null))
             .threshold(10)
             .outputColumns("d0")
             .build(),
@@ -2872,7 +2872,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new TopNQueryBuilder()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim2", "d0"))
-            .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
+            .metric(new DimensionTopNMetricSpec(null, null))
             .threshold(5)
             .outputColumns("d0")
             .build(),
@@ -2902,7 +2902,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim2", "d0"))
             .metric(new InvertedTopNMetricSpec(
-                new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME)
+                new DimensionTopNMetricSpec(null, null)
             ))
             .threshold(5)
             .outputColumns("d0")
@@ -3370,7 +3370,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .filters(IN("dim2", "", "a"))
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0", StringComparators.LEXICOGRAPHIC_NAME)))
+            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("d0", "a0")
             .build(),
         new Object[]{"", 1L},
@@ -3688,7 +3688,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   new TopNQueryBuilder()
                       .dataSource(CalciteTests.DATASOURCE1)
                       .dimension(DefaultDimensionSpec.of("dim2", "d0"))
-                      .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
+                      .metric(new DimensionTopNMetricSpec(null, null))
                       .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
                       .threshold(1)
                       .outputColumns("d0", "a0")
@@ -5101,7 +5101,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .virtualColumns(EXPR_VC("d0:v", "timestamp_format(__time,'yyyy MM','UTC')"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0", StringComparators.LEXICOGRAPHIC_NAME)))
+            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("d0", "a0")
             .build(),
         new Object[]{"2000 01", 3L},
@@ -5428,7 +5428,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 .build()
         )
         .columns("dim1", "dim2")
-        .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("dim2", StringComparators.LEXICOGRAPHIC_NAME)))
+        .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("dim2", null)))
         .streaming();
 
     testQuery(

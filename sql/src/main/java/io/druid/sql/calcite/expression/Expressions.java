@@ -424,7 +424,7 @@ public class Expressions
         if (extracted < 0 || !rowSignature.columnType(extracted).isDimension()) {
           return null;
         }
-        boundRefKey = new BoundRefKey(rowSignature.columnName(extracted), null, StringComparators.LEXICOGRAPHIC_NAME);
+        boundRefKey = new BoundRefKey(rowSignature.columnName(extracted), null, null);
       }
       // Always use BoundDimFilters, to simplify filter optimization later (it helps to remember the comparator).
       return Bounds.toFilter(flippedKind, boundRefKey, Objects.toString(literal));
