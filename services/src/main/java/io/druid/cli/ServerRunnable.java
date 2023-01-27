@@ -128,9 +128,9 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
   public static void main(String[] args) throws Exception
   {
     // coordinator starts storage module. for derby, it starts derby server in it
-    // default ports : 2181, 8081, 8082, 8083, 8090, 8091, 8084, 8888
+    // default ports : 2181, 8083, 8082, 8081, 8090, 8091, 8084, 8888
     Ordering<String> ordering = Ordering.explicit(
-        "zookeeper", "coordinator", "broker", "historical", "overlord", "middleManager", "realtime", "router"
+        "zookeeper", "historical", "broker", "coordinator", "overlord", "middleManager", "realtime", "router"
     );
     Arrays.sort(args, ordering.onResultOf(arg -> arg.indexOf(':') > 0 ? arg.substring(0, arg.indexOf(':')) : arg));
     List<String> params = Lists.newArrayList(Arrays.asList(args));
