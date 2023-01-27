@@ -160,7 +160,7 @@ public interface Cache
     public void close(String namespace) {}
 
     @Override
-    public CacheStats getStats() { return null;}
+    public CacheStats getStats() { return new CacheStats(0, 0, 0, 0, 0, 0, 0);}
 
     @Override
     public boolean isLocal() { return true;}
