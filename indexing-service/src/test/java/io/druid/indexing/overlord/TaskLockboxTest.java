@@ -33,15 +33,12 @@ import org.junit.Test;
 
 public class TaskLockboxTest
 {
-  private TaskStorage taskStorage;
-
   private TaskLockbox lockbox;
 
   @Before
   public void setUp()
   {
-    taskStorage = new HeapMemoryTaskStorage(new TaskStorageConfig(null));
-    lockbox = new TaskLockbox(taskStorage);
+    lockbox = new TaskLockbox(new HeapMemoryTaskStorage(new TaskStorageConfig(null)));
   }
 
   @Test
@@ -158,7 +155,7 @@ public class TaskLockboxTest
 
     Task task3 = new NoopTask("id3", "gp2", "manse");
     lockbox.add(task3);
-    Assert.assertTrue(!lockbox.tryLock(task3, interval).isPresent());
+    Assert.assertFalse(lockbox.tryLock(task3, interval).isPresent());
 
     lockbox.unlock(task1, interval);
     Assert.assertTrue(lockbox.tryLock(task3, interval).isPresent());

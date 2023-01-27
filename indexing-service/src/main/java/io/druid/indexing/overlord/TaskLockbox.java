@@ -92,14 +92,15 @@ public class TaskLockbox
   {
     giant.lock();
 
+    // Load stuff from taskStorage first. If this fails, we don't want to lose all our locks.
     try {
-      // Load stuff from taskStorage first. If this fails, we don't want to lose all our locks.
-      final Set<String> storedActiveTasks = Sets.newHashSet();
+      final Map<String, Task> storedTasks = Maps.newTreeMap();
+      taskStorage.getActiveTasks().forEach(task -> storedTasks.put(task.getId(), task));
+
       final List<Pair<Task, TaskLock>> storedLocks = Lists.newArrayList();
-      for (final Task task : taskStorage.getActiveTasks()) {
-        storedActiveTasks.add(task.getId());
-        for (final TaskLock taskLock : taskStorage.getLocks(task.getId())) {
-          storedLocks.add(Pair.of(task, taskLock));
+      for (Map.Entry<String, Task> entry : storedTasks.entrySet()) {
+        for (final TaskLock taskLock : taskStorage.getLocks(entry.getKey())) {
+          storedLocks.add(Pair.of(entry.getValue(), taskLock));
         }
       }
       // Sort locks by version, so we add them back in the order they were acquired.
@@ -117,7 +118,8 @@ public class TaskLockbox
       };
       running.clear();
       activeTasks.clear();
-      activeTasks.addAll(storedActiveTasks);
+      activeTasks.addAll(storedTasks.keySet());
+
       // Bookkeeping for a log message at the end
       int taskLockCount = 0;
       for (final Pair<Task, TaskLock> taskAndLock : byVersionOrdering.sortedCopy(storedLocks)) {
