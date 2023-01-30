@@ -548,7 +548,7 @@ public class AppenderatorImpl implements Appenderator
                                               }
                                             }
                                         ),
-                                        null
+                                        optimizer
                                     )
                                 ),
                                 toolchest,
@@ -560,7 +560,7 @@ public class AppenderatorImpl implements Appenderator
                       }
                     }
                 ),
-                null
+                optimizer
             )
         ),
         toolchest,

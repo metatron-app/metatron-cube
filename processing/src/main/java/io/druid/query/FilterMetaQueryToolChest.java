@@ -22,7 +22,11 @@ package io.druid.query;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.nary.BinaryFn;
+
+import java.util.Map;
 
 /**
  */
@@ -59,6 +63,12 @@ public class FilterMetaQueryToolChest extends QueryToolChest.CacheSupport<long[]
       protected BinaryFn.Identical<long[]> createMergeFn(Query<long[]> input)
       {
         return (arg1, arg2) -> new long[] {arg1[0] + arg2[0], arg1[1] + arg2[1]};
+      }
+
+      @Override
+      public Sequence<long[]> doRun(QueryRunner<long[]> baseRunner, Query<long[]> query, Map<String, Object> context)
+      {
+        return Sequences.filterNull(super.doRun(baseRunner, query, context));
       }
     };
   }

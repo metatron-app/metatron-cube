@@ -285,7 +285,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
       final List<List<String>> cut = Lists.newArrayList();
       for (int i = 0; i < values.size(); i++) {
         List<String> subList = Lists.newArrayList(values.get(i).subList(0, 10));
-        subList.add(i == 0 ? String.format("..%d more", values.size() - 10) : "");
+        subList.add(i == 0 ? String.format("..%d more", values.get(i).size() - 10) : "");
         cut.add(subList);
       }
       return new InDimsFilter(dimensions, cut, null);
