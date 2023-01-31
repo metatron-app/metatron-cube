@@ -118,7 +118,7 @@ public class KafkaSupervisor implements Supervisor
 {
   private static final EmittingLogger log = new EmittingLogger(KafkaSupervisor.class);
   private static final Random RANDOM = new Random();
-  private static final long MAX_RUN_FREQUENCY_MILLIS = 1000; // prevent us from running too often in response to events
+  private static final long MIN_RUN_FREQUENCY_MILLIS = 1000; // prevent us from running too often in response to events
   private static final long NOT_SET = -1;
   private static final long MINIMUM_FUTURE_TIMEOUT_IN_SECONDS = 120;
   private static final long MINIMUM_GET_OFFSET_PERIOD_MILLIS = 5000;
@@ -378,7 +378,7 @@ public class KafkaSupervisor implements Supervisor
         scheduledExec.scheduleAtFixedRate(
             buildRunTask(),
             ioConfig.getStartDelay().getMillis(),
-            Math.max(ioConfig.getPeriod().getMillis(), MAX_RUN_FREQUENCY_MILLIS),
+            Math.max(ioConfig.getPeriod().getMillis(), MIN_RUN_FREQUENCY_MILLIS),
             TimeUnit.MILLISECONDS
         );
 
@@ -555,7 +555,7 @@ public class KafkaSupervisor implements Supervisor
     public void handle() throws ExecutionException, InterruptedException, TimeoutException, JsonProcessingException
     {
       long nowTime = System.currentTimeMillis();
-      if (nowTime - lastRunTime < MAX_RUN_FREQUENCY_MILLIS) {
+      if (nowTime - lastRunTime < MIN_RUN_FREQUENCY_MILLIS) {
         return;
       }
       lastRunTime = nowTime;
@@ -1308,7 +1308,7 @@ public class KafkaSupervisor implements Supervisor
                       if (millisRemaining > 0) {
                         scheduledExec.schedule(
                             buildRunTask(),
-                            millisRemaining + MAX_RUN_FREQUENCY_MILLIS,
+                            millisRemaining + MIN_RUN_FREQUENCY_MILLIS,
                             TimeUnit.MILLISECONDS
                         );
                       }
@@ -2201,5 +2201,15 @@ public class KafkaSupervisor implements Supervisor
         log.warn(e, "Exception while getting current/latest offsets");
       }
     };
+  }
+
+  @Override
+  public String toString()
+  {
+    return "{" +
+           "id='" + supervisorId + '\'' +
+           ", dataSource=" + dataSource +
+           ", topic=" + ioConfig.getTopic() +
+           '}';
   }
 }

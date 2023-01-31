@@ -16,6 +16,8 @@ package io.druid.java.util.http.client;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.java.util.common.IAE;
@@ -42,6 +44,7 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpVersion;
+import org.jboss.netty.handler.timeout.ReadTimeoutException;
 import org.jboss.netty.handler.timeout.ReadTimeoutHandler;
 import org.jboss.netty.util.Timer;
 import org.joda.time.Duration;
@@ -50,6 +53,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  */
@@ -121,9 +125,9 @@ public class NettyHttpClient implements HttpClient
     final URL url = request.getUrl();
     final Multimap<String, String> headers = request.getHeaders();
 
-    final String requestDesc = String.format("%s %s", method, url);
+    final Supplier<String> requestDesc = Suppliers.memoize(() -> method + " " + url);
     if (log.isDebugEnabled()) {
-      log.debug("[%s] starting", requestDesc);
+      log.debug("[%s] starting", requestDesc.get());
     }
 
     // Block while acquiring a channel from the pool, then complete the request asynchronously.
@@ -169,6 +173,11 @@ public class NettyHttpClient implements HttpClient
     final long readTimeout = getReadTimeout(requestReadTimeout);
     final SettableFuture<Final> retVal = SettableFuture.create();
 
+    // Pipeline can hand us chunks even after exceptionCaught is called. This has the potential to confuse
+    // HttpResponseHandler implementations, which expect exceptionCaught to be the final method called. So, we
+    // use this boolean to ensure that handlers do not see any chunks after exceptionCaught fires.
+    final AtomicBoolean didEncounterException = new AtomicBoolean();
+
     if (readTimeout > 0) {
       channel.getPipeline().addLast(
           READ_TIMEOUT_HANDLER_NAME,
@@ -185,8 +194,13 @@ public class NettyHttpClient implements HttpClient
           @Override
           public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception
           {
+            if (didEncounterException.get()) {
+              // Don't process message after encountering an exception.
+              return;
+            }
+
             if (log.isDebugEnabled()) {
-              log.debug("[%s] messageReceived: %s", requestDesc, e.getMessage());
+              log.debug("[%s] messageReceived: %s", requestDesc.get(), e.getMessage());
             }
             try {
               Object msg = e.getMessage();
@@ -194,7 +208,7 @@ public class NettyHttpClient implements HttpClient
               if (msg instanceof HttpResponse) {
                 HttpResponse httpResponse = (HttpResponse) msg;
                 if (log.isDebugEnabled()) {
-                  log.debug("[%s] Got response: %s", requestDesc, httpResponse.getStatus());
+                  log.debug("[%s] Got response: %s", requestDesc.get(), httpResponse.getStatus());
                 }
 
                 response = handler.handleResponse(httpResponse);
@@ -210,7 +224,7 @@ public class NettyHttpClient implements HttpClient
                 if (log.isDebugEnabled()) {
                   log.debug(
                       "[%s] Got chunk: %sB, last=%s",
-                      requestDesc,
+                      requestDesc.get(),
                       httpChunk.getContent().readableBytes(),
                       httpChunk.isLast()
                   );
@@ -229,7 +243,7 @@ public class NettyHttpClient implements HttpClient
               }
             }
             catch (Exception ex) {
-              log.warn(ex, "[%s] Exception thrown while processing message, closing channel.", requestDesc);
+              log.warn(ex, "[%s] Exception thrown while processing message, closing channel.", requestDesc.get());
 
               if (!retVal.isDone()) {
                 retVal.set(null);
@@ -248,7 +262,7 @@ public class NettyHttpClient implements HttpClient
               throw new IllegalStateException(
                   String.format(
                       "[%s] Didn't get a completed ClientResponse Object from [%s]",
-                      requestDesc,
+                      requestDesc.get(),
                       handler.getClass()
                   )
               );
@@ -261,53 +275,58 @@ public class NettyHttpClient implements HttpClient
           }
 
           @Override
-          public void exceptionCaught(ChannelHandlerContext context, ExceptionEvent event) throws Exception
+          public void exceptionCaught(ChannelHandlerContext context, ExceptionEvent event)
           {
-            if (log.isDebugEnabled()) {
-              final Throwable cause = event.getCause();
-              if (cause == null) {
-                log.debug("[%s] Caught exception", requestDesc);
-              } else {
-                log.debug(cause, "[%s] Caught exception", requestDesc);
-              }
+            handleExceptionAndCloseChannel(event.getCause());
+          }
+
+          @Override
+          public void channelDisconnected(ChannelHandlerContext context, ChannelStateEvent event)
+          {
+            handleExceptionAndCloseChannel(new ChannelException("Channel disconnected"));
+          }
+
+          /**
+           * Handle an exception by logging it, possibly calling {@link SettableFuture#setException} on {@code retVal},
+           * possibly calling {@link HttpResponseHandler#exceptionCaught}, and possibly closing the channel.
+           *
+           * No actions will be taken (other than logging) if an exception has already been handled for this request.
+           *
+           * @param t exception
+           */
+          private void handleExceptionAndCloseChannel(final Throwable t)
+          {
+            log.debug(t, "[%s] Caught exception", requestDesc.get());
+
+            // Only process the first exception encountered.
+            if (!didEncounterException.compareAndSet(false, true)) {
+              return;
             }
 
-            retVal.setException(event.getCause());
+            if (!retVal.isDone()) {
+              Throwable cause = t;
+              if (cause instanceof ReadTimeoutException) {
+                // ReadTimeoutException thrown by ReadTimeoutHandler is a singleton with a misleading stack trace.
+                // No point including it: instead, we replace it with a fresh exception.
+                cause = new ReadTimeoutException(String.format("[%s] Read timed out [%d] msec", requestDesc.get(), readTimeout));
+              }
+              retVal.setException(cause);
+            }
             // response is non-null if we received initial chunk and then exception occurs
             if (response != null) {
-              handler.exceptionCaught(response, event.getCause());
+              handler.exceptionCaught(response, t);
             }
-            removeHandlers();
             try {
-              channel.close();
+              if (channel.isOpen()) {
+                channel.close();
+              }
             }
             catch (Exception e) {
-              // ignore
+              log.warn(e, "[%s] Error while closing channel", requestDesc.get());
             }
             finally {
               channelResourceContainer.returnResource();
             }
-
-            context.sendUpstream(event);
-          }
-
-          @Override
-          public void channelDisconnected(ChannelHandlerContext context, ChannelStateEvent event) throws Exception
-          {
-            if (log.isDebugEnabled()) {
-              log.debug("[%s] Channel disconnected", requestDesc);
-            }
-            // response is non-null if we received initial chunk and then exception occurs
-            if (response != null) {
-              handler.exceptionCaught(response, new ChannelException("Channel disconnected"));
-            }
-            channel.close();
-            channelResourceContainer.returnResource();
-            if (!retVal.isDone()) {
-              log.warn("[%s] Channel disconnected before response complete", requestDesc);
-              retVal.setException(new ChannelException("Channel disconnected"));
-            }
-            context.sendUpstream(event);
           }
 
           private void removeHandlers()
@@ -334,7 +353,7 @@ public class NettyHttpClient implements HttpClient
               if (!retVal.isDone()) {
                 retVal.setException(
                     new ChannelException(
-                        String.format("[%s] Failed to write request to channel", requestDesc),
+                        String.format("[%s] Failed to write request to channel", requestDesc.get()),
                         future.getCause()
                     )
                 );

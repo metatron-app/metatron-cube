@@ -28,6 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.TimestampSpec;
@@ -278,15 +279,34 @@ public class DataSchema
   @Override
   public String toString()
   {
+    if (granularitySpec.isRollup()) {
+      return _toString(Arrays.toString(aggregators));
+    }
+    StringBuilder builder = new StringBuilder();
+    for (AggregatorFactory factory : aggregators) {
+      if (builder.length() > 0) {
+        builder.append(',');
+      }
+      ValueDesc type = factory.getOutputType();
+      builder.append(factory.getName());
+      if (type != null) {
+        builder.append(':').append(type);
+      }
+    }
+    return _toString(builder.toString());
+  }
+
+  private String _toString(String aggregators)
+  {
     return "DataSchema{" +
            "dataSource='" + dataSource + '\'' +
            ", parser=" + parser +
-           ", aggregators=" + Arrays.toString(aggregators) +
-           ", enforceType=" + enforceType +
+           ", aggregators=" + aggregators +
+           (!enforceType ? "": ", enforceType=" + enforceType) +
            ", granularitySpec=" + granularitySpec +
-           ", evaluations=" + evaluations +
-           ", validations=" + validations +
-           ", dimensionFixed=" + dimensionFixed +
+           (evaluations.isEmpty() ? "": ", evaluations=" + evaluations) +
+           (validations.isEmpty() ? "": ", validations=" + validations) +
+           (!dimensionFixed ? "": ", dimensionFixed=" + dimensionFixed) +
            '}';
   }
 

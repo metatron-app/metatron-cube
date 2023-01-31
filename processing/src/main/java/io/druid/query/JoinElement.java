@@ -448,12 +448,12 @@ public class JoinElement
             int size = SemiJoinFactory.sizeOf(filter);
             int passed = Sequences.size(QueryUtils.resolve(sampler, segmentWalker).run(segmentWalker, null));
             estimated[0] = Math.max(1, estimated[0] * passed / size);
-            LOG.info("--- 'having' selectivity by sampling: %f", (float) passed / size);
+            LOG.debug("--- 'having' selectivity by sampling: %f", (float) passed / size);
           } else {
             estimated[0] = Math.max(1, estimated[0] >>> 1);    // half
           }
         }
-        LOG.info(
+        LOG.debug(
             "--- %s is estimated to %d rows by sampling %d rows from %d rows in %,d msec",
             groupBy.getDataSource(), estimated[0], mapping.tag, selectivity[0], System.currentTimeMillis() - start
         );

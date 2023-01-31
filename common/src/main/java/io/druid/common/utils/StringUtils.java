@@ -341,9 +341,23 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     return text == null || text.length() < length ? text : text.substring(0, length);
   }
 
+  private static final int DEFAULT_LOG_LIMIT = 32;
+
   public static String forLog(String text)
   {
-    return limit(text, 32);
+    return forLog(text, DEFAULT_LOG_LIMIT);
+  }
+
+  public static String forLog(String text, int limit)
+  {
+    if (text == null || text.length() <= limit) {
+      return text;
+    }
+    int prefix = (int) (limit * 0.8);
+    int postfix = text.length() - prefix;
+    return String.format(
+        "%s (..%d more..) %s", text.substring(0, prefix).trim(), text.length() - limit, text.substring(postfix).trim()
+    );
   }
 
   public static String limit(String text, int limit)
@@ -394,5 +408,29 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
   {
     Splitter splitter = Splitter.on(separator).trimResults();
     return Lists.newArrayList(splitter.split(value));
+  }
+
+  private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+
+  public static String bytesToHex(byte[] bytes)
+  {
+    StringBuilder builder = new StringBuilder();
+    for (int i = 0; i < bytes.length; i++) {
+      int v = bytes[i] & 0xFF;
+      builder.append(HEX_ARRAY[v >>> 4]);
+      builder.append(HEX_ARRAY[v & 0xf]);
+      if (i >= bytes.length - 1) {
+        continue;
+      }
+      if ((i + 1) % 32 == 0) {
+        builder.append('\n');
+        continue;
+      }
+      if ((i + 1) % 8 == 0) {
+        builder.append(' ');
+      }
+      builder.append(' ');
+    }
+    return builder.toString();
   }
 }

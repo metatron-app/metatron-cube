@@ -89,7 +89,6 @@ public class ColumnBuilder
 
   public ColumnBuilder setDictionary(ColumnPartProvider<Dictionary<String>> dictionary)
   {
-    setNumRows(dictionary.numRows());
     builder.dictionary = dictionary;
     return this;
   }
@@ -108,6 +107,7 @@ public class ColumnBuilder
 
   public ColumnBuilder setMultiValuedColumn(ColumnPartProvider<IndexedMultivalue<IndexedInts>> mvColumn)
   {
+    setNumRows(mvColumn.numRows());
     builder.multiValuedColumn = mvColumn;
     return this;
   }
@@ -115,6 +115,7 @@ public class ColumnBuilder
 
   public ColumnBuilder setSingleValuedColumn(ColumnPartProvider<IndexedInts> svColumn)
   {
+    setNumRows(svColumn.numRows());
     builder.singleValuedColumn = svColumn;
     return this;
   }

@@ -134,7 +134,7 @@ public class JoinProcessor
 
   private JoinResult joinSorted(JoinAlias left, JoinAlias right, JoinType type)
   {
-    LOG.info(">> %s (%s --> %s) (SortedMerge)", type, left, right);
+    LOG.debug(">> %s (%s --> %s) (SortedMerge)", type, left, right);
     return JoinResult.sortMerge(new JoinIterator(type, left, right, maxOutputRow)
     {
       @Override
@@ -152,7 +152,7 @@ public class JoinProcessor
       final boolean leftDriving
   )
   {
-    LOG.info(">> %s (%s %s %s) (%s + %s)", type, left, leftDriving ? "-->" : "<--", right, left.columns, right.columns);
+    LOG.debug(">> %s (%s %s %s) (%s + %s)", type, left, leftDriving ? "-->" : "<--", right, left.columns, right.columns);
     if (leftDriving) {
       if (left.isHashed()) {
         return JoinResult.none(new JoinIterator(type, left.prepareHashIterator(), right, maxOutputRow)
@@ -245,7 +245,7 @@ public class JoinProcessor
     @Override
     public void close() throws IOException
     {
-      LOG.info(
+      LOG.debug(
           "<< %s (%s + %s), resulting %d rows (%s+%s)",
           type,
           leftAlias,
@@ -523,7 +523,7 @@ public class JoinProcessor
       this.rows = GuavaUtils.peekingIterator(rows.iterator(), counter);
       this.hashed = null;
       this.estimatedNumRows = rows.size();
-      LOG.info("-- %s = sorted (%s:%s)(numRows=%d)", alias, joinColumns, columns, rows.size());
+      LOG.debug("-- %s = sorted (%s:%s)(numRows=%d)", alias, joinColumns, columns, rows.size());
     }
 
     JoinAlias(
@@ -544,7 +544,7 @@ public class JoinProcessor
       this.rows = GuavaUtils.peekingIterator(rows, counter);
       this.hashed = null;
       this.estimatedNumRows = estimatedNumRows;
-      LOG.info("-- %s = stream (%s:%s)(estimated=%d)", alias, joinColumns, columns, estimatedNumRows);
+      LOG.debug("-- %s = stream (%s:%s)(estimated=%d)", alias, joinColumns, columns, estimatedNumRows);
     }
 
     JoinAlias(
@@ -564,7 +564,7 @@ public class JoinProcessor
       this.hashed = hash(iterator, indices);
       this.estimatedNumRows = hashed.size();
       counter.setValue(hashed.size());
-      LOG.info("-- %s = hashed (%s:%s)(group=%d)", alias, joinColumns, columns, hashed.size());
+      LOG.debug("-- %s = hashed (%s:%s)(group=%d)", alias, joinColumns, columns, hashed.size());
     }
 
     private List<OrderByColumnSpec> asCollation()
@@ -734,11 +734,11 @@ public class JoinProcessor
 
   private JoinResult product(final JoinAlias left, final JoinAlias right, final boolean revert)
   {
-    LOG.info(">> CROSS (%s x %s)", left, right);
+    LOG.debug(">> CROSS (%s x %s)", left, right);
     List<Object[]> leftRows = left.materialize();
     List<Object[]> rightRows = right.materialize();
     return JoinResult.none(GuavaUtils.withResource(product(leftRows, rightRows, false), () ->
-        LOG.info("<< CROSS (%s + %s), resulting %d rows (%s+%s)",
+        LOG.debug("<< CROSS (%s + %s), resulting %d rows (%s+%s)",
                  left, right, leftRows.size() * rightRows.size(), left.columns, right.columns
         )));
   }

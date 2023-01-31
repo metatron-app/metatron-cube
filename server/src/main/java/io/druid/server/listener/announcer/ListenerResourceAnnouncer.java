@@ -99,7 +99,7 @@ public abstract class ListenerResourceAnnouncer
         LOG.debug("Already stopped, ignoring");
         return;
       }
-      announcer.unannounce(announcePath);
+      announcer.unannounce(announcePath, false);
       LOG.info("Unannouncing start time on [%s]", announcePath);
       started = false;
     }

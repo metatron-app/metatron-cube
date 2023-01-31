@@ -54,6 +54,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
+import static org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent.Type.CHILD_REMOVED;
+
 /**
  * Announces things on Zookeeper.
  */
@@ -134,8 +136,9 @@ public class Announcer
       for (Map.Entry<String, ConcurrentMap<String, byte[]>> entry : announcements.entrySet()) {
         String basePath = entry.getKey();
 
+        log.info("Unannouncing [%d] paths in [%s] for shutdown", entry.getValue().size(), basePath);
         for (String announcementPath : entry.getValue().keySet()) {
-          unannounce(ZKPaths.makePath(basePath, announcementPath));
+          unannounce(ZKPaths.makePath(basePath, announcementPath), true);
         }
       }
 
@@ -226,7 +229,11 @@ public class Announcer
                 @Override
                 public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception
                 {
-                  log.debug("Path[%s] got event[%s]", parentPath, event);
+                  if (event.getType().ordinal() <= CHILD_REMOVED.ordinal()) {
+                    log.debug("Path[%s] got event[%s]", parentPath, event);
+                  } else {
+                    log.info("Path[%s] got event[%s]", parentPath, event);
+                  }
                   switch (event.getType()) {
                     case CHILD_REMOVED:
                       final ChildData child = event.getData();
@@ -249,7 +256,7 @@ public class Announcer
                       Set<String> pathsToReinstate = Sets.newHashSet();
                       for (String node : finalSubPaths.keySet()) {
                         String path = ZKPaths.makePath(parentPath, node);
-                        log.info("Node[%s] is added to reinstate.", path);
+                        log.debug("Node[%s] is added to reinstate.", path);
                         pathsToReinstate.add(path);
                       }
 
@@ -262,7 +269,7 @@ public class Announcer
 
                       if (thePathsLost != null) {
                         for (String path : thePathsLost) {
-                          log.info("Reinstating [%s]", path);
+                          log.debug("Reinstating [%s]", path);
                           final ZKPaths.PathAndNode split = ZKPaths.getPathAndNode(path);
                           createAnnouncement(path, announcements.get(split.getPath()).get(split.getNode()));
                         }
@@ -364,10 +371,13 @@ public class Announcer
    * If you need to completely clear all the state of what is being watched and announced, stop() the Announcer.
    *
    * @param path the path to unannounce
+   * @param shuttingDown
    */
-  public void unannounce(String path)
+  public void unannounce(String path, boolean shuttingDown)
   {
-    log.info("unannouncing [%s]", path);
+    if (!shuttingDown) {
+      log.info("unannouncing [%s]", path);
+    }
     final ZKPaths.PathAndNode pathAndNode = ZKPaths.getPathAndNode(path);
     final String parentPath = pathAndNode.getPath();
 

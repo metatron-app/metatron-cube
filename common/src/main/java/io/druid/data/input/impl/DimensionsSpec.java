@@ -277,8 +277,8 @@ public class DimensionsSpec
   {
     return "DimensionsSpec{" +
            "dimensions=" + dimensions +
-           ", dimensionExclusions=" + dimensionExclusions +
-           ", dimensionSchemaMap=" + dimensionSchemaMap +
+           (dimensionExclusions.isEmpty() ? "": ", dimensionExclusions=" + dimensionExclusions) +
+           (dimensionSchemaMap.isEmpty() ? "": ", dimensionSchemaMap=" + dimensionSchemaMap) +
            '}';
   }
 }

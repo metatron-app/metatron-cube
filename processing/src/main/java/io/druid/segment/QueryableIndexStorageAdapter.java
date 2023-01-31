@@ -180,7 +180,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   {
     final Interval timeMinMax = index.getTimeMinMax();
     final Interval dataInterval = Intervals.of(
-        granularity.toDateTime(timeMinMax.getStartMillis()), granularity.bucketEnd(timeMinMax.getEnd())
+        granularity.toDateTime(timeMinMax.getStartMillis()),
+        granularity.toDateTime(timeMinMax.getEndMillis() + 1)
     );
     final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
     if (actualInterval == null) {
@@ -201,7 +202,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       if (LOG.isDebugEnabled()) {
         LOG.debug("%,d / %,d (%d msec)", baseBitmap.size(), context.numRows(), System.currentTimeMillis() - start);
       }
-      offset = new BitmapOffset(selector.getBitmapFactory(), baseBitmap, descending);
+      offset = new BitmapOffset(selector.getBitmapFactory(), context.numRows(), baseBitmap, descending);
     }
 
     final Filter matcher = Filters.toFilter(extracted.getValue(), resolver);
@@ -341,7 +342,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public int size()
                     {
-                      return context.targetNumRows();
+                      return context.numRows();
                     }
 
                     @Override

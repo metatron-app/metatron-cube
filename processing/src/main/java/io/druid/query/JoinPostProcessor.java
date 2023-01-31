@@ -146,7 +146,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         final JoinHolder joinQuery = (JoinHolder) query;
         final int estimatedNumRows = query.getContextInt(JoinQuery.CARDINALITY, -1);
 
-        LOG.info("Running %d-way join processing %s", joinAliases, toAliases());
+        LOG.debug("Running %d-way join processing %s", joinAliases, toAliases());
         try {
           JoinResult join = join(joining, estimatedNumRows);
           joinQuery.setCollation(join.collations);

@@ -111,7 +111,7 @@ public class AnnouncerTest extends CuratorTestBase
           curator.getData().decompressed().forPath(testPath2)
       );
 
-      announcer.unannounce(testPath1);
+      announcer.unannounce(testPath1, false);
       Assert.assertNull("expect /test1 unannounced", curator.checkExists().forPath(testPath1));
       Assert.assertArrayEquals(
           "expect /somewhere/test2 is still still there",

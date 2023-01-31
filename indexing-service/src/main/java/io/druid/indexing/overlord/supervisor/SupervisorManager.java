@@ -90,19 +90,17 @@ public class SupervisorManager
     }
   }
 
-
   public boolean resetSupervisor(String id, @Nullable DataSourceMetadata dataSourceMetadata)
   {
     Preconditions.checkState(started, "SupervisorManager not started");
     Preconditions.checkNotNull(id, "id");
 
     Pair<Supervisor, SupervisorSpec> supervisor = supervisors.get(id);
-
-    log.info("Supervisor:" + supervisor);
     if (supervisor == null) {
       return false;
     }
 
+    log.info("Reset supervisor: %s", supervisor.lhs);
     supervisor.lhs.reset(dataSourceMetadata);
     return true;
   }

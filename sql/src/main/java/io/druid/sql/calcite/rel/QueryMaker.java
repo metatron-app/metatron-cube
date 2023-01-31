@@ -130,8 +130,8 @@ public class QueryMaker
   public Sequence<Object[]> runQuery(DruidQuery druidQuery, Query prepared)
   {
     Query query = druidQuery.getQuery();
-    if (LOG.isInfoEnabled()) {
-      LOG.info("Running.. %s", toLog(plannerContext.getObjectMapper(), query));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Running.. %s", toLog(plannerContext.getObjectMapper(), query));
     }
 
     Hook.QUERY_PLAN.run(query);   // original query

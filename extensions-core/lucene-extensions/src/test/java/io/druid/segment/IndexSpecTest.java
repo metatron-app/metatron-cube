@@ -34,7 +34,7 @@ public class IndexSpecTest
   {
     final ObjectMapper mapper = Lucene7TestHelper.segmentWalker.getMapper();
     final IndexSpec spec = new IndexSpec(
-        null, null, null, null, null,
+        null, null, null, null,
         ImmutableMap.<String, SecondaryIndexingSpec>of(
             "gis", Lucene7IndexingSpec.of(
                 "standard",

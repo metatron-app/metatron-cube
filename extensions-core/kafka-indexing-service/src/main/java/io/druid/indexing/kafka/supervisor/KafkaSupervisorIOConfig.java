@@ -32,6 +32,11 @@ public class KafkaSupervisorIOConfig
 {
   public static final String BOOTSTRAP_SERVERS_KEY = "bootstrap.servers";
 
+  private static final Duration DEFAULT_TASK_DURATION = new Period("PT1H").toStandardDuration();
+  private static final Duration DEFAULT_START_DELAY = new Period("PT5S").toStandardDuration();
+  private static final Duration DEFAULT_PERIOD = new Period("PT30S").toStandardDuration();
+  private static final Duration DEFAULT_COMPLETION_TIMEOUT = new Period("PT30M").toStandardDuration();
+
   private final String topic;
   private final Integer replicas;
   private final Integer taskCount;
@@ -70,11 +75,11 @@ public class KafkaSupervisorIOConfig
 
     this.replicas = replicas != null ? replicas : 1;
     this.taskCount = taskCount != null ? taskCount : 1;
-    this.taskDuration = defaultDuration(taskDuration, "PT1H");
-    this.startDelay = defaultDuration(startDelay, "PT5S");
-    this.period = defaultDuration(period, "PT30S");
+    this.taskDuration = taskDuration == null ? DEFAULT_TASK_DURATION : taskDuration.toStandardDuration();
+    this.startDelay = startDelay == null ? DEFAULT_START_DELAY : startDelay.toStandardDuration();
+    this.period = period == null ? DEFAULT_PERIOD : period.toStandardDuration();
+    this.completionTimeout = completionTimeout == null ? DEFAULT_COMPLETION_TIMEOUT : completionTimeout.toStandardDuration();
     this.useEarliestOffset = useEarliestOffset != null ? useEarliestOffset : false;
-    this.completionTimeout = defaultDuration(completionTimeout, "PT30M");
     this.lateMessageRejectionPeriod = lateMessageRejectionPeriod == null
                                       ? Optional.<Duration>absent()
                                       : Optional.of(lateMessageRejectionPeriod.toStandardDuration());
@@ -169,13 +174,9 @@ public class KafkaSupervisorIOConfig
            ", period=" + period +
            ", useEarliestOffset=" + useEarliestOffset +
            ", completionTimeout=" + completionTimeout +
-           ", lateMessageRejectionPeriod=" + lateMessageRejectionPeriod +
+           (earlyMessageRejectionPeriod.isPresent() ? ", earlyMessageRejectionPeriod=" + earlyMessageRejectionPeriod : "") +
+           (lateMessageRejectionPeriod.isPresent() ? ", lateMessageRejectionPeriod=" + lateMessageRejectionPeriod : "") +
            ", skipOffsetGaps=" + skipOffsetGaps +
            '}';
-  }
-
-  private static Duration defaultDuration(final Period period, final String theDefault)
-  {
-    return (period == null ? new Period(theDefault) : period).toStandardDuration();
   }
 }

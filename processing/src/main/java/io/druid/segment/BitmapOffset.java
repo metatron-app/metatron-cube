@@ -35,14 +35,16 @@ public class BitmapOffset implements Offset
   private final BitmapFactory bitmapFactory;
   private final ImmutableBitmap bitmapIndex;
   private final boolean descending;
+  private final int numRows;
 
   private volatile int val;
 
-  public BitmapOffset(BitmapFactory bitmapFactory, ImmutableBitmap bitmapIndex, boolean descending)
+  public BitmapOffset(BitmapFactory bitmapFactory, int numRows, ImmutableBitmap bitmapIndex, boolean descending)
   {
     this.bitmapFactory = bitmapFactory;
     this.bitmapIndex = bitmapIndex;
     this.descending = descending;
+    this.numRows = numRows;
     this.itr = Filters.newIterator(bitmapIndex, descending);
     increment();
   }
@@ -52,6 +54,7 @@ public class BitmapOffset implements Offset
     this.bitmapFactory = otherOffset.bitmapFactory;
     this.bitmapIndex = otherOffset.bitmapIndex;
     this.descending = otherOffset.descending;
+    this.numRows = otherOffset.numRows;
     this.itr = otherOffset.itr.clone();
     this.val = otherOffset.val;
   }
@@ -61,7 +64,7 @@ public class BitmapOffset implements Offset
   {
     if (itr.hasNext()) {
       val = itr.next();
-      return true;
+      return val > INVALID_VALUE && val < numRows;
     } else {
       val = INVALID_VALUE;
       return false;
@@ -80,14 +83,14 @@ public class BitmapOffset implements Offset
   @Override
   public boolean withinBounds()
   {
-    return val > INVALID_VALUE;
+    return val > INVALID_VALUE && val < numRows;
   }
 
   @Override
   public Offset clone()
   {
     if (bitmapIndex == null || bitmapIndex.isEmpty()) {
-      return new BitmapOffset(bitmapFactory, bitmapFactory.makeEmptyImmutableBitmap(), descending);
+      return new BitmapOffset(bitmapFactory, numRows, bitmapFactory.makeEmptyImmutableBitmap(), descending);
     }
 
     return new BitmapOffset(this);
@@ -96,6 +99,6 @@ public class BitmapOffset implements Offset
   @Override
   public int getOffset()
   {
-    return val;
+    return val < numRows ? val : INVALID_VALUE;
   }
 }

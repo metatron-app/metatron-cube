@@ -67,7 +67,7 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
       final byte[] compressing = new byte[LZ4_COMP.maxCompressedLength(ref.length)];
       final int compressed = LZ4_COMP.compress(ref.bytes, 0, ref.length, compressing, 0);
       final int reduction = 100 * (ref.length - compressed) / ref.length;
-      LOG.info(
+      LOG.debug(
           "-- compressed ins filter %s, %,d bytes into %,d bytes (%d%% reduction, %d msec)",
           filter.getDimensions(), ref.length, compressed, reduction, System.currentTimeMillis() - start
       );

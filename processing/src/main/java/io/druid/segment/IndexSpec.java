@@ -32,7 +32,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
@@ -82,7 +81,6 @@ public class IndexSpec
   private final String metricCompression;
   private final Map<String, SecondaryIndexingSpec> secondaryIndexing;
   private final Map<String, String> columnCompression;
-  private final ColumnIncluderator dimensionSketches;
   private final boolean allowNullForNumbers;
   private final Map<String, Float> expectedFSTReductions;
 
@@ -93,12 +91,11 @@ public class IndexSpec
    */
   public IndexSpec()
   {
-    this(null, null, null, null, null, null, null, false, null);
+    this(null, null, null, null, null, null, false, null);
   }
 
   /**
    * Creates an IndexSpec with the given storage format settings.
-   *
    *
    * @param bitmapSerdeFactory type of bitmap to use (e.g. roaring or concise), null to use the default.
    *                           Defaults to the bitmap type specified by the (deprecated) "druid.processing.bitmap.type"
@@ -106,15 +103,12 @@ public class IndexSpec
    *
    * @param dimensionCompression compression format for dimension columns, null to use the default
    *                             Defaults to @{link CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY}
-   *
    * @param metricCompression compression format for metric columns, null to use the default.
-   *                          Defaults to @{link CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY}
    */
   @JsonCreator
   public IndexSpec(
       @JsonProperty("bitmap") BitmapSerdeFactory bitmapSerdeFactory,
       @JsonProperty("dimensionCompression") String dimensionCompression,
-      @JsonProperty("dimensionSketches") ColumnIncluderator dimensionSketches,
       @JsonProperty("metricCompression") String metricCompression,
       @JsonProperty("columnCompression") Map<String, String> columnCompression,
       @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing,
@@ -131,7 +125,6 @@ public class IndexSpec
 
     this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new RoaringBitmapSerdeFactory();
     this.dimensionCompression = dimensionCompression;
-    this.dimensionSketches = dimensionSketches;
     this.metricCompression = metricCompression;
     this.secondaryIndexing = secondaryIndexing;
     this.columnCompression = columnCompression;
@@ -146,7 +139,7 @@ public class IndexSpec
       String metricCompression
   )
   {
-    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, null, null, false, null);
+    this(bitmapSerdeFactory, dimensionCompression, metricCompression, null, null, null, false, null);
   }
 
   @JsonProperty("bitmap")
@@ -167,13 +160,6 @@ public class IndexSpec
   public String getMetricCompression()
   {
     return metricCompression;
-  }
-
-  @JsonProperty("dimensionSketches")
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public ColumnIncluderator getDimensionSketches()
-  {
-    return dimensionSketches;
   }
 
   @JsonProperty("secondaryIndexing")
@@ -300,7 +286,6 @@ public class IndexSpec
     return new IndexSpec(
         bitmapSerdeFactory,
         dimensionCompression,
-        dimensionSketches,
         metricCompression,
         columnCompression,
         null,
@@ -315,7 +300,6 @@ public class IndexSpec
     return new IndexSpec(
         bitmapSerdeFactory,
         dimensionCompression,
-        dimensionSketches,
         metricCompression,
         columnCompression,
         secondaryIndexing,
@@ -341,9 +325,6 @@ public class IndexSpec
       return false;
     }
     if (!Objects.equals(dimensionCompression, indexSpec.dimensionCompression)) {
-      return false;
-    }
-    if (!Objects.equals(dimensionSketches, indexSpec.dimensionSketches)) {
       return false;
     }
     if (!Objects.equals(metricCompression, indexSpec.metricCompression)) {
@@ -373,7 +354,6 @@ public class IndexSpec
     return Objects.hash(
         bitmapSerdeFactory,
         dimensionCompression,
-        dimensionSketches,
         metricCompression,
         secondaryIndexing,
         columnCompression,
@@ -381,5 +361,19 @@ public class IndexSpec
         allowNullForNumbers,
         expectedFSTReductions
     );
+  }
+
+  @Override
+  public String toString()
+  {
+    return "IndexSpec{" +
+           "allowNullForNumbers=" + allowNullForNumbers +
+           (dimensionCompression == null ? "" : ", dimensionCompression='" + dimensionCompression + '\'') +
+           (metricCompression == null ? "" : ", metricCompression='" + metricCompression + '\'') +
+           (GuavaUtils.isNullOrEmpty(columnCompression) ? "" : ", columnCompression=" + columnCompression) +
+           (GuavaUtils.isNullOrEmpty(secondaryIndexing) ? "" : ", secondaryIndexing=" + secondaryIndexing) +
+           (GuavaUtils.isNullOrEmpty(expectedFSTReductions) ? "" : ", expectedFSTReductions=" + expectedFSTReductions) +
+           (GuavaUtils.isNullOrEmpty(cuboidSpecs) ? "" : ", cuboidSpecs=" + cuboidSpecs) +
+           '}';
   }
 }

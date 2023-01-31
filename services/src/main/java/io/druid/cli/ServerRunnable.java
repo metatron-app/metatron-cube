@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.inject.Injector;
+import io.druid.initialization.Initialization;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.guice.GuiceInjectors;
@@ -32,6 +33,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import java.io.File;
 import java.io.IOException;
@@ -127,6 +130,11 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
 
   public static void main(String[] args) throws Exception
   {
+    DateTimeZone timeZone = new DateTime().getChronology().getZone();
+    LOGGER.info(
+        "Starting with git.tag[%s], git.revision[%s], default timezone[%s]",
+        Initialization.git_tag, Initialization.git_revision, timeZone
+    );
     // coordinator starts storage module. for derby, it starts derby server in it
     // default ports : 2181, 8083, 8082, 8081, 8090, 8091, 8084, 8888
     Ordering<String> ordering = Ordering.explicit(
@@ -135,6 +143,7 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
     Arrays.sort(args, ordering.onResultOf(arg -> arg.indexOf(':') > 0 ? arg.substring(0, arg.indexOf(':')) : arg));
     List<String> params = Lists.newArrayList(Arrays.asList(args));
     if (params.contains("zookeeper")) {
+      warnWithbox("Starting.. zookeeper");
       Properties startupProperties = new Properties();
       startupProperties.setProperty("clientPort", String.valueOf(2181));
       startupProperties.setProperty("clientPortAddress", "localhost");

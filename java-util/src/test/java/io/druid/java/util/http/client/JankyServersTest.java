@@ -20,6 +20,7 @@
 package io.druid.java.util.http.client;
 
 import com.google.common.base.Charsets;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
@@ -31,7 +32,9 @@ import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -40,6 +43,7 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -53,6 +57,9 @@ public class JankyServersTest
   static ServerSocket silentServerSocket;
   static ServerSocket echoServerSocket;
   static ServerSocket closingServerSocket;
+
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
 
   @BeforeClass
   public static void setUp() throws Exception
@@ -332,21 +339,16 @@ public class JankyServersTest
       final HttpClientConfig config = HttpClientConfig.builder().withSslContext(SSLContext.getDefault()).build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
 
-      final ChannelResource<StatusResponseHolder> response = client
+      final ListenableFuture<StatusResponseHolder> response = client
           .go(
               new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", echoServerSocket.getLocalPort()))),
-              new StatusResponseHandler(Charsets.UTF_8)
+              new StatusResponseHandler(StandardCharsets.UTF_8)
           );
 
-      Throwable e = null;
-      try {
-        response.get();
-      }
-      catch (ExecutionException e1) {
-        e = e1.getCause();
-      }
+      expectedException.expect(ExecutionException.class);
+      expectedException.expectMessage("org.jboss.netty.channel.ChannelException: Faulty channel in resource pool");
 
-      Assert.assertNotNull("ChannelException thrown by 'get'", e);
+      response.get();
     }
     finally {
       lifecycle.stop();

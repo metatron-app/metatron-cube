@@ -39,7 +39,7 @@ public class StopWatch
   {
     final long remaining = remaining();
     if (remaining <= 0) {
-      throw new TimeoutException();
+      throw new TimeoutException("Timed-out on waiting future");
     }
     return future.get(remaining, TimeUnit.MILLISECONDS);
   }
@@ -51,7 +51,10 @@ public class StopWatch
         return true;
       }
     }
-    throw new TimeoutException();
+    if (!queue.offer(element)) {
+      throw new TimeoutException("Timed-out on enqueue");
+    }
+    return true;
   }
 
   public <T> T dequeue(BlockingQueue<T> queue) throws TimeoutException, InterruptedException
@@ -62,7 +65,11 @@ public class StopWatch
         return poll;
       }
     }
-    throw new TimeoutException();
+    T poll = queue.poll();
+    if (poll == null) {
+      throw new TimeoutException("Timed-out on dequeue");
+    }
+    return poll;
   }
 
   public boolean acquire(Semaphore semaphore) throws TimeoutException, InterruptedException
@@ -72,7 +79,10 @@ public class StopWatch
         return true;
       }
     }
-    throw new TimeoutException();
+    if (!semaphore.tryAcquire()) {
+      throw new TimeoutException("Timed-out on acquiring semaphore");
+    }
+    return true;
   }
 
   public long remaining()

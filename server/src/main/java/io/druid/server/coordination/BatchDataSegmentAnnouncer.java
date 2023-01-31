@@ -180,7 +180,7 @@ public class BatchDataSegmentAnnouncer implements DataSegmentAnnouncer
 
       if (segmentZNode.getCount() == 0) {
         availableZNodes.remove(segmentZNode);
-        announcer.unannounce(segmentZNode.getPath());
+        announcer.unannounce(segmentZNode.getPath(), false);
       } else {
         availableZNodes.add(segmentZNode);
         announcer.update(segmentZNode.getPath(), segmentZNode.asBytes());

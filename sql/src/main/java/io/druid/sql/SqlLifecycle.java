@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 import io.druid.client.BrokerServerView;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.QueryEvent;
@@ -255,7 +256,7 @@ public class SqlLifecycle
             new RequestLogLine(
                 DateTimes.utc(startMs),
                 Strings.nullToEmpty(remoteAddress),
-                sql,
+                StringUtils.forLog(sql, 384),
                 new QueryStats(statsMap)
             )
         );

@@ -204,18 +204,22 @@ public class InDimFilter extends SingleInput
     return Objects.equals(values, that.values);
   }
 
+  private static final int THRESHOLD = 10;
+
   @Override
   public int hashCode()
   {
-    return Objects.hash(dimension, extractionFn, values.size(), GuavaUtils.sublist(values, 10));
+    return Objects.hash(dimension, extractionFn, values.size(), GuavaUtils.sublist(values, THRESHOLD));
   }
 
   @Override
   public String toString()
   {
     List<String> logging = values;
-    if (logging.size() > 10) {
-      logging = GuavaUtils.concat(GuavaUtils.sublist(logging, 10), String.format("..%d more", logging.size() - 10));
+    if (logging.size() > THRESHOLD) {
+      logging = GuavaUtils.concat(
+          GuavaUtils.sublist(logging, THRESHOLD), String.format("..%d more", logging.size() - THRESHOLD)
+      );
     }
     return "InDimFilter{" +
            "dimension='" + dimension + '\'' +
@@ -227,17 +231,17 @@ public class InDimFilter extends SingleInput
   @Override
   public boolean isHeavy()
   {
-    return values.size() > 10;
+    return values.size() > THRESHOLD;
   }
 
   @Override
   public DimFilter forLog()
   {
-    if (values.size() > 10) {
+    if (values.size() > THRESHOLD) {
       return new InDimFilter(
           dimension,
           extractionFn,
-          GuavaUtils.concat(Iterables.limit(values, 10), String.format("..%d more", values.size() - 10)),
+          GuavaUtils.concat(Iterables.limit(values, THRESHOLD), String.format("..%d more", values.size() - THRESHOLD)),
           null
       );
     }

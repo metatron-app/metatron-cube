@@ -29,6 +29,10 @@ import java.io.File;
 
 public class KafkaSupervisorTuningConfig extends KafkaTuningConfig
 {
+  private static final Duration DEFAULT_HTTTP_TIMEOUT = new Period("PT10S").toStandardDuration();
+  private static final Duration DEFAULT_SHUTDOWN_TIMEOUT = new Period("PT80S").toStandardDuration();
+  private static final Duration DEFAULT_OFFSETFETCH_PERIOD = new Period("PT30S").toStandardDuration();
+
   private final Integer workerThreads;
   private final Integer chatThreads;
   private final Long chatRetries;
@@ -72,10 +76,10 @@ public class KafkaSupervisorTuningConfig extends KafkaTuningConfig
 
     this.workerThreads = workerThreads;
     this.chatThreads = chatThreads;
-    this.chatRetries = (chatRetries != null ? chatRetries : 8);
-    this.httpTimeout = defaultDuration(httpTimeout, "PT10S");
-    this.shutdownTimeout = defaultDuration(shutdownTimeout, "PT80S");
-    this.offsetFetchPeriod = defaultDuration(offsetFetchPeriod, "PT30S");
+    this.chatRetries = chatRetries != null ? chatRetries : 8;
+    this.httpTimeout = httpTimeout == null ? DEFAULT_HTTTP_TIMEOUT : httpTimeout.toStandardDuration();
+    this.shutdownTimeout = shutdownTimeout == null ? DEFAULT_SHUTDOWN_TIMEOUT : shutdownTimeout.toStandardDuration();
+    this.offsetFetchPeriod = offsetFetchPeriod == null ? DEFAULT_OFFSETFETCH_PERIOD : offsetFetchPeriod.toStandardDuration();
   }
 
   @JsonProperty
@@ -122,23 +126,15 @@ public class KafkaSupervisorTuningConfig extends KafkaTuningConfig
            ", maxRowsPerSegment=" + getMaxRowsPerSegment() +
            ", intermediatePersistPeriod=" + getIntermediatePersistPeriod() +
            ", basePersistDirectory=" + getBasePersistDirectory() +
-           ", maxPendingPersists=" + getMaxPendingPersists() +
-           ", indexSpec=" + getIndexSpec() +
-           ", buildV9Directly=" + getBuildV9Directly() +
-           ", reportParseExceptions=" + isReportParseExceptions() +
-           ", handoffConditionTimeout=" + getHandoffConditionTimeout() +
-           ", resetOffsetAutomatically=" + isResetOffsetAutomatically() +
-           ", workerThreads=" + workerThreads +
-           ", chatThreads=" + chatThreads +
+           (isReportParseExceptions() ? ", reportParseExceptions=true" : "") +
+           (isResetOffsetAutomatically() ? ", resetOffsetAutomatically=true" : "") +
+           (getHandoffConditionTimeout() > 0 ? ", handoffConditionTimeout=" + getHandoffConditionTimeout() : "") +
+           (workerThreads != null ? ", workerThreads=" + workerThreads : "") +
+           (chatThreads != null ? ", chatThreads=" + chatThreads : "") +
            ", chatRetries=" + chatRetries +
-           ", httpTimeout=" + httpTimeout +
-           ", shutdownTimeout=" + shutdownTimeout +
-           ", offsetFetchPeriod=" + offsetFetchPeriod +
+           (httpTimeout != DEFAULT_HTTTP_TIMEOUT ? ", httpTimeout=" + httpTimeout : "") +
+           (shutdownTimeout != DEFAULT_SHUTDOWN_TIMEOUT ? ", shutdownTimeout=" + shutdownTimeout : "") +
+           (offsetFetchPeriod != DEFAULT_OFFSETFETCH_PERIOD ? ", offsetFetchPeriod=" + offsetFetchPeriod : "") +
            '}';
-  }
-
-  private static Duration defaultDuration(final Period period, final String theDefault)
-  {
-    return (period == null ? new Period(theDefault) : period).toStandardDuration();
   }
 }
