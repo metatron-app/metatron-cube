@@ -26,6 +26,8 @@ import io.druid.client.DirectDruidClient;
 import io.druid.client.DruidServer;
 import io.druid.client.QueryableServer;
 import io.druid.common.guava.KVArraySortedMap;
+import io.druid.query.QueryException;
+import io.druid.query.QueryRunner;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.ReferenceCountingSegment.LocalSegment;
@@ -61,6 +63,19 @@ public class QueryableDruidServer implements QueryableServer
   public DirectDruidClient getClient()
   {
     return client;
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> QueryRunner<T> asRemoteRunner()
+  {
+    return (query, response) -> {
+      try {
+        return client.run(query, response);
+      }
+      catch (Exception e) {
+        throw QueryException.wrapIfNeeded(e, server.getHost(), server.getType());
+      }
+    };
   }
 
   public List<String> getLocalDataSources()

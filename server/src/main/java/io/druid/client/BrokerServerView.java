@@ -496,7 +496,6 @@ public class BrokerServerView implements TimelineServerView
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> QueryRunner<T> getQueryRunner(Query<T> query, final DruidServer server)
   {
     final QueryableDruidServer queryableServer;
@@ -504,7 +503,7 @@ public class BrokerServerView implements TimelineServerView
       queryableServer = clients.get(server.getName());
     }
     if (queryableServer != null && queryableServer.getClient() != null) {
-      return queryableServer.getClient();  // remote queryable nodes
+      return queryableServer.asRemoteRunner();  // remote queryable nodes
     }
     if (query instanceof Query.ManagementQuery) {
       if (server.equals(node)) {

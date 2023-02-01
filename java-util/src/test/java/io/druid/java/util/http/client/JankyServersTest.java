@@ -20,7 +20,6 @@
 package io.druid.java.util.http.client;
 
 import com.google.common.base.Charsets;
-import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
@@ -28,6 +27,7 @@ import io.druid.java.util.http.client.response.StatusResponseHolder;
 import org.jboss.netty.channel.ChannelException;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.timeout.ReadTimeoutException;
+import org.jboss.netty.handler.timeout.TimeoutException;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -103,8 +103,7 @@ public class JankyServersTest
                   Socket clientSocket = closingServerSocket.accept();
                   InputStream in = clientSocket.getInputStream()
               ) {
-                in.read();
-                clientSocket.close();
+                int x = in.read();
               }
               catch (Exception e) {
                 // Suppress
@@ -214,24 +213,21 @@ public class JankyServersTest
       final HttpClientConfig config = HttpClientConfig.builder()
                                                       .withSslContext(SSLContext.getDefault())
                                                       .withSslHandshakeTimeout(new Duration(100))
+                                                      .withGetConnectionTimeoutDuration(Duration.millis(5000))
                                                       .build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
 
-      final ChannelResource<StatusResponseHolder> response = client
-          .go(
-              new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", silentServerSocket.getLocalPort()))),
-              new StatusResponseHandler(Charsets.UTF_8)
-          );
-
-      Throwable e = null;
+      String message = null;
       try {
-        response.get();
+        client.go(
+            new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", silentServerSocket.getLocalPort()))),
+            new StatusResponseHandler(Charsets.UTF_8)
+        );
       }
-      catch (ExecutionException e1) {
-        e = e1.getCause();
+      catch (TimeoutException e) {
+        message = e.getMessage();
       }
-
-      Assert.assertTrue("ChannelException thrown by 'get'", e instanceof ChannelException);
+      Assert.assertTrue(message, message.startsWith("Timeout getting connection"));
     }
     finally {
       lifecycle.stop();
@@ -271,25 +267,23 @@ public class JankyServersTest
   {
     final Lifecycle lifecycle = new Lifecycle();
     try {
-      final HttpClientConfig config = HttpClientConfig.builder().withSslContext(SSLContext.getDefault()).build();
+      final HttpClientConfig config = HttpClientConfig.builder()
+                                                      .withSslContext(SSLContext.getDefault())
+                                                      .withGetConnectionTimeoutDuration(Duration.millis(5000))
+                                                      .build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
 
-      final ChannelResource<StatusResponseHolder> response = client
-          .go(
-              new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", closingServerSocket.getLocalPort()))),
-              new StatusResponseHandler(Charsets.UTF_8)
-          );
-
-      Throwable e = null;
+      String message = null;
       try {
-        response.get();
+        client.go(
+            new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", closingServerSocket.getLocalPort()))),
+            new StatusResponseHandler(Charsets.UTF_8)
+        );
       }
-      catch (ExecutionException e1) {
-        e = e1.getCause();
-        e1.printStackTrace();
+      catch (TimeoutException e) {
+        message = e.getMessage();
       }
-
-      Assert.assertTrue("ChannelException thrown by 'get'", isChannelClosedException(e));
+      Assert.assertTrue(message, message.startsWith("Timeout getting connection"));
     }
     finally {
       lifecycle.stop();
@@ -336,19 +330,19 @@ public class JankyServersTest
   {
     final Lifecycle lifecycle = new Lifecycle();
     try {
-      final HttpClientConfig config = HttpClientConfig.builder().withSslContext(SSLContext.getDefault()).build();
+      final HttpClientConfig config = HttpClientConfig.builder()
+                                                      .withSslContext(SSLContext.getDefault())
+                                                      .withGetConnectionTimeoutDuration(Duration.millis(5000))
+                                                      .build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
 
-      final ListenableFuture<StatusResponseHolder> response = client
-          .go(
-              new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", echoServerSocket.getLocalPort()))),
-              new StatusResponseHandler(StandardCharsets.UTF_8)
-          );
+      expectedException.expect(TimeoutException.class);
+      expectedException.expectMessage("Timeout getting connection");
 
-      expectedException.expect(ExecutionException.class);
-      expectedException.expectMessage("org.jboss.netty.channel.ChannelException: Faulty channel in resource pool");
-
-      response.get();
+      client.go(
+          new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", echoServerSocket.getLocalPort()))),
+          new StatusResponseHandler(StandardCharsets.UTF_8)
+      );
     }
     finally {
       lifecycle.stop();

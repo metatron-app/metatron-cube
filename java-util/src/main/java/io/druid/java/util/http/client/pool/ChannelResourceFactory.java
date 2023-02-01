@@ -17,7 +17,6 @@ package io.druid.java.util.http.client.pool;
 import com.google.common.base.Preconditions;
 import io.druid.java.util.common.logger.Logger;
 import org.jboss.netty.bootstrap.ClientBootstrap;
-import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelException;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -151,26 +150,21 @@ public class ChannelResourceFactory implements ResourceFactory<String, ChannelFu
     return retVal;
   }
 
+  private static final long MIN_AWAIT = 1000;
+
   @Override
-  public boolean isGood(ChannelFuture resource)
+  public boolean isGood(ChannelFuture resource, long timeout) throws InterruptedException
   {
-    Channel channel = resource.awaitUninterruptibly().getChannel();
-
-    boolean isSuccess = resource.isSuccess();
-    boolean isConnected = channel.isConnected();
-    boolean isOpen = channel.isOpen();
-
-    if (log.isTraceEnabled()) {
-      log.trace("isGood = isSucess[%s] && isConnected[%s] && isOpen[%s]", isSuccess, isConnected, isOpen);
+    if (resource.isDone() || resource.await(Math.max(timeout, MIN_AWAIT))) {
+      return resource.isSuccess() && resource.getChannel().isConnected();
     }
-
-    return isSuccess && isConnected && isOpen;
+    return false;
   }
 
   @Override
   public boolean isValid(ChannelFuture resource)
   {
-    return resource.isDone() && resource.getChannel().isConnected();
+    return resource.isSuccess() && resource.getChannel().isConnected();
   }
 
   @Override

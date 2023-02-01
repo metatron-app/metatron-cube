@@ -32,15 +32,15 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.jboss.netty.channel.ChannelException;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.timeout.TimeoutException;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLHandshakeException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -48,7 +48,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -197,11 +196,15 @@ public class FriendlyServersTest
 
     try {
       final SSLContext mySsl = HttpClientInit.sslContextWithTrustedKeyStore(keyStorePath, "abc123");
-      final HttpClientConfig trustingConfig = HttpClientConfig.builder().withSslContext(mySsl).build();
+      final HttpClientConfig trustingConfig = HttpClientConfig.builder()
+                                                              .withSslContext(mySsl)
+                                                              .withGetConnectionTimeoutDuration(Duration.millis(5000))
+                                                              .build();
       final HttpClient trustingClient = HttpClientInit.createClient(trustingConfig, lifecycle);
 
       final HttpClientConfig skepticalConfig = HttpClientConfig.builder()
                                                                .withSslContext(SSLContext.getDefault())
+                                                               .withGetConnectionTimeoutDuration(Duration.millis(5000))
                                                                .build();
       final HttpClient skepticalClient = HttpClientInit.createClient(skepticalConfig, lifecycle);
 
@@ -220,49 +223,40 @@ public class FriendlyServersTest
 
       // Incorrect name ("127.0.0.1")
       {
-        final ChannelResource<StatusResponseHolder> response1 = trustingClient
-            .go(
-                new Request(
-                    HttpMethod.GET,
-                    new URL(StringUtils.format("https://127.0.0.1:%d/", sslConnector.getLocalPort()))
-                ),
-                new StatusResponseHandler(Charsets.UTF_8)
-            );
-
-        Throwable ea = null;
+        String message = null;
         try {
-          response1.get();
+          trustingClient.go(
+              new Request(
+                  HttpMethod.GET,
+                  new URL(StringUtils.format("https://127.0.0.1:%d/", sslConnector.getLocalPort()))
+              ),
+              new StatusResponseHandler(Charsets.UTF_8)
+          );
         }
-        catch (ExecutionException e) {
-          ea = e.getCause();
+        catch (TimeoutException e) {
+          message = e.getMessage();
         }
 
-        Assert.assertTrue("ChannelException thrown by 'get'", ea instanceof ChannelException);
-        Assert.assertTrue("Expected error message", ea.getCause().getMessage().matches(".*Failed to handshake.*"));
+        Assert.assertTrue(message, message.startsWith("Timeout getting connection"));
       }
 
+      // Untrusting client
       {
-        // Untrusting client
-        final ChannelResource<StatusResponseHolder> response2 = skepticalClient
-            .go(
-                new Request(
-                    HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", sslConnector.getLocalPort()))
-                ),
-                new StatusResponseHandler(Charsets.UTF_8)
-            );
-
-        Throwable eb = null;
+        String message = null;
         try {
-          response2.get();
+          skepticalClient.go(
+              new Request(
+                  HttpMethod.GET,
+                  new URL(StringUtils.format("https://127.0.0.1:%d/", sslConnector.getLocalPort()))
+              ),
+              new StatusResponseHandler(Charsets.UTF_8)
+          );
         }
-        catch (ExecutionException e) {
-          eb = e.getCause();
+        catch (TimeoutException e) {
+          message = e.getMessage();
         }
-        Assert.assertNotNull("ChannelException thrown by 'get'", eb);
-        Assert.assertTrue(
-            "Root cause is SSLHandshakeException",
-            eb.getCause().getCause() instanceof SSLHandshakeException
-        );
+
+        Assert.assertTrue(message, message.startsWith("Timeout getting connection"));
       }
     }
     finally {

@@ -21,18 +21,25 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableSet;
 import io.druid.java.util.common.logger.Logger;
+import org.jboss.netty.handler.timeout.TimeoutException;
 
 import java.io.Closeable;
 import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  */
 public class ResourcePool<K, V> implements Closeable
 {
-  private static final Logger log = new Logger(ResourcePool.class);
+  private static final Logger LOG = new Logger(ResourcePool.class);
+
+  private static final long FALLBACK_MSEC = 40;
+  private static final long MINIMUM_GET_TIMEOUT_MSEC = 1000;
+
+  private final long getTimeoutMillis;
   private final LoadingCache<K, ImmediateCreationResourceHolder<K, V>> pool;
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -41,27 +48,29 @@ public class ResourcePool<K, V> implements Closeable
       final ResourcePoolConfig config
   )
   {
+    this.getTimeoutMillis = Math.max(MINIMUM_GET_TIMEOUT_MSEC, config.getGetTimeoutMillis());
+    final ResourceFactory<K, V> wrapped = new Wrap<>(factory);
     this.pool = CacheBuilder.newBuilder().build(
         new CacheLoader<K, ImmediateCreationResourceHolder<K, V>>()
         {
           @Override
-          public ImmediateCreationResourceHolder<K, V> load(K input) throws Exception
+          public ImmediateCreationResourceHolder<K, V> load(K input)
           {
             return new ImmediateCreationResourceHolder<K, V>(
+                input,
                 config.getMaxPerKey(),
                 config.getUnusedConnectionTimeoutMillis(),
-                input,
-                factory
+                wrapped
             );
           }
         }
     );
   }
 
-  public ResourceContainer<V> take(final K key)
+  public ResourceContainer<V> take(final K key) throws InterruptedException
   {
     if (closed.get()) {
-      log.error(String.format("take(%s) called even though I'm closed.", key));
+      LOG.error(String.format("take(%s) called even though I'm closed.", key));
       return null;
     }
 
@@ -72,7 +81,7 @@ public class ResourcePool<K, V> implements Closeable
     catch (ExecutionException e) {
       throw Throwables.propagate(e);
     }
-    final V value = holder.get();
+    final V value = holder.get(getTimeoutMillis);
 
     return new ResourceContainer<V>()
     {
@@ -89,7 +98,7 @@ public class ResourcePool<K, V> implements Closeable
       public void returnResource()
       {
         if (returned.getAndSet(true)) {
-          log.warn(String.format("Resource at key[%s] was returned multiple times?", key));
+          LOG.warn("Resource at key[%s] was returned multiple times?", key);
         } else {
           holder.giveBack(value);
         }
@@ -99,12 +108,10 @@ public class ResourcePool<K, V> implements Closeable
       protected void finalize() throws Throwable
       {
         if (!returned.get()) {
-          log.warn(
-              String.format(
-                  "Resource[%s] at key[%s] was not returned before Container was finalized, potential resource leak.",
-                  value,
-                  key
-              )
+          LOG.warn(
+              "Resource[%s] at key[%s] was not returned before Container was finalized, potential resource leak.",
+              value,
+              key
           );
           returnResource();
         }
@@ -113,6 +120,7 @@ public class ResourcePool<K, V> implements Closeable
     };
   }
 
+  @Override
   public void close()
   {
     closed.set(true);
@@ -124,173 +132,214 @@ public class ResourcePool<K, V> implements Closeable
 
   private static class ImmediateCreationResourceHolder<K, V>
   {
-    private final int maxSize;
+    private static final int INITIAL_CONNECTION = 10;
+
     private final K key;
+    private final int maxSize;
     private final ResourceFactory<K, V> factory;
     private final ArrayDeque<ResourceHolder<V>> resourceHolderList;
-    private int deficit = 0;
-    private boolean closed = false;
+    private final AtomicInteger deficit;
     private final long unusedResourceTimeoutMillis;
 
+    private boolean closed = false;
+
     private ImmediateCreationResourceHolder(
+        K key,
         int maxSize,
         long unusedResourceTimeoutMillis,
-        K key,
         ResourceFactory<K, V> factory
     )
     {
-      this.maxSize = maxSize;
       this.key = key;
+      this.maxSize = maxSize;
       this.factory = factory;
       this.unusedResourceTimeoutMillis = unusedResourceTimeoutMillis;
       this.resourceHolderList = new ArrayDeque<>();
 
-      for (int i = 0; i < maxSize; ++i) {
-        resourceHolderList.add(new ResourceHolder<>(
-            System.currentTimeMillis(),
-            Preconditions.checkNotNull(
-                factory.generate(key),
-                "factory.generate(key)"
-            )
-        ));
+      for (int i = Math.min(INITIAL_CONNECTION, maxSize); i > 0; i--) {
+        final ResourceHolder<V> holder = ResourceHolder.of(factory.generate(key));
+        if (holder != null) {
+          resourceHolderList.add(holder);
+        }
       }
+      deficit = new AtomicInteger(maxSize - resourceHolderList.size());
     }
 
-    V get()
+    V get(final long timeout) throws InterruptedException
     {
-      // resourceHolderList can't have nulls, so we'll use a null to signal that we need to create a new resource.
-      final V poolVal;
-      synchronized (this) {
-        while (!closed && resourceHolderList.size() == 0 && deficit == 0) {
-          try {
-            this.wait();
+      final long deadline = timeout + System.currentTimeMillis();
+
+      int created = 0;
+      while (true) {
+        final long remain = deadline - System.currentTimeMillis();
+        if (remain <= 0) {
+          throw new TimeoutException(String.format("Timeout getting connection for '%s' (%d msec)", key, timeout));
+        }
+        ResourceHolder<V> holder = null;
+        synchronized (this) {
+          if (!closed) {
+            if (resourceHolderList.isEmpty() && deficit.get() == 0) {
+              wait(remain);
+            } else if (created > 0) {
+              // suppress excessive (vain) trial of connection
+              wait(Math.min(remain, (long) Math.pow(FALLBACK_MSEC, 1 + 0.2 * created)));
+            }
           }
-          catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+          if (closed) {
+            LOG.info("get() called even though I'm closed. key[%s]", key);
             return null;
           }
-        }
-
-        if (closed) {
-          log.info(String.format("get() called even though I'm closed. key[%s]", key));
-          return null;
-        } else if (!resourceHolderList.isEmpty()) {
-          ResourceHolder<V> holder = resourceHolderList.removeFirst();
-          if (System.currentTimeMillis() - holder.getLastAccessedTime() > unusedResourceTimeoutMillis) {
-            factory.close(holder.getResource());
-            poolVal = factory.generate(key);
+          if (!resourceHolderList.isEmpty()) {
+            holder = resourceHolderList.removeFirst();
+          } else if (deficit.get() > 0) {
+            deficit.decrementAndGet();
           } else {
-            poolVal = holder.getResource();
+            continue;
           }
-        } else if (deficit > 0) {
-          deficit--;
-          poolVal = null;
-        } else {
-          throw new IllegalStateException("No objects left, and no object deficit. This is probably a bug.");
+        }
+        if (holder == null) {
+          holder = ResourceHolder.of(factory.generate(key));
+          created++;
+        }
+        final long current = System.currentTimeMillis();
+        if (holder != null &&
+            holder.isGood(current, unusedResourceTimeoutMillis) &&
+            factory.isGood(holder.resource, deadline - current)) {
+          return holder.resource;
+        }
+        deficitAvailable();
+        if (holder != null) {
+          factory.close(holder.resource);
         }
       }
-
-      // At this point, we must either return a valid resource or increment "deficit".
-      final V retVal;
-      try {
-        if (poolVal != null && factory.isGood(poolVal)) {
-          retVal = poolVal;
-        } else {
-          if (poolVal != null) {
-            factory.close(poolVal);
-          }
-          retVal = factory.generate(key);
-        }
-      }
-      catch (Throwable e) {
-        synchronized (this) {
-          deficit++;
-          this.notifyAll();
-        }
-        throw Throwables.propagate(e);
-      }
-
-      return retVal;
     }
 
     void giveBack(V object)
     {
       Preconditions.checkNotNull(object, "object");
 
-      synchronized (this) {
-        if (closed) {
-          log.debug(String.format("giveBack called after being closed. key[%s]", key));
-          factory.close(object);
-          return;
-        }
-        if (!factory.isValid(object)) {
-          log.debug("Destroying invalid object[%s] at key[%s]", object, key);
-          deficit++;
-          factory.close(object);
-          return;
-        }
-
-        if (resourceHolderList.size() >= maxSize) {
-          if (holderListContains(object)) {
-            log.warn(
-                new Exception("Exception for stacktrace"),
-                "Returning object[%s] at key[%s] that has already been returned!? Skipping",
-                object,
-                key
-            );
-          } else {
-            log.warn(
-                new Exception("Exception for stacktrace"),
-                "Returning object[%s] at key[%s] even though we already have all that we can hold[%s]!? Skipping",
-                object,
-                key,
-                resourceHolderList
-            );
-          }
-          return;
-        }
-
-        resourceHolderList.addLast(new ResourceHolder<>(System.currentTimeMillis(), object));
-        this.notifyAll();
+      if (!factory.isValid(object)) {
+        LOG.debug("Destroying invalid object[%s] at key[%s]", object, key);
+        deficitAvailable();
+        factory.close(object);
+        return;
+      }
+      if (!enqueue(object)) {
+        factory.close(object);
       }
     }
 
-    private boolean holderListContains(V object)
+    private synchronized boolean enqueue(V object)
     {
-      return resourceHolderList.stream().anyMatch(a -> a.getResource().equals(object));
+      if (closed) {
+        LOG.debug("giveBack called after being closed. key[%s]", key);
+        return false;
+      }
+      if (resourceHolderList.size() >= maxSize) {
+        if (resourceHolderList.stream().anyMatch(a -> object.equals(a.resource))) {
+          LOG.warn(
+              new Exception("Exception for stacktrace"),
+              "Returning object[%s] at key[%s] that has already been returned!? Skipping",
+              object,
+              key
+          );
+        } else {
+          LOG.warn(
+              new Exception("Exception for stacktrace"),
+              "Returning object[%s] at key[%s] even though we already have all that we can hold[%s]!? Skipping",
+              object,
+              key,
+              resourceHolderList
+          );
+        }
+        return false;
+      }
+      resourceHolderList.addLast(ResourceHolder.of(object));
+      notifyAll();
+      return true;
     }
 
-    void close()
+    private synchronized void deficitAvailable()
     {
-      synchronized (this) {
-        closed = true;
-        resourceHolderList.forEach(v -> factory.close(v.getResource()));
-        resourceHolderList.clear();
-        this.notifyAll();
-      }
+      deficit.incrementAndGet();
+      notifyAll();
+    }
+
+    private synchronized void close()
+    {
+      closed = true;
+      resourceHolderList.forEach(v -> factory.close(v.resource));
+      resourceHolderList.clear();
+      notifyAll();
     }
   }
 
   private static class ResourceHolder<V>
   {
-    private long lastAccessedTime;
-    private V resource;
+    public static <V> ResourceHolder<V> of(V resource)
+    {
+      return resource == null ? null : new ResourceHolder<>(resource);
+    }
 
-    public ResourceHolder(long lastAccessedTime, V resource)
+    private final long lastAccessedTime = System.currentTimeMillis();
+    private final V resource;
+
+    private ResourceHolder(V resource)
     {
       this.resource = resource;
-      this.lastAccessedTime = lastAccessedTime;
     }
 
-    public long getLastAccessedTime()
+    public boolean isGood(long current, long threshold)
     {
-      return lastAccessedTime;
+      return current - lastAccessedTime < threshold;
     }
+  }
 
-    public V getResource()
+  private static class Wrap<K, V> implements ResourceFactory<K, V>
+  {
+    private final ResourceFactory<K, V> delegate;
+
+    private Wrap(ResourceFactory<K, V> delegate) {this.delegate = delegate;}
+
+    @Override
+    public V generate(K key)
     {
-      return resource;
+      try {
+        return delegate.generate(key);
+      }
+      catch (Exception e) {
+        return null;
+      }
     }
 
+    @Override
+    public boolean isGood(V resource, long timeout)
+    {
+      try {
+        return resource != null && delegate.isGood(resource, timeout);
+      }
+      catch (Exception e) {
+        return false;
+      }
+    }
+
+    @Override
+    public boolean isValid(V resource)
+    {
+      try {
+        return resource != null && delegate.isValid(resource);
+      }
+      catch (Exception e) {
+        return false;
+      }
+    }
+
+    @Override
+    public void close(V resource)
+    {
+      if (resource != null) {
+        delegate.close(resource);
+      }
+    }
   }
 }

@@ -66,6 +66,7 @@ public class HttpClientConfig
   // Default from SelectorUtil.DEFAULT_IO_THREADS, which is private:
   private static final int DEFAULT_WORKER_COUNT = Runtime.getRuntime().availableProcessors() * 2;
 
+  private static final Duration DEFAULT_GET_CONNECTION_TIMEOUT_DURATION = new Period("PT10S").toStandardDuration();
   private static final Duration DEFAULT_UNUSED_CONNECTION_TIMEOUT_DURATION = new Period("PT4M").toStandardDuration();
 
   public static Builder builder()
@@ -80,6 +81,7 @@ public class HttpClientConfig
   private final int bossPoolSize;
   private final int workerPoolSize;
   private final CompressionCodec compressionCodec;
+  private final Duration getConnectionTimeoutDuration;
   private final Duration unusedConnectionTimeoutDuration;
 
   @Deprecated // Use the builder instead
@@ -96,6 +98,7 @@ public class HttpClientConfig
         DEFAULT_BOSS_COUNT,
         DEFAULT_WORKER_COUNT,
         DEFAULT_COMPRESSION_CODEC,
+        DEFAULT_GET_CONNECTION_TIMEOUT_DURATION,
         DEFAULT_UNUSED_CONNECTION_TIMEOUT_DURATION
     );
   }
@@ -115,6 +118,7 @@ public class HttpClientConfig
         DEFAULT_BOSS_COUNT,
         DEFAULT_WORKER_COUNT,
         DEFAULT_COMPRESSION_CODEC,
+        DEFAULT_GET_CONNECTION_TIMEOUT_DURATION,
         DEFAULT_UNUSED_CONNECTION_TIMEOUT_DURATION
     );
   }
@@ -135,6 +139,7 @@ public class HttpClientConfig
         DEFAULT_BOSS_COUNT,
         DEFAULT_WORKER_COUNT,
         DEFAULT_COMPRESSION_CODEC,
+        DEFAULT_GET_CONNECTION_TIMEOUT_DURATION,
         DEFAULT_UNUSED_CONNECTION_TIMEOUT_DURATION
     );
   }
@@ -147,6 +152,7 @@ public class HttpClientConfig
       int bossPoolSize,
       int workerPoolSize,
       CompressionCodec compressionCodec,
+      Duration getConnectionTimeoutDuration,
       Duration unusedConnectionTimeoutDuration
   )
   {
@@ -157,6 +163,7 @@ public class HttpClientConfig
     this.bossPoolSize = bossPoolSize;
     this.workerPoolSize = workerPoolSize;
     this.compressionCodec = compressionCodec;
+    this.getConnectionTimeoutDuration = getConnectionTimeoutDuration;
     this.unusedConnectionTimeoutDuration = unusedConnectionTimeoutDuration;
   }
 
@@ -195,6 +202,11 @@ public class HttpClientConfig
     return compressionCodec;
   }
 
+  public Duration getGetConnectionTimeoutDuration()
+  {
+    return getConnectionTimeoutDuration;
+  }
+
   public Duration getUnusedConnectionTimeoutDuration()
   {
     return unusedConnectionTimeoutDuration;
@@ -209,6 +221,7 @@ public class HttpClientConfig
     private int bossCount = DEFAULT_BOSS_COUNT;
     private int workerCount = DEFAULT_WORKER_COUNT;
     private CompressionCodec compressionCodec = DEFAULT_COMPRESSION_CODEC;
+    private Duration getConnectionTimeoutDuration = DEFAULT_GET_CONNECTION_TIMEOUT_DURATION;
     private Duration unusedConnectionTimeoutDuration = DEFAULT_UNUSED_CONNECTION_TIMEOUT_DURATION;
 
     private Builder() {}
@@ -261,6 +274,12 @@ public class HttpClientConfig
       return this;
     }
 
+    public Builder withGetConnectionTimeoutDuration(Duration getConnectionTimeoutDuration)
+    {
+      this.getConnectionTimeoutDuration = getConnectionTimeoutDuration;
+      return this;
+    }
+
     public Builder withUnusedConnectionTimeoutDuration(Duration unusedConnectionTimeoutDuration)
     {
       this.unusedConnectionTimeoutDuration = unusedConnectionTimeoutDuration;
@@ -277,6 +296,7 @@ public class HttpClientConfig
           bossCount,
           workerCount,
           compressionCodec,
+          getConnectionTimeoutDuration,
           unusedConnectionTimeoutDuration
       );
     }

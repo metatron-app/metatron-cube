@@ -31,10 +31,15 @@ import org.jboss.netty.channel.ChannelFuture;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 
 public class ChannelResources
 {
   private static final Logger LOG = new Logger(ChannelResource.class);
+
+  public static final ChannelResource CLOSED = new ForwardingResource<>(
+      Futures.immediateFailedFuture(new ClosedChannelException())
+  );
 
   public static <T> ChannelResource<T> immediateFailed(ChannelFuture channelFuture)
   {

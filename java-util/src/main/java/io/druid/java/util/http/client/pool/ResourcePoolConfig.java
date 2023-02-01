@@ -19,32 +19,18 @@ package io.druid.java.util.http.client.pool;
 public class ResourcePoolConfig
 {
   private final int maxPerKey;
+  private final long getTimeoutMillis;
   private final long unusedConnectionTimeoutMillis;
 
   public ResourcePoolConfig(
       int maxPerKey,
+      long getTimeoutMillis,
       long unusedConnectionTimeoutMillis
   )
   {
     this.maxPerKey = maxPerKey;
+    this.getTimeoutMillis = getTimeoutMillis;
     this.unusedConnectionTimeoutMillis = unusedConnectionTimeoutMillis;
-  }
-
-  @Deprecated
-  public ResourcePoolConfig(
-      int maxPerKey,
-      boolean cleanIdle,
-      long unusedConnectionTimeoutMillis
-  )
-  {
-    this(maxPerKey, unusedConnectionTimeoutMillis);
-
-    if (cleanIdle) {
-      throw new IllegalStateException(
-          "Cleaning up idle connections is a bad idea.  "
-          + "If your services can't handle the max number then lower the max number."
-      );
-    }
   }
 
   public int getMaxPerKey()
@@ -55,6 +41,11 @@ public class ResourcePoolConfig
   public boolean isCleanIdle()
   {
     return false;
+  }
+
+  public long getGetTimeoutMillis()
+  {
+    return getTimeoutMillis;
   }
 
   public long getUnusedConnectionTimeoutMillis()

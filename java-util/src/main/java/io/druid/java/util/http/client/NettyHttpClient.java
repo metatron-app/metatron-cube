@@ -18,6 +18,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.java.util.common.IAE;
@@ -114,6 +115,17 @@ public class NettyHttpClient implements HttpClient
     return new NettyHttpClient(pool, defaultReadTimeout, compressionCodec, timer);
   }
 
+  private ResourceContainer<ChannelFuture> getChannelFor(String hostKey)
+  {
+    try {
+      return pool.take(hostKey);
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw Throwables.propagate(e);
+    }
+  }
+
   @Override
   public <Intermediate, Final> ChannelResource<Final> go(
       final Request request,
@@ -131,16 +143,17 @@ public class NettyHttpClient implements HttpClient
     }
 
     // Block while acquiring a channel from the pool, then complete the request asynchronously.
-    final Channel channel;
     final String hostKey = getPoolKey(url);
-    final ResourceContainer<ChannelFuture> channelResourceContainer = pool.take(hostKey);
+    final ResourceContainer<ChannelFuture> channelResourceContainer = getChannelFor(hostKey);
+    if (channelResourceContainer == null) {
+      return ChannelResources.CLOSED;
+    }
     final ChannelFuture channelFuture = channelResourceContainer.get().awaitUninterruptibly();
     if (!channelFuture.isSuccess()) {
       channelResourceContainer.returnResource(); // Some other poor sap will have to deal with it...
       return ChannelResources.immediateFailed(channelFuture);
-    } else {
-      channel = channelFuture.getChannel();
     }
+    final Channel channel = channelFuture.getChannel();
 
     final String urlFile = Strings.nullToEmpty(url.getFile());
     final HttpRequest httpRequest = new DefaultHttpRequest(

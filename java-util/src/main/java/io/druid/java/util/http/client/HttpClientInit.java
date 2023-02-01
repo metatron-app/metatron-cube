@@ -91,6 +91,7 @@ public class HttpClientInit
                   ),
                   new ResourcePoolConfig(
                       config.getNumConnections(),
+                      config.getGetConnectionTimeoutDuration().getMillis(),
                       config.getUnusedConnectionTimeoutDuration().getMillis()
                   )
               ),
