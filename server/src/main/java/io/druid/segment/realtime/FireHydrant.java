@@ -121,7 +121,7 @@ public class FireHydrant
 
   public void persisted(QueryableIndex index, File persistedPath, long persistingTime)
   {
-    final QueryableIndexSegment swapping = new QueryableIndexSegment(index, adapter.getDescriptor());
+    final QueryableIndexSegment swapping = new QueryableIndexSegment(index, adapter.getDescriptor(), count);
     synchronized (swapLock) {
       try {
         adapter.close();

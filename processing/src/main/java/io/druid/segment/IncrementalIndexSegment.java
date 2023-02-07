@@ -35,7 +35,12 @@ public class IncrementalIndexSegment extends AbstractSegment
 
   public IncrementalIndexSegment(IncrementalIndex index, DataSegment descriptor)
   {
-    super(descriptor);
+    this(index, descriptor, -1);
+  }
+
+  public IncrementalIndexSegment(IncrementalIndex index, DataSegment descriptor, int sequence)
+  {
+    super(descriptor, sequence);
     this.index = Preconditions.checkNotNull(index);
   }
 

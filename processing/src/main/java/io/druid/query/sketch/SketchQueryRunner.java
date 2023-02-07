@@ -121,7 +121,7 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
     OUT:
     if (queryable != null && metrics.isEmpty() && !sketchOp.isCardinalitySensitive()) {
       final BitmapIndexSelector selector = new QueryableIndexSelector(queryable, resolver);
-      final Pair<ImmutableBitmap, DimFilter> extracted = extractBitmaps(selector, segment.getIdentifier(), filter);
+      final Pair<ImmutableBitmap, DimFilter> extracted = extractBitmaps(selector, segment.namespace(), filter);
       if (extracted.getValue() != null) {
         break OUT;
       }
@@ -179,14 +179,14 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
 
   private Pair<ImmutableBitmap, DimFilter> extractBitmaps(
       final BitmapIndexSelector selector,
-      final String segmentId,
+      final String namespace,
       final DimFilter filter
   )
   {
     if (filter == null) {
       return Pair.<ImmutableBitmap, DimFilter>of(null, null);
     }
-    try (FilterContext context = Filters.createFilterContext(selector, cache, segmentId)) {
+    try (FilterContext context = Filters.createFilterContext(selector, cache, namespace)) {
       return DimFilters.extractBitmaps(filter, context);
     }
   }

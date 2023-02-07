@@ -20,7 +20,6 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
@@ -49,6 +48,7 @@ import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
+import io.druid.segment.filter.Filters;
 import org.joda.time.Interval;
 
 import java.math.BigInteger;
@@ -211,17 +211,14 @@ public class SimpleQueryableIndex implements QueryableIndex
     if (!DimensionSpecs.isAllDefault(aggregation.getDimensions())) {
       return null;
     }
+    Set<String> dependants = Sets.newHashSet(Iterables.concat(
+        DimensionSpecs.toInputNames(aggregation.getDimensions()), Filters.getDependents(aggregation.getFilter())
+    ));
+    List<AggregatorFactory> factories = aggregation.getAggregatorSpecs();
+
     Pair<CuboidSpec, QueryableIndex> withMinRow = null;
     for (Pair<CuboidSpec, QueryableIndex> entry : Iterables.filter(
-        cuboids.values(),
-        new Predicate<Pair<CuboidSpec, QueryableIndex>>()
-        {
-          @Override
-          public boolean apply(Pair<CuboidSpec, QueryableIndex> input)
-          {
-            return input.lhs.supports(aggregation);
-          }
-        }
+        cuboids.values(), p -> p.lhs.supports(dependants, factories, aggregation.getGranularity())
     )) {
       if (withMinRow == null || withMinRow.rhs.getNumRows() > entry.rhs.getNumRows()) {
         withMinRow = entry;

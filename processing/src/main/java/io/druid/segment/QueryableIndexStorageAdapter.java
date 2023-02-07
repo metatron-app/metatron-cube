@@ -85,10 +85,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   private final QueryableIndex index;
   private final DataSegment segment;
 
+  // todo: better handling of hydrants in indexing node
+  private final String namespace;
+
   public QueryableIndexStorageAdapter(QueryableIndex index, DataSegment segment)
+  {
+    this(index, segment, null);
+  }
+
+  public QueryableIndexStorageAdapter(QueryableIndex index, DataSegment segment, String namespace)
   {
     this.index = Preconditions.checkNotNull(index);
     this.segment = Preconditions.checkNotNull(segment);
+    this.namespace = namespace;
   }
 
   @Override
@@ -189,7 +198,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver);
-    final FilterContext context = Filters.createFilterContext(selector, cache, segment.getIdentifier());
+    final FilterContext context = Filters.createFilterContext(selector, cache, namespace);
 
     final long start = System.currentTimeMillis();
     final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);

@@ -1196,7 +1196,7 @@ public class AppenderatorImpl implements Appenderator
                                           .withNumRows(index.getNumRows());
             hydrants.add(
                 new FireHydrant(
-                    new QueryableIndexSegment(index, segment),
+                    new QueryableIndexSegment(index, segment, hydrantNumber),
                     hydrantDir,
                     hydrantNumber
                 )

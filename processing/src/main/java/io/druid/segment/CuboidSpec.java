@@ -31,9 +31,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.query.BaseAggregationQuery;
-import io.druid.query.dimension.DimensionSpecs;
-import io.druid.segment.filter.Filters;
+import io.druid.query.aggregation.AggregatorFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -107,12 +105,11 @@ public class CuboidSpec
     return Ints.toArray(indices);
   }
 
-  public boolean supports(BaseAggregationQuery query)
+  public boolean supports(Set<String> columns, List<AggregatorFactory> factories, Granularity granularity)
   {
-    return dimensions.containsAll(DimensionSpecs.toInputNames(query.getDimensions())) &&
-           dimensions.containsAll(Filters.getDependents(query.getFilter())) &&
-           Cuboids.supports(metrics, query.getAggregatorSpecs()) &&
-           covers(query.getGranularity());
+    return dimensions.size() >= columns.size() && dimensions.containsAll(columns) &&
+           Cuboids.supports(metrics, factories) &&
+           covers(granularity);
   }
 
   private boolean covers(Granularity queryGran)

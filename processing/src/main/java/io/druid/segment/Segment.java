@@ -34,6 +34,7 @@ import java.io.IOException;
  */
 public interface Segment extends SchemaProvider, Closeable
 {
+  String namespace();
   DataSegment getDescriptor();
   Interval getInterval();
   long getLastAccessTime();
@@ -70,6 +71,12 @@ public interface Segment extends SchemaProvider, Closeable
     public Segment getDelegated()
     {
       return segment;
+    }
+
+    @Override
+    public String namespace()
+    {
+      return segment.namespace();
     }
 
     @Override

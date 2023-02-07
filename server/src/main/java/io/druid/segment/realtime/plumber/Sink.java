@@ -307,7 +307,7 @@ public class Sink implements Iterable<FireHydrant>
         numRowsExcludingCurrIndex.addAndGet(old.rowCountInMemory());
       }
       DataSegment segment = template.withDimensionsMetrics(newIndex.getDimensionNames(), newIndex.getMetricNames());
-      currHydrant = new FireHydrant(new IncrementalIndexSegment(newIndex, segment), newCount);
+      currHydrant = new FireHydrant(new IncrementalIndexSegment(newIndex, segment, newCount), newCount);
       hydrants.add(currHydrant);
     }
 

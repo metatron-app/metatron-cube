@@ -37,7 +37,12 @@ public class QueryableIndexSegment extends AbstractSegment
 
   public QueryableIndexSegment(QueryableIndex index, DataSegment descriptor)
   {
-    super(descriptor);
+    this(index, descriptor, -1);
+  }
+
+  public QueryableIndexSegment(QueryableIndex index, DataSegment descriptor, int sequence)
+  {
+    super(descriptor, sequence);
     this.index = Preconditions.checkNotNull(index);
   }
 
@@ -58,7 +63,7 @@ public class QueryableIndexSegment extends AbstractSegment
   public StorageAdapter asStorageAdapter(boolean forQuery)
   {
     accessed(forQuery);
-    return new QueryableIndexStorageAdapter(index, descriptor);
+    return new QueryableIndexStorageAdapter(index, descriptor, namespace());
   }
 
   @Override
@@ -66,7 +71,7 @@ public class QueryableIndexSegment extends AbstractSegment
   {
     final QueryableIndex cuboid = index.cuboidFor(query);
     if (cuboid != null) {
-      return new QueryableIndexSegment(cuboid, descriptor);
+      return new QueryableIndexSegment(cuboid, descriptor);   // session caching is disabled
     }
     return null;
   }

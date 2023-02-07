@@ -27,11 +27,24 @@ import java.io.IOException;
 public abstract class AbstractSegment implements Segment
 {
   protected final DataSegment descriptor;
+  protected final int sequence;
   protected volatile long lastAccessTime;
 
   protected AbstractSegment(DataSegment descriptor)
   {
+    this(descriptor, -1);
+  }
+
+  protected AbstractSegment(DataSegment descriptor, int sequence)
+  {
     this.descriptor = Preconditions.checkNotNull(descriptor, "descriptor");
+    this.sequence = sequence;
+  }
+
+  @Override
+  public String namespace()
+  {
+    return sequence < 0 ? descriptor.getIdentifier() : descriptor.getIdentifier() + '_' + sequence;
   }
 
   @Override

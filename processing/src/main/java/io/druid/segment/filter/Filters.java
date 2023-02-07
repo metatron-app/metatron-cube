@@ -459,10 +459,10 @@ public class Filters
   public static FilterContext createFilterContext(
       final BitmapIndexSelector selector,
       final SessionCache cache,
-      final String segmentId
+      final String namespace
   )
   {
-    if (cache == null || segmentId == null) {
+    if (cache == null || namespace == null) {
       return new FilterContext(selector);
     }
     return new FilterContext(selector)
@@ -470,13 +470,13 @@ public class Filters
       @Override
       public BitmapHolder createBitmap(Cacheable filter, Supplier<BitmapHolder> populator)
       {
-        return cache.get(segmentId, filter, populator);
+        return cache.get(namespace, filter, populator);
       }
 
       @Override
       public void cache(Cacheable filter, BitmapHolder holder)
       {
-        cache.cache(segmentId, filter, holder);
+        cache.cache(namespace, filter, holder);
       }
     };
   }
