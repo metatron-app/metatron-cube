@@ -113,7 +113,8 @@ public class StreamQueryRunnerFactory
       QuerySegmentWalker segmentWalker
   )
   {
-    if (GuavaUtils.isNullOrEmpty(query.getOrderingSpecs())) {
+    List<OrderByColumnSpec> orderingSpecs = query.getOrderingSpecs();
+    if (GuavaUtils.isNullOrEmpty(orderingSpecs) || OrderByColumnSpec.isSimpleTimeOrdered(orderingSpecs)) {
       return null;
     }
     int numSplit = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1);

@@ -26,11 +26,15 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.concurrent.Executors;
 
 public class TpchTestMore extends CalciteQueryTestHelper
 {
   private static final MiscQueryHook hook = new MiscQueryHook();
-  private static final TestQuerySegmentWalker walker = TpchTestHelper.walker.duplicate().withQueryHook(hook);
+  private static final TestQuerySegmentWalker walker =
+      TpchTestHelper.walker.duplicate()
+                           .withExecutor(Executors.newFixedThreadPool(4))
+                           .withQueryHook(hook);
 
   @Override
   protected TestQuerySegmentWalker walker()
@@ -343,5 +347,59 @@ public class TpchTestMore extends CalciteQueryTestHelper
     testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE <= L_COMMITDATE)", new Object[]{7500L - 2697L});
     testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE < L_COMMITDATE)", new Object[]{4868L});
     testQuery("SELECT COUNT(*) FROM lineitem WHERE L_LINENUMBER = 1 AND NOT(L_RECEIPTDATE >= L_COMMITDATE)", new Object[]{7500L - 4868L});
+  }
+
+  @Test
+  public void test4178() throws Exception
+  {
+    // ascending
+    Object[][] expected1 = {
+        {"1992-02-22", 49L}, {"1992-04-04", 48L}, {"1992-04-12", 50L}, {"1992-04-18", 49L}, {"1992-05-08", 49L},
+        {"1992-10-01", 50L}, {"1992-11-15", 48L}, {"1992-12-26", 48L}, {"1993-02-24", 48L}, {"1993-03-04", 50L},
+        {"1993-03-20", 49L}, {"1993-03-26", 50L}, {"1993-03-26", 48L}, {"1993-05-20", 50L}, {"1993-06-17", 50L},
+        {"1993-07-12", 50L}, {"1994-02-14", 50L}, {"1994-02-22", 48L}, {"1994-05-24", 50L}, {"1994-05-28", 49L},
+        {"1994-06-19", 49L}, {"1994-08-03", 49L}, {"1994-08-15", 48L}, {"1994-08-17", 48L}, {"1994-08-29", 48L},
+        {"1994-09-02", 48L}, {"1994-10-09", 49L}, {"1994-10-19", 50L}, {"1994-11-18", 49L}, {"1994-11-21", 49L},
+        {"1994-11-22", 49L}, {"1995-01-22", 48L}, {"1995-02-20", 48L}, {"1995-03-02", 49L}, {"1995-03-18", 48L},
+        {"1995-03-21", 48L}, {"1995-07-14", 50L}, {"1995-10-03", 49L}, {"1995-10-26", 49L}, {"1995-10-28", 50L}
+    };
+    testQuery(
+        "SELECT TIMESTAMP_FORMAT(__time, 'yyyy-MM-dd'), L_QUANTITY FROM lineitem" +
+        "   WHERE L_LINENUMBER = 1 AND L_QUANTITY >= 48 AND L_SHIPMODE = 'TRUCK'" +
+        "   ORDER BY __time LIMIT 40",
+        expected1
+    );
+
+    // descending
+    Object[][] expected2 = {
+        {"1998-09-04", 49L}, {"1998-08-26", 49L}, {"1998-07-24", 49L}, {"1998-07-20", 49L}, {"1998-07-16", 49L},
+        {"1998-05-26", 49L}, {"1998-03-04", 48L}, {"1998-02-02", 49L}, {"1997-12-29", 48L}, {"1997-12-26", 48L},
+        {"1997-11-16", 50L}, {"1997-10-15", 50L}, {"1997-10-09", 49L}, {"1997-10-03", 49L}, {"1997-09-27", 50L},
+        {"1997-08-22", 48L}, {"1997-08-16", 49L}, {"1997-05-05", 50L}, {"1997-04-04", 50L}, {"1997-03-19", 48L},
+        {"1997-03-09", 50L}, {"1997-03-06", 49L}, {"1997-02-27", 49L}, {"1996-12-04", 50L}, {"1996-09-10", 48L},
+        {"1996-09-04", 50L}, {"1996-05-01", 48L}, {"1996-04-20", 50L}, {"1995-11-13", 48L}, {"1995-10-28", 50L},
+        {"1995-10-26", 49L}, {"1995-10-03", 49L}, {"1995-07-14", 50L}, {"1995-03-21", 48L}, {"1995-03-18", 48L},
+        {"1995-03-02", 49L}, {"1995-02-20", 48L}, {"1995-01-22", 48L}, {"1994-11-22", 49L}, {"1994-11-21", 49L}
+    };
+    testQuery(
+        "SELECT TIMESTAMP_FORMAT(__time, 'yyyy-MM-dd'), L_QUANTITY FROM lineitem" +
+        "   WHERE L_LINENUMBER = 1 AND L_QUANTITY >= 48 AND L_SHIPMODE = 'TRUCK'" +
+        "   ORDER BY __time DESC LIMIT 40",
+        expected2
+    );
+
+    // on single segment
+    Object[][] expected3 = {
+        {"1997-12-29", 48L}, {"1997-12-26", 48L}, {"1997-11-16", 50L}, {"1997-10-15", 50L}, {"1997-10-09", 49L},
+        {"1997-10-03", 49L}, {"1997-09-27", 50L}, {"1997-08-22", 48L}, {"1997-08-16", 49L}, {"1997-05-05", 50L},
+        {"1997-04-04", 50L}, {"1997-03-19", 48L}, {"1997-03-09", 50L}, {"1997-03-06", 49L}, {"1997-02-27", 49L}
+    };
+    testQuery(
+        "SELECT TIMESTAMP_FORMAT(__time, 'yyyy-MM-dd'), L_QUANTITY FROM lineitem" +
+        "   WHERE L_LINENUMBER = 1 AND L_QUANTITY >= 48 AND L_SHIPMODE = 'TRUCK'" +
+        " AND __time BETWEEN TIMESTAMP '1997-01-01' AND TIMESTAMP '1998-01-01'" +
+        "   ORDER BY __time DESC LIMIT 40",
+        expected3
+    );
   }
 }

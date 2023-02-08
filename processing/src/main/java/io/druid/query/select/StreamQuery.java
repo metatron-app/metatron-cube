@@ -51,6 +51,7 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
@@ -77,6 +78,20 @@ public class StreamQuery extends BaseQuery<Object[]>
   public static Query projection(DataSource dataSource, List<String> columns)
   {
     return new StreamQuery(dataSource, null, false, null, null, columns, null, null, null, null, null, null);
+  }
+
+  public static <T> boolean isSimpleTimeOrdered(Query<T> query)
+  {
+    return query instanceof StreamQuery
+           && OrderByColumnSpec.isSimpleTimeOrdered(((StreamQuery) query).getOrderingSpecs());
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> Query<T> convertSimpleTimeOrdered(Query<?> query)
+  {
+    StreamQuery stream = (StreamQuery) query;
+    return (Query<T>) stream.withDescending(stream.getOrderingSpecs().get(0).getDirection() == Direction.DESCENDING)
+                            .withOrderingSpec(null);
   }
 
   private final DimFilter filter;
@@ -399,6 +414,45 @@ public class StreamQuery extends BaseQuery<Object[]>
         getColumns(),
         getVirtualColumns(),
         getOrderingSpecs(),
+        getConcatString(),
+        getLimitSpec(),
+        getOutputColumns(),
+        getContext()
+    );
+  }
+
+  public StreamQuery withDescending(boolean descending)
+  {
+    if (isDescending() == descending) {
+      return this;
+    }
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        descending,
+        getFilter(),
+        getTableFunction(),
+        getColumns(),
+        getVirtualColumns(),
+        getOrderingSpecs(),
+        getConcatString(),
+        getLimitSpec(),
+        getOutputColumns(),
+        getContext()
+    );
+  }
+
+  public StreamQuery withOrderingSpec(List<OrderByColumnSpec> orderingSpec)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getFilter(),
+        getTableFunction(),
+        getColumns(),
+        getVirtualColumns(),
+        orderingSpec,
         getConcatString(),
         getLimitSpec(),
         getOutputColumns(),

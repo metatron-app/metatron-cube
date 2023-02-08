@@ -32,6 +32,7 @@ import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.select.StreamQuery;
 import io.druid.utils.StopWatch;
 import org.apache.commons.io.IOUtils;
 
@@ -205,7 +206,7 @@ public class QueryRunners
     return query.array(runner.run(query, Maps.<String, Object>newHashMap()));
   }
 
-  // for QueryRunnerFactory.mergeRunners (using Query.estimatedInitialColumns)
+  // only for QueryRunnerFactory.mergeRunners (see using Query.estimatedInitialColumns)
   public static <T> QueryRunner<T> executeParallel(
       final Query<T> query,
       final ExecutorService executor,
@@ -222,6 +223,9 @@ public class QueryRunners
         @Override
         public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
         {
+          if (StreamQuery.isSimpleTimeOrdered(query)) {
+            query = StreamQuery.convertSimpleTimeOrdered(query);
+          }
           return runners.get(0).run(query, responseContext);
         }
       };
@@ -249,6 +253,9 @@ public class QueryRunners
         @Override
         public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
         {
+          if (StreamQuery.isSimpleTimeOrdered(query)) {
+            query = StreamQuery.convertSimpleTimeOrdered(query);
+          }
           final Execs.ExecutorQueue<Sequence<T>> queue = new Execs.ExecutorQueue<>(semaphore);
           for (QueryRunner<T> runner : runners) {
             queue.add(QueryRunners.asCallable(runner, query, responseContext));
@@ -264,9 +271,13 @@ public class QueryRunners
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        final Iterable<Callable<Sequence<T>>> works = Iterables.transform(
-            runners, runner -> QueryRunners.asCallable(runner, query, responseContext, semaphore)
-        );
+        final Iterable<Callable<Sequence<T>>> works;
+        if (StreamQuery.isSimpleTimeOrdered(query)) {
+          Query<T> stream = StreamQuery.convertSimpleTimeOrdered(query);
+          works = Iterables.transform(runners, runner -> asCallable(runner, stream, responseContext, semaphore));
+        } else {
+          works = Iterables.transform(runners, runner -> asMaterialzer(runner, query, responseContext, semaphore));
+        }
         final StopWatch watch = new StopWatch(watcher.remainingTime(query.getId()));
         final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(
             Execs.execute(executor, works, semaphore, watch, priority)
@@ -422,6 +433,16 @@ public class QueryRunners
   }
 
   public static <T> PrioritizedCallable<Sequence<T>> asCallable(
+      final QueryRunner<T> runner,
+      final Query<T> query,
+      final Map<String, Object> responseContext,
+      final Execs.Semaphore semaphore
+  )
+  {
+    return () -> Sequences.withBaggage(runner.run(query, responseContext), semaphore);
+  }
+
+  public static <T> PrioritizedCallable<Sequence<T>> asMaterialzer(
       final QueryRunner<T> runner,
       final Query<T> query,
       final Map<String, Object> responseContext,

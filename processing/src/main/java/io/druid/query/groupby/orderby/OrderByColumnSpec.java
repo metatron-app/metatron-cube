@@ -49,11 +49,11 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     return orderByColumnSpecs == null ? null : GuavaUtils.transform(orderByColumnSpecs, OrderByColumnSpec::getDimension);
   }
 
-  public static boolean isSimpleTimeOrdering(List<OrderByColumnSpec> orderByColumnSpecs)
+  public static boolean isSimpleTimeOrdered(List<OrderByColumnSpec> orderByColumnSpecs)
   {
     return orderByColumnSpecs != null &&
            orderByColumnSpecs.size() == 1 &&
-           orderByColumnSpecs.get(0).isSimpleTimeOrdering();
+           orderByColumnSpecs.get(0).isSimpleTimeOrdered();
   }
 
   @JsonCreator
@@ -157,7 +157,7 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     return dimension;
   }
 
-  public boolean isSimpleTimeOrdering()
+  public boolean isSimpleTimeOrdered()
   {
     return Row.TIME_COLUMN_NAME.equals(dimension) && isNaturalOrdering();
   }
