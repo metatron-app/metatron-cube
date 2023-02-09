@@ -23,20 +23,18 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.parsers.ParserUtils;
 
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 
 public class DimensionsSpec
 {
@@ -58,24 +56,14 @@ public class DimensionsSpec
     }
   }
 
-  public static DimensionsSpec ofStringDimensions(List<String> dimensions)
+  public static DimensionsSpec ofStringDimensions(Iterable<String> dimensions)
   {
     return new DimensionsSpec(getDefaultSchemas(dimensions), null, null);
   }
 
-  public static List<DimensionSchema> getDefaultSchemas(List<String> dimensions)
+  public static List<DimensionSchema> getDefaultSchemas(Iterable<String> dimensions)
   {
-    return Lists.transform(
-        dimensions,
-        new Function<String, DimensionSchema>()
-        {
-          @Override
-          public DimensionSchema apply(String input)
-          {
-            return new StringDimensionSchema(input);
-          }
-        }
-    );
+    return GuavaUtils.transform(dimensions, input -> new StringDimensionSchema(input));
   }
 
   public static DimensionSchema convertSpatialSchema(SpatialDimensionSchema spatialSchema)
@@ -141,15 +129,7 @@ public class DimensionsSpec
 
     Iterable<SpatialDimensionSchema> transformedList = Iterables.transform(
         filteredList,
-        new Function<NewSpatialDimensionSchema, SpatialDimensionSchema>()
-        {
-          @Nullable
-          @Override
-          public SpatialDimensionSchema apply(NewSpatialDimensionSchema input)
-          {
-            return new SpatialDimensionSchema(input.getName(), input.getDims());
-          }
-        }
+        input -> new SpatialDimensionSchema(input.getName(), input.getDims())
     );
 
     return Lists.newArrayList(transformedList);
@@ -159,33 +139,13 @@ public class DimensionsSpec
   @JsonIgnore
   public List<String> getDimensionNames()
   {
-    return Lists.transform(
-        dimensions,
-        new Function<DimensionSchema, String>()
-        {
-          @Override
-          public String apply(DimensionSchema input)
-          {
-            return input.getName();
-          }
-        }
-    );
+    return GuavaUtils.transform(dimensions, DimensionSchema::getName);
   }
 
   @JsonIgnore
   public List<String> getDimensionNameTypes()
   {
-    return Lists.transform(
-        dimensions,
-        new Function<DimensionSchema, String>()
-        {
-          @Override
-          public String apply(DimensionSchema input)
-          {
-            return input.getName() + ":" + input.getTypeName();
-          }
-        }
-    );
+    return GuavaUtils.transform(dimensions, input -> input.getName() + ":" + input.getTypeName());
   }
 
   public DimensionSchema getSchema(String dimension)
@@ -222,24 +182,14 @@ public class DimensionsSpec
   {
     List<String> dimNames = getDimensionNames();
     Preconditions.checkArgument(
-        Sets.intersection(this.dimensionExclusions, Sets.newHashSet(dimNames)).isEmpty(),
+        Sets.intersection(dimensionExclusions, Sets.newHashSet(dimNames)).isEmpty(),
         "dimensions and dimensions exclusions cannot overlap"
     );
 
     ParserUtils.validateFields(dimNames);
     ParserUtils.validateFields(dimensionExclusions);
 
-    List<String> spatialDimNames = Lists.transform(
-        spatialDimensions,
-        new Function<SpatialDimensionSchema, String>()
-        {
-          @Override
-          public String apply(SpatialDimensionSchema input)
-          {
-            return input.getDimName();
-          }
-        }
-    );
+    Iterable<String> spatialDimNames = Iterables.transform(spatialDimensions, SpatialDimensionSchema::getDimName);
 
     // Don't allow duplicates between main list and deprecated spatial list
     ParserUtils.validateFields(Iterables.concat(dimNames, spatialDimNames));

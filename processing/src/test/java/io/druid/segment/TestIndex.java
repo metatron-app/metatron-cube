@@ -117,6 +117,8 @@ public class TestIndex
   private static IncrementalIndex noRollupRealtimeIndex = null;
   private static QueryableIndex mmappedIndex = null;
   private static QueryableIndex noRollupMmappedIndex = null;
+  private static QueryableIndex topIndex = null;
+  private static QueryableIndex bottomIndex = null;
   private static QueryableIndex mergedRealtime = null;
 
   public static TestQuerySegmentWalker segmentWalker = TestHelper.newWalker();
@@ -142,20 +144,24 @@ public class TestIndex
   };
 
   static {
-    getMMappedTestIndex();
-    getNoRollupMMappedTestIndex();
+    segmentWalker.add(SEGMENT.withDataSource("realtime"), getIncrementalTestIndex());
+    segmentWalker.add(SEGMENT.withDataSource("realtime_norollup"), getNoRollupIncrementalTestIndex());
+    segmentWalker.add(SEGMENT.withDataSource("mmapped"), getMMappedTestIndex());
+    segmentWalker.add(SEGMENT.withDataSource("mmapped_norollup"), getNoRollupMMappedTestIndex());
     mergedRealtimeIndex();
-    addSalesIndex();
-    addCategoryAliasIndex();
-    addTpch();
-    addSsb();
+    segmentWalker.add(SEGMENT.withDataSource("mmapped-split").withInterval(INTERVAL_TOP), topIndex);
+    segmentWalker.add(SEGMENT.withDataSource("mmapped-split").withInterval(INTERVAL_BOTTOM), bottomIndex);
+    segmentWalker.add(SEGMENT.withDataSource("mmapped_merged"), mergedRealtime);
+    segmentWalker.addSalesIndex()
+                 .addCategoryAliasIndex()
+                 .addTpchIndex()
+                 .addSsbIndex();
   }
 
   public static synchronized IncrementalIndex getIncrementalTestIndex()
   {
     if (realtimeIndex == null) {
       realtimeIndex = makeRealtimeIndex("druid.sample.tsv", true);
-      segmentWalker.add(SEGMENT.withDataSource("realtime"), realtimeIndex);
     }
     return realtimeIndex;
   }
@@ -164,7 +170,6 @@ public class TestIndex
   {
     if (noRollupRealtimeIndex == null) {
       noRollupRealtimeIndex = makeRealtimeIndex("druid.sample.tsv", false);
-      segmentWalker.add(SEGMENT.withDataSource("realtime_norollup"), noRollupRealtimeIndex);
     }
     return noRollupRealtimeIndex;
   }
@@ -172,9 +177,7 @@ public class TestIndex
   public static synchronized QueryableIndex getMMappedTestIndex()
   {
     if (mmappedIndex == null) {
-      IncrementalIndex incrementalIndex = getIncrementalTestIndex();
-      mmappedIndex = TestHelper.persistRealtimeAndLoadMMapped(incrementalIndex, indexSpec);
-      segmentWalker.add(SEGMENT.withDataSource("mmapped"), mmappedIndex);
+      mmappedIndex = TestHelper.persistRealtimeAndLoadMMapped(getIncrementalTestIndex(), indexSpec);
     }
     return mmappedIndex;
   }
@@ -182,42 +185,20 @@ public class TestIndex
   public static synchronized QueryableIndex getNoRollupMMappedTestIndex()
   {
     if (noRollupMmappedIndex == null) {
-      IncrementalIndex incrementalIndex = getNoRollupIncrementalTestIndex();
-      noRollupMmappedIndex = TestHelper.persistRealtimeAndLoadMMapped(incrementalIndex, indexSpec);
-      segmentWalker.add(SEGMENT.withDataSource("mmapped_norollup"), noRollupMmappedIndex);
+      noRollupMmappedIndex = TestHelper.persistRealtimeAndLoadMMapped(getNoRollupIncrementalTestIndex(), indexSpec);
     }
     return noRollupMmappedIndex;
   }
 
-  private static void addSalesIndex()
+  public static TestQuerySegmentWalker addBasicTestIndex(TestQuerySegmentWalker segmentWalker)
   {
-    segmentWalker.addIndex("sales", "sales_schema.json", "sales.tsv", true);
-  }
-
-  private static void addCategoryAliasIndex()
-  {
-    segmentWalker.addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
-  }
-
-  private static void addTpch()
-  {
-    segmentWalker.addIndex("lineitem", "lineitem_schema.json", "lineitem.tbl", true);
-    segmentWalker.addIndex("orders", "orders_schema.json", "orders.tbl", true);
-    segmentWalker.addIndex("customer", "customer_schema.json", "customer.tbl", true);
-    segmentWalker.addIndex("nation", "nation_schema.json", "nation.tbl", true);
-    segmentWalker.addIndex("part", "part_schema.json", "part.tbl", true);
-    segmentWalker.addIndex("partsupp", "partsupp_schema.json", "partsupp.tbl", true);
-    segmentWalker.addIndex("region", "region_schema.json", "region.tbl", true);
-    segmentWalker.addIndex("supplier", "supplier_schema.json", "supplier.tbl", true);
-  }
-
-  private static void addSsb()
-  {
-    segmentWalker.addIndex("ssb_lineorder", "ssb_lineorder_schema.json", "ssb_lineorder.tbl", true);
-    segmentWalker.addIndex("ssb_part", "ssb_part_schema.json", "ssb_part.tbl", true);
-    segmentWalker.addIndex("ssb_customer", "ssb_customer_schema.json", "ssb_customer.tbl", true);
-    segmentWalker.addIndex("ssb_date", "ssb_date_schema.json", "ssb_date.tbl", true);
-    segmentWalker.addIndex("ssb_supplier", "ssb_supplier_schema.json", "ssb_supplier.tbl", true);
+    return segmentWalker.add(SEGMENT.withDataSource("mmapped"), mmappedIndex)
+                        .add(SEGMENT.withDataSource("mmapped_norollup"), noRollupMmappedIndex)
+                        .add(SEGMENT.withDataSource("realtime"), realtimeIndex)
+                        .add(SEGMENT.withDataSource("realtime_norollup"), noRollupRealtimeIndex)
+                        .add(SEGMENT.withDataSource("mmapped-split").withInterval(INTERVAL_TOP), topIndex)
+                        .add(SEGMENT.withDataSource("mmapped-split").withInterval(INTERVAL_BOTTOM), bottomIndex)
+                        .add(SEGMENT.withDataSource("mmapped_merged"), mergedRealtime);
   }
 
   public static synchronized QueryableIndex mergedRealtimeIndex()
@@ -241,24 +222,9 @@ public class TestIndex
         mergedFile.mkdirs();
         mergedFile.deleteOnExit();
 
-        INDEX_MERGER.persist(top, INTERVAL_TOP, topFile, indexSpec);
-        INDEX_MERGER.persist(bottom, INTERVAL_BOTTOM, bottomFile, indexSpec);
-
-        QueryableIndex topIndex = INDEX_IO.loadIndex(topFile);
-        QueryableIndex bottomIndex = INDEX_IO.loadIndex(bottomFile);
-        segmentWalker.add(SEGMENT.withDataSource("mmapped-split").withInterval(INTERVAL_TOP), topIndex);
-        segmentWalker.add(SEGMENT.withDataSource("mmapped-split").withInterval(INTERVAL_BOTTOM), bottomIndex);
-
-        mergedRealtime = INDEX_IO.loadIndex(
-            INDEX_MERGER.mergeQueryableIndex(
-                Arrays.asList(topIndex, bottomIndex),
-                true,
-                METRIC_AGGS,
-                mergedFile,
-                indexSpec
-            )
-        );
-        segmentWalker.add(SEGMENT.withDataSource("mmapped_merged"), mergedRealtime);
+        topIndex = INDEX_IO.loadIndex(INDEX_MERGER.persist(top, INTERVAL_TOP, topFile, indexSpec));
+        bottomIndex = INDEX_IO.loadIndex(INDEX_MERGER.persist(bottom, INTERVAL_BOTTOM, bottomFile, indexSpec));
+        mergedRealtime = INDEX_IO.loadIndex(INDEX_MERGER.mergeQueryableIndex(Arrays.asList(topIndex, bottomIndex), true, METRIC_AGGS, mergedFile, indexSpec));
       }
       catch (IOException e) {
         throw Throwables.propagate(e);
@@ -274,7 +240,12 @@ public class TestIndex
 
   public static CharSource asCharSource(String resourceFilename)
   {
-    final URL resource = TestIndex.class.getClassLoader().getResource(resourceFilename);
+    return asCharSource(TestIndex.class.getClassLoader(), resourceFilename);
+  }
+
+  public static CharSource asCharSource(ClassLoader loader, String resourceFilename)
+  {
+    final URL resource = loader.getResource(resourceFilename);
     if (resource == null) {
       throw new IllegalArgumentException("cannot find resource " + resourceFilename);
     }

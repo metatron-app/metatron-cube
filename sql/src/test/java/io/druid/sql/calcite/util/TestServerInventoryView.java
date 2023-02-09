@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.util;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
 import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.TimelineServerView;
@@ -28,56 +27,39 @@ import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.server.coordination.DruidServerMetadata;
-import io.druid.timeline.DataSegment;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker.PopulatingMap;
 import io.druid.timeline.TimelineLookup;
 
-import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Executor;
 
 public class TestServerInventoryView implements TimelineServerView
 {
-  private static final DruidServerMetadata DUMMY_SERVER = new DruidServerMetadata(
-      "dummy",
-      "dummy",
-      0,
-      "historical",
-      "dummy",
-      0
-  );
-  private final Set<String> dataSources;
-  private final List<DataSegment> segments;
+  private final PopulatingMap timelines;
 
-  public TestServerInventoryView(List<DataSegment> segments)
+  public TestServerInventoryView(PopulatingMap timelines)
   {
-    this.segments = ImmutableList.copyOf(segments);
-    this.dataSources = Sets.newHashSet();
-    for (DataSegment segment : segments) {
-      dataSources.add(segment.getDataSource());
-    }
+    this.timelines = timelines;
   }
 
   @Override
   public Iterable<String> getDataSources()
   {
-    return ImmutableList.copyOf(dataSources);
+    return ImmutableList.copyOf(timelines.getDataSource());
   }
 
   @Override
   public TimelineLookup<ServerSelector> getTimeline(String dataSource)
   {
-    return dataSources.contains(dataSource) ? new TimelineLookup.NotSupport<>() : null;
+    return timelines.getDataSource().contains(dataSource) ? new TimelineLookup.NotSupport<>() : null;
   }
 
   @Override
   public Iterable<ServerSelector> getSelectors(String dataSource)
   {
-    return ImmutableList.of();
+    throw new UnsupportedOperationException();
   }
 
-  @Nullable
   @Override
   public List<ImmutableDruidServer> getDruidServers()
   {
@@ -85,39 +67,21 @@ public class TestServerInventoryView implements TimelineServerView
   }
 
   @Override
-  public void registerServerCallback(Executor exec, ServerCallback callback)
-  {
-  }
+  public void registerServerCallback(Executor exec, ServerCallback callback) {}
 
   @Override
-  public void registerSegmentCallback(Executor exec, final SegmentCallback callback)
-  {
-    for (final DataSegment segment : segments) {
-      exec.execute(() -> callback.segmentAdded(DUMMY_SERVER, segment));
-    }
-
-    exec.execute(callback::segmentViewInitialized);
-  }
+  public void registerSegmentCallback(Executor exec, final SegmentCallback callback) {}
 
   @Override
-  public void removeSegmentCallback(SegmentCallback callback)
-  {
-  }
+  public void removeSegmentCallback(SegmentCallback callback) {}
 
   @Override
-  public void registerTimelineCallback(final Executor exec, final TimelineCallback callback)
-  {
-    for (DataSegment segment : segments) {
-      exec.execute(() -> callback.segmentAdded(DUMMY_SERVER, segment));
-    }
-
-    exec.execute(callback::timelineInitialized);
-  }
+  public void registerTimelineCallback(final Executor exec, final TimelineCallback callback) {}
 
   @Override
   public List<QueryableDruidServer> getServers()
   {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override

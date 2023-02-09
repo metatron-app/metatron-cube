@@ -32,7 +32,7 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
-import io.druid.common.guava.Sequence;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.EscalatedClient;
@@ -90,8 +90,6 @@ import org.joda.time.Interval;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -167,13 +165,13 @@ public class BrokerServerView implements TimelineServerView
           Pair<DruidServerMetadata, DataSegment> input
       )
       {
-        if (segmentWatcherConfig.getWatchedTiers() != null
-            && !segmentWatcherConfig.getWatchedTiers().contains(input.lhs.getTier())) {
+        if (segmentWatcherConfig.getWatchedTiers() != null &&
+            !segmentWatcherConfig.getWatchedTiers().contains(input.lhs.getTier())) {
           return false;
         }
 
-        if (segmentWatcherConfig.getWatchedDataSources() != null
-            && !segmentWatcherConfig.getWatchedDataSources().contains(input.rhs.getDataSource())) {
+        if (segmentWatcherConfig.getWatchedDataSources() != null &&
+            !segmentWatcherConfig.getWatchedDataSources().contains(input.rhs.getDataSource())) {
           return false;
         }
 
@@ -203,16 +201,7 @@ public class BrokerServerView implements TimelineServerView
           public CallbackAction segmentViewInitialized()
           {
             initialized = true;
-            executeCallbacks(
-                new Function<TimelineCallback, CallbackAction>()
-                {
-                  @Override
-                  public CallbackAction apply(TimelineCallback timelineCallback)
-                  {
-                    return timelineCallback.timelineInitialized();
-                  }
-                }
-            );
+            executeCallbacks(TimelineCallback::timelineInitialized);
             return ServerView.CallbackAction.CONTINUE;
           }
         },
@@ -308,16 +297,9 @@ public class BrokerServerView implements TimelineServerView
 
     selector.addServerAndUpdateSegment(druidServer, segment);
 
-    executeCallbacks(
-        new Function<TimelineCallback, CallbackAction>()
-        {
-          @Override
-          public CallbackAction apply(TimelineCallback input)
-          {
-            return input.segmentAdded(server.getMetadata(), segment);
-          }
-        }
-    );
+    if (!timelineCallbacks.isEmpty()) {
+      executeCallbacks(callback -> callback.segmentAdded(server.getMetadata(), segment));
+    }
     return druidServer;
   }
 
@@ -405,9 +387,9 @@ public class BrokerServerView implements TimelineServerView
   {
     final String segmentId = segment.getIdentifier();
 
-    synchronized (lock) {
-      log.debug("Removing segment[%s] from server[%s].", segmentId, server);
+    log.debug("Removing segment[%s] from server[%s].", segmentId, server);
 
+    synchronized (lock) {
       final ServerSelector selector = selectors.get(segmentId);
       if (selector == null) {
         log.warn("Told to remove non-existant segment[%s]", segmentId);
@@ -437,17 +419,8 @@ public class BrokerServerView implements TimelineServerView
               segment.getInterval(),
               segment.getVersion()
           );
-        } else {
-          executeCallbacks(
-              new Function<TimelineCallback, CallbackAction>()
-              {
-                @Override
-                public CallbackAction apply(TimelineCallback callback)
-                {
-                  return callback.segmentRemoved(server, segment);
-                }
-              }
-          );
+        } else if (!timelineCallbacks.isEmpty()) {
+          executeCallbacks(callback -> callback.segmentRemoved(server, segment));
         }
         if (timeline.isEmpty()) {
           timelines.remove(segment.getDataSource());
@@ -498,10 +471,7 @@ public class BrokerServerView implements TimelineServerView
   @Override
   public <T> QueryRunner<T> getQueryRunner(Query<T> query, final DruidServer server)
   {
-    final QueryableDruidServer queryableServer;
-    synchronized (lock) {
-      queryableServer = clients.get(server.getName());
-    }
+    final QueryableDruidServer queryableServer = clients.get(server.getName());
     if (queryableServer != null && queryableServer.getClient() != null) {
       return queryableServer.asRemoteRunner();  // remote queryable nodes
     }
@@ -513,17 +483,12 @@ public class BrokerServerView implements TimelineServerView
       final JavaType reference = toolchest.getResultTypeReference(query, smileMapper.getTypeFactory());
       final String prefix = ServiceTypes.TYPE_TO_RESOURCE.getOrDefault(server.getType(), server.getType());
       final String resource = String.format("druid/%s/v1/%s", prefix, query.getType());
-      return new QueryRunner<T>()
-      {
-        @Override
-        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-        {
-          try {
-            return Sequences.simple(Arrays.asList(execute(server, resource, reference)));
-          }
-          catch (Exception e) {
-            return Sequences.empty();
-          }
+      return (q, r) -> {
+        try {
+          return Sequences.of(execute(server, resource, reference));
+        }
+        catch (Exception e) {
+          return Sequences.empty();
         }
       };
     }
@@ -576,27 +541,16 @@ public class BrokerServerView implements TimelineServerView
       return NoopQueryRunner.instance();
     }
 
-    final List<Pair<SegmentDescriptor, LocalSegment>> segments = Lists.newArrayList(
-        Iterables.transform(
-            specs, new Function<SegmentDescriptor, Pair<SegmentDescriptor, LocalSegment>>()
-            {
-              @Override
-              public Pair<SegmentDescriptor, LocalSegment> apply(SegmentDescriptor input)
-              {
-                PartitionHolder<LocalSegment> entry = timeline.findEntry(
-                    input.getInterval(), input.getVersion()
-                );
-                if (entry != null) {
-                  PartitionChunk<LocalSegment> chunk = entry.getChunk(input.getPartitionNumber());
-                  if (chunk != null) {
-                    return Pair.of(input, chunk.getObject());
-                  }
-                }
-                return Pair.of(input, null);
-              }
-            }
-        )
-    );
+    final List<Pair<SegmentDescriptor, LocalSegment>> segments = GuavaUtils.transform(specs, input -> {
+      PartitionHolder<LocalSegment> entry = timeline.findEntry(input.getInterval(), input.getVersion());
+      if (entry != null) {
+        PartitionChunk<LocalSegment> chunk = entry.getChunk(input.getPartitionNumber());
+        if (chunk != null) {
+          return Pair.of(input, chunk.getObject());
+        }
+      }
+      return Pair.of(input, null);
+    });
 
     final List<Segment> targets = Lists.newArrayList();
     for (Pair<SegmentDescriptor, LocalSegment> segment : segments) {
@@ -616,26 +570,12 @@ public class BrokerServerView implements TimelineServerView
     final Supplier<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
     final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<>(toolChest, emitter);
 
-    final Iterable<QueryRunner<T>> queryRunners = Iterables.transform(
-        segments,
-        new Function<Pair<SegmentDescriptor, LocalSegment>, QueryRunner<T>>()
-        {
-          @Override
-          public QueryRunner<T> apply(Pair<SegmentDescriptor, LocalSegment> input)
-          {
-            if (input.rhs == null) {
-              return new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs);
-            }
-            return buildAndDecorateQueryRunner(
-                factory,
-                input.rhs,
-                input.lhs,
-                optimizer,
-                reporter
-            );
-          }
-        }
-    );
+    final Iterable<QueryRunner<T>> queryRunners = Iterables.transform(segments, input -> {
+      if (input.rhs == null) {
+        return new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs);
+      }
+      return buildAndDecorateQueryRunner(factory, input.rhs, input.lhs, optimizer, reporter);
+    });
 
     return QueryRunners.runWith(
         resolved,
@@ -711,14 +651,9 @@ public class BrokerServerView implements TimelineServerView
   {
     for (final Map.Entry<TimelineCallback, Executor> entry : timelineCallbacks.entrySet()) {
       entry.getValue().execute(
-          new Runnable()
-          {
-            @Override
-            public void run()
-            {
-              if (CallbackAction.UNREGISTER == function.apply(entry.getKey())) {
-                timelineCallbacks.remove(entry.getKey());
-              }
+          () -> {
+            if (function.apply(entry.getKey()) == CallbackAction.UNREGISTER) {
+              timelineCallbacks.remove(entry.getKey());
             }
           }
       );
@@ -728,11 +663,8 @@ public class BrokerServerView implements TimelineServerView
   @Override
   public List<ImmutableDruidServer> getDruidServers()
   {
-    List<ImmutableDruidServer> servers = new ArrayList<>();
-    List<QueryableDruidServer> queryableDruidServers = new ArrayList<>(clients.values());
-    for (QueryableDruidServer queryableDruidServer: queryableDruidServers) {
-      servers.add(queryableDruidServer.getServer().toImmutableDruidServer());
-    }
-    return servers;
+    return ImmutableList.copyOf(
+        Iterables.transform(getServers(), s -> s.getServer().toImmutableDruidServer())
+    );
   }
 }

@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.segment.TestIndex;
+import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 
 public class SsbTestHelper extends CalciteQueryTestHelper
@@ -28,7 +28,7 @@ public class SsbTestHelper extends CalciteQueryTestHelper
   protected static final TestQuerySegmentWalker walker;
 
   static {
-    walker = TestIndex.segmentWalker.duplicate().withQueryHook(hook);
+    walker = TestHelper.newWalker().addSsbIndex().withQueryHook(hook);
     walker.populate("ssb_lineorder"); // 30208
     walker.populate("ssb_part");      // 1000
     walker.populate("ssb_customer");  // 150

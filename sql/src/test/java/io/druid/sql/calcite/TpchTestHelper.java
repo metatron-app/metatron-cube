@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.segment.TestIndex;
+import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 
 public class TpchTestHelper extends CalciteQueryTestHelper
@@ -28,7 +28,7 @@ public class TpchTestHelper extends CalciteQueryTestHelper
   protected static final TestQuerySegmentWalker walker;
 
   static {
-    walker = TestIndex.segmentWalker.duplicate().withQueryHook(hook);
+    walker = TestHelper.newWalker().addTpchIndex().withQueryHook(hook);
     walker.populate("lineitem");  // 30201
     walker.populate("orders");    // 7500
     walker.populate("partsupp");  // 4000

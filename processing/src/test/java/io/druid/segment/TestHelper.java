@@ -309,9 +309,8 @@ public class TestHelper
   public static final TestQuerySegmentWalker profileWalker = newWalker();
 
   static {
-    salesWalker.addIndex("sales", "sales_schema.json", "sales.tsv", true);
-    salesWalker.addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
-    profileWalker.addIndex("profile", "profile_schema.json", "profile.csv", true);
+    salesWalker.addSalesIndex().addCategoryAliasIndex();
+    profileWalker.addProfileIndex();
   }
 
   public static TestQuerySegmentWalker newWalker()

@@ -190,7 +190,7 @@ public class SystemSchemaTest extends CalciteTestBase
 
     druidSchema = new DruidSchema(
         walker,
-        new TestServerInventoryView(walker.getSegments()),
+        new TestServerInventoryView(walker.getTimeLines()),
         new NoopViewManager(),
         ImmutableMap.of()
     );

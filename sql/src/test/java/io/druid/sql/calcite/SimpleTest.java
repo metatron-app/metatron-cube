@@ -42,12 +42,7 @@ public class SimpleTest extends CalciteQueryTestHelper
   @BeforeClass
   public static void setUp() throws Exception
   {
-    walker.addIndex("cdis", "cdis_schema.json", "cdis.tbl", true);
-    walker.addIndex("cdis_i", "cdis_schema.json", "cdis.tbl", false);
-    walker.addIndex("part_i", "part_schema.json", "part.tbl", false);
-    walker.populate("cdis");
-    walker.populate("cdis_i");
-    walker.populate("part_i");
+    walker.addCdisIndex().addIndex("part_i", "part_schema.json", "part.tbl", false);
   }
 
   @Override

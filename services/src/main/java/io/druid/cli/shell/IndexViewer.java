@@ -94,6 +94,7 @@ public class IndexViewer extends CommonShell.WithUtils
   private static final Logger LOG = new Logger(DruidShell.class);
 
   private static final String DEFAULT_PROMPT = "> ";
+  private static final String SQL_PROMPT = "sql> ";
   private static final DateTimeZone DEFAULT_TIMEZONE = DateTimeZone.UTC;
 
   private final IndexIO indexIO;
@@ -249,7 +250,7 @@ public class IndexViewer extends CommonShell.WithUtils
         break;
       }
       if (line.equalsIgnoreCase("help")) {
-        writer.println(Arrays.asList(";", "?", "<datasource>", "<segment-id>"));
+        writer.println(Arrays.asList(";", "?", "<datasource>", "<segment-id>", "<segment> location"));
         continue;
       }
       String[] commands = line.split(" ");

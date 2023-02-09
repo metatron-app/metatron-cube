@@ -368,39 +368,19 @@ public class CalciteTests
                                                       .rows(FORBIDDEN_ROWS)
                                                       .buildMMappedIndex();
 
-    return TestIndex.segmentWalker.duplicate().add(
-        DataSegment.builder()
-                   .dataSource(DATASOURCE1)
-                   .interval(index1.getInterval())
-                   .version("1")
-                   .shardSpec(new LinearShardSpec(0))
-                   .build(),
-        index1
-    ).add(
-        DataSegment.builder()
-                   .dataSource(DATASOURCE2)
-                   .interval(index2.getInterval())
-                   .version("1")
-                   .shardSpec(new LinearShardSpec(0))
-                   .build(),
-        index2
-    ).add(
-        DataSegment.builder()
-                   .dataSource(DATASOURCE3)
-                   .interval(index3.getInterval())
-                   .version("1")
-                   .shardSpec(new LinearShardSpec(0))
-                   .build(),
-        index3
-    ).add(
-        DataSegment.builder()
-                   .dataSource(FORBIDDEN_DATASOURCE)
-                   .interval(forbiddenIndex.getInterval())
-                   .version("1")
-                   .shardSpec(new LinearShardSpec(0))
-                   .build(),
-        forbiddenIndex
-    );
+    DataSegment ds = DataSegment.builder()
+                                .dataSource("dummy")
+                                .interval(index1.getInterval())
+                                .version("1")
+                                .shardSpec(new LinearShardSpec(0))
+                                .build();
+
+    return TestIndex.addBasicTestIndex(TestHelper.newWalker())
+                    .addSalesIndex()
+                    .add(ds.withDataSource(DATASOURCE1).withInterval(index1.getInterval()), index1)
+                    .add(ds.withDataSource(DATASOURCE2).withInterval(index2.getInterval()), index2)
+                    .add(ds.withDataSource(DATASOURCE3).withInterval(index3.getInterval()), index3)
+                    .add(ds.withDataSource(FORBIDDEN_DATASOURCE).withInterval(forbiddenIndex.getInterval()), forbiddenIndex);
   }
 
   public static DruidOperatorTable createOperatorTable()
@@ -437,7 +417,7 @@ public class CalciteTests
   {
     final DruidSchema schema = new DruidSchema(
         walker,
-        new TestServerInventoryView(walker.getSegments()),
+        new TestServerInventoryView(walker.getTimeLines()),
         viewManager,
         ImmutableMap.of()
     );
@@ -445,9 +425,9 @@ public class CalciteTests
     return schema;
   }
 
-  public static InputRow createRow(final ImmutableMap<String, ?> map)
+  public static InputRow createRow(final ImmutableMap<String, Object> map)
   {
-    return PARSER.parse((Map<String, Object>) map);
+    return PARSER.parse(map);
   }
 
   public static InputRow createRow(final Object t, final String dim1, final String dim2, final double m1)
@@ -482,7 +462,7 @@ public class CalciteTests
         new ServerDiscoverySelector(EasyMock.createMock(ServiceProvider.class))
     );
     final SystemSchema schema = new SystemSchema(
-        new TestServerInventoryView(walker.getSegments()),
+        new TestServerInventoryView(walker.getTimeLines()),
         coordinatorClient,
         indexingServiceClient,
         createOperatorTable(),

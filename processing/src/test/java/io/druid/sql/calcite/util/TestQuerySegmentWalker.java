@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -32,9 +31,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.CharSource;
 import com.google.common.io.CharStreams;
-import com.google.common.io.Resources;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -87,6 +86,7 @@ import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import io.druid.segment.TestLoadSpec;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
@@ -95,12 +95,14 @@ import io.druid.server.ForwardHandler;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
+import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URL;
@@ -108,9 +110,12 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PrimitiveIterator;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 /**
  */
@@ -129,7 +134,49 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   private final Consumer<Query<?>> hook;
 
-  public synchronized void addIndex(
+  public TestQuerySegmentWalker addSalesIndex()
+  {
+    return addIndex("sales", "sales_schema.json", "sales.tsv", true);
+  }
+
+  public TestQuerySegmentWalker addCategoryAliasIndex()
+  {
+    return addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
+  }
+
+  public TestQuerySegmentWalker addProfileIndex()
+  {
+    return addIndex("profile", "profile_schema.json", "profile.csv", true);
+  }
+
+  public TestQuerySegmentWalker addCdisIndex()
+  {
+    return addIndex("cdis", "cdis_schema.json", "cdis.tbl", true)
+        .addIndex("cdis_i", "cdis_schema.json", "cdis.tbl", false);
+  }
+
+  public TestQuerySegmentWalker addTpchIndex()
+  {
+    return addIndex("lineitem", "lineitem_schema.json", "lineitem.tbl", true)
+        .addIndex("orders", "orders_schema.json", "orders.tbl", true)
+        .addIndex("customer", "customer_schema.json", "customer.tbl", true)
+        .addIndex("nation", "nation_schema.json", "nation.tbl", true)
+        .addIndex("part", "part_schema.json", "part.tbl", true)
+        .addIndex("partsupp", "partsupp_schema.json", "partsupp.tbl", true)
+        .addIndex("region", "region_schema.json", "region.tbl", true)
+        .addIndex("supplier", "supplier_schema.json", "supplier.tbl", true);
+  }
+
+  public TestQuerySegmentWalker addSsbIndex()
+  {
+    return addIndex("ssb_lineorder", "ssb_lineorder_schema.json", "ssb_lineorder.tbl", true)
+        .addIndex("ssb_part", "ssb_part_schema.json", "ssb_part.tbl", true)
+        .addIndex("ssb_customer", "ssb_customer_schema.json", "ssb_customer.tbl", true)
+        .addIndex("ssb_date", "ssb_date_schema.json", "ssb_date.tbl", true)
+        .addIndex("ssb_supplier", "ssb_supplier_schema.json", "ssb_supplier.tbl", true);
+  }
+
+  public synchronized TestQuerySegmentWalker addIndex(
       final String ds,
       final String schemaFile,
       final String sourceFile,
@@ -137,7 +184,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   )
   {
     TestLoadSpec schema = loadJson(schemaFile, TestLoadSpec.class, mapper);
-    load(ds, schema, () -> asCharSource(sourceFile), mmapped);
+    return load(ds, schema, () -> asCharSource(sourceFile), mmapped);
   }
 
   public synchronized void addIndex(
@@ -181,7 +228,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     load(ds, schema, () -> CharSource.wrap(source), true);
   }
 
-  private void load(
+  private TestQuerySegmentWalker load(
       final String ds,
       final TestLoadSpec schema,
       final Supplier<CharSource> source,
@@ -190,15 +237,15 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   {
     addPopulator(
         ds,
-        new Supplier<List<Pair<DataSegment, Segment>>>()
+        new Supplier<List<Segment>>()
         {
           @Override
-          public List<Pair<DataSegment, Segment>> get()
+          public List<Segment> get()
           {
             final Granularity granularity = schema.getSegmentGran();
             final InputRowParser parser = schema.getParser(mapper, false);
 
-            final List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
+            final List<Segment> segments = Lists.newArrayList();
             final CharSource charSource = source.get();
             try (Reader reader = charSource.openStream()) {
               final Iterator<InputRow> rows = readRows(reader, parser);
@@ -222,7 +269,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                 Segment segment = mmapped ? new QueryableIndexSegment(
                     TestHelper.persistRealtimeAndLoadMMapped(index, schema.getIndexingSpec(), indexIO), segmentSpec) :
                                   new IncrementalIndexSegment(index, segmentSpec);
-                segments.add(Pair.of(segmentSpec, segment));
+                segments.add(segment);
               }
             }
             catch (Exception e) {
@@ -232,6 +279,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
           }
         }
     );
+    return this;
   }
 
   private static <T> T loadJson(String resource, Class<T> reference, ObjectMapper mapper)
@@ -244,14 +292,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     }
   }
 
-  public static CharSource asCharSource(String resourceFilename)
+  private static CharSource asCharSource(String resourceFilename)
   {
-    final URL resource = Thread.currentThread().getContextClassLoader().getResource(resourceFilename);
-    if (resource == null) {
-      throw new IllegalArgumentException("cannot find resource " + resourceFilename);
-    }
-    LOG.info("Loading from resource [%s]", resource);
-    return Resources.asByteSource(resource).asCharSource(Charsets.UTF_8);
+    return TestIndex.asCharSource(Thread.currentThread().getContextClassLoader(), resourceFilename);
   }
 
   @SuppressWarnings("unchecked")
@@ -276,6 +319,47 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     );
   }
 
+  public synchronized TestQuerySegmentWalker addIndex(String ds, String resourceHome, IntStream shards)
+  {
+    final URL resource = Thread.currentThread().getContextClassLoader().getResource(resourceHome);
+    if (resource == null) {
+      throw new IllegalArgumentException("cannot find resource " + resourceHome);
+    }
+    LOG.info("Loading from resource [%s]", resource);
+    addPopulator(ds,
+        () -> {
+          final IndexIO indexIO = TestHelper.getTestIndexIO();
+          final List<Segment> segments = Lists.newArrayList();
+          try {
+            File file = new File(resource.getPath());
+
+            PrimitiveIterator.OfInt iterator = shards.iterator();
+            while (iterator.hasNext()) {
+              int i = iterator.next();
+              QueryableIndex index = indexIO.loadIndex(new File(file, String.valueOf(i)));
+              DataSegment segment = new DataSegment(
+                  ds,
+                  index.getInterval(),
+                  "0",
+                  null,
+                  Lists.newArrayList(index.getAvailableDimensions()),
+                  Lists.newArrayList(index.getAvailableMetrics()),
+                  LinearShardSpec.of(i),
+                  null,
+                  index.getSerializedSize()
+              );
+              segments.add(new QueryableIndexSegment(index, segment));
+            }
+            return segments;
+          }
+          catch (Exception e) {
+            throw Throwables.propagate(e);
+          }
+        }
+    );
+    return this;
+  }
+
   @Override
   public StorageHandler getHandler(String scheme)
   {
@@ -293,12 +377,22 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     return handler;
   }
 
-  private static class PopulatingMap
+  public PopulatingMap getTimeLines()
+  {
+    return timeLines;
+  }
+
+  public static class PopulatingMap
   {
     private final List<DataSegment> segments = Lists.newArrayList();
     private final Map<String, VersionedIntervalTimeline<Segment>> node1 = Maps.newHashMap();
     private final Map<String, VersionedIntervalTimeline<Segment>> node2 = Maps.newHashMap();
-    private final Map<String, Supplier<List<Pair<DataSegment, Segment>>>> populators = Maps.newHashMap();
+    private final Map<String, Supplier<List<Segment>>> populators = Maps.newHashMap();
+
+    public Set<String> getDataSource()
+    {
+      return Sets.newHashSet(Iterables.concat(node1.keySet(), node2.keySet(), populators.keySet()));
+    }
 
     private void addSegment(DataSegment descriptor, Segment segment)
     {
@@ -310,7 +404,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
     public VersionedIntervalTimeline<Segment> get(String key, int node)
     {
-      Supplier<List<Pair<DataSegment, Segment>>> populator = populators.remove(key);
+      Supplier<List<Segment>> populator = populators.remove(key);
       if (populator == null) {
         return (node == 0 ? node1 : node2).computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
       }
@@ -318,9 +412,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return (node == 0 ? node1 : node2).get(key);
     }
 
-    public boolean populate(String key)
+    private boolean populate(String key)
     {
-      Supplier<List<Pair<DataSegment, Segment>>> populator = populators.remove(key);
+      Supplier<List<Segment>> populator = populators.remove(key);
       if (populator != null) {
         populate(key, populator);
         return true;
@@ -328,30 +422,30 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return false;
     }
 
-    private void populate(String key, Supplier<List<Pair<DataSegment, Segment>>> populator)
+    private void populate(String key, Supplier<List<Segment>> populator)
     {
       VersionedIntervalTimeline<Segment> timeline1 = node1.computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
       VersionedIntervalTimeline<Segment> timeline2 = node2.computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
-      for (Pair<DataSegment, Segment> pair : populator.get()) {
-        DataSegment descriptor = pair.lhs;
+      for (Segment segment : populator.get()) {
+        DataSegment descriptor = segment.getDescriptor();
         if (descriptor.getInterval().hashCode() % 2 == 0) {
           timeline1.add(
               descriptor.getInterval(),
               descriptor.getVersion(),
-              descriptor.getShardSpecWithDefault().createChunk(pair.rhs)
+              descriptor.getShardSpecWithDefault().createChunk(segment)
           );
         } else {
           timeline2.add(
               descriptor.getInterval(),
               descriptor.getVersion(),
-              descriptor.getShardSpecWithDefault().createChunk(pair.rhs)
+              descriptor.getShardSpecWithDefault().createChunk(segment)
           );
         }
         segments.add(descriptor);
       }
     }
 
-    public void addPopulator(String key, Supplier<List<Pair<DataSegment, Segment>>> populator)
+    public void addPopulator(String key, Supplier<List<Segment>> populator)
     {
       Preconditions.checkArgument(!populators.containsKey(key));
       populators.put(key, Suppliers.memoize(populator));
@@ -481,7 +575,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     return timeLines.populate(dataSource);
   }
 
-  public void addPopulator(String dataSource, Supplier<List<Pair<DataSegment, Segment>>> populator)
+  public void addPopulator(String dataSource, Supplier<List<Segment>> populator)
   {
     timeLines.addPopulator(dataSource, populator);
   }
