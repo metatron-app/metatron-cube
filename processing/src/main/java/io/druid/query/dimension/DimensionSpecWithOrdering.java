@@ -107,7 +107,7 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
     return "DimensionSpecWithOrdering{" +
            "dimensionSpec=" + delegate +
            ", direction=" + direction +
-           ", ordering='" + ordering + '\'' +
+           (ordering == null ? "" : ", ordering='" + ordering + '\'') +
            '}';
   }
 

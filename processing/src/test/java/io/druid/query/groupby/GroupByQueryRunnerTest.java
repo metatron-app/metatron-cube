@@ -4119,7 +4119,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                 ),
                 30
             )
-        );
+        )
+        .addContext(Query.GBY_USE_RAW_UTF8, false);
 
     String[] columnNames = {"__time", "dayOfWeek", "market", "rows", "index", "addRowsIndexConstant"};
     List<Row> results;
@@ -5633,7 +5634,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                 new ExpressionHavingSpec("!(dayOfWeek == 'Tuesday' && market == 'total_market')"),
                 new ExpressionHavingSpec("!(dayOfWeek == 'Wednesday' && quality == 'premium')")
             )
-        );
+        )
+        .addContext(Query.GBY_USE_RAW_UTF8, false);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -6041,7 +6043,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                 new ExpressionHavingSpec("!(dayOfWeek == 'Tuesday' && market == 'total_market')"),
                 new ExpressionHavingSpec("!(dayOfWeek == 'Wednesday' && quality == 'premium')")
             )
-        );
+        )
+        .addContext(Query.GBY_USE_RAW_UTF8, false);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -6129,7 +6132,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                 new ExpressionHavingSpec("!(dayOfWeek == 'Tuesday' && market == 'total_market')"),
                 new ExpressionHavingSpec("!(dayOfWeek == 'Wednesday' && quality == 'premium')")
             )
-        );
+        )
+        .addContext(Query.GBY_USE_RAW_UTF8, false);
 
     String[] columnNames = new String[]{
         "market", "quality", "dayOfWeek", "rows", "index", "addRowsIndexConstant"

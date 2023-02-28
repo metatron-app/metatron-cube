@@ -20,7 +20,7 @@
 package io.druid.query;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import org.joda.time.Interval;
 
@@ -56,7 +56,7 @@ public interface BySegmentResultValue<T>
 
   default BySegmentResultValue<T> withTransform(Function<T, T> function)
   {
-    return withResult(Lists.transform(getResults(), function));
+    return withResult(GuavaUtils.transform(getResults(), function));
   }
 
   default BySegmentResultValue<T> withResult(List<T> result)

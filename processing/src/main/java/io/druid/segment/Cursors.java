@@ -26,6 +26,9 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.select.TableFunctionSpec;
+import io.druid.segment.filter.FilterContext;
+
+import java.util.function.IntFunction;
 
 public class Cursors
 {
@@ -67,6 +70,18 @@ public class Cursors
     public Iterable<String> getColumnNames()
     {
       return delegated.getColumnNames();
+    }
+
+    @Override
+    public FilterContext getFilterContext()
+    {
+      return delegated.getFilterContext();
+    }
+
+    @Override
+    public IntFunction getAttachment(String name)
+    {
+      return delegated.getAttachment(name);
     }
 
     @Override

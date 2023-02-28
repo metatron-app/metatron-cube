@@ -80,6 +80,11 @@ public class TestSalesQuery extends TestHelper
     segmentWalker.getQueryConfig().getJoin().setBroadcastJoinThreshold(-1);
   }
 
+  private void validate(BaseAggregationQuery query, String[] columnNames, Object[]... expected)
+  {
+    validate(columnNames, createExpectedRows(columnNames, expected), runQuery(query));
+  }
+
   @SuppressWarnings("unchecked")
   private <T> List<T> runQuery(Query query)
   {
@@ -766,41 +771,48 @@ public class TestSalesQuery extends TestHelper
         .limitSpec(LimitSpec.of(5))
         .outputColumns("AVG(Sales)")
         .build();
-    String[] columnNames = {"__time", "AVG(Sales)"};
-    Object[][] objects = new Object[][]{
+
+    validate(
+        query,
+        array("__time", "AVG(Sales)"),
         array("2011-01-01", 150.0),
         array("2011-03-01", 288.6),
         array("2011-05-01", 226.6),
         array("2011-07-01", 209.0),
         array("2011-09-01", 265.2)
-    };
-    TestHelper.validate(columnNames, createExpectedRows(columnNames, objects), runQuery(query));
+    );
 
     query = query.withLimitSpec(LimitSpec.of(5, OrderByColumnSpec.asc("AVG(Sales)")));
-    TestHelper.validate(columnNames, createExpectedRows(columnNames, objects), runQuery(query));
+    validate(
+        query,
+        array("__time", "AVG(Sales)"),
+        array("2011-01-01", 150.0),
+        array("2011-03-01", 288.6),
+        array("2011-05-01", 226.6),
+        array("2011-07-01", 209.0),
+        array("2011-09-01", 265.2)
+    );
 
-    objects = new Object[][]{
+    query = query.withOverriddenContext("groupby.sort.on.time", false);
+    validate(
+        query,
+        array("__time", "AVG(Sales)"),
         array("2011-01-01", 150.0),
         array("2013-07-01", 189.2),
         array("2014-05-01", 190.1),
         array("2012-05-01", 193.4),
         array("2011-07-01", 209.0)
-    };
+    );
 
-    query = query.withOverriddenContext("groupby.sort.on.time", false);
-    TestHelper.validate(columnNames, createExpectedRows(columnNames, objects), runQuery(query));
-
-    objects = new Object[][]{
+    query = query.withLimitSpec(LimitSpec.of(5, OrderByColumnSpec.desc("__time")));
+    validate(
+        query,
+        array("__time", "AVG(Sales)"),
         array("2014-11-01", 219.5),
         array("2014-09-01", 220.0),
         array("2014-07-01", 247.7),
         array("2014-05-01", 190.1),
         array("2014-03-01", 221.3)
-    };
-    TestHelper.validate(
-        columnNames,
-        createExpectedRows(columnNames, objects),
-        runQuery(query.withLimitSpec(LimitSpec.of(5, OrderByColumnSpec.desc("__time"))))
     );
   }
 

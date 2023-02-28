@@ -610,7 +610,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   {
     if (getDataSource() instanceof TableDataSource &&
         GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
-        LimitSpecs.inGroupByOrdering(limitSpec.getColumns(), dimensions)) {
+        !dimensions.isEmpty() && LimitSpecs.inGroupByOrdering(limitSpec.getColumns(), dimensions)) {
       return withLimitSpec(LimitSpecs.of(limitSpec.getLimit()));
     }
     return this;

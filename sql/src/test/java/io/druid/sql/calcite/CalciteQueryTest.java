@@ -44,7 +44,6 @@ import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;

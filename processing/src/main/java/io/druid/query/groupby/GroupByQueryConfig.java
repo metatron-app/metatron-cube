@@ -59,10 +59,10 @@ public class GroupByQueryConfig
   private boolean useParallelSort = true;
 
   @JsonProperty
-  private boolean useRawUTF8 = false;
+  private boolean useRawUTF8 = true;
 
   @JsonProperty
-  private boolean useBulkRow = false;
+  private boolean useBulkRow = true;
 
   @JsonProperty
   private int localSplitNum = -1;

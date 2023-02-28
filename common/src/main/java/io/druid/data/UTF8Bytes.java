@@ -46,7 +46,7 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
 
   public static UTF8Bytes of(byte[] value, int offset, int length)
   {
-    return new UTF8Bytes(value, offset, length);
+    return length == 0 ? null : new UTF8Bytes(value, offset, length);
   }
 
   public static final Comparator<byte[]> COMPARATOR = UnsignedBytes.lexicographicalComparator();

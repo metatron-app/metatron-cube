@@ -430,13 +430,13 @@ public class AggregationTestHelper
         Sequence<Row> sequence = baseRunner.run(resolved, Maps.<String, Object>newHashMap());
         try {
           Yielder yielder = Yielders.each(sequence);
-          String resultStr = mapper.writer().writeValueAsString(yielder);
+          byte[] resultStr = mapper.writer().writeValueAsBytes(yielder);
 
           JavaType baseType = toolChest.getResultTypeReference(resolved, mapper.getTypeFactory());
 
           // in broker
           List resultRows = Lists.transform(
-              readQueryResultArrayFromString(resultStr, baseType),
+              readQueryResultArrayFromBytes(resultStr, baseType),
               toolChest.makePreComputeManipulatorFn(
                   query,
                   MetricManipulatorFns.deserializing()
@@ -450,14 +450,14 @@ public class AggregationTestHelper
     };
   }
 
-  private List readQueryResultArrayFromString(String str, JavaType baseType) throws Exception
+  private List readQueryResultArrayFromBytes(byte[] str, JavaType baseType) throws Exception
   {
     List result = new ArrayList();
 
     JsonParser jp = mapper.getFactory().createParser(str);
 
     if (jp.nextToken() != JsonToken.START_ARRAY) {
-      throw new IAE("not an array [%s]", str);
+      throw new IAE("not an array [%s]", new String(str));
     }
 
     ObjectCodec objectCodec = jp.getCodec();

@@ -66,7 +66,7 @@ public class StringUtils
   public static String toUTF8String(byte[] bytes, int offset, int length)
   {
     try {
-      return new String(bytes, offset, length, UTF8_STRING);
+      return length == 0 ? null : new String(bytes, offset, length, UTF8_STRING);
     }
     catch (UnsupportedEncodingException e) {
       // Should never happen

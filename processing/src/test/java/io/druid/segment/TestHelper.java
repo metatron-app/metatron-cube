@@ -38,12 +38,14 @@ import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.jackson.ObjectMappers;
+import io.druid.query.BySegmentResultValue;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DefaultQueryMetrics;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
@@ -123,6 +125,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -504,15 +507,20 @@ public class TestHelper
 
     int index = 0;
     while (resultsIter.hasNext() && expectedResultsIter.hasNext()) {
-      Object expectedNext = expectedResultsIter.next();
+      final Object expectedNext = expectedResultsIter.next();
       final Object next = resultsIter.next();
 
       String failMsg = msg + "-" + index++;
-      String failMsg2 = String.format("%s: Second iterator bad, multiple calls to iterator() should be safe", failMsg);
 
       if (expectedNext instanceof Row) {
         // HACK! Special casing for groupBy
         assertRow(failMsg, (Row) expectedNext, (Row) next);
+      } else if (expectedNext instanceof Result && ((Result) expectedNext).getValue() instanceof BySegmentResultValue) {
+        BySegmentResultValue ev = (BySegmentResultValue) ((Result) expectedNext).getValue();
+        BySegmentResultValue rv = (BySegmentResultValue) ((Result) next).getValue();
+        Assert.assertEquals(ev.getInterval(), rv.getInterval());
+        Assert.assertEquals(ev.getSegmentId(), rv.getSegmentId());
+        assertObjects(ev.getResults(), rv.getResults(), msg);
       } else {
         Assert.assertEquals(failMsg, expectedNext, next);
       }
@@ -563,6 +571,12 @@ public class TestHelper
             String.format("%s: key[%s]", msg, key),
             ((Number) ev).longValue(),
             ((Number) rv).longValue()
+        );
+      } else if (ev instanceof String && rv instanceof UTF8Bytes || ev instanceof UTF8Bytes && rv instanceof String) {
+        Assert.assertEquals(
+            String.format("%s: key[%s]", msg, key),
+            Objects.toString(ev, null),
+            Objects.toString(rv, null)
         );
       } else if (ev instanceof Double[]) {
         Assert.assertArrayEquals(
@@ -817,6 +831,8 @@ public class TestHelper
           Assert.assertEquals(((Number) ev).doubleValue(), ((Number) rv).doubleValue(), 0.0001);
         } else if (ev instanceof Long && rv instanceof Integer || ev instanceof Integer && rv instanceof Long) {
           Assert.assertEquals(((Number) ev).longValue(), ((Number) rv).longValue());
+        } else if (ev instanceof String && rv instanceof UTF8Bytes || ev instanceof UTF8Bytes && rv instanceof String) {
+          Assert.assertEquals(Objects.toString(ev, null), Objects.toString(rv, null));
         } else {
           Assert.assertEquals(i + " th " + columnName, ev, rv);
         }

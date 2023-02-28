@@ -35,10 +35,10 @@ public class SelectQueryConfig
   private int maxThreshold = 1000000;
 
   @JsonProperty
-  private boolean useBulkRow = false;
+  private boolean useBulkRow = true;
 
   @JsonProperty
-  private boolean useRawUTF8 = false;
+  private boolean useRawUTF8 = true;
 
   public boolean isUseDateTime()
   {

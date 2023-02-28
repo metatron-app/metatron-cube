@@ -47,11 +47,11 @@ public class TimestampMaxAggregationTest
   @Rule
   public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  private TimestampMaxAggregatorFactory aggregatorFactory;
+  private final TimestampMaxAggregatorFactory aggregatorFactory;
   private ColumnSelectorFactory selectorFactory;
   private TestObjectColumnSelector selector;
 
-  private Timestamp[] values = new Timestamp[10];
+  private final Timestamp[] values = new Timestamp[10];
 
   public TimestampMaxAggregationTest() throws Exception
   {
@@ -70,7 +70,7 @@ public class TimestampMaxAggregationTest
     Timestamp time = Timestamp.valueOf("2014-01-02 12:00:00");
 
     for (int idx = 0; idx < values.length; idx++) {
-      values[idx] = new Timestamp(time.getTime() - 10000 * idx);
+      values[idx] = new Timestamp(time.getTime() - 10000L * idx);
     }
 
     selector = new TestObjectColumnSelector((Object[]) values);
@@ -161,7 +161,10 @@ public class TimestampMaxAggregationTest
         "  ],\n" +
         "  \"intervals\": [\n" +
         "    \"2011-01-12T00:00:00.000Z/2011-04-16T00:00:00.000Z\"\n" +
-        "  ]\n" +
+        "  ],\n" +
+        "  \"context\": {" +
+        "      \"groupByUseRawUTF8\": false" +
+        "  }\n" +
         "}";
     Sequence<Row> seq = helper.createIndexAndRunQueryOnSegment(
         new File(this.getClass().getClassLoader().getResource("druid.sample.tsv").getFile()),
