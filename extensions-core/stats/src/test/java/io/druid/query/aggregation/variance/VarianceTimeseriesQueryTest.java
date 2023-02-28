@@ -19,29 +19,21 @@
 
 package io.druid.query.aggregation.variance;
 
-import com.google.common.collect.Lists;
-import io.druid.common.utils.Sequences;
-import io.druid.data.input.MapBasedRow;
-import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.query.Druids;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryRunnerTest;
-import io.druid.segment.TestHelper;
-import io.druid.segment.TestIndex;
-import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 
 @RunWith(Parameterized.class)
-public class VarianceTimeseriesQueryTest
+public class VarianceTimeseriesQueryTest extends GroupByQueryRunnerTestHelper
 {
   @Parameterized.Parameters(name="{0}:descending={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
@@ -76,43 +68,20 @@ public class VarianceTimeseriesQueryTest
                                   .descending(descending)
                                   .build();
 
-    List<Row> expectedResults = Arrays.<Row>asList(
-        new MapBasedRow(
-            new DateTime("2011-04-01"),
-            VarianceTestHelper.of(
-                "rows", 13L,
-                "index", 6626.151596069336,
-                "addRowsIndexConstant", 6640.151596069336,
-                "uniques", VarianceTestHelper.UNIQUES_9,
-                "index_var", 368885.6915300076,
-                "index_stddev", 607.3596064359298
-            )
-        ),
-        new MapBasedRow(
-            new DateTime("2011-04-02"),
-            VarianceTestHelper.of(
-                "rows", 13L,
-                "index", 5833.2095947265625,
-                "addRowsIndexConstant", 5847.2095947265625,
-                "uniques", VarianceTestHelper.UNIQUES_9,
-                "index_var", 259061.60305484047,
-                "index_stddev", 508.98094566971804
-            )
-        )
-    );
-
-    Iterable<Row> results = Sequences.toList(
-        query.run(TestIndex.segmentWalker, new HashMap<String, Object>()),
-        Lists.<Row>newArrayList()
-    );
-    assertExpectedResults(expectedResults, results);
-  }
-
-  private <T> void assertExpectedResults(Iterable<Row> expectedResults, Iterable<Row> results)
-  {
     if (descending) {
-      expectedResults = TestHelper.revert(expectedResults);
+      validate(
+          query,
+          array("__time", "rows", "index", "addRowsIndexConstant", "uniques", "index_var", "index_stddev"),
+          array("2011-04-02", 13, 5833.2095947265625D, 5847.2095947265625D, 9.019833517963864D, 259061.6030548405D, 508.9809456697181D),
+          array("2011-04-01", 13, 6626.151596069336D, 6640.151596069336D, 9.019833517963864D, 368885.6915300076D, 607.3596064359298D)
+      );
+    } else {
+      validate(
+          query,
+          array("__time", "rows", "index", "addRowsIndexConstant", "uniques", "index_var", "index_stddev"),
+          array("2011-04-01", 13, 6626.151596069336D, 6640.151596069336D, 9.019833517963864D, 368885.6915300076D, 607.3596064359298D),
+          array("2011-04-02", 13, 5833.2095947265625D, 5847.2095947265625D, 9.019833517963864D, 259061.60305484047D, 508.98094566971804D)
+      );
     }
-    TestHelper.assertExpectedObjects(expectedResults, results);
   }
 }

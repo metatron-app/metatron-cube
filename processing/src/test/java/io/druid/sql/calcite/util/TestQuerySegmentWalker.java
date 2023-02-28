@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.util;
 
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -35,12 +36,16 @@ import com.google.common.collect.Sets;
 import com.google.common.io.CharSource;
 import com.google.common.io.CharStreams;
 import io.druid.common.DateTimes;
+import io.druid.common.Yielders;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
+import io.druid.common.guava.Yielder;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.BytesInputStream;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -48,6 +53,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.jackson.JsonParserIterator;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
@@ -65,6 +71,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunners;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
@@ -708,9 +715,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return QueryRunners.wrap(((ConveyQuery<T>) query).getValues());
     }
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryToolChest<T, Query<T>> toolChest = factory == null ? null : factory.getToolchest();
     if (query.getDataSource() instanceof QueryDataSource) {
       Preconditions.checkNotNull(factory, "%s does not supports nested query", query);
-      QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
       QueryRunner<T> runner = toolChest.handleSubQuery(this);
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
@@ -725,7 +732,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     }
     if (query instanceof Query.IteratingQuery) {
       QueryRunner runner = QueryRunners.getIteratingRunner((Query.IteratingQuery) query, this);
-      return FluentQueryRunnerBuilder.create(factory == null ? null : factory.getToolchest(), runner)
+      return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
                                      .applyPostProcessingOperator()
@@ -847,9 +854,10 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     if (splitable != null) {
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
-        return QueryRunners.runWith(
-            resolved, QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
-        );
+        QueryRunner<T> concat = QueryRunners.concat(Iterables.concat(
+            missingSegments, Iterables.transform(splits, function)
+        ));
+        return serde(resolved, concat, this, toolChest);
       }
     }
 
@@ -857,10 +865,46 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     if (splitable != null) {
       List<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (splits != null) {
-        return QueryRunners.concat(runner, splits);
+        return serde(resolved, QueryRunners.concat(runner, splits), this, toolChest);
       }
     }
-    return QueryRunners.runWith(resolved, runner);
+    return serde(resolved, runner, this, toolChest);
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T> QueryRunner<T> serde(
+      Query<T> resolved,
+      QueryRunner<T> runner,
+      QuerySegmentWalker segmentWalker,
+      QueryToolChest<T, Query<T>> toolChest
+  )
+  {
+    return (dummy, response) -> {
+      ObjectMapper mapper = segmentWalker.getMapper();
+      BytesOutputStream output = new BytesOutputStream();
+      Sequence<T> sequence = runner.run(resolved, response);
+      try {
+        Yielder yielder = Yielders.each(toolChest.serializeSequence(resolved, sequence, segmentWalker));
+        mapper.writer().writeValue(output, yielder);
+
+        JavaType typeReference = toolChest.getResultTypeReference(resolved, mapper.getTypeFactory());
+        JsonParserIterator iterator = new JsonParserIterator(
+            mapper, typeReference, "test", "historical", () -> new BytesInputStream(output.toByteArray())
+        );
+        if (!BaseQuery.isBySegment(resolved)) {
+          return toolChest.deserializeSequence(resolved, Sequences.once(sequence.columns(), iterator));
+        }
+        return (Sequence) Sequences.map(
+            Sequences.once(sequence.columns(), iterator),
+            BySegmentResultValue.applyAll(
+                toolChest.makePreComputeManipulatorFn(resolved, MetricManipulatorFns.deserializing())
+            )
+        );
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    };
   }
 
   @Override

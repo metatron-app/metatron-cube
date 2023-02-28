@@ -190,7 +190,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-02T00:00:00.000Z", "technology", 1L, 97L, BigDecimal.valueOf(97L)),
         array("2011-04-02T00:00:00.000Z", "travel", 1L, 126L, BigDecimal.valueOf(126L))
     };
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
@@ -354,7 +354,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-01T00:00:00.000Z", "travel", "t", 2L, 245L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -410,7 +410,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-01T00:00:00.000Z", "travel", "t", 2L, 245L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -432,7 +432,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-01-12T00:00:00.000Z", 800.0d, 2L),
         array("2011-01-12T00:00:00.000Z", 1000.0d, 2L)
     );
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -453,7 +453,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-01-12T00:00:00.000Z", 1294790400000L, 13L),
         array("2011-01-12T00:00:00.000Z", 1294876800000L, 13L)
     );
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -477,7 +477,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-01-12T00:00:00.000Z", "03 2011", 78L),
         array("2011-01-12T00:00:00.000Z", "04 2011", 91L)
     );
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -510,7 +510,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "t", "rows", 4L, "idx", 420L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -555,7 +555,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "quality", "travel", "alias", "t", "rows", 2L, "idx", 245L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -600,7 +600,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "quality", "travel", "alias", "t", "rows", 2L, "idx", 245L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -622,7 +622,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .setContext(ImmutableMap.<String, Object>of("maxResults", 1))
         .build();
 
-    GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    runQuery(factory, runner, query);
   }
 
   @Test
@@ -699,7 +699,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -778,7 +778,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -857,7 +857,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -936,7 +936,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -1014,7 +1014,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -1044,7 +1044,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -1082,7 +1082,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -1112,7 +1112,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     expectedResults = Arrays.asList(
@@ -1130,7 +1130,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                 CountAggregatorFactory.predicate("null", "isnull(PN)"))
         );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     expectedResults = Arrays.asList(GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "rows", 4L));
@@ -1149,7 +1149,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             Arrays.<AggregatorFactory>asList(QueryRunnerTestHelper.rowsCount)
         );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -1212,7 +1212,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, query),
+        runQuery(factory, runner, query),
         ""
     );
   }
@@ -1280,7 +1280,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, query),
+        runQuery(factory, runner, query),
         ""
     );
   }
@@ -1485,7 +1485,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -1678,21 +1678,22 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
+    String[] columnNames = {"__time", "alias", "rows", "rows1", "rows2", "idx", "idx2", "idx3"};
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "alias", "rows", "rows1", "rows2", "idx", "idx2", "idx3"},
-        new Object[]{"2011-04-01", "travel", 2L, 2L, 0L, 243L, 243L, 0D},
-        new Object[]{"2011-04-01", "technology", 2L, 0L, 0L, 177L, 0L, 0D},
-        new Object[]{"2011-04-01", "news", 2L, 1L, 0L, 221L, 114L, 0D},
-        new Object[]{"2011-04-01", "health", 2L, 1L, 0L, 216L, 113L, 0D},
-        new Object[]{"2011-04-01", "entertainment", 2L, 2L, 2L, 319L, 319L, 319.94403076171875D},
-        new Object[]{"2011-04-01", "business", 2L, 1L, 0L, 217L, 112L, 0D},
-        new Object[]{"2011-04-01", "automotive", 2L, 2L, 1L, 269L, 269L, 147.42593383789062D},
-        new Object[]{"2011-04-01", "premium", 6L, 6L, 5L, 4416L, 4416L, 4296.4765625D},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 5L, 4L, 4420L, 4313L, 4205.673828125D}
+        columnNames,
+        array("2011-04-01", "travel", 2L, 2L, 0L, 243L, 243L, 0.0D),
+        array("2011-04-01", "technology", 2L, 0L, 0L, 177L, 0L, 0.0D),
+        array("2011-04-01", "news", 2L, 1L, 0L, 221L, 114L, 0.0D),
+        array("2011-04-01", "health", 2L, 1L, 0L, 216L, 113L, 0.0D),
+        array("2011-04-01", "entertainment", 2L, 2L, 2L, 319L, 319L, 319.9440155029297D),
+        array("2011-04-01", "business", 2L, 1L, 0L, 217L, 112L, 0.0D),
+        array("2011-04-01", "automotive", 2L, 2L, 1L, 269L, 269L, 147.42593383789062D),
+        array("2011-04-01", "premium", 6L, 6L, 5L, 4416L, 4416L, 4296.476791381836D),
+        array("2011-04-01", "mezzanine", 6L, 5L, 4L, 4420L, 4313L, 4205.673645019531D)
     );
 
-    TestHelper.assertExpectedObjects(
-        expectedResults, runner.run(builder.limit(100).build(), context), "predicate"
+    TestHelper.validate(
+        columnNames, expectedResults, Sequences.toList(runner.run(builder.limit(100).build(), context))
     );
 
     builder.limit(Integer.MAX_VALUE)
@@ -1710,23 +1711,22 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             )
         );
 
-    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "alias", "rows", "idx", "MMM-yyyy"},
-        new Object[]{"2011-04-01", "travel", 2L, 365.4876403808594D, "Apr 2011"},
-        new Object[]{"2011-04-01", "technology", 2L, 267.3737487792969D, "Apr 2011"},
-        new Object[]{"2011-04-01", "news", 2L, 333.3147277832031D, "Apr 2011"},
-        new Object[]{"2011-04-01", "health", 2L, 325.467529296875D, "Apr 2011"},
-        new Object[]{"2011-04-01", "entertainment", 2L, 479.916015625D, "Apr 2011"},
-        new Object[]{"2011-04-01", "business", 2L, 328.083740234375D, "Apr 2011"},
-        new Object[]{"2011-04-01", "automotive", 2L, 405.5966796875D, "Apr 2011"},
-        new Object[]{"2011-04-01", "premium", 6L, 6627.927734375D, "Apr 2011"},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 6635.47998046875D, "Apr 2011"}
+    columnNames = new String[]{"__time", "alias", "rows", "idx", "MMM-yyyy"};
+    expectedResults = TestHelper.createExpectedRows(
+        columnNames,
+        array("2011-04-01", "travel", 2L, 365.4876403808594D, "Apr 2011"),
+        array("2011-04-01", "technology", 2L, 267.3737564086914D, "Apr 2011"),
+        array("2011-04-01", "news", 2L, 333.3147277832031D, "Apr 2011"),
+        array("2011-04-01", "health", 2L, 325.467529296875D, "Apr 2011"),
+        array("2011-04-01", "entertainment", 2L, 479.916015625D, "Apr 2011"),
+        array("2011-04-01", "business", 2L, 328.08372497558594D, "Apr 2011"),
+        array("2011-04-01", "automotive", 2L, 405.5966796875D, "Apr 2011"),
+        array("2011-04-01", "premium", 6L, 6627.927734375D, "Apr 2011"),
+        array("2011-04-01", "mezzanine", 6L, 6635.480163574219D, "Apr 2011")
     );
 
-    TestHelper.assertExpectedObjects(expectedResults, runner.run(builder.build(), context), "no-limit");
-    TestHelper.assertExpectedObjects(
-        Iterables.limit(expectedResults, 5), runner.run(builder.limit(5).build(), context), "limited"
-    );
+    TestHelper.validate(columnNames, expectedResults, Sequences.toList(runner.run(builder.build(), context)));
+    TestHelper.validate(columnNames, expectedResults.subList(0, 5), Sequences.toList(runner.run(builder.limit(5).build(), context)));
   }
 
   @Test
@@ -1788,23 +1788,24 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     GroupByQuery query = builder.build();
 
-    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "alias", "rows", "idx"},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 4423.6533203125D},
-        new Object[]{"2011-04-01", "premium", 6L, 4418.61865234375D},
-        new Object[]{"2011-04-01", "entertainment", 2L, 319.94403076171875D},
-        new Object[]{"2011-04-01", "automotive", 2L, 270.3977966308594D},
-        new Object[]{"2011-04-01", "travel", 2L, 243.65843200683594D},
-        new Object[]{"2011-04-01", "news", 2L, 222.20980834960938D},
-        new Object[]{"2011-04-01", "business", 2L, 218.7224884033203D},
-        new Object[]{"2011-04-01", "health", 2L, 216.97836303710938D},
-        new Object[]{"2011-04-01", "technology", 2L, 178.24917602539062D}
+    String[] columnNames = {"__time", "alias", "rows", "idx"};
+    List<Row> expectedResults = TestHelper.createExpectedRows(
+        columnNames,
+        array("2011-04-01", "mezzanine", 6L, 4423.653350830078D),
+        array("2011-04-01", "premium", 6L, 4418.618499755859D),
+        array("2011-04-01", "entertainment", 2L, 319.9440155029297D),
+        array("2011-04-01", "automotive", 2L, 270.39778900146484D),
+        array("2011-04-01", "travel", 2L, 243.65843200683594D),
+        array("2011-04-01", "news", 2L, 222.2098159790039D),
+        array("2011-04-01", "business", 2L, 218.7224884033203D),
+        array("2011-04-01", "health", 2L, 216.97835540771484D),
+        array("2011-04-01", "technology", 2L, 178.24917602539062D)
     );
 
     Map<String, Object> context = Maps.newHashMap();
-    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "no-limit");
-    TestHelper.assertExpectedObjects(
-        Iterables.limit(expectedResults, 5), runner.run(builder.limit(5).build(), context), "limited"
+    TestHelper.validate(columnNames, expectedResults, Sequences.toList(runner.run(query, context)));
+    TestHelper.validate(
+        columnNames, expectedResults.subList(0, 5), Sequences.toList(runner.run(builder.limit(5).build(), context))
     );
   }
 
@@ -1864,7 +1865,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
@@ -1900,7 +1901,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("1970-01-01T00:00:00.000Z", "spot", 837L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
@@ -1909,7 +1910,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
@@ -1932,14 +1933,14 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("1970-01-01T00:00:00.000Z", "upfront", 186L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_REMOVE_ORDERING, true);
     query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
   }
 
@@ -2008,7 +2009,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
@@ -2079,7 +2080,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     // See also: https://github.com/druid-io/druid/issues/2507
 //    expectedException.expect(ParseException.class);
 //    expectedException.expectMessage("Unknown type[class io.druid.query.aggregation.hyperloglog.HLLCV1]");
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
@@ -2141,7 +2142,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
 
     query = query.withHavingSpec(
@@ -2151,7 +2152,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, query), "order-limit"
+        runQuery(factory, runner, query), "order-limit"
     );
   }
 
@@ -2222,7 +2223,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
@@ -2287,7 +2288,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "health0000", "rows", 1L, "idx", 114L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
@@ -2296,7 +2297,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -2342,7 +2343,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02T00:00:00.000Z", "market", "spot", "rows", 9L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     Iterator resultsIter = results.iterator();
     Iterator expectedResultsIter = expectedResults.iterator();
 
@@ -2406,14 +2407,14 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build()),
+        runQuery(factory, runner, builder.build()),
         ""
     );
 
     builder.setHavingSpec(new ExpressionHavingSpec(QueryRunnerTestHelper.addRowsIndexConstantMetric + "> 1000"));
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build()),
+        runQuery(factory, runner, builder.build()),
         ""
     );
   }
@@ -2452,14 +2453,14 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     final GroupByQuery fullQuery = builder.build();
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, fullQuery),
+        runQuery(factory, runner, fullQuery),
         ""
     );
 
     builder.setHavingSpec(new ExpressionHavingSpec("rows > 2 || idx == 217"));
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build()),
+        runQuery(factory, runner, builder.build()),
         ""
     );
   }
@@ -2610,7 +2611,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -2683,7 +2684,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -2746,7 +2747,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     expectedResults = Arrays.asList(
@@ -2760,7 +2761,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             new MathExprFilter("idx > 100 && idx < 200"),
             new InDimFilter("alias", Arrays.asList("b", "c"), null)));
     TestHelper.assertExpectedObjects(
-        expectedResults, GroupByQueryRunnerTestHelper.runQuery(factory, runner, query), ""
+        expectedResults, runQuery(factory, runner, query), ""
     );
   }
 
@@ -2805,7 +2806,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, query), ""
+        runQuery(factory, runner, query), ""
     );
 
     subquery = subquery.withAggregatorSpecs(
@@ -2825,7 +2826,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, query), ""
+        runQuery(factory, runner, query), ""
     );
   }
 
@@ -2885,7 +2886,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -2940,7 +2941,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "idx", 2505.0)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -2978,7 +2979,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "idx", 2505.0)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -3012,7 +3013,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     Assert.assertFalse(results.iterator().hasNext());
   }
 
@@ -3050,7 +3051,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-01-12T00:00:00.000Z", 6L, 627L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -3319,7 +3320,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -3586,7 +3587,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -3761,10 +3762,10 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    results = GroupByQueryRunnerTestHelper.runQuery(
+    results = runQuery(
         factory, runner, query.withHavingSpec(
             new ExpressionHavingSpec("idx_subpostagg == null || idx_subpostagg < 3800.0")
         )
@@ -3909,7 +3910,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -3972,7 +3973,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -4005,7 +4006,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -4043,26 +4044,26 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
         .build();
 
+    String[] columnNames = {"__time", "dayOfWeek", "market", "index", "rows", "addRowsIndexConstant"};
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "dayOfWeek", "market", "index", "rows", "addRowsIndexConstant"},
-        new Object[]{"1970-01-01", "Friday", "spot", 13219.574157714844, 117L, 13337.574157714844},
-        new Object[]{"1970-01-01", "Monday", "spot", 13557.738830566406, 117L, 13675.738830566406},
-        new Object[]{"1970-01-01", "Saturday", "spot", 13493.751281738281, 117L, 13611.751281738281},
-        new Object[]{"1970-01-01", "Sunday", "spot", 13585.541015625, 117L, 13703.541015625},
-        new Object[]{"1970-01-01", "Thursday", "spot", 14279.127197265625, 126L, 14406.127197265625},
-        new Object[]{"1970-01-01", "Tuesday", "spot", 13199.471435546875, 117L, 13317.471435546875},
-        new Object[]{"1970-01-01", "Wednesday", "spot", 14271.368591308594, 126L, 14398.368591308594},
-        new Object[]{"1970-01-01", "Friday", "upfront", 27297.8623046875, 26L, 27324.8623046875},
-        new Object[]{"1970-01-01", "Monday", "upfront", 27619.58447265625, 26L, 27646.58447265625},
-        new Object[]{"1970-01-01", "Saturday", "upfront", 27820.83154296875, 26L, 27847.83154296875},
-        new Object[]{"1970-01-01", "Sunday", "upfront", 24791.223876953125, 26L, 24818.223876953125},
-        new Object[]{"1970-01-01", "Thursday", "upfront", 28562.748901367188, 28L, 28591.748901367188},
-        new Object[]{"1970-01-01", "Tuesday", "upfront", 26968.280639648438, 26L, 26995.280639648438},
-        new Object[]{"1970-01-01", "Wednesday", "upfront", 28985.5751953125, 28L, 29014.5751953125}
+        columnNames,
+        array("1970-01-01", "Friday", "spot", 13219.574020385742D, 117L, 13337.574020385742D),
+        array("1970-01-01", "Monday", "spot", 13557.73889541626D, 117L, 13675.73889541626D),
+        array("1970-01-01", "Saturday", "spot", 13493.751190185547D, 117L, 13611.751190185547D),
+        array("1970-01-01", "Sunday", "spot", 13585.540908813477D, 117L, 13703.540908813477D),
+        array("1970-01-01", "Thursday", "spot", 14279.127326965332D, 126L, 14406.127326965332D),
+        array("1970-01-01", "Tuesday", "spot", 13199.471267700195D, 117L, 13317.471267700195D),
+        array("1970-01-01", "Wednesday", "spot", 14271.368713378906D, 126L, 14398.368713378906D),
+        array("1970-01-01", "Friday", "upfront", 27297.862365722656D, 26L, 27324.862365722656D),
+        array("1970-01-01", "Monday", "upfront", 27619.58477783203D, 26L, 27646.58477783203D),
+        array("1970-01-01", "Saturday", "upfront", 27820.831176757812D, 26L, 27847.831176757812D),
+        array("1970-01-01", "Sunday", "upfront", 24791.22381591797D, 26L, 24818.22381591797D),
+        array("1970-01-01", "Thursday", "upfront", 28562.748779296875D, 28L, 28591.748779296875D),
+        array("1970-01-01", "Tuesday", "upfront", 26968.28009033203D, 26L, 26995.28009033203D),
+        array("1970-01-01", "Wednesday", "upfront", 28985.57501220703D, 28L, 29014.57501220703D)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    TestHelper.validate(columnNames, expectedResults, runQuery(factory, runner, query));
   }
 
   @Test
@@ -4121,35 +4122,35 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         );
 
     String[] columnNames = {"__time", "dayOfWeek", "market", "rows", "index", "addRowsIndexConstant"};
-    Iterable<Row> results;
+    List<Row> results;
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
-        new Object[]{"1970-01-01", "Monday", "upfront", 26L, 27619.58447265625, 27646.58447265625},
-        new Object[]{"1970-01-01", "Monday", "total_market", 26L, 30468.77734375, 30495.77734375},
-        new Object[]{"1970-01-01", "Monday", "spot", 117L, 13557.738830566406, 13675.738830566406},
-        new Object[]{"1970-01-01", "Tuesday", "upfront", 26L, 26968.280639648438, 26995.280639648438},
-        new Object[]{"1970-01-01", "Tuesday", "total_market", 26L, 29676.578125, 29703.578125},
-        new Object[]{"1970-01-01", "Tuesday", "spot", 117L, 13199.471435546875, 13317.471435546875},
-        new Object[]{"1970-01-01", "Wednesday", "upfront", 28L, 28985.5751953125, 29014.5751953125},
-        new Object[]{"1970-01-01", "Wednesday", "total_market", 28L, 32753.337890625, 32782.337890625},
-        new Object[]{"1970-01-01", "Wednesday", "spot", 126L, 14271.368591308594, 14398.368591308594},
-        new Object[]{"1970-01-01", "Thursday", "upfront", 28L, 28562.748901367188, 28591.748901367188},
-        new Object[]{"1970-01-01", "Thursday", "total_market", 28L, 32361.38720703125, 32390.38720703125},
-        new Object[]{"1970-01-01", "Thursday", "spot", 126L, 14279.127197265625, 14406.127197265625},
-        new Object[]{"1970-01-01", "Friday", "upfront", 26L, 27297.8623046875, 27324.8623046875},
-        new Object[]{"1970-01-01", "Friday", "total_market", 26L, 30173.691650390625, 30200.691650390625},
-        new Object[]{"1970-01-01", "Friday", "spot", 117L, 13219.574157714844, 13337.574157714844},
-        new Object[]{"1970-01-01", "Saturday", "upfront", 26L, 27820.83154296875, 27847.83154296875},
-        new Object[]{"1970-01-01", "Saturday", "total_market", 26L, 30940.971923828125, 30967.971923828125},
-        new Object[]{"1970-01-01", "Saturday", "spot", 117L, 13493.751281738281, 13611.751281738281},
-        new Object[]{"1970-01-01", "Sunday", "upfront", 26L, 24791.223876953125, 24818.223876953125},
-        new Object[]{"1970-01-01", "Sunday", "total_market", 26L, 29305.086059570312, 29332.086059570312},
-        new Object[]{"1970-01-01", "Sunday", "spot", 117L, 13585.541015625, 13703.541015625}
+        array("1970-01-01", "Monday", "upfront", 26L, 27619.58477783203D, 27646.58477783203D),
+        array("1970-01-01", "Monday", "total_market", 26L, 30468.776733398438D, 30495.776733398438D),
+        array("1970-01-01", "Monday", "spot", 117L, 13557.73889541626D, 13675.73889541626D),
+        array("1970-01-01", "Tuesday", "upfront", 26L, 26968.28009033203D, 26995.28009033203D),
+        array("1970-01-01", "Tuesday", "total_market", 26L, 29676.578247070312D, 29703.578247070312D),
+        array("1970-01-01", "Tuesday", "spot", 117L, 13199.471267700195D, 13317.471267700195D),
+        array("1970-01-01", "Wednesday", "upfront", 28L, 28985.57501220703D, 29014.57501220703D),
+        array("1970-01-01", "Wednesday", "total_market", 28L, 32753.337280273438D, 32782.33728027344D),
+        array("1970-01-01", "Wednesday", "spot", 126L, 14271.368713378906D, 14398.368713378906D),
+        array("1970-01-01", "Thursday", "upfront", 28L, 28562.748779296875D, 28591.748779296875D),
+        array("1970-01-01", "Thursday", "total_market", 28L, 32361.38690185547D, 32390.38690185547D),
+        array("1970-01-01", "Thursday", "spot", 126L, 14279.127326965332D, 14406.127326965332D),
+        array("1970-01-01", "Friday", "upfront", 26L, 27297.862365722656D, 27324.862365722656D),
+        array("1970-01-01", "Friday", "total_market", 26L, 30173.691955566406D, 30200.691955566406D),
+        array("1970-01-01", "Friday", "spot", 117L, 13219.574020385742D, 13337.574020385742D),
+        array("1970-01-01", "Saturday", "upfront", 26L, 27820.831176757812D, 27847.831176757812D),
+        array("1970-01-01", "Saturday", "total_market", 26L, 30940.971740722656D, 30967.971740722656D),
+        array("1970-01-01", "Saturday", "spot", 117L, 13493.751190185547D, 13611.751190185547D),
+        array("1970-01-01", "Sunday", "upfront", 26L, 24791.22381591797D, 24818.22381591797D),
+        array("1970-01-01", "Sunday", "total_market", 26L, 29305.0859375D, 29332.0859375D),
+        array("1970-01-01", "Sunday", "spot", 117L, 13585.540908813477D, 13703.540908813477D)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4195,8 +4196,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("1970-01-01", "Wednesday", 126L, 98L, 182L, 98L, 1209L, 504562.5071372986)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     GroupByQuery query = builder.build();
     query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
@@ -4206,8 +4207,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     WindowingSpec windowingSpec = query.getLimitSpec().getWindowingSpecs().get(0);
     Assert.assertTrue(windowingSpec.isSkipSorting());
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, query);
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setGranularity(QueryGranularities.MONTH);
     builder.setLimitSpec(
@@ -4311,8 +4312,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-03-01T00:00:00.000Z", "Wednesday", 45L, 9L, 164L, 9L, 1191L),
         array("2011-04-01T00:00:00.000Z", "Wednesday", 18L, -27L, 182L, -27L, 1209L)
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setGranularity(QueryGranularities.ALL);
     builder.setLimitSpec(
@@ -4357,8 +4358,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("1970-01-01T00:00:00.000Z", "Friday", 26L, 0L, 26L, 0L, 26L)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4395,8 +4396,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", "spot", 14271.368713378906, 14271.368713378906, 13199.471267700195)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // don't know what the hell is irr
     builder.setLimitSpec(
@@ -4434,8 +4435,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", "spot", 14271.368713378906, NaN, NaN)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // don't know what the hell is npv
     builder.setLimitSpec(
@@ -4473,8 +4474,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", "spot", 14271.368713378906, 209577.55611065833, 64141.68706720525)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4539,8 +4540,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
               13199.471267700195, 14271.368713378906)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // order by on partition sum.. NMC requirement
     // changed identifier spec to accept index. use '_' for minus instead of '-'
@@ -4600,8 +4601,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
               29305.0859375, 67681.85066223145)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // unstack, {d, m} + {}
     builder.setLimitSpec(
@@ -4651,8 +4652,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // unstack, {d} + {m}
     builder.setLimitSpec(
@@ -4696,8 +4697,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                               13219.574020385742, 13219.574020385742, 13199.471267700195)).build())
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // unstack, {m} + {d}
     builder.setLimitSpec(
@@ -4737,8 +4738,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4775,8 +4776,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 14398.368713378906, 76195.28100585938, 504562.5071372986)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4817,8 +4818,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Tuesday", 56644.858337402344, 811.0158499289842, 414122.754863739, 82.27617906482145)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4857,8 +4858,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Tuesday", 13199.471267700195, 23953.874842325848, 21L, 21438.024757385254, 3L)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4905,8 +4906,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         new Object[] {"Tuesday", 26L, 17L, 16L, 11L, 2L, 1L, 1L}
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4946,8 +4947,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 126L, null, 28L, null, 28L)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -4991,8 +4992,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 9.538117693680261E7, 9766.32873380794, 6.358745129120174E7, 7974.174019370391)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5036,8 +5037,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 27619.58477783203, 28985.57501220703, 14271.368713378906, 32753.337280273438)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5081,8 +5082,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 27619.58477783203, null, 28985.57501220703, 28985.57501220703)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5139,8 +5140,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
               list(null, null, 28985.57501220703D))
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5188,8 +5189,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
               32753.337280273438, null, 27619.58477783203, null, 28985.57501220703, 28985.57501220703)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5231,8 +5232,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5274,8 +5275,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
   }
 
   @Test
@@ -5335,8 +5336,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 28985.57501220703, 14271.368713378906, 32753.337280273438)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    List<Row> results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // appendValueColumn = true
     builder.setLimitSpec(
@@ -5364,8 +5365,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 28985.57501220703, 14271.368713378906, 32753.337280273438)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // multi-valued
     builder.setLimitSpec(
@@ -5393,8 +5394,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", list(14271.368713378906D, 126L), list(32753.337280273438D, 28L), list(28985.57501220703D, 28L))
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // multi-value (appendValueColumn = true)
     builder.setLimitSpec(
@@ -5422,8 +5423,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 14271.368713378906, 126L, 32753.337280273438, 28L, 28985.57501220703, 28L)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // custom comparator
     builder.setLimitSpec(
@@ -5451,8 +5452,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Sunday", 24791.22381591797, 13585.540908813477, 29305.0859375)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // filtered
     builder.setLimitSpec(
@@ -5482,8 +5483,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 28985.57501220703, 14271.368713378906)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // expression, filtered
     builder.setLimitSpec(
@@ -5520,8 +5521,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 28985.57501220703, 14271.368713378906)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // row expression
     builder.setLimitSpec(
@@ -5557,8 +5558,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("upfront", 27619.58477783203, 28985.57501220703, 27297.862365722656, 83903.02215576172)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // partition expression
     builder.setLimitSpec(
@@ -5601,8 +5602,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("upfront", 71646.10040664673, -3767.7622680664062, 38.61568347555947, 83903.02215576172)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
   }
 
   @Test
@@ -5673,8 +5674,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             15749.735595703125, null, 14765.832275390625, null
         )
     );
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    List<Row> results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // with row evaluation
     builder.setLimitSpec(
@@ -5717,8 +5718,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             15749.735595703125, null, 14765.832275390625, null, 14765.8
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // multi-value-expanded
     builder.setLimitSpec(
@@ -5778,8 +5779,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
               1623.1850204467773, 14L,
               15749.735595703125, 14L, null, null, 14765.832275390625, 14L, null, null)
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5822,8 +5823,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             31051.463989257812, 15167.04833984375, 45392.62664794922, 23961.07049560547
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5865,8 +5866,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             17.306223748562424, null, 14.477094689189887, null
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5908,8 +5909,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             15749.735595703125, null, 14765.832275390625, null
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -5957,8 +5958,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 126L, 28386.800888061523, 321L, 126642.91375732422)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // someone can understand this, maybe
     builder.setLimitSpec(
@@ -6009,8 +6010,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 36.498, 10.0, 15749.735595703125, 14L)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
   }
 
   @Test
@@ -6095,7 +6096,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", "total_market", 28521.800888061523, 1.8825902153694163)
     );
 
-    Iterable<Row> results = runQuery(factory, runner, builder.build());
+    List<Row> results = runQuery(factory, runner, builder.build());
     validate(columnNames, expectedResults, results);
   }
 
@@ -6190,8 +6191,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("upfront", "premium", "Thursday", 14L, 12734.524536132812, 12749.524536132812),
         array("upfront", "premium", "Tuesday", 13L, 11820.81298828125, 11834.81298828125)
     );
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    List<Row> results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -6231,8 +6232,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             28985.57501220703, 14765.832275390625, null
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // with nullValue 'X'
     builder.setLimitSpec(
@@ -6272,8 +6273,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             28985.57501220703, 14765.832275390625, null
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // pivot + partition expression
     builder.setLimitSpec(
@@ -6320,8 +6321,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             83573.4398803711, 45392.62664794922, 23961.07049560547
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // with nullValue 'X'
     builder.setLimitSpec(
@@ -6365,8 +6366,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
               83573.4398803711, 45392.62664794922, 23961.07049560547
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -6416,8 +6417,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             28985.57501220703, 14765.832275390625, null,
             47.481, null, 48.086, null, 50.942, null)
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // multi-valued (no appending)
     builder.setLimitSpec(
@@ -6470,8 +6471,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             list(47.481, 50.0), null, list(48.086, 50.0), null, list(50.942, 50.0), null
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // with nullValue 'X'
     builder.setLimitSpec(
@@ -6525,8 +6526,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             list(47.481, 50.0), null, list(48.086, 50.0), null, list(50.942, 50.0), null
         )
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // multi-valued (appending)
     builder.setLimitSpec(
@@ -6593,8 +6594,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             50.942, 50.0, null, null)
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
 
     // with nullValue 'X'
     builder.setLimitSpec(
@@ -6661,8 +6662,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             48.086, 50.0, null, null,
             50.942, 50.0, null, null)
     );
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+    results = runQuery(factory, runner, builder.build());
+    TestHelper.validate(columnNames, expectedResults, results);
   }
 
   @Test
@@ -6884,7 +6885,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel", "rows", 1L, "idx", 126L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
   }
@@ -6931,7 +6932,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -6969,7 +6970,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         ).build();
     List<Row> expectedResults = Arrays.asList();
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -7016,7 +7017,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-02", null, 13L, 5827L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -7079,7 +7080,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         new Object[]{"2011-04-02", "travel", 0L, 0L, 0L, 0L}
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     query = query.withFilter(new RegexDimFilter("quality", "^[a-m].*$", null));
@@ -7099,7 +7100,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         new Object[]{"2011-04-02", "mezzanine", 3L, 2447L, 0L, 0L}
     );
 
-    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -7138,7 +7139,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -7178,7 +7179,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-02", null, 13L, 5827L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -7295,7 +7296,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-02", null, 13L, 5827L)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -7341,7 +7342,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "upfront", "rows", 2L, "numVals", 1.0002442201269182d)
     );
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    Iterable<Row> results = runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

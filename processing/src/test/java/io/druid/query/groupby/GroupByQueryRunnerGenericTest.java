@@ -130,7 +130,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -192,57 +191,55 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    String[] columnNames = {"__time", "alias", "rows", "idx", "idx2"};
-    Object[][] objects = {
-        array("2011-04-01T00:00:00.000Z", "automotive", 1L, 135L, BigDecimal.valueOf(135L)),
-        array("2011-04-01T00:00:00.000Z", "business", 1L, 118L, BigDecimal.valueOf(118L)),
-        array("2011-04-01T00:00:00.000Z", "entertainment", 1L, 158L, BigDecimal.valueOf(158L)),
-        array("2011-04-01T00:00:00.000Z", "health", 1L, 120L, BigDecimal.valueOf(120L)),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", 3L, 2870L, BigDecimal.valueOf(2870L)),
-        array("2011-04-01T00:00:00.000Z", "news", 1L, 121L, BigDecimal.valueOf(121L)),
-        array("2011-04-01T00:00:00.000Z", "premium", 3L, 2900L, BigDecimal.valueOf(2900L)),
-        array("2011-04-01T00:00:00.000Z", "technology", 1L, 78L, BigDecimal.valueOf(78L)),
-        array("2011-04-01T00:00:00.000Z", "travel", 1L, 119L, BigDecimal.valueOf(119L)),
-        array("2011-04-02T00:00:00.000Z", "automotive", 1L, 147L, BigDecimal.valueOf(147L)),
-        array("2011-04-02T00:00:00.000Z", "business", 1L, 112L, BigDecimal.valueOf(112L)),
-        array("2011-04-02T00:00:00.000Z", "entertainment", 1L, 166L, BigDecimal.valueOf(166L)),
-        array("2011-04-02T00:00:00.000Z", "health", 1L, 113L, BigDecimal.valueOf(113L)),
-        array("2011-04-02T00:00:00.000Z", "mezzanine", 3L, 2447L, BigDecimal.valueOf(2447L)),
-        array("2011-04-02T00:00:00.000Z", "news", 1L, 114L, BigDecimal.valueOf(114L)),
-        array("2011-04-02T00:00:00.000Z", "premium", 3L, 2505L, BigDecimal.valueOf(2505L)),
-        array("2011-04-02T00:00:00.000Z", "technology", 1L, 97L, BigDecimal.valueOf(97L)),
-        array("2011-04-02T00:00:00.000Z", "travel", 1L, 126L, BigDecimal.valueOf(126L))
-    };
-    Iterable<Row> results = runQuery(query, true);
-    List<Row> expectedResults = createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx", "idx2"),
+        array("2011-04-01T00:00:00.000Z", "automotive", 1, 135, 135),
+        array("2011-04-01T00:00:00.000Z", "business", 1, 118, 118),
+        array("2011-04-01T00:00:00.000Z", "entertainment", 1, 158, 158),
+        array("2011-04-01T00:00:00.000Z", "health", 1, 120, 120),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", 3, 2870, 2870),
+        array("2011-04-01T00:00:00.000Z", "news", 1, 121, 121),
+        array("2011-04-01T00:00:00.000Z", "premium", 3, 2900, 2900),
+        array("2011-04-01T00:00:00.000Z", "technology", 1, 78, 78),
+        array("2011-04-01T00:00:00.000Z", "travel", 1, 119, 119),
+        array("2011-04-02T00:00:00.000Z", "automotive", 1, 147, 147),
+        array("2011-04-02T00:00:00.000Z", "business", 1, 112, 112),
+        array("2011-04-02T00:00:00.000Z", "entertainment", 1, 166, 166),
+        array("2011-04-02T00:00:00.000Z", "health", 1, 113, 113),
+        array("2011-04-02T00:00:00.000Z", "mezzanine", 3, 2447, 2447),
+        array("2011-04-02T00:00:00.000Z", "news", 1, 114, 114),
+        array("2011-04-02T00:00:00.000Z", "premium", 3, 2505, 2505),
+        array("2011-04-02T00:00:00.000Z", "technology", 1, 97, 97),
+        array("2011-04-02T00:00:00.000Z", "travel", 1, 126, 126)
+    );
 
     query = query.withOutputColumns(Arrays.asList("alias", "rows"));
 
-    columnNames = new String[] {"__time", "alias", "rows"};
-    objects = new Object[][] {
-        new Object[]{"2011-04-01", "automotive", 1L},
-        new Object[]{"2011-04-01", "business", 1L},
-        new Object[]{"2011-04-01", "entertainment", 1L},
-        new Object[]{"2011-04-01", "health", 1L},
-        new Object[]{"2011-04-01", "mezzanine", 3L},
-        new Object[]{"2011-04-01", "news", 1L},
-        new Object[]{"2011-04-01", "premium", 3L},
-        new Object[]{"2011-04-01", "technology", 1L},
-        new Object[]{"2011-04-01", "travel", 1L},
-        new Object[]{"2011-04-02", "automotive", 1L},
-        new Object[]{"2011-04-02", "business", 1L},
-        new Object[]{"2011-04-02", "entertainment", 1L},
-        new Object[]{"2011-04-02", "health", 1L},
-        new Object[]{"2011-04-02", "mezzanine", 3L},
-        new Object[]{"2011-04-02", "news", 1L},
-        new Object[]{"2011-04-02", "premium", 3L},
-        new Object[]{"2011-04-02", "technology", 1L},
-        new Object[]{"2011-04-02", "travel", 1L}
+    String[] columnNames = array("__time", "alias", "rows");
+    Object[][] objects = new Object[][] {
+        array("2011-04-01", "automotive", 1),
+        array("2011-04-01", "business", 1),
+        array("2011-04-01", "entertainment", 1),
+        array("2011-04-01", "health", 1),
+        array("2011-04-01", "mezzanine", 3),
+        array("2011-04-01", "news", 1),
+        array("2011-04-01", "premium", 3),
+        array("2011-04-01", "technology", 1),
+        array("2011-04-01", "travel", 1),
+        array("2011-04-02", "automotive", 1),
+        array("2011-04-02", "business", 1),
+        array("2011-04-02", "entertainment", 1),
+        array("2011-04-02", "health", 1),
+        array("2011-04-02", "mezzanine", 3),
+        array("2011-04-02", "news", 1),
+        array("2011-04-02", "premium", 3),
+        array("2011-04-02", "technology", 1),
+        array("2011-04-02", "travel", 1)
     };
 
-    results = runQuery(query, true);
-    expectedResults = createExpectedRows(columnNames, objects);
+    List<Row> results = runQuery(query, true);
+    List<Row>expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     // to array
@@ -261,7 +258,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
       }
     }
 
-    // add post processing
+    // add post-processing
     query = query.withOverriddenContext(
         ImmutableMap.<String, Object>of(
             Query.POST_PROCESSING,
@@ -272,22 +269,21 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    expectedResults = createExpectedRows(
+    validate(
+        query,
+        false,
         columnNames,
-        array("2011-04-01T00:00:00.000Z", "travel", 1L),
-        array("2011-04-01T00:00:00.000Z", "technology", 1L),
-        array("2011-04-01T00:00:00.000Z", "premium", 3L),
-        array("2011-04-01T00:00:00.000Z", "news", 1L),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", 3L),
-        array("2011-04-01T00:00:00.000Z", "health", 1L),
-        array("2011-04-01T00:00:00.000Z", "entertainment", 1L),
-        array("2011-04-01T00:00:00.000Z", "business", 1L),
-        array("2011-04-01T00:00:00.000Z", "automotive", 1L),
-        array("2011-04-02T00:00:00.000Z", "travel", 1L)
+        array("2011-04-01T00:00:00.000Z", "travel", 1),
+        array("2011-04-01T00:00:00.000Z", "technology", 1),
+        array("2011-04-01T00:00:00.000Z", "premium", 3),
+        array("2011-04-01T00:00:00.000Z", "news", 1),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", 3),
+        array("2011-04-01T00:00:00.000Z", "health", 1),
+        array("2011-04-01T00:00:00.000Z", "entertainment", 1),
+        array("2011-04-01T00:00:00.000Z", "business", 1),
+        array("2011-04-01T00:00:00.000Z", "automotive", 1),
+        array("2011-04-02T00:00:00.000Z", "travel", 1)
     );
-
-    results = runQuery(query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     // post-aggregations post processor
     query = query.withOverriddenContext(
@@ -300,33 +296,30 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{"__time", "alias", "rows", "daily"};
     query = query.withOutputColumns(Arrays.asList("alias", "rows", "daily"));
 
-    expectedResults = createExpectedRows(
-        columnNames,
-        array("2011-04-01T00:00:00.000Z", "automotive", 1L, "Apr 01"),
-        array("2011-04-01T00:00:00.000Z", "business", 1L, "Apr 01"),
-        array("2011-04-01T00:00:00.000Z", "entertainment", 1L, "Apr 01"),
-        array("2011-04-01T00:00:00.000Z", "health", 1L, "Apr 01"),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", 3L, "Apr 01"),
-        array("2011-04-01T00:00:00.000Z", "news", 1L, "Apr 01"),
-        array("2011-04-01T00:00:00.000Z", "premium", 3L, "Apr 01"),
-        array("2011-04-01T00:00:00.000Z", "technology", 1L, "Apr 01"),
-        array("2011-04-01T00:00:00.000Z", "travel", 1L, "Apr 01"),
-        array("2011-04-02T00:00:00.000Z", "automotive", 1L, "Apr 02"),
-        array("2011-04-02T00:00:00.000Z", "business", 1L, "Apr 02"),
-        array("2011-04-02T00:00:00.000Z", "entertainment", 1L, "Apr 02"),
-        array("2011-04-02T00:00:00.000Z", "health", 1L, "Apr 02"),
-        array("2011-04-02T00:00:00.000Z", "mezzanine", 3L, "Apr 02"),
-        array("2011-04-02T00:00:00.000Z", "news", 1L, "Apr 02"),
-        array("2011-04-02T00:00:00.000Z", "premium", 3L, "Apr 02"),
-        array("2011-04-02T00:00:00.000Z", "technology", 1L, "Apr 02"),
-        array("2011-04-02T00:00:00.000Z", "travel", 1L, "Apr 02")
+    validate(
+        query,
+        array("__time", "alias", "rows", "daily"),
+        array("2011-04-01T00:00:00.000Z", "automotive", 1, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "business", 1, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "entertainment", 1, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "health", 1, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", 3, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "news", 1, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "premium", 3, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "technology", 1, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "travel", 1, "Apr 01"),
+        array("2011-04-02T00:00:00.000Z", "automotive", 1, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "business", 1, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "entertainment", 1, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "health", 1, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "mezzanine", 3, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "news", 1, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "premium", 3, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "technology", 1, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "travel", 1, "Apr 02")
     );
-
-    results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -345,14 +338,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    String[] columnNames = {"__time", "rows", "rows_nc1", "rows_nc2", "rows_nc3"};
-    Object[][] objects = {
-        array("2011-04-01", 13L, 2L, 2L, 2L),
-        array("2011-04-02", 13L, 2L, 2L, 2L)
-    };
-    Iterable<Row> results = runQuery(query, true);
-    List<Row> expectedResults = createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    validate(
+        query,
+        array("__time", "rows", "rows_nc1", "rows_nc2", "rows_nc3"),
+        array("2011-04-01", 13, 2, 2, 2),
+        array("2011-04-02", 13, 2, 2, 2)
+    );
   }
 
   @Test
@@ -376,22 +367,19 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
         .build();
 
-    String[] columnNames =
-        {"__time", "rows", "index_min", "index_max", "index_timemin", "index_timemax", "index_first", "index_last"};
-    Object[][] objects = {
-        array("1970-01-01", 93L, 71.31593322753906, 277.2735290527344, 100.0, 106.793701171875, 100.0, 106.793701171875),
-        array("1970-01-01", 93L, 92.5374984741211, 135.1832733154297, 100.0, 94.4697494506836, 100.0, 94.4697494506836),
-        array("1970-01-01", 93L, 84.71052551269531, 193.78756713867188, 100.0, 135.10919189453125, 100.0, 135.10919189453125),
-        array("1970-01-01", 93L, 85.06978607177734, 189.38595581054688, 100.0, 99.59690856933594, 100.0, 99.59690856933594),
-        array("1970-01-01", 279L, 91.27055358886719, 1870.06103515625, 100.0, 92.78276062011719, 100.0, 962.731201171875),
-        array("1970-01-01", 93L, 96.0313720703125, 142.97296142578125, 100.0, 97.8597640991211, 100.0, 97.8597640991211),
-        array("1970-01-01", 279L, 99.2845230102539, 1862.7379150390625, 100.0, 120.50816345214844, 100.0, 780.27197265625),
-        array("1970-01-01", 93L, 59.02102279663086, 119.85015106201172, 100.0, 89.64623260498047, 100.0, 89.64623260498047),
-        array("1970-01-01", 93L, 100.0, 158.73936462402344, 100.0, 120.29034423828125, 100.0, 120.29034423828125)
-    };
-    Iterable<Row> results = runQuery(query, true);
-    List<Row> expectedResults = createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    validate(
+        query,
+        array("__time", "rows", "index_min", "index_max", "index_timemin", "index_timemax", "index_first", "index_last"),
+        array("1970-01-01", 93, 71.31593322753906, 277.2735290527344, 100.0, 106.793701171875, 100.0, 106.793701171875),
+        array("1970-01-01", 93, 92.5374984741211, 135.1832733154297, 100.0, 94.4697494506836, 100.0, 94.4697494506836),
+        array("1970-01-01", 93, 84.71052551269531, 193.78756713867188, 100.0, 135.10919189453125, 100.0, 135.10919189453125),
+        array("1970-01-01", 93, 85.06978607177734, 189.38595581054688, 100.0, 99.59690856933594, 100.0, 99.59690856933594),
+        array("1970-01-01", 279, 91.27055358886719, 1870.06103515625, 100.0, 92.78276062011719, 100.0, 962.731201171875),
+        array("1970-01-01", 93, 96.0313720703125, 142.97296142578125, 100.0, 97.8597640991211, 100.0, 97.8597640991211),
+        array("1970-01-01", 279, 99.2845230102539, 1862.7379150390625, 100.0, 120.50816345214844, 100.0, 780.27197265625),
+        array("1970-01-01", 93, 59.02102279663086, 119.85015106201172, 100.0, 89.64623260498047, 100.0, 89.64623260498047),
+        array("1970-01-01", 93, 100.0, 158.73936462402344, 100.0, 120.29034423828125, 100.0, 120.29034423828125)
+    );
   }
 
   @Test
@@ -411,16 +399,14 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    String[] columnNames = {"__time", "x", "rows", "idx"};
-    Object[][] objects = {
-        array("2011-04-01T00:00:00.000Z", null, 11L, 3938L),
-        array("2011-04-01T00:00:00.000Z", "xalue", 2L, 2681L),
-        array("2011-04-02T00:00:00.000Z", null, 11L, 3634L),
-        array("2011-04-02T00:00:00.000Z", "xalue", 2L, 2193L)
-    };
-    Iterable<Row> results = runQuery(query, true);
-    List<Row> expectedResults = createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    validate(
+        query,
+        array("__time", "x", "rows", "idx"),
+        array("2011-04-01T00:00:00.000Z", null, 11, 3938),
+        array("2011-04-01T00:00:00.000Z", "xalue", 2, 2681),
+        array("2011-04-02T00:00:00.000Z", null, 11, 3634),
+        array("2011-04-02T00:00:00.000Z", "xalue", 2, 2193)
+    );
   }
 
   @Test
@@ -439,17 +425,17 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.ALL)
         .build();
 
-    Iterable<Row> results;
+    List<Row> results;
     List<Row> expectedResults;
     String[] columnNames = {"__time", "alias", "rows", "idx"};
 
     expectedResults = createExpectedRows(
         columnNames,
-        array("1970-01-01T00:00:00.000Z", "mezzanine", 279L, 217586L),
-        array("1970-01-01T00:00:00.000Z", "premium", 279L, 210722L),
-        array("1970-01-01T00:00:00.000Z", "automotive", 93L, 12226L),
-        array("1970-01-01T00:00:00.000Z", "entertainment", 93L, 12038L),
-        array("1970-01-01T00:00:00.000Z", "travel", 93L, 11138L)
+        array("1970-01-01T00:00:00.000Z", "mezzanine", 279, 217586),
+        array("1970-01-01T00:00:00.000Z", "premium", 279, 210722),
+        array("1970-01-01T00:00:00.000Z", "automotive", 93, 12226),
+        array("1970-01-01T00:00:00.000Z", "entertainment", 93, 12038),
+        array("1970-01-01T00:00:00.000Z", "travel", 93, 11138)
     );
     results = runQuery(query, false);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
@@ -459,8 +445,8 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
     expectedResults = createExpectedRows(
         columnNames,
-        array("1970-01-01T00:00:00.000Z", "mezzanine", 279L, 217586L),
-        array("1970-01-01T00:00:00.000Z", "premium", 279L, 210722L)
+        array("1970-01-01T00:00:00.000Z", "mezzanine", 279, 217586),
+        array("1970-01-01T00:00:00.000Z", "premium", 279, 210722)
     );
     results = runQuery(query.withLimitSpec(limitSpec), false);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
@@ -486,53 +472,49 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(Granularities.ALL)
         .build();
 
-    String[] columnNames = {"__time", "quality", "alias", "rows", "idx"};
-    List<Row> expectedResults = createExpectedRows(
-        columnNames,
-        array("2011-04-01T00:00:00.000Z", null, null, 52L, 24892L),
-        array("2011-04-01T00:00:00.000Z", null, "a", 2L, 282L),
-        array("2011-04-01T00:00:00.000Z", null, "b", 2L, 230L),
-        array("2011-04-01T00:00:00.000Z", null, "e", 2L, 324L),
-        array("2011-04-01T00:00:00.000Z", null, "h", 2L, 233L),
-        array("2011-04-01T00:00:00.000Z", null, "m", 6L, 5317L),
-        array("2011-04-01T00:00:00.000Z", null, "n", 2L, 235L),
-        array("2011-04-01T00:00:00.000Z", null, "p", 6L, 5405L),
-        array("2011-04-01T00:00:00.000Z", null, "preferred", 26L, 12446L),
-        array("2011-04-01T00:00:00.000Z", null, "t", 4L, 420L),
-        array("2011-04-01T00:00:00.000Z", "automotive", null, 4L, 564L),
-        array("2011-04-01T00:00:00.000Z", "automotive", "a", 2L, 282L),
-        array("2011-04-01T00:00:00.000Z", "automotive", "preferred", 2L, 282L),
-        array("2011-04-01T00:00:00.000Z", "business", null, 4L, 460L),
-        array("2011-04-01T00:00:00.000Z", "business", "b", 2L, 230L),
-        array("2011-04-01T00:00:00.000Z", "business", "preferred", 2L, 230L),
-        array("2011-04-01T00:00:00.000Z", "entertainment", null, 4L, 648L),
-        array("2011-04-01T00:00:00.000Z", "entertainment", "e", 2L, 324L),
-        array("2011-04-01T00:00:00.000Z", "entertainment", "preferred", 2L, 324L),
-        array("2011-04-01T00:00:00.000Z", "health", null, 4L, 466L),
-        array("2011-04-01T00:00:00.000Z", "health", "h", 2L, 233L),
-        array("2011-04-01T00:00:00.000Z", "health", "preferred", 2L, 233L),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", null, 12L, 10634L),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", "m", 6L, 5317L),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", "preferred", 6L, 5317L),
-        array("2011-04-01T00:00:00.000Z", "news", null, 4L, 470L),
-        array("2011-04-01T00:00:00.000Z", "news", "n", 2L, 235L),
-        array("2011-04-01T00:00:00.000Z", "news", "preferred", 2L, 235L),
-        array("2011-04-01T00:00:00.000Z", "premium", null, 12L, 10810L),
-        array("2011-04-01T00:00:00.000Z", "premium", "p", 6L, 5405L),
-        array("2011-04-01T00:00:00.000Z", "premium", "preferred", 6L, 5405L),
-        array("2011-04-01T00:00:00.000Z", "technology", null, 4L, 350L),
-        array("2011-04-01T00:00:00.000Z", "technology", "preferred", 2L, 175L),
-        array("2011-04-01T00:00:00.000Z", "technology", "t", 2L, 175L),
-        array("2011-04-01T00:00:00.000Z", "travel", null, 4L, 490L),
-        array("2011-04-01T00:00:00.000Z", "travel", "preferred", 2L, 245L),
-        array("2011-04-01T00:00:00.000Z", "travel", "t", 2L, 245L)
+    validate(
+        query,
+        array("__time", "quality", "alias", "rows", "idx"),
+        array("2011-04-01T00:00:00.000Z", null, null, 52, 24892),
+        array("2011-04-01T00:00:00.000Z", null, "a", 2, 282),
+        array("2011-04-01T00:00:00.000Z", null, "b", 2, 230),
+        array("2011-04-01T00:00:00.000Z", null, "e", 2, 324),
+        array("2011-04-01T00:00:00.000Z", null, "h", 2, 233),
+        array("2011-04-01T00:00:00.000Z", null, "m", 6, 5317),
+        array("2011-04-01T00:00:00.000Z", null, "n", 2, 235),
+        array("2011-04-01T00:00:00.000Z", null, "p", 6, 5405),
+        array("2011-04-01T00:00:00.000Z", null, "preferred", 26, 12446),
+        array("2011-04-01T00:00:00.000Z", null, "t", 4, 420),
+        array("2011-04-01T00:00:00.000Z", "automotive", null, 4, 564),
+        array("2011-04-01T00:00:00.000Z", "automotive", "a", 2, 282),
+        array("2011-04-01T00:00:00.000Z", "automotive", "preferred", 2, 282),
+        array("2011-04-01T00:00:00.000Z", "business", null, 4, 460),
+        array("2011-04-01T00:00:00.000Z", "business", "b", 2, 230),
+        array("2011-04-01T00:00:00.000Z", "business", "preferred", 2, 230),
+        array("2011-04-01T00:00:00.000Z", "entertainment", null, 4, 648),
+        array("2011-04-01T00:00:00.000Z", "entertainment", "e", 2, 324),
+        array("2011-04-01T00:00:00.000Z", "entertainment", "preferred", 2, 324),
+        array("2011-04-01T00:00:00.000Z", "health", null, 4, 466),
+        array("2011-04-01T00:00:00.000Z", "health", "h", 2, 233),
+        array("2011-04-01T00:00:00.000Z", "health", "preferred", 2, 233),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", null, 12, 10634),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", "m", 6, 5317),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", "preferred", 6, 5317),
+        array("2011-04-01T00:00:00.000Z", "news", null, 4, 470),
+        array("2011-04-01T00:00:00.000Z", "news", "n", 2, 235),
+        array("2011-04-01T00:00:00.000Z", "news", "preferred", 2, 235),
+        array("2011-04-01T00:00:00.000Z", "premium", null, 12, 10810),
+        array("2011-04-01T00:00:00.000Z", "premium", "p", 6, 5405),
+        array("2011-04-01T00:00:00.000Z", "premium", "preferred", 6, 5405),
+        array("2011-04-01T00:00:00.000Z", "technology", null, 4, 350),
+        array("2011-04-01T00:00:00.000Z", "technology", "preferred", 2, 175),
+        array("2011-04-01T00:00:00.000Z", "technology", "t", 2, 175),
+        array("2011-04-01T00:00:00.000Z", "travel", null, 4, 490),
+        array("2011-04-01T00:00:00.000Z", "travel", "preferred", 2, 245),
+        array("2011-04-01T00:00:00.000Z", "travel", "t", 2, 245)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -554,41 +536,38 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.ALL)
         .build();
 
-    String[] columnNames = {"__time", "quality", "alias", "rows", "idx"};
-    List<Row> expectedResults = createExpectedRows(
-        columnNames,
-        array("2011-04-01T00:00:00.000Z", null, null, 52L, 24892L),
-        array("2011-04-01T00:00:00.000Z", "automotive", null, 4L, 564L),
-        array("2011-04-01T00:00:00.000Z", "automotive", "a", 2L, 282L),
-        array("2011-04-01T00:00:00.000Z", "automotive", "preferred", 2L, 282L),
-        array("2011-04-01T00:00:00.000Z", "business", null, 4L, 460L),
-        array("2011-04-01T00:00:00.000Z", "business", "b", 2L, 230L),
-        array("2011-04-01T00:00:00.000Z", "business", "preferred", 2L, 230L),
-        array("2011-04-01T00:00:00.000Z", "entertainment", null, 4L, 648L),
-        array("2011-04-01T00:00:00.000Z", "entertainment", "e", 2L, 324L),
-        array("2011-04-01T00:00:00.000Z", "entertainment", "preferred", 2L, 324L),
-        array("2011-04-01T00:00:00.000Z", "health", null, 4L, 466L),
-        array("2011-04-01T00:00:00.000Z", "health", "h", 2L, 233L),
-        array("2011-04-01T00:00:00.000Z", "health", "preferred", 2L, 233L),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", null, 12L, 10634L),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", "m", 6L, 5317L),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", "preferred", 6L, 5317L),
-        array("2011-04-01T00:00:00.000Z", "news", null, 4L, 470L),
-        array("2011-04-01T00:00:00.000Z", "news", "n", 2L, 235L),
-        array("2011-04-01T00:00:00.000Z", "news", "preferred", 2L, 235L),
-        array("2011-04-01T00:00:00.000Z", "premium", null, 12L, 10810L),
-        array("2011-04-01T00:00:00.000Z", "premium", "p", 6L, 5405L),
-        array("2011-04-01T00:00:00.000Z", "premium", "preferred", 6L, 5405L),
-        array("2011-04-01T00:00:00.000Z", "technology", null, 4L, 350L),
-        array("2011-04-01T00:00:00.000Z", "technology", "preferred", 2L, 175L),
-        array("2011-04-01T00:00:00.000Z", "technology", "t", 2L, 175L),
-        array("2011-04-01T00:00:00.000Z", "travel", null, 4L, 490L),
-        array("2011-04-01T00:00:00.000Z", "travel", "preferred", 2L, 245L),
-        array("2011-04-01T00:00:00.000Z", "travel", "t", 2L, 245L)
+    validate(
+        query,
+        array("__time", "quality", "alias", "rows", "idx"),
+        array("2011-04-01T00:00:00.000Z", null, null, 52, 24892),
+        array("2011-04-01T00:00:00.000Z", "automotive", null, 4, 564),
+        array("2011-04-01T00:00:00.000Z", "automotive", "a", 2, 282),
+        array("2011-04-01T00:00:00.000Z", "automotive", "preferred", 2, 282),
+        array("2011-04-01T00:00:00.000Z", "business", null, 4, 460),
+        array("2011-04-01T00:00:00.000Z", "business", "b", 2, 230),
+        array("2011-04-01T00:00:00.000Z", "business", "preferred", 2, 230),
+        array("2011-04-01T00:00:00.000Z", "entertainment", null, 4, 648),
+        array("2011-04-01T00:00:00.000Z", "entertainment", "e", 2, 324),
+        array("2011-04-01T00:00:00.000Z", "entertainment", "preferred", 2, 324),
+        array("2011-04-01T00:00:00.000Z", "health", null, 4, 466),
+        array("2011-04-01T00:00:00.000Z", "health", "h", 2, 233),
+        array("2011-04-01T00:00:00.000Z", "health", "preferred", 2, 233),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", null, 12, 10634),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", "m", 6, 5317),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", "preferred", 6, 5317),
+        array("2011-04-01T00:00:00.000Z", "news", null, 4, 470),
+        array("2011-04-01T00:00:00.000Z", "news", "n", 2, 235),
+        array("2011-04-01T00:00:00.000Z", "news", "preferred", 2, 235),
+        array("2011-04-01T00:00:00.000Z", "premium", null, 12, 10810),
+        array("2011-04-01T00:00:00.000Z", "premium", "p", 6, 5405),
+        array("2011-04-01T00:00:00.000Z", "premium", "preferred", 6, 5405),
+        array("2011-04-01T00:00:00.000Z", "technology", null, 4, 350),
+        array("2011-04-01T00:00:00.000Z", "technology", "preferred", 2, 175),
+        array("2011-04-01T00:00:00.000Z", "technology", "t", 2, 175),
+        array("2011-04-01T00:00:00.000Z", "travel", null, 4, 490),
+        array("2011-04-01T00:00:00.000Z", "travel", "preferred", 2, 245),
+        array("2011-04-01T00:00:00.000Z", "travel", "t", 2, 245)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -600,17 +579,15 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setInterval(new Interval("2011-01-12/2011-01-13"))
         .setDimensions(DefaultDimensionSpec.toSpec("index"))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(rowsCount))
-        .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = createExpectedRows(
-        new String[]{Column.TIME_COLUMN_NAME, "index", "rows"},
-        array("2011-01-12T00:00:00.000Z", 100.0d, 9L),
-        array("2011-01-12T00:00:00.000Z", 800.0d, 2L),
-        array("2011-01-12T00:00:00.000Z", 1000.0d, 2L)
+    validate(
+        query,
+        array("__time", "index", "rows"),
+        array("2011-01-12", 100.0d, 9),
+        array("2011-01-12", 800.0d, 2),
+        array("2011-01-12", 1000.0d, 2)
     );
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -622,16 +599,14 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setInterval(new Interval("2011-01-12/2011-01-14"))
         .setDimensions(new DefaultDimensionSpec(Column.TIME_COLUMN_NAME, "time"))
         .setAggregatorSpecs(rowsCount)
-        .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = createExpectedRows(
-        new String[]{Column.TIME_COLUMN_NAME, "time", "rows"},
-        array("2011-01-12T00:00:00.000Z", 1294790400000L, 13L),
-        array("2011-01-12T00:00:00.000Z", 1294876800000L, 13L)
+    validate(
+        query,
+        array("__time", "time", "rows"),
+        array("2011-01-12", 1294790400000L, 13),
+        array("2011-01-12", 1294876800000L, 13)
     );
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -645,17 +620,15 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setDimensions(DefaultDimensionSpec.toSpec("_week"))
         .setAggregatorSpecs(rowsCount)
         .setPostAggregatorSpecs(new MathPostAggregator("week = time_format(_week, out.format='ww xxxx')"))
-        .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = createExpectedRows(
-        new String[]{Column.TIME_COLUMN_NAME, "week", "rows"},
-        array("2011-01-12T00:00:00.000Z", "02 2011", 65L),
-        array("2011-01-12T00:00:00.000Z", "03 2011", 78L),
-        array("2011-01-12T00:00:00.000Z", "04 2011", 91L)
+    validate(
+        query,
+        array("__time", "week", "rows"),
+        array("2011-01-12", "02 2011", 65),
+        array("2011-01-12", "03 2011", 78),
+        array("2011-01-12", "04 2011", 91)
     );
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -672,23 +645,21 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "a", "rows", 2L, "idx", 282L),
-        createExpectedRow("2011-04-01", "alias", "b", "rows", 2L, "idx", 230L),
-        createExpectedRow("2011-04-01", "alias", "e", "rows", 2L, "idx", 324L),
-        createExpectedRow("2011-04-01", "alias", "h", "rows", 2L, "idx", 233L),
-        createExpectedRow("2011-04-01", "alias", "m", "rows", 6L, "idx", 5317L),
-        createExpectedRow("2011-04-01", "alias", "n", "rows", 2L, "idx", 235L),
-        createExpectedRow("2011-04-01", "alias", "p", "rows", 6L, "idx", 5405L),
-        createExpectedRow("2011-04-01", "alias", "preferred", "rows", 26L, "idx", 12446L),
-        createExpectedRow("2011-04-01", "alias", "t", "rows", 4L, "idx", 420L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "a", 2, 282),
+        array("2011-04-01", "b", 2, 230),
+        array("2011-04-01", "e", 2, 324),
+        array("2011-04-01", "h", 2, 233),
+        array("2011-04-01", "m", 6, 5317),
+        array("2011-04-01", "n", 2, 235),
+        array("2011-04-01", "p", 6, 5405),
+        array("2011-04-01", "preferred", 26, 12446),
+        array("2011-04-01", "t", 4, 420)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -708,32 +679,30 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "quality", "automotive", "alias", "a", "rows", 2L, "idx", 282L),
-        createExpectedRow("2011-04-01", "quality", "business", "alias", "b", "rows", 2L, "idx", 230L),
-        createExpectedRow("2011-04-01", "quality", "entertainment", "alias", "e", "rows", 2L, "idx", 324L),
-        createExpectedRow("2011-04-01", "quality", "health", "alias", "h", "rows", 2L, "idx", 233L),
-        createExpectedRow("2011-04-01", "quality", "mezzanine", "alias", "m", "rows", 6L, "idx", 5317L),
-        createExpectedRow("2011-04-01", "quality", "news", "alias", "n", "rows", 2L, "idx", 235L),
-        createExpectedRow("2011-04-01", "quality", "premium", "alias", "p", "rows", 6L, "idx", 5405L),
-        createExpectedRow("2011-04-01", "quality", "automotive", "alias", "preferred", "rows", 2L, "idx", 282L),
-        createExpectedRow("2011-04-01", "quality", "business", "alias", "preferred", "rows", 2L, "idx", 230L),
-        createExpectedRow("2011-04-01", "quality", "entertainment", "alias", "preferred", "rows", 2L, "idx", 324L),
-        createExpectedRow("2011-04-01", "quality", "health", "alias", "preferred", "rows", 2L, "idx", 233L),
-        createExpectedRow("2011-04-01", "quality", "mezzanine", "alias", "preferred", "rows", 6L, "idx", 5317L),
-        createExpectedRow("2011-04-01", "quality", "news", "alias", "preferred", "rows", 2L, "idx", 235L),
-        createExpectedRow("2011-04-01", "quality", "premium", "alias", "preferred", "rows", 6L, "idx", 5405L),
-        createExpectedRow("2011-04-01", "quality", "technology", "alias", "preferred", "rows", 2L, "idx", 175L),
-        createExpectedRow("2011-04-01", "quality", "travel", "alias", "preferred", "rows", 2L, "idx", 245L),
-        createExpectedRow("2011-04-01", "quality", "technology", "alias", "t", "rows", 2L, "idx", 175L),
-        createExpectedRow("2011-04-01", "quality", "travel", "alias", "t", "rows", 2L, "idx", 245L)
+    validate(
+        query,
+        array("__time", "quality", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive", "a", 2, 282),
+        array("2011-04-01", "business", "b", 2, 230),
+        array("2011-04-01", "entertainment", "e", 2, 324),
+        array("2011-04-01", "health", "h", 2, 233),
+        array("2011-04-01", "mezzanine", "m", 6, 5317),
+        array("2011-04-01", "news", "n", 2, 235),
+        array("2011-04-01", "premium", "p", 6, 5405),
+        array("2011-04-01", "automotive", "preferred", 2, 282),
+        array("2011-04-01", "business", "preferred", 2, 230),
+        array("2011-04-01", "entertainment", "preferred", 2, 324),
+        array("2011-04-01", "health", "preferred", 2, 233),
+        array("2011-04-01", "mezzanine", "preferred", 6, 5317),
+        array("2011-04-01", "news", "preferred", 2, 235),
+        array("2011-04-01", "premium", "preferred", 6, 5405),
+        array("2011-04-01", "technology", "preferred", 2, 175),
+        array("2011-04-01", "travel", "preferred", 2, 245),
+        array("2011-04-01", "technology", "t", 2, 175),
+        array("2011-04-01", "travel", "t", 2, 245)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -753,32 +722,30 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "quality", "automotive", "alias", "a", "rows", 2L, "idx", 282L),
-        createExpectedRow("2011-04-01", "quality", "automotive", "alias", "preferred", "rows", 2L, "idx", 282L),
-        createExpectedRow("2011-04-01", "quality", "business", "alias", "b", "rows", 2L, "idx", 230L),
-        createExpectedRow("2011-04-01", "quality", "business", "alias", "preferred", "rows", 2L, "idx", 230L),
-        createExpectedRow("2011-04-01", "quality", "entertainment", "alias", "e", "rows", 2L, "idx", 324L),
-        createExpectedRow("2011-04-01", "quality", "entertainment", "alias", "preferred", "rows", 2L, "idx", 324L),
-        createExpectedRow("2011-04-01", "quality", "health", "alias", "h", "rows", 2L, "idx", 233L),
-        createExpectedRow("2011-04-01", "quality", "health", "alias", "preferred", "rows", 2L, "idx", 233L),
-        createExpectedRow("2011-04-01", "quality", "mezzanine", "alias", "m", "rows", 6L, "idx", 5317L),
-        createExpectedRow("2011-04-01", "quality", "mezzanine", "alias", "preferred", "rows", 6L, "idx", 5317L),
-        createExpectedRow("2011-04-01", "quality", "news", "alias", "n", "rows", 2L, "idx", 235L),
-        createExpectedRow("2011-04-01", "quality", "news", "alias", "preferred", "rows", 2L, "idx", 235L),
-        createExpectedRow("2011-04-01", "quality", "premium", "alias", "p", "rows", 6L, "idx", 5405L),
-        createExpectedRow("2011-04-01", "quality", "premium", "alias", "preferred", "rows", 6L, "idx", 5405L),
-        createExpectedRow("2011-04-01", "quality", "technology", "alias", "preferred", "rows", 2L, "idx", 175L),
-        createExpectedRow("2011-04-01", "quality", "technology", "alias", "t", "rows", 2L, "idx", 175L),
-        createExpectedRow("2011-04-01", "quality", "travel", "alias", "preferred", "rows", 2L, "idx", 245L),
-        createExpectedRow("2011-04-01", "quality", "travel", "alias", "t", "rows", 2L, "idx", 245L)
+    validate(
+        query,
+        array("__time", "quality", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive", "a", 2, 282),
+        array("2011-04-01", "automotive", "preferred", 2, 282),
+        array("2011-04-01", "business", "b", 2, 230),
+        array("2011-04-01", "business", "preferred", 2, 230),
+        array("2011-04-01", "entertainment", "e", 2, 324),
+        array("2011-04-01", "entertainment", "preferred", 2, 324),
+        array("2011-04-01", "health", "h", 2, 233),
+        array("2011-04-01", "health", "preferred", 2, 233),
+        array("2011-04-01", "mezzanine", "m", 6, 5317),
+        array("2011-04-01", "mezzanine", "preferred", 6, 5317),
+        array("2011-04-01", "news", "n", 2, 235),
+        array("2011-04-01", "news", "preferred", 2, 235),
+        array("2011-04-01", "premium", "p", 6, 5405),
+        array("2011-04-01", "premium", "preferred", 6, 5405),
+        array("2011-04-01", "technology", "preferred", 2, 175),
+        array("2011-04-01", "technology", "t", 2, 175),
+        array("2011-04-01", "travel", "preferred", 2, 245),
+        array("2011-04-01", "travel", "t", 2, 245)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test(expected = ISE.class)
@@ -836,48 +803,29 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive0", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "business0", "rows", 1L, "idx", 118L),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            158L
-        ),
-        createExpectedRow("2011-04-01", "alias", "health0", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine0", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news0", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "premium0", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "technology0", "rows", 1L, "idx", 78L),
-        createExpectedRow("2011-04-01", "alias", "travel0", "rows", 1L, "idx", 119L),
-
-        createExpectedRow("2011-04-02", "alias", "automotive0", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "business0", "rows", 1L, "idx", 112L),
-        createExpectedRow(
-            "2011-04-02",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            166L
-        ),
-        createExpectedRow("2011-04-02", "alias", "health0", "rows", 1L, "idx", 113L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine0", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news0", "rows", 1L, "idx", 114L),
-        createExpectedRow("2011-04-02", "alias", "premium0", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "technology0", "rows", 1L, "idx", 97L),
-        createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive0", 1, 135),
+        array("2011-04-01", "business0", 1, 118),
+        array("2011-04-01", "entertainment0", 1, 158),
+        array("2011-04-01", "health0", 1, 120),
+        array("2011-04-01", "mezzanine0", 3, 2870),
+        array("2011-04-01", "news0", 1, 121),
+        array("2011-04-01", "premium0", 3, 2900),
+        array("2011-04-01", "technology0", 1, 78),
+        array("2011-04-01", "travel0", 1, 119),
+        array("2011-04-02", "automotive0", 1, 147),
+        array("2011-04-02", "business0", 1, 112),
+        array("2011-04-02", "entertainment0", 1, 166),
+        array("2011-04-02", "health0", 1, 113),
+        array("2011-04-02", "mezzanine0", 3, 2447),
+        array("2011-04-02", "news0", 1, 114),
+        array("2011-04-02", "premium0", 3, 2505),
+        array("2011-04-02", "technology0", 1, 97),
+        array("2011-04-02", "travel0", 1, 126)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
-
 
   @Test
   public void testGroupByWithSimpleRenameRetainMissingNonInjective()
@@ -913,48 +861,29 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive0", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "business0", "rows", 1L, "idx", 118L),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            158L
-        ),
-        createExpectedRow("2011-04-01", "alias", "health0", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine0", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news0", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "premium0", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "technology0", "rows", 1L, "idx", 78L),
-        createExpectedRow("2011-04-01", "alias", "travel0", "rows", 1L, "idx", 119L),
-
-        createExpectedRow("2011-04-02", "alias", "automotive0", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "business0", "rows", 1L, "idx", 112L),
-        createExpectedRow(
-            "2011-04-02",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            166L
-        ),
-        createExpectedRow("2011-04-02", "alias", "health0", "rows", 1L, "idx", 113L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine0", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news0", "rows", 1L, "idx", 114L),
-        createExpectedRow("2011-04-02", "alias", "premium0", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "technology0", "rows", 1L, "idx", 97L),
-        createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive0", 1, 135),
+        array("2011-04-01", "business0", 1, 118),
+        array("2011-04-01", "entertainment0", 1, 158),
+        array("2011-04-01", "health0", 1, 120),
+        array("2011-04-01", "mezzanine0", 3, 2870),
+        array("2011-04-01", "news0", 1, 121),
+        array("2011-04-01", "premium0", 3, 2900),
+        array("2011-04-01", "technology0", 1, 78),
+        array("2011-04-01", "travel0", 1, 119),
+        array("2011-04-02", "automotive0", 1, 147),
+        array("2011-04-02", "business0", 1, 112),
+        array("2011-04-02", "entertainment0", 1, 166),
+        array("2011-04-02", "health0", 1, 113),
+        array("2011-04-02", "mezzanine0", 3, 2447),
+        array("2011-04-02", "news0", 1, 114),
+        array("2011-04-02", "premium0", 3, 2505),
+        array("2011-04-02", "technology0", 1, 97),
+        array("2011-04-02", "travel0", 1, 126)
     );
-
-    List<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
-
 
   @Test
   public void testGroupByWithSimpleRenameRetainMissing()
@@ -990,48 +919,29 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive0", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "business0", "rows", 1L, "idx", 118L),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            158L
-        ),
-        createExpectedRow("2011-04-01", "alias", "health0", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine0", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news0", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "premium0", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "technology0", "rows", 1L, "idx", 78L),
-        createExpectedRow("2011-04-01", "alias", "travel0", "rows", 1L, "idx", 119L),
-
-        createExpectedRow("2011-04-02", "alias", "automotive0", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "business0", "rows", 1L, "idx", 112L),
-        createExpectedRow(
-            "2011-04-02",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            166L
-        ),
-        createExpectedRow("2011-04-02", "alias", "health0", "rows", 1L, "idx", 113L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine0", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news0", "rows", 1L, "idx", 114L),
-        createExpectedRow("2011-04-02", "alias", "premium0", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "technology0", "rows", 1L, "idx", 97L),
-        createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive0", 1, 135),
+        array("2011-04-01", "business0", 1, 118),
+        array("2011-04-01", "entertainment0", 1, 158),
+        array("2011-04-01", "health0", 1, 120),
+        array("2011-04-01", "mezzanine0", 3, 2870),
+        array("2011-04-01", "news0", 1, 121),
+        array("2011-04-01", "premium0", 3, 2900),
+        array("2011-04-01", "technology0", 1, 78),
+        array("2011-04-01", "travel0", 1, 119),
+        array("2011-04-02", "automotive0", 1, 147),
+        array("2011-04-02", "business0", 1, 112),
+        array("2011-04-02", "entertainment0", 1, 166),
+        array("2011-04-02", "health0", 1, 113),
+        array("2011-04-02", "mezzanine0", 3, 2447),
+        array("2011-04-02", "news0", 1, 114),
+        array("2011-04-02", "premium0", 3, 2505),
+        array("2011-04-02", "technology0", 1, 97),
+        array("2011-04-02", "travel0", 1, 126)
     );
-
-    List<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
-
 
   @Test
   public void testGroupByWithSimpleRenameAndMissingString()
@@ -1046,6 +956,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     map.put("premium", "premium0");
     map.put("technology", "technology0");
     map.put("travel", "travel0");
+
     GroupByQuery query = GroupByQuery
         .builder()
         .setDataSource(dataSource)
@@ -1067,46 +978,28 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive0", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "business0", "rows", 1L, "idx", 118L),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            158L
-        ),
-        createExpectedRow("2011-04-01", "alias", "health0", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine0", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news0", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "premium0", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "technology0", "rows", 1L, "idx", 78L),
-        createExpectedRow("2011-04-01", "alias", "travel0", "rows", 1L, "idx", 119L),
-
-        createExpectedRow("2011-04-02", "alias", "automotive0", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "business0", "rows", 1L, "idx", 112L),
-        createExpectedRow(
-            "2011-04-02",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            166L
-        ),
-        createExpectedRow("2011-04-02", "alias", "health0", "rows", 1L, "idx", 113L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine0", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news0", "rows", 1L, "idx", 114L),
-        createExpectedRow("2011-04-02", "alias", "premium0", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "technology0", "rows", 1L, "idx", 97L),
-        createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive0", 1, 135),
+        array("2011-04-01", "business0", 1, 118),
+        array("2011-04-01", "entertainment0", 1, 158),
+        array("2011-04-01", "health0", 1, 120),
+        array("2011-04-01", "mezzanine0", 3, 2870),
+        array("2011-04-01", "news0", 1, 121),
+        array("2011-04-01", "premium0", 3, 2900),
+        array("2011-04-01", "technology0", 1, 78),
+        array("2011-04-01", "travel0", 1, 119),
+        array("2011-04-02", "automotive0", 1, 147),
+        array("2011-04-02", "business0", 1, 112),
+        array("2011-04-02", "entertainment0", 1, 166),
+        array("2011-04-02", "health0", 1, 113),
+        array("2011-04-02", "mezzanine0", 3, 2447),
+        array("2011-04-02", "news0", 1, 114),
+        array("2011-04-02", "premium0", 3, 2505),
+        array("2011-04-02", "technology0", 1, 97),
+        array("2011-04-02", "travel0", 1, 126)
     );
-
-    List<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -1122,6 +1015,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     map.put("premium", "premium0");
     map.put("technology", "technology0");
     map.put("travel", "travel0");
+
     GroupByQuery query = GroupByQuery
         .builder()
         .setDataSource(dataSource)
@@ -1143,46 +1037,28 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive0", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "business0", "rows", 1L, "idx", 118L),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            158L
-        ),
-        createExpectedRow("2011-04-01", "alias", "health0", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine0", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news0", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "premium0", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "technology0", "rows", 1L, "idx", 78L),
-        createExpectedRow("2011-04-01", "alias", "travel0", "rows", 1L, "idx", 119L),
-
-        createExpectedRow("2011-04-02", "alias", "automotive0", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "business0", "rows", 1L, "idx", 112L),
-        createExpectedRow(
-            "2011-04-02",
-            "alias",
-            "entertainment0",
-            "rows",
-            1L,
-            "idx",
-            166L
-        ),
-        createExpectedRow("2011-04-02", "alias", "health0", "rows", 1L, "idx", 113L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine0", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news0", "rows", 1L, "idx", 114L),
-        createExpectedRow("2011-04-02", "alias", "premium0", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "technology0", "rows", 1L, "idx", 97L),
-        createExpectedRow("2011-04-02", "alias", "travel0", "rows", 1L, "idx", 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive0", 1, 135),
+        array("2011-04-01", "business0", 1, 118),
+        array("2011-04-01", "entertainment0", 1, 158),
+        array("2011-04-01", "health0", 1, 120),
+        array("2011-04-01", "mezzanine0", 3, 2870),
+        array("2011-04-01", "news0", 1, 121),
+        array("2011-04-01", "premium0", 3, 2900),
+        array("2011-04-01", "technology0", 1, 78),
+        array("2011-04-01", "travel0", 1, 119),
+        array("2011-04-02", "automotive0", 1, 147),
+        array("2011-04-02", "business0", 1, 112),
+        array("2011-04-02", "entertainment0", 1, 166),
+        array("2011-04-02", "health0", 1, 113),
+        array("2011-04-02", "mezzanine0", 3, 2447),
+        array("2011-04-02", "news0", 1, 114),
+        array("2011-04-02", "premium0", 3, 2505),
+        array("2011-04-02", "technology0", 1, 97),
+        array("2011-04-02", "travel0", 1, 126)
     );
-
-    List<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -1201,18 +1077,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-04-01",
-            "rows",
-            26L,
-            "uniques",
-            UNIQUES_9
-        )
+    validate(
+        query,
+        array("__time", "rows", "uniques"),
+        array("2011-04-01", 26, UNIQUES_9)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -1236,21 +1105,13 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new HyperUniqueFinalizingPostAggregator("quality_uniques", "quality_uniques")
             )
         )
-        .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-04-01",
-            "rows",
-            26L,
-            "quality_uniques",
-            UNIQUES_9
-        )
+    validate(
+        query,
+        array("__time", "rows", "quality_uniques"),
+        array("2011-04-01", 26, UNIQUES_9)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -1269,16 +1130,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.ALL)
         .build();
 
-    String[] columns = new String[]{"__time", "rows", "cardinality"};
-    List<Row> expectedResults = createExpectedRows(
-        columns, array("2011-04-01", 26L, UNIQUES_9)
+    validate(
+        query, array("__time", "rows", "cardinality"), array("2011-04-01", 26, UNIQUES_9)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
-
-    columns = new String[]{"__time", "null", "not_null"};
-    expectedResults = createExpectedRows(columns, array("2011-04-01", 22L, 4L));
 
     query = query
         .withVirtualColumns(
@@ -1289,11 +1143,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 CountAggregatorFactory.predicate("null", "isnull(PN)"))
         );
 
-    results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
-
-    columns = new String[]{"__time", "rows"};
-    expectedResults = createExpectedRows(columns, array("2011-04-01", 4L));
+    validate(query, array("__time", "null", "not_null"), array("2011-04-01", 22, 4));
 
     query = query
         .withVirtualColumns(Arrays.<VirtualColumn>asList(new ExprVirtualColumn("market + 'AA'", "marketAA")))
@@ -1309,8 +1159,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             Arrays.<AggregatorFactory>asList(rowsCount)
         );
 
-    results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    validate(query, array("__time", "rows"), array("2011-04-01", 4));
   }
 
   @Test
@@ -1325,16 +1174,13 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setLimitSpec(LimitSpec.of(OrderByColumnSpec.desc("cardinality")))
         .build();
 
-    String[] columns = new String[]{"__time", "market", "cardinality"};
-    List<Row> expectedResults = createExpectedRows(
-        columns,
+    validate(
+        query,
+        array("__time", "market", "cardinality"),
         array("2011-01-01", "spot", UNIQUES_9),
         array("2011-01-01", "total_market", UNIQUES_2),
         array("2011-01-01", "upfront", UNIQUES_2)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -1368,32 +1214,26 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
-    final List<Row> expectedResults = createExpectedRows(
-        columns,
-        array("2011-04-01", null, 3L, 2870L),
-        array("2011-04-01", "a", 1L, 135L),
-        array("2011-04-01", "b", 1L, 118L),
-        array("2011-04-01", "e", 1L, 158L),
-        array("2011-04-01", "h", 1L, 120L),
-        array("2011-04-01", "n", 1L, 121L),
-        array("2011-04-01", "p", 3L, 2900L),
-        array("2011-04-01", "t", 2L, 197L),
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", null, 3, 2870),
+        array("2011-04-01", "a", 1, 135),
+        array("2011-04-01", "b", 1, 118),
+        array("2011-04-01", "e", 1, 158),
+        array("2011-04-01", "h", 1, 120),
+        array("2011-04-01", "n", 1, 121),
+        array("2011-04-01", "p", 3, 2900),
+        array("2011-04-01", "t", 2, 197),
 
-        array("2011-04-02", null, 3L, 2447L),
-        array("2011-04-02", "a", 1L, 147L),
-        array("2011-04-02", "b", 1L, 112L),
-        array("2011-04-02", "e", 1L, 166L),
-        array("2011-04-02", "h", 1L, 113L),
-        array("2011-04-02", "n", 1L, 114L),
-        array("2011-04-02", "p", 3L, 2505L),
-        array("2011-04-02", "t", 2L, 223L)
-    );
-
-    TestHelper.assertExpectedObjects(
-        expectedResults,
-        runQuery(query, true),
-        ""
+        array("2011-04-02", null, 3, 2447),
+        array("2011-04-02", "a", 1, 147),
+        array("2011-04-02", "b", 1, 112),
+        array("2011-04-02", "e", 1, 166),
+        array("2011-04-02", "h", 1, 113),
+        array("2011-04-02", "n", 1, 114),
+        array("2011-04-02", "p", 3, 2505),
+        array("2011-04-02", "t", 2, 223)
     );
   }
 
@@ -1434,32 +1274,25 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
-    final List<Row> expectedResults = createExpectedRows(
-        columns,
-        array("2011-04-01", null, 3L, 2870L),
-        array("2011-04-01", "a", 1L, 135L),
-        array("2011-04-01", "b", 1L, 118L),
-        array("2011-04-01", "e", 1L, 158L),
-        array("2011-04-01", "h", 1L, 120L),
-        array("2011-04-01", "n", 1L, 121L),
-        array("2011-04-01", "p", 3L, 2900L),
-        array("2011-04-01", "t", 2L, 197L),
-
-        array("2011-04-02", null, 3L, 2447L),
-        array("2011-04-02", "a", 1L, 147L),
-        array("2011-04-02", "b", 1L, 112L),
-        array("2011-04-02", "e", 1L, 166L),
-        array("2011-04-02", "h", 1L, 113L),
-        array("2011-04-02", "n", 1L, 114L),
-        array("2011-04-02", "p", 3L, 2505L),
-        array("2011-04-02", "t", 2L, 223L)
-    );
-
-    TestHelper.assertExpectedObjects(
-        expectedResults,
-        runQuery(query, true),
-        ""
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", null, 3, 2870),
+        array("2011-04-01", "a", 1, 135),
+        array("2011-04-01", "b", 1, 118),
+        array("2011-04-01", "e", 1, 158),
+        array("2011-04-01", "h", 1, 120),
+        array("2011-04-01", "n", 1, 121),
+        array("2011-04-01", "p", 3, 2900),
+        array("2011-04-01", "t", 2, 197),
+        array("2011-04-02", null, 3, 2447),
+        array("2011-04-02", "a", 1, 147),
+        array("2011-04-02", "b", 1, 112),
+        array("2011-04-02", "e", 1, 166),
+        array("2011-04-02", "h", 1, 113),
+        array("2011-04-02", "n", 1, 114),
+        array("2011-04-02", "p", 3, 2505),
+        array("2011-04-02", "t", 2, 223)
     );
   }
 
@@ -1479,35 +1312,28 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(new PeriodGranularity(new Period("P1D"), null, tz))
         .build();
 
-    final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
-    final List<Row> expectedResults = createExpectedRows(
-        columns,
-        array(new DateTime("2011-03-31", tz), "automotive", 1L, 135L),
-        array(new DateTime("2011-03-31", tz), "business", 1L, 118L),
-        array(new DateTime("2011-03-31", tz), "entertainment", 1L, 158L),
-        array(new DateTime("2011-03-31", tz), "health", 1L, 120L),
-        array(new DateTime("2011-03-31", tz), "mezzanine", 3L, 2870L),
-        array(new DateTime("2011-03-31", tz), "news", 1L, 121L),
-        array(new DateTime("2011-03-31", tz), "premium", 3L, 2900L),
-        array(new DateTime("2011-03-31", tz), "technology", 1L, 78L),
-        array(new DateTime("2011-03-31", tz), "travel", 1L, 119L),
-        array(new DateTime("2011-04-01", tz), "automotive", 1L, 147L),
-        array(new DateTime("2011-04-01", tz), "business", 1L, 112L),
-        array(new DateTime("2011-04-01", tz), "entertainment", 1L, 166L),
-        array(new DateTime("2011-04-01", tz), "health", 1L, 113L),
-        array(new DateTime("2011-04-01", tz), "mezzanine", 3L, 2447L),
-        array(new DateTime("2011-04-01", tz), "news", 1L, 114L),
-        array(new DateTime("2011-04-01", tz), "premium", 3L, 2505L),
-        array(new DateTime("2011-04-01", tz), "technology", 1L, 97L),
-        array(new DateTime("2011-04-01", tz), "travel", 1L, 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array(new DateTime("2011-03-31", tz), "automotive", 1, 135),
+        array(new DateTime("2011-03-31", tz), "business", 1, 118),
+        array(new DateTime("2011-03-31", tz), "entertainment", 1, 158),
+        array(new DateTime("2011-03-31", tz), "health", 1, 120),
+        array(new DateTime("2011-03-31", tz), "mezzanine", 3, 2870),
+        array(new DateTime("2011-03-31", tz), "news", 1, 121),
+        array(new DateTime("2011-03-31", tz), "premium", 3, 2900),
+        array(new DateTime("2011-03-31", tz), "technology", 1, 78),
+        array(new DateTime("2011-03-31", tz), "travel", 1, 119),
+        array(new DateTime("2011-04-01", tz), "automotive", 1, 147),
+        array(new DateTime("2011-04-01", tz), "business", 1, 112),
+        array(new DateTime("2011-04-01", tz), "entertainment", 1, 166),
+        array(new DateTime("2011-04-01", tz), "health", 1, 113),
+        array(new DateTime("2011-04-01", tz), "mezzanine", 3, 2447),
+        array(new DateTime("2011-04-01", tz), "news", 1, 114),
+        array(new DateTime("2011-04-01", tz), "premium", 3, 2505),
+        array(new DateTime("2011-04-01", tz), "technology", 1, 97),
+        array(new DateTime("2011-04-01", tz), "travel", 1, 126)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
-  }
-
-  public void testMergeResults()
-  {
   }
 
   @Test
@@ -1534,16 +1360,19 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     final GroupByQuery fullQuery = builder.build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 2L, "idx", 269L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 2L, "idx", 319L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 2L, "idx", 216L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 2L, "idx", 221L),
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 2L, "idx", 177L),
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 2L, "idx", 243L)
+    final String[] columnNames = array("__time", "alias", "rows", "idx");
+
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array("2011-04-01", "automotive", 2, 269),
+        array("2011-04-01", "business", 2, 217),
+        array("2011-04-01", "entertainment", 2, 319),
+        array("2011-04-01", "health", 2, 216),
+        array("2011-04-01", "mezzanine", 6, 4420),
+        array("2011-04-01", "news", 2, 221),
+        array("2011-04-01", "premium", 6, 4416),
+        array("2011-04-01", "technology", 2, 177),
+        array("2011-04-01", "travel", 2, 243)
     );
 
     TestHelper.assertExpectedObjects(
@@ -1570,22 +1399,25 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     GroupByQuery query = builder.build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 1L, "idx", 158L),
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 1L, "idx", 119L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 1L, "idx", 118L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 1L, "idx", 78L),
+    String[] columnNames = array("__time", "alias", "rows", "idx");
 
-        createExpectedRow("2011-04-02", "alias", "premium", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "entertainment", "rows", 1L, "idx", 166L),
-        createExpectedRow("2011-04-02", "alias", "automotive", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "travel", "rows", 1L, "idx", 126L)
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array("2011-04-01", "premium", 3, 2900),
+        array("2011-04-01", "mezzanine", 3, 2870),
+        array("2011-04-01", "entertainment", 1, 158),
+        array("2011-04-01", "automotive", 1, 135),
+        array("2011-04-01", "news", 1, 121),
+        array("2011-04-01", "health", 1, 120),
+        array("2011-04-01", "travel", 1, 119),
+        array("2011-04-01", "business", 1, 118),
+        array("2011-04-01", "technology", 1, 78),
+
+        array("2011-04-02", "premium", 3, 2505),
+        array("2011-04-02", "mezzanine", 3, 2447),
+        array("2011-04-02", "entertainment", 1, 166),
+        array("2011-04-02", "automotive", 1, 147),
+        array("2011-04-02", "travel", 1, 126)
     );
 
     TestHelper.assertExpectedObjects(
@@ -1600,26 +1432,27 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
     query = builder.build();
 
-    expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 3L, "idx", 6090L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 6030L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 1L, "idx", 333L),
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 285L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 255L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 1L, "idx", 252L),
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 1L, "idx", 251L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 1L, "idx", 248L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 1L, "idx", 165L),
+    expectedResults = createExpectedRows(
+        columnNames,
+        array("2011-04-01", "premium", 3, 6090),
+        array("2011-04-01", "mezzanine", 3, 6030),
+        array("2011-04-01", "entertainment", 1, 333),
+        array("2011-04-01", "automotive", 1, 285),
+        array("2011-04-01", "news", 1, 255),
+        array("2011-04-01", "health", 1, 252),
+        array("2011-04-01", "travel", 1, 251),
+        array("2011-04-01", "business", 1, 248),
+        array("2011-04-01", "technology", 1, 165),
 
-        createExpectedRow("2011-04-02", "alias", "premium", "rows", 3L, "idx", 5262L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 5141L),
-        createExpectedRow("2011-04-02", "alias", "entertainment", "rows", 1L, "idx", 348L),
-        createExpectedRow("2011-04-02", "alias", "automotive", "rows", 1L, "idx", 309L),
-        createExpectedRow("2011-04-02", "alias", "travel", "rows", 1L, "idx", 265L)
+        array("2011-04-02", "premium", 3, 5262),
+        array("2011-04-02", "mezzanine", 3, 5141),
+        array("2011-04-02", "entertainment", 1, 348),
+        array("2011-04-02", "automotive", 1, 309),
+        array("2011-04-02", "travel", 1, 265)
     );
 
-    TestHelper.assertExpectedObjects(
-        Iterables.limit(expectedResults, limit), runQuery(query), String.format("limit: %d", limit)
+    TestHelper.validate(
+        columnNames, expectedResults.subList(0, limit), runQuery(query)
     );
   }
 
@@ -1679,16 +1512,19 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
           }
         };
 
-    List<Row> allResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 2L, "idx", 269L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 2L, "idx", 319L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 2L, "idx", 216L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 2L, "idx", 221L),
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 2L, "idx", 177L),
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 2L, "idx", 243L)
+    String[] columnNames = array("__time", "alias", "rows", "idx");
+
+    List<Row> allResults = createExpectedRows(
+        columnNames,
+        array("2011-04-01", "automotive", 2, 269),
+        array("2011-04-01", "business", 2, 217),
+        array("2011-04-01", "entertainment", 2, 319),
+        array("2011-04-01", "health", 2, 216),
+        array("2011-04-01", "mezzanine", 6, 4420),
+        array("2011-04-01", "news", 2, 221),
+        array("2011-04-01", "premium", 6, 4416),
+        array("2011-04-01", "technology", 2, 177),
+        array("2011-04-01", "travel", 2, 243)
     );
 
     List<List<Row>> expectedResults = Arrays.asList(
@@ -1738,24 +1574,26 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .addOrderByColumn("alias", Direction.DESCENDING)
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 2L, "idx", 243L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 2L, "idx", 177L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 2L, "idx", 221L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 2L, "idx", 216L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 2L, "idx", 319L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 2L, "idx", 269L),
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L)
+    String[] columnNames = {"__time", "alias", "rows", "idx"};
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array("2011-04-01", "travel", 2, 243),
+        array("2011-04-01", "technology", 2, 177),
+        array("2011-04-01", "news", 2, 221),
+        array("2011-04-01", "health", 2, 216),
+        array("2011-04-01", "entertainment", 2, 319),
+        array("2011-04-01", "business", 2, 217),
+        array("2011-04-01", "automotive", 2, 269),
+        array("2011-04-01", "premium", 6, 4416),
+        array("2011-04-01", "mezzanine", 6, 4420)
     );
 
     GroupByQuery query = builder.build();
 
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "no-limit");
+    TestHelper.validate(columnNames, expectedResults, runQuery(query));
 
     query = builder.limit(5).build();
-    TestHelper.assertExpectedObjects( Iterables.limit(expectedResults, 5), runQuery(query), "limited");
+    TestHelper.validate(columnNames, expectedResults.subList(0, 5), runQuery(query));
 
     builder.setAggregatorSpecs(
         Arrays.asList(
@@ -1768,21 +1606,22 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
+    columnNames = array("__time", "alias", "rows", "rows1", "rows2", "idx", "idx2", "idx3");
     expectedResults = createExpectedRows(
-        new String[]{"__time", "alias", "rows", "rows1", "rows2", "idx", "idx2", "idx3"},
-        new Object[]{"2011-04-01", "travel", 2L, 2L, 0L, 243L, 243L, 0D},
-        new Object[]{"2011-04-01", "technology", 2L, 0L, 0L, 177L, 0L, 0D},
-        new Object[]{"2011-04-01", "news", 2L, 1L, 0L, 221L, 114L, 0D},
-        new Object[]{"2011-04-01", "health", 2L, 1L, 0L, 216L, 113L, 0D},
-        new Object[]{"2011-04-01", "entertainment", 2L, 2L, 2L, 319L, 319L, 319.94403076171875D},
-        new Object[]{"2011-04-01", "business", 2L, 1L, 0L, 217L, 112L, 0D},
-        new Object[]{"2011-04-01", "automotive", 2L, 2L, 1L, 269L, 269L, 147.42593383789062D},
-        new Object[]{"2011-04-01", "premium", 6L, 6L, 5L, 4416L, 4416L, 4296.4765625D},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 5L, 4L, 4420L, 4313L, 4205.673828125D}
+        columnNames,
+        array("2011-04-01", "travel", 2, 2, 0, 243, 243, 0.0D),
+        array("2011-04-01", "technology", 2, 0, 0, 177, 0, 0.0D),
+        array("2011-04-01", "news", 2, 1, 0, 221, 114, 0.0D),
+        array("2011-04-01", "health", 2, 1, 0, 216, 113, 0.0D),
+        array("2011-04-01", "entertainment", 2, 2, 2, 319, 319, 319.9440155029297D),
+        array("2011-04-01", "business", 2, 1, 0, 217, 112, 0.0D),
+        array("2011-04-01", "automotive", 2, 2, 1, 269, 269, 147.42593383789062D),
+        array("2011-04-01", "premium", 6, 6, 5, 4416, 4416, 4296.476791381836D),
+        array("2011-04-01", "mezzanine", 6, 5, 4, 4420, 4313, 4205.673645019531D)
     );
 
     query = builder.limit(100).build();
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "predicate");
+    TestHelper.validate(columnNames, expectedResults, runQuery(query));
 
     builder.limit(Integer.MAX_VALUE)
            .setAggregatorSpecs(
@@ -1795,23 +1634,24 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                )
            );
 
+    columnNames = array("__time", "alias", "rows", "idx", "MMM-yyyy");
     expectedResults = createExpectedRows(
-        new String[]{"__time", "alias", "rows", "idx", "MMM-yyyy"},
-        new Object[]{"2011-04-01", "travel", 2L, 365.4876403808594D, "Apr 2011"},
-        new Object[]{"2011-04-01", "technology", 2L, 267.3737487792969D, "Apr 2011"},
-        new Object[]{"2011-04-01", "news", 2L, 333.3147277832031D, "Apr 2011"},
-        new Object[]{"2011-04-01", "health", 2L, 325.467529296875D, "Apr 2011"},
-        new Object[]{"2011-04-01", "entertainment", 2L, 479.916015625D, "Apr 2011"},
-        new Object[]{"2011-04-01", "business", 2L, 328.083740234375D, "Apr 2011"},
-        new Object[]{"2011-04-01", "automotive", 2L, 405.5966796875D, "Apr 2011"},
-        new Object[]{"2011-04-01", "premium", 6L, 6627.927734375D, "Apr 2011"},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 6635.47998046875D, "Apr 2011"}
+        columnNames,
+        array("2011-04-01", "travel", 2, 365.4876403808594D, "Apr 2011"),
+        array("2011-04-01", "technology", 2, 267.3737564086914D, "Apr 2011"),
+        array("2011-04-01", "news", 2, 333.3147277832031D, "Apr 2011"),
+        array("2011-04-01", "health", 2, 325.467529296875D, "Apr 2011"),
+        array("2011-04-01", "entertainment", 2, 479.916015625D, "Apr 2011"),
+        array("2011-04-01", "business", 2, 328.08372497558594D, "Apr 2011"),
+        array("2011-04-01", "automotive", 2, 405.5966796875D, "Apr 2011"),
+        array("2011-04-01", "premium", 6, 6627.927734375D, "Apr 2011"),
+        array("2011-04-01", "mezzanine", 6, 6635.480163574219D, "Apr 2011")
     );
 
     query = builder.build();
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "no-limit");
+    TestHelper.validate(columnNames, expectedResults, runQuery(query));
     query = builder.limit(5).build();
-    TestHelper.assertExpectedObjects(Iterables.limit(expectedResults, 5), runQuery(query), "limited");
+    TestHelper.validate(columnNames, expectedResults.subList(0, 5), runQuery(query));
   }
 
   @Test
@@ -1830,23 +1670,25 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .addOrderByColumn("alias", "desc")
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 2L, "idx", 243L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 2L, "idx", 177L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 2L, "idx", 221L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 2L, "idx", 216L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 2L, "idx", 319L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 2L, "idx", 269L)
+    String[] columnNames = {"__time", "alias", "rows", "idx"};
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array("2011-04-01", "premium", 6, 4416),
+        array("2011-04-01", "mezzanine", 6, 4420),
+        array("2011-04-01", "travel", 2, 243),
+        array("2011-04-01", "technology", 2, 177),
+        array("2011-04-01", "news", 2, 221),
+        array("2011-04-01", "health", 2, 216),
+        array("2011-04-01", "entertainment", 2, 319),
+        array("2011-04-01", "business", 2, 217),
+        array("2011-04-01", "automotive", 2, 269)
     );
 
     GroupByQuery query = builder.build();
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "no-limit");
+    TestHelper.validate(columnNames, expectedResults, runQuery(query));
 
     query = builder.limit(5).build();
-    TestHelper.assertExpectedObjects(Iterables.limit(expectedResults, 5), runQuery(query), "limited");
+    TestHelper.validate(columnNames, expectedResults.subList(0, 5), runQuery(query));
   }
 
   @Test
@@ -1865,24 +1707,25 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .addOrderByColumn("alias", "desc")
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
+    String[] columnNames = {"__time", "alias", "rows", "idx"};
     List<Row> expectedResults =createExpectedRows(
-        new String[]{"__time", "alias", "rows", "idx"},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 4423.6533203125D},
-        new Object[]{"2011-04-01", "premium", 6L, 4418.61865234375D},
-        new Object[]{"2011-04-01", "entertainment", 2L, 319.94403076171875D},
-        new Object[]{"2011-04-01", "automotive", 2L, 270.3977966308594D},
-        new Object[]{"2011-04-01", "travel", 2L, 243.65843200683594D},
-        new Object[]{"2011-04-01", "news", 2L, 222.20980834960938D},
-        new Object[]{"2011-04-01", "business", 2L, 218.7224884033203D},
-        new Object[]{"2011-04-01", "health", 2L, 216.97836303710938D},
-        new Object[]{"2011-04-01", "technology", 2L, 178.24917602539062D}
+        columnNames,
+        array("2011-04-01", "mezzanine", 6, 4423.653350830078D),
+        array("2011-04-01", "premium", 6, 4418.618499755859D),
+        array("2011-04-01", "entertainment", 2, 319.9440155029297D),
+        array("2011-04-01", "automotive", 2, 270.39778900146484D),
+        array("2011-04-01", "travel", 2, 243.65843200683594D),
+        array("2011-04-01", "news", 2, 222.2098159790039D),
+        array("2011-04-01", "business", 2, 218.7224884033203D),
+        array("2011-04-01", "health", 2, 216.97835540771484D),
+        array("2011-04-01", "technology", 2, 178.24917602539062D)
     );
 
     GroupByQuery query = builder.build();
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "no-limit");
+    TestHelper.validate(columnNames, expectedResults, runQuery(query));
 
     query = builder.limit(5).build();
-    TestHelper.assertExpectedObjects(Iterables.limit(expectedResults, 5), runQuery(query), "limited");
+    TestHelper.validate(columnNames, expectedResults.subList(0, 5), runQuery(query));
   }
 
   @Test
@@ -1906,32 +1749,13 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setAggregatorSpecs(rowsCount)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-       createExpectedRow(
-           "1970-01-01T00:00:00.000Z",
-           "marketalias",
-           "upfront",
-           "rows",
-           186L
-       ),
-       createExpectedRow(
-           "1970-01-01T00:00:00.000Z",
-           "marketalias",
-           "total_market",
-           "rows",
-           186L
-       ),
-       createExpectedRow(
-           "1970-01-01T00:00:00.000Z",
-           "marketalias",
-           "spot",
-           "rows",
-           837L
-       )
+    validate(
+        query,
+        array("__time", "marketalias", "rows"),
+        array("1970-01-01", "upfront", 186),
+        array("1970-01-01", "total_market", 186),
+        array("1970-01-01", "spot", 837)
     );
-
-    Iterable<Row> results = runQuery(query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
   @Test
@@ -1955,17 +1779,17 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setAggregatorSpecs(rowsCount)
         .build();
 
-    List<Row> expectedResults =createExpectedRows(
-        new String[]{"__time", "market", "rows"},
-        array("1970-01-01T00:00:00.000Z", "upfront", 186L),
-        array("1970-01-01T00:00:00.000Z", "total_market", 186L),
-        array("1970-01-01T00:00:00.000Z", "spot", 837L)
+    List<Row> expectedResults = createExpectedRows(
+        array("__time", "market", "rows"),
+        array("1970-01-01T00:00:00.000Z", "upfront", 186),
+        array("1970-01-01T00:00:00.000Z", "total_market", 186),
+        array("1970-01-01T00:00:00.000Z", "spot", 837)
     );
 
-    Iterable<Row> results = runQuery(query);
+    List<Row> results = runQuery(query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
 
-    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
+    query = query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
     query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);
@@ -1988,16 +1812,16 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .build();
 
     List<Row> expectedResults = createExpectedRows(
-        new String[]{"__time", "market", "rows"},
-        array("1970-01-01T00:00:00.000Z", "spot", 837L),
-        array("1970-01-01T00:00:00.000Z", "total_market", 186L),
-        array("1970-01-01T00:00:00.000Z", "upfront", 186L)
+        array("__time", "market", "rows"),
+        array("1970-01-01T00:00:00.000Z", "spot", 837),
+        array("1970-01-01T00:00:00.000Z", "total_market", 186),
+        array("1970-01-01T00:00:00.000Z", "upfront", 186)
     );
 
-    Iterable<Row> results = runQuery(query);
+    List<Row> results = runQuery(query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
 
-    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_REMOVE_ORDERING, true);
+    query = query.withOverriddenContext(Query.GBY_REMOVE_ORDERING, true);
     query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
 
@@ -2019,16 +1843,16 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .build();
 
     List<Row> expectedResults = createExpectedRows(
-        new String[]{"__time", "rows"},
-        array("2011-03-01T00:00:00.000Z", 341L),
-        array("2011-02-01T00:00:00.000Z", 308L),
-        array("2011-01-01T00:00:00.000Z", 209L)
+        array("__time", "rows"),
+        array("2011-03-01T00:00:00.000Z", 341),
+        array("2011-02-01T00:00:00.000Z", 308),
+        array("2011-01-01T00:00:00.000Z", 209)
     );
 
     List<Row> results = runQuery(query);
     TestHelper.assertExpectedObjects(expectedResults, results, "convert-timeseries");
 
-    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_CONVERT_TIMESERIES, true);
+    query = query.withOverriddenContext(Query.GBY_CONVERT_TIMESERIES, true);
     Query timeseries = query.rewriteQuery(TestIndex.segmentWalker);
     Assert.assertTrue(timeseries instanceof TimeseriesQuery);
 
@@ -2058,38 +1882,13 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-       createExpectedRow(
-           "1970-01-01T00:00:00.000Z",
-           "market",
-           "spot",
-           uniqueMetric,
-           UNIQUES_9,
-           hyperUniqueFinalizingPostAggMetric,
-           UNIQUES_9
-       ),
-       createExpectedRow(
-           "1970-01-01T00:00:00.000Z",
-           "market",
-           "upfront",
-           uniqueMetric,
-           UNIQUES_2,
-           hyperUniqueFinalizingPostAggMetric,
-           UNIQUES_2
-       ),
-       createExpectedRow(
-           "1970-01-01T00:00:00.000Z",
-           "market",
-           "total_market",
-           uniqueMetric,
-           UNIQUES_2,
-           hyperUniqueFinalizingPostAggMetric,
-           UNIQUES_2
-       )
+    validate(
+        query,
+        array("__time", "market", "uniques", "hyperUniqueFinalizingPostAggMetric"),
+        array("1970-01-01", "spot", UNIQUES_9, UNIQUES_9),
+        array("1970-01-01", "upfront", UNIQUES_2, UNIQUES_2),
+        array("1970-01-01", "total_market", UNIQUES_2, UNIQUES_2)
     );
-
-    Iterable<Row> results = runQuery(query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
   @Test
@@ -2125,26 +1924,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "1970-01-01T00:00:00.000Z",
-            "market",
-            "spot",
-            uniqueMetric,
-            UNIQUES_9,
-            hyperUniqueFinalizingPostAggMetric,
-            UNIQUES_9,
-            "auto_finalized",
-            UNIQUES_9 + 100
-        )
+    validate(
+        query,
+        array("__time", "market", "uniques", "hyperUniqueFinalizingPostAggMetric", "auto_finalized"),
+        array("1970-01-01", "spot", UNIQUES_9, UNIQUES_9, UNIQUES_9 + 100)
     );
-
-    // havingSpec equalTo/greaterThan/lessThan do not work on complex aggregators, even if they could be finalized.
-    // See also: https://github.com/druid-io/druid/issues/2507
-//    expectedException.expect(ParseException.class);
-//    expectedException.expectMessage("Unknown type[class io.druid.query.aggregation.hyperloglog.HLLCV1]");
-    Iterable<Row> results = runQuery(query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
   @Test
@@ -2189,7 +1973,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
        )
     );
 
-    Iterable<Row> results = runQuery(query);
+    List<Row> results = runQuery(query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
 
     query = query.withHavingSpec(
@@ -2224,16 +2008,13 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
         .build();
 
-    String[] columns = new String[]{"__time", "market", uniqueMetric, hyperUniqueFinalizingPostAggMetric};
-    List<Row> expectedResults = createExpectedRows(
-        columns,
+    validate(
+        query,
+        array("__time", "market", uniqueMetric, hyperUniqueFinalizingPostAggMetric),
         array("1970-01-01T00:00:00.000Z", "spot", UNIQUES_9, UNIQUES_9),
         array("1970-01-01T00:00:00.000Z", "upfront", UNIQUES_2, UNIQUES_2),
         array("1970-01-01T00:00:00.000Z", "total_market", UNIQUES_2, UNIQUES_2)
     );
-
-    Iterable<Row> results = runQuery(query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
   }
 
   @Test
@@ -2273,32 +2054,33 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-       createExpectedRow("2011-04-01", "alias", "travel555", "rows", 1L, "idx", 119L),
-       createExpectedRow("2011-04-01", "alias", "travel123", "rows", 1L, "idx", 78L),
-       createExpectedRow("2011-04-01", "alias", "travel47", "rows", 1L, "idx", 158L),
-       createExpectedRow("2011-04-01", "alias", "health999", "rows", 3L, "idx", 2900L),
-       createExpectedRow("2011-04-01", "alias", "health105", "rows", 1L, "idx", 135L),
-       createExpectedRow("2011-04-01", "alias", "health55", "rows", 1L, "idx", 120L),
-       createExpectedRow("2011-04-01", "alias", "health20", "rows", 1L, "idx", 118L),
-       createExpectedRow("2011-04-01", "alias", "health09", "rows", 3L, "idx", 2870L),
-       createExpectedRow("2011-04-01", "alias", "health0000", "rows", 1L, "idx", 121L),
+    List<Row> expectedResults = createExpectedRows(
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "travel555", 1, 119),
+        array("2011-04-01", "travel123", 1, 78),
+        array("2011-04-01", "travel47", 1, 158),
+        array("2011-04-01", "health999", 3, 2900),
+        array("2011-04-01", "health105", 1, 135),
+        array("2011-04-01", "health55", 1, 120),
+        array("2011-04-01", "health20", 1, 118),
+        array("2011-04-01", "health09", 3, 2870),
+        array("2011-04-01", "health0000", 1, 121),
 
-       createExpectedRow("2011-04-02", "alias", "travel555", "rows", 1L, "idx", 126L),
-       createExpectedRow("2011-04-02", "alias", "travel123", "rows", 1L, "idx", 97L),
-       createExpectedRow("2011-04-02", "alias", "travel47", "rows", 1L, "idx", 166L),
-       createExpectedRow("2011-04-02", "alias", "health999", "rows", 3L, "idx", 2505L),
-       createExpectedRow("2011-04-02", "alias", "health105", "rows", 1L, "idx", 147L),
-       createExpectedRow("2011-04-02", "alias", "health55", "rows", 1L, "idx", 113L),
-       createExpectedRow("2011-04-02", "alias", "health20", "rows", 1L, "idx", 112L),
-       createExpectedRow("2011-04-02", "alias", "health09", "rows", 3L, "idx", 2447L),
-       createExpectedRow("2011-04-02", "alias", "health0000", "rows", 1L, "idx", 114L)
+        array("2011-04-02", "travel555", 1, 126),
+        array("2011-04-02", "travel123", 1, 97),
+        array("2011-04-02", "travel47", 1, 166),
+        array("2011-04-02", "health999", 3, 2505),
+        array("2011-04-02", "health105", 1, 147),
+        array("2011-04-02", "health55", 1, 113),
+        array("2011-04-02", "health20", 1, 112),
+        array("2011-04-02", "health09", 3, 2447),
+        array("2011-04-02", "health0000", 1, 114)
     );
 
-    Iterable<Row> results = runQuery(query);
+    List<Row> results = runQuery(query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
+    query = query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
     query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);
@@ -2311,31 +2093,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   @Test
   public void testPostAggMergedHavingSpec()
   {
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "mezzanine",
-            "rows",
-            6L,
-            "index",
-            4420L,
-            QueryRunnerTestHelper.addRowsIndexConstantMetric,
-            (double) (6L + 4420L + 1L)
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "premium",
-            "rows",
-            6L,
-            "index",
-            4416L,
-            QueryRunnerTestHelper.addRowsIndexConstantMetric,
-            (double) (6L + 4416L + 1L)
-        )
-    );
-
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(dataSource)
@@ -2350,12 +2107,17 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setHavingSpec(
             new OrHavingSpec(
                 ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec(QueryRunnerTestHelper.addRowsIndexConstantMetric, 1000L)
+                    new GreaterThanHavingSpec(QueryRunnerTestHelper.addRowsIndexConstantMetric, 1000)
                 )
             )
         );
 
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(builder.build()), "merged");
+    validate(
+        builder.build(),
+        array("__time", "alias", "rows", "index", "addRowsIndexConstant"),
+        array("2011-04-01", "mezzanine", 6, 4420, 4427.0D),
+        array("2011-04-01", "premium", 6, 4416, 4423.0D)
+    );
   }
 
   @Test
@@ -2371,88 +2133,23 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new DoubleSumAggregatorFactory("index", "index")
         )
         .setGranularity(QueryGranularities.ALL)
-        .setHavingSpec(new GreaterThanHavingSpec("index", 310L))
+        .setHavingSpec(new GreaterThanHavingSpec("index", 310))
         .setLimitSpec(LimitSpecs.of(5, OrderByColumnSpec.asc("index")));
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "business",
-            "rows",
-            3L,
-            "index",
-            312.38165283203125
-        ),
-        createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "news",
-            "rows",
-            3L,
-            "index",
-            312.7834167480469
-        ),
-        createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "technology",
-            "rows",
-            3L,
-            "index",
-            324.6412353515625
-        ),
-        createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "travel",
-            "rows",
-            3L,
-            "index",
-            393.36322021484375
-        ),
-        createExpectedRow(
-            "2011-01-25",
-            "alias",
-            "health",
-            "rows",
-            3L,
-            "index",
-            511.2996826171875
-        )
+    validate(
+        builder.build(),
+        array("__time", "alias", "rows", "index"),
+        array("2011-01-25", "business", 3, 312.3816375732422D),
+        array("2011-01-25", "news", 3, 312.78340911865234D),
+        array("2011-01-25", "technology", 3, 324.64124298095703D),
+        array("2011-01-25", "travel", 3, 393.3632049560547D),
+        array("2011-01-25", "health", 3, 511.29969787597656D)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(builder.build()), "");
   }
 
   @Test
   public void testPostAggHavingSpec()
   {
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "mezzanine",
-            "rows",
-            6L,
-            "index",
-            4420L,
-            QueryRunnerTestHelper.addRowsIndexConstantMetric,
-            (double) (6L + 4420L + 1L)
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "premium",
-            "rows",
-            6L,
-            "index",
-            4416L,
-            QueryRunnerTestHelper.addRowsIndexConstantMetric,
-            (double) (6L + 4416L + 1L)
-        )
-    );
-
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(dataSource)
@@ -2467,27 +2164,30 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setHavingSpec(
             new OrHavingSpec(
                 ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec(QueryRunnerTestHelper.addRowsIndexConstantMetric, 1000L)
+                    new GreaterThanHavingSpec(QueryRunnerTestHelper.addRowsIndexConstantMetric, 1000)
                 )
             )
         );
 
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(builder.build()), "");
+    validate(
+        builder.build(),
+        array("__time", "alias", "rows", "index", "addRowsIndexConstant"),
+        array("2011-04-01", "mezzanine", 6, 4420, 4427.0D),
+        array("2011-04-01", "premium", 6, 4416, 4423.0D)
+    );
 
     builder.setHavingSpec(new ExpressionHavingSpec(QueryRunnerTestHelper.addRowsIndexConstantMetric + "> 1000"));
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(builder.build()), "");
+    validate(
+        builder.build(),
+        array("__time", "alias", "rows", "index", "addRowsIndexConstant"),
+        array("2011-04-01", "mezzanine", 6, 4420, 4427.0D),
+        array("2011-04-01", "premium", 6, 4416, 4423.0D)
+    );
   }
-
 
   @Test
   public void testHavingSpec()
   {
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L)
-    );
-
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(dataSource)
@@ -2501,28 +2201,34 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setHavingSpec(
             new OrHavingSpec(
                 ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec("rows", 2L),
-                    new EqualToHavingSpec("idx", 217L)
+                    new GreaterThanHavingSpec("rows", 2),
+                    new EqualToHavingSpec("idx", 217)
                 )
             )
         );
 
-    GroupByQuery query = builder.build();
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    validate(
+        builder.build(),
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "business", 2, 217),
+        array("2011-04-01", "mezzanine", 6, 4420),
+        array("2011-04-01", "premium", 6, 4416)
+    );
 
-    query = query.withHavingSpec(new ExpressionHavingSpec("rows > 2 || idx == 217"));
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    builder.setHavingSpec(new ExpressionHavingSpec("rows > 2 || idx == 217"));
+
+    validate(
+        builder.build(),
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "business", 2, 217),
+        array("2011-04-01", "mezzanine", 6, 4420),
+        array("2011-04-01", "premium", 6, 4416)
+    );
   }
 
   @Test
   public void testMergedHavingSpec()
   {
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 2L, "idx", 217L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 6L, "idx", 4420L),
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L)
-    );
-
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(dataSource)
@@ -2536,24 +2242,29 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setHavingSpec(
             new OrHavingSpec(
                 ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec("rows", 2L),
-                    new EqualToHavingSpec("idx", 217L)
+                    new GreaterThanHavingSpec("rows", 2),
+                    new EqualToHavingSpec("idx", 217)
                 )
             )
         );
 
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(builder.build()), "merged");
+    validate(
+        builder.build(),
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "business", 2, 217),
+        array("2011-04-01", "mezzanine", 6, 4420),
+        array("2011-04-01", "premium", 6, 4416)
+    );
   }
 
   @Test
   public void testMergedPostAggHavingSpec()
   {
-    String[] columns = new String[]{"__time", "alias", "rows", "idx", "rows_times_10"};
     List<Row> expectedResults = createExpectedRows(
-        columns,
-        new Object[]{"2011-04-01", "business", 2L, 217L, 20.0},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 4420L, 60.0},
-        new Object[]{"2011-04-01", "premium", 6L, 4416L, 60.0}
+        array("__time", "alias", "rows", "idx", "rows_times_10"),
+        array("2011-04-01", "business", 2, 217, 20.0),
+        array("2011-04-01", "mezzanine", 6, 4420, 60.0),
+        array("2011-04-01", "premium", 6, 4416, 60.0)
     );
 
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
@@ -2571,7 +2282,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 "*",
                 Arrays.<PostAggregator>asList(
                     new FieldAccessPostAggregator("rows", "rows"),
-                    new ConstantPostAggregator("const", 10L)
+                    new ConstantPostAggregator("const", 10)
                 )
             )
         )
@@ -2579,8 +2290,8 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setHavingSpec(
             new OrHavingSpec(
                 ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec("rows_times_10", 20L),
-                    new EqualToHavingSpec("idx", 217L)
+                    new GreaterThanHavingSpec("rows_times_10", 20),
+                    new EqualToHavingSpec("idx", 217)
                 )
             )
         );
@@ -2614,11 +2325,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount)
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "quality", "automotive", "rows", 2L)
+    validate(
+        builder.build(),
+        array("__time", "quality", "rows"),
+        array("2011-04-01", "automotive", 2)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(builder.build(), true), "no-limit");
   }
 
   @Test
@@ -2633,21 +2344,19 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount)
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
-    final String[] columns = new String[]{"__time", "billy", "quality", "rows"};
-    final List<Row> expectedResults = createExpectedRows(
-        columns,
-        array("2011-04-01", null, "automotive", 2L),
-        array("2011-04-01", null, "business", 2L),
-        array("2011-04-01", null, "entertainment", 2L),
-        array("2011-04-01", null, "health", 2L),
-        array("2011-04-01", null, "mezzanine", 6L),
-        array("2011-04-01", null, "news", 2L),
-        array("2011-04-01", null, "premium", 6L),
-        array("2011-04-01", null, "technology", 2L),
-        array("2011-04-01", null, "travel", 2L)
+    validate(
+        builder.build(),
+        array("__time", "billy", "quality", "rows"),
+        array("2011-04-01", null, "automotive", 2),
+        array("2011-04-01", null, "business", 2),
+        array("2011-04-01", null, "entertainment", 2),
+        array("2011-04-01", null, "health", 2),
+        array("2011-04-01", null, "mezzanine", 6),
+        array("2011-04-01", null, "news", 2),
+        array("2011-04-01", null, "premium", 6),
+        array("2011-04-01", null, "technology", 2),
+        array("2011-04-01", null, "travel", 2)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(builder.build(), true), "normal");
   }
 
   // A subquery identical to the query should yield identical results
@@ -2685,30 +2394,28 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 1L, "idx", 118L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 1L, "idx", 158L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 1L, "idx", 78L),
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 1L, "idx", 119L),
-
-        createExpectedRow("2011-04-02", "alias", "automotive", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "business", "rows", 1L, "idx", 112L),
-        createExpectedRow("2011-04-02", "alias", "entertainment", "rows", 1L, "idx", 166L),
-        createExpectedRow("2011-04-02", "alias", "health", "rows", 1L, "idx", 113L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L),
-        createExpectedRow("2011-04-02", "alias", "premium", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "technology", "rows", 1L, "idx", 97L),
-        createExpectedRow("2011-04-02", "alias", "travel", "rows", 1L, "idx", 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive", 1L, 135L),
+        array("2011-04-01", "business", 1L, 118L),
+        array("2011-04-01", "entertainment", 1L, 158L),
+        array("2011-04-01", "health", 1L, 120L),
+        array("2011-04-01", "mezzanine", 3L, 2870L),
+        array("2011-04-01", "news", 1L, 121L),
+        array("2011-04-01", "premium", 3L, 2900L),
+        array("2011-04-01", "technology", 1L, 78L),
+        array("2011-04-01", "travel", 1L, 119L),
+        array("2011-04-02", "automotive", 1L, 147L),
+        array("2011-04-02", "business", 1L, 112L),
+        array("2011-04-02", "entertainment", 1L, 166L),
+        array("2011-04-02", "health", 1L, 113L),
+        array("2011-04-02", "mezzanine", 3L, 2447L),
+        array("2011-04-02", "news", 1L, 114L),
+        array("2011-04-02", "premium", 3L, 2505L),
+        array("2011-04-02", "technology", 1L, 97L),
+        array("2011-04-02", "travel", 1L, 126L)
     );
-
-    // Subqueries are handled by the ToolChest
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 
   @Test
@@ -2754,30 +2461,28 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 1L, "idx", 118L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 1L, "idx", 158L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 1L, "idx", 78L),
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 1L, "idx", 119L),
-
-        createExpectedRow("2011-04-02", "alias", "automotive", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "business", "rows", 1L, "idx", 112L),
-        createExpectedRow("2011-04-02", "alias", "entertainment", "rows", 1L, "idx", 166L),
-        createExpectedRow("2011-04-02", "alias", "health", "rows", 1L, "idx", 113L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L),
-        createExpectedRow("2011-04-02", "alias", "premium", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "technology", "rows", 1L, "idx", 97L),
-        createExpectedRow("2011-04-02", "alias", "travel", "rows", 1L, "idx", 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive", 1L, 135L),
+        array("2011-04-01", "business", 1L, 118L),
+        array("2011-04-01", "entertainment", 1L, 158L),
+        array("2011-04-01", "health", 1L, 120L),
+        array("2011-04-01", "mezzanine", 3L, 2870L),
+        array("2011-04-01", "news", 1L, 121L),
+        array("2011-04-01", "premium", 3L, 2900L),
+        array("2011-04-01", "technology", 1L, 78L),
+        array("2011-04-01", "travel", 1L, 119L),
+        array("2011-04-02", "automotive", 1L, 147L),
+        array("2011-04-02", "business", 1L, 112L),
+        array("2011-04-02", "entertainment", 1L, 166L),
+        array("2011-04-02", "health", 1L, 113L),
+        array("2011-04-02", "mezzanine", 3L, 2447L),
+        array("2011-04-02", "news", 1L, 114L),
+        array("2011-04-02", "premium", 3L, 2505L),
+        array("2011-04-02", "technology", 1L, 97L),
+        array("2011-04-02", "travel", 1L, 126L)
     );
-
-    // Subqueries are handled by the ToolChest
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 
   @Test
@@ -2829,17 +2534,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "a", "rows", 13L, "idx", 6619L),
-        createExpectedRow("2011-04-02", "alias", "a", "rows", 13L, "idx", 5827L)
-    );
-
-    // Subqueries are handled by the ToolChest
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
-
-    expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "a", "rows", 6L, "idx", 771L),
-        createExpectedRow("2011-04-02", "alias", "a", "rows", 6L, "idx", 778L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "a", 13, 6619),
+        array("2011-04-02", "a", 13, 5827)
     );
 
     query = query.withFilter(
@@ -2849,7 +2548,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new InDimFilter("alias", Arrays.asList("b", "c"), null)
         )
     );
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "a", 6, 771),
+        array("2011-04-02", "a", 6, 778)
+    );
   }
 
   @Test
@@ -2880,13 +2584,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = createExpectedRows(
-        new String[]{"__time", "rows", "idx", "indexMaxPlusTen"},
-        new Object[]{"2011-04-01", 9L, 2900.0, 2930.0},
-        new Object[]{"2011-04-02", 9L, 2505.0, 2535.0}
+    validate(
+        query,
+        array("__time", "rows", "idx", "indexMaxPlusTen"),
+        array("2011-04-01", 9, 2900.0, 2930.0),
+        array("2011-04-02", 9, 2505.0, 2535.0)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
 
     subquery = subquery.withAggregatorSpecs(
         Arrays.asList(
@@ -2895,15 +2598,14 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
         )
     );
-    query = query.withDataSource(new QueryDataSource(subquery));
+    query = query.withDataSource(QueryDataSource.of(subquery));
 
-    expectedResults = createExpectedRows(
-        new String[]{"__time", "rows", "idx", "indexMaxPlusTen"},
-        new Object[]{"2011-04-01", 9L, 21.0, 2930.0},
-        new Object[]{"2011-04-02", 9L, 2.0, 2535.0}
+    validate(
+        query,
+        array("__time", "rows", "idx", "indexMaxPlusTen"),
+        array("2011-04-01", 9, 21.0, 2930.0),
+        array("2011-04-02", 9, 2.0, 2535.0)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 
   @Test
@@ -2944,18 +2646,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-04-01", "idx1", 2900.0, "idx2", 2900.0,
-            "idx3", 5800.0, "idx4", 5800.0
-        ),
-        createExpectedRow(
-            "2011-04-02", "idx1", 2505.0, "idx2", 2505.0,
-            "idx3", 5010.0, "idx4", 5010.0
-        )
+    validate(
+        query,
+        array("__time", "idx1", "idx2", "idx3", "idx4"),
+        array("2011-04-01", 2900.0, 2900.0, 5800.0, 5800.0),
+        array("2011-04-02", 2505.0, 2505.0, 5010.0, 5010.0)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 
 
@@ -2997,12 +2693,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "idx", 2900.0),
-        createExpectedRow("2011-04-02", "idx", 2505.0)
+    validate(
+        query,
+        array("__time", "idx"),
+        array("2011-04-01", 2900.0),
+        array("2011-04-02", 2505.0)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 
   @Test
@@ -3030,11 +2726,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-02", "idx", 2505.0)
+    validate(
+        query,
+        array("__time", "idx"),
+        array("2011-04-02", 2505.0)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 
   @Test
@@ -3088,13 +2784,13 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .build();
 
     List<Row> expectedResults = createExpectedRows(
-        new String[]{Column.TIME_COLUMN_NAME, "rows", "index"},
-        array("2011-01-12T00:00:00.000Z", 1L, 120628L),
-        array("2011-01-12T00:00:00.000Z", 2L, 2483L),
-        array("2011-01-12T00:00:00.000Z", 3L, 1278L),
-        array("2011-01-12T00:00:00.000Z", 4L, 808L),
-        array("2011-01-12T00:00:00.000Z", 6L, 627L),
-        array("2011-01-12T00:00:00.000Z", 5L, 208L)
+        array("__time", "rows", "index"),
+        array("2011-01-12T00:00:00.000Z", 1, 120628),
+        array("2011-01-12T00:00:00.000Z", 2, 2483),
+        array("2011-01-12T00:00:00.000Z", 3, 1278),
+        array("2011-01-12T00:00:00.000Z", 4, 808),
+        array("2011-01-12T00:00:00.000Z", 6, 627),
+        array("2011-01-12T00:00:00.000Z", 5, 208)
     );
 
     TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
@@ -3159,31 +2855,28 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults =
-        createExpectedRows(
-            new String[]{"__time", "alias", "rows", "idx_post", "idx"},
-            array("2011-04-01", "automotive", 1L, 11135.0, 1135L),
-            array("2011-04-01", "business", 1L, 11118.0, 1118L),
-            array("2011-04-01", "entertainment", 1L, 11158.0, 1158L),
-            array("2011-04-01", "health", 1L, 11120.0, 1120L),
-            array("2011-04-01", "mezzanine", 3L, 13870.0, 3870L),
-            array("2011-04-01", "news", 1L, 11121.0, 1121L),
-            array("2011-04-01", "premium", 3L, 13900.0, 3900L),
-            array("2011-04-01", "technology", 1L, 11078.0, 1078L),
-            array("2011-04-01", "travel", 1L, 11119.0, 1119L),
-            array("2011-04-02", "automotive", 1L, 11147.0, 1147L),
-            array("2011-04-02", "business", 1L, 11112.0, 1112L),
-            array("2011-04-02", "entertainment", 1L, 11166.0, 1166L),
-            array("2011-04-02", "health", 1L, 11113.0, 1113L),
-            array("2011-04-02", "mezzanine", 3L, 13447.0, 3447L),
-            array("2011-04-02", "news", 1L, 11114.0, 1114L),
-            array("2011-04-02", "premium", 3L, 13505.0, 3505L),
-            array("2011-04-02", "technology", 1L, 11097.0, 1097L),
-            array("2011-04-02", "travel", 1L, 11126.0, 1126L)
-        );
-
-    // Subqueries are handled by the ToolChest
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx_post", "idx"),
+        array("2011-04-01", "automotive", 1L, 11135.0, 1135L),
+        array("2011-04-01", "business", 1L, 11118.0, 1118L),
+        array("2011-04-01", "entertainment", 1L, 11158.0, 1158L),
+        array("2011-04-01", "health", 1L, 11120.0, 1120L),
+        array("2011-04-01", "mezzanine", 3L, 13870.0, 3870L),
+        array("2011-04-01", "news", 1L, 11121.0, 1121L),
+        array("2011-04-01", "premium", 3L, 13900.0, 3900L),
+        array("2011-04-01", "technology", 1L, 11078.0, 1078L),
+        array("2011-04-01", "travel", 1L, 11119.0, 1119L),
+        array("2011-04-02", "automotive", 1L, 11147.0, 1147L),
+        array("2011-04-02", "business", 1L, 11112.0, 1112L),
+        array("2011-04-02", "entertainment", 1L, 11166.0, 1166L),
+        array("2011-04-02", "health", 1L, 11113.0, 1113L),
+        array("2011-04-02", "mezzanine", 3L, 13447.0, 3447L),
+        array("2011-04-02", "news", 1L, 11114.0, 1114L),
+        array("2011-04-02", "premium", 3L, 13505.0, 3505L),
+        array("2011-04-02", "technology", 1L, 11097.0, 1097L),
+        array("2011-04-02", "travel", 1L, 11126.0, 1126L)
+    );
   }
 
   @Test
@@ -3257,29 +2950,26 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults =
-        createExpectedRows(
-            new String[]{"__time", "alias", "rows", "idx_post", "idx"},
-            array("2011-04-01", "automotive", 1L, 11135.0, 1135L),
-            array("2011-04-01", "business", 1L, 11118.0, 1118L),
-            array("2011-04-01", "entertainment", 1L, 11158.0, 1158L),
-            array("2011-04-01", "health", 1L, 11120.0, 1120L),
-            array("2011-04-01", "news", 1L, 11121.0, 1121L),
-            array("2011-04-01", "technology", 1L, 11078.0, 1078L),
-            array("2011-04-01", "travel", 1L, 11119.0, 1119L),
-            array("2011-04-02", "automotive", 1L, 11147.0, 1147L),
-            array("2011-04-02", "business", 1L, 11112.0, 1112L),
-            array("2011-04-02", "entertainment", 1L, 11166.0, 1166L),
-            array("2011-04-02", "health", 1L, 11113.0, 1113L),
-            array("2011-04-02", "mezzanine", 3L, 13447.0, 3447L),
-            array("2011-04-02", "news", 1L, 11114.0, 1114L),
-            array("2011-04-02", "premium", 3L, 13505.0, 3505L),
-            array("2011-04-02", "technology", 1L, 11097.0, 1097L),
-            array("2011-04-02", "travel", 1L, 11126.0, 1126L)
-        );
-
-    // Subqueries are handled by the ToolChest
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx_post", "idx"),
+        array("2011-04-01", "automotive", 1, 11135.0, 1135),
+        array("2011-04-01", "business", 1, 11118.0, 1118),
+        array("2011-04-01", "entertainment", 1, 11158.0, 1158),
+        array("2011-04-01", "health", 1, 11120.0, 1120),
+        array("2011-04-01", "news", 1, 11121.0, 1121),
+        array("2011-04-01", "technology", 1, 11078.0, 1078),
+        array("2011-04-01", "travel", 1, 11119.0, 1119),
+        array("2011-04-02", "automotive", 1, 11147.0, 1147),
+        array("2011-04-02", "business", 1, 11112.0, 1112),
+        array("2011-04-02", "entertainment", 1, 11166.0, 1166),
+        array("2011-04-02", "health", 1, 11113.0, 1113),
+        array("2011-04-02", "mezzanine", 3, 13447.0, 3447),
+        array("2011-04-02", "news", 1, 11114.0, 1114),
+        array("2011-04-02", "premium", 3, 13505.0, 3505),
+        array("2011-04-02", "technology", 1, 11097.0, 1097),
+        array("2011-04-02", "travel", 1, 11126.0, 1126)
+    );
   }
 
   @Test
@@ -3373,21 +3063,21 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults =
-        createExpectedRows(
-            new String[]{"__time", "alias", "rows", "idx_post", "idx", "js_outer_agg"},
-            array("2011-04-01", "travel", 1L, 11119.0, 1119L, 123.92274475097656),
-            array("2011-04-01", "technology", 1L, 11078.0, 1078L, 82.62254333496094),
-            array("2011-04-01", "news", 1L, 11121.0, 1121L, 125.58358001708984),
-            array("2011-04-01", "health", 1L, 11120.0, 1120L, 124.13470458984375),
-            array("2011-04-01", "entertainment", 1L, 11158.0, 1158L, 162.74722290039062)
-        );
+    String[] columnNames = {"__time", "alias", "rows", "idx_post", "idx", "js_outer_agg"};
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array("2011-04-01", "travel", 1, 11119.0, 1119, 123.92274475097656),
+        array("2011-04-01", "technology", 1, 11078.0, 1078, 82.62254333496094),
+        array("2011-04-01", "news", 1, 11121.0, 1121, 125.58358001708984),
+        array("2011-04-01", "health", 1, 11120.0, 1120, 124.13470458984375),
+        array("2011-04-01", "entertainment", 1, 11158.0, 1158, 162.74722290039062)
+    );
 
     // Subqueries are handled by the ToolChest
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    TestHelper.validate(columnNames, expectedResults, runQuery(query));
 
     query = query.withHavingSpec(new ExpressionHavingSpec("idx_subpostagg == null || idx_subpostagg < 3800.0"));
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    TestHelper.validate(columnNames, expectedResults, runQuery(query));
   }
 
   @Test
@@ -3419,112 +3109,19 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.ALL)
         .build();
 
-    String[] columnNames = {"__time", "alias", "rows", "idx", "uniq"};
-
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "automotive",
-            "rows",
-            2L,
-            "idx",
-            282L,
-            "uniq",
-            1.0002442201269182
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "business",
-            "rows",
-            2L,
-            "idx",
-            230L,
-            "uniq",
-            1.0002442201269182
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "entertainment",
-            "rows",
-            2L,
-            "idx",
-            324L,
-            "uniq",
-            1.0002442201269182
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "health",
-            "rows",
-            2L,
-            "idx",
-            233L,
-            "uniq",
-            1.0002442201269182
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "mezzanine",
-            "rows",
-            6L,
-            "idx",
-            5317L,
-            "uniq",
-            1.0002442201269182
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "news",
-            "rows",
-            2L,
-            "idx",
-            235L,
-            "uniq",
-            1.0002442201269182
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "premium",
-            "rows",
-            6L,
-            "idx",
-            5405L,
-            "uniq",
-            1.0002442201269182
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "technology",
-            "rows",
-            2L,
-            "idx",
-            175L,
-            "uniq",
-            1.0002442201269182
-        ),
-        createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "travel",
-            "rows",
-            2L,
-            "idx",
-            245L,
-            "uniq",
-            1.0002442201269182
-        )
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx", "uniq"),
+        array("2011-04-01", "automotive", 2L, 282L, 1.0002442201269182D),
+        array("2011-04-01", "business", 2L, 230L, 1.0002442201269182D),
+        array("2011-04-01", "entertainment", 2L, 324L, 1.0002442201269182D),
+        array("2011-04-01", "health", 2L, 233L, 1.0002442201269182D),
+        array("2011-04-01", "mezzanine", 6L, 5317L, 1.0002442201269182D),
+        array("2011-04-01", "news", 2L, 235L, 1.0002442201269182D),
+        array("2011-04-01", "premium", 6L, 5405L, 1.0002442201269182D),
+        array("2011-04-01", "technology", 2L, 175L, 1.0002442201269182D),
+        array("2011-04-01", "travel", 2L, 245L, 1.0002442201269182D)
     );
-
-    // Subqueries are handled by the ToolChest
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 
   @Test
@@ -3562,26 +3159,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-04-01",
-            "rows",
-            26L,
-            "idx",
-            12446L,
-            "quality_uniques_outer",
-            9.019833517963864,
-            "quality_uniques_outer_post",
-            9.019833517963864
-        )
+    validate(
+        query,
+        array("__time", "rows", "idx", "quality_uniques_outer", "quality_uniques_outer_post"),
+        array("2011-04-01", 26L, 12446L, 9.019833517963864, 9.019833517963864)
     );
-
-    // Subqueries are handled by the ToolChest
-    final List<Row> results = runQuery(query);
-    for (Row x : results) {
-      System.out.println(x);
-    }
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -3599,19 +3181,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.ALL)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow(
-            "2011-04-01",
-            "rows",
-            26L,
-            "ntimestamps",
-            13.0,
-            "sumtime",
-            33843139200000L
-        )
+    validate(
+        query,
+        array("__time", "rows", "ntimestamps", "sumtime"),
+        array("2011-04-01", 26, 13.0, 33843139200000L)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
   }
 
   @Test
@@ -3646,25 +3220,24 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
         .build();
 
-    List<Row> expectedResults = createExpectedRows(
-        new String[]{"__time", "dayOfWeek", "market", "index", "rows", "addRowsIndexConstant"},
-        array("1970-01-01", "Friday", "spot", 13219.574157714844, 117L, 13337.574157714844),
-        array("1970-01-01", "Monday", "spot", 13557.738830566406, 117L, 13675.738830566406),
-        array("1970-01-01", "Saturday", "spot", 13493.751281738281, 117L, 13611.751281738281),
-        array("1970-01-01", "Sunday", "spot", 13585.541015625, 117L, 13703.541015625),
-        array("1970-01-01", "Thursday", "spot", 14279.127197265625, 126L, 14406.127197265625),
-        array("1970-01-01", "Tuesday", "spot", 13199.471435546875, 117L, 13317.471435546875),
-        array("1970-01-01", "Wednesday", "spot", 14271.368591308594, 126L, 14398.368591308594),
-        array("1970-01-01", "Friday", "upfront", 27297.8623046875, 26L, 27324.8623046875),
-        array("1970-01-01", "Monday", "upfront", 27619.58447265625, 26L, 27646.58447265625),
-        array("1970-01-01", "Saturday", "upfront", 27820.83154296875, 26L, 27847.83154296875),
-        array("1970-01-01", "Sunday", "upfront", 24791.223876953125, 26L, 24818.223876953125),
-        array("1970-01-01", "Thursday", "upfront", 28562.748901367188, 28L, 28591.748901367188),
-        array("1970-01-01", "Tuesday", "upfront", 26968.280639648438, 26L, 26995.280639648438),
-        array("1970-01-01", "Wednesday", "upfront", 28985.5751953125, 28L, 29014.5751953125)
+    validate(
+        query,
+        array("__time", "dayOfWeek", "market", "index", "rows", "addRowsIndexConstant"),
+        array("1970-01-01", "Friday", "spot", 13219.574020385742D, 117, 13337.574020385742D),
+        array("1970-01-01", "Monday", "spot", 13557.73889541626D, 117, 13675.73889541626D),
+        array("1970-01-01", "Saturday", "spot", 13493.751190185547D, 117, 13611.751190185547D),
+        array("1970-01-01", "Sunday", "spot", 13585.540908813477D, 117, 13703.540908813477D),
+        array("1970-01-01", "Thursday", "spot", 14279.127326965332D, 126, 14406.127326965332D),
+        array("1970-01-01", "Tuesday", "spot", 13199.471267700195D, 117, 13317.471267700195D),
+        array("1970-01-01", "Wednesday", "spot", 14271.368713378906D, 126, 14398.368713378906D),
+        array("1970-01-01", "Friday", "upfront", 27297.862365722656D, 26, 27324.862365722656D),
+        array("1970-01-01", "Monday", "upfront", 27619.58477783203D, 26, 27646.58477783203D),
+        array("1970-01-01", "Saturday", "upfront", 27820.831176757812D, 26, 27847.831176757812D),
+        array("1970-01-01", "Sunday", "upfront", 24791.22381591797D, 26, 24818.22381591797D),
+        array("1970-01-01", "Thursday", "upfront", 28562.748779296875D, 28, 28591.748779296875D),
+        array("1970-01-01", "Tuesday", "upfront", 26968.28009033203D, 26, 26995.28009033203D),
+        array("1970-01-01", "Wednesday", "upfront", 28985.57501220703D, 28, 29014.57501220703D)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
   }
 
   @Test
@@ -3721,35 +3294,35 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         );
 
     String[] columnNames = {"__time", "dayOfWeek", "market", "rows", "index", "addRowsIndexConstant"};
-    Iterable<Row> results;
+    List<Row> results;
 
     List<Row> expectedResults = createExpectedRows(
         columnNames,
-        new Object[]{"1970-01-01", "Monday", "upfront", 26L, 27619.58447265625, 27646.58447265625},
-        new Object[]{"1970-01-01", "Monday", "total_market", 26L, 30468.77734375, 30495.77734375},
-        new Object[]{"1970-01-01", "Monday", "spot", 117L, 13557.738830566406, 13675.738830566406},
-        new Object[]{"1970-01-01", "Tuesday", "upfront", 26L, 26968.280639648438, 26995.280639648438},
-        new Object[]{"1970-01-01", "Tuesday", "total_market", 26L, 29676.578125, 29703.578125},
-        new Object[]{"1970-01-01", "Tuesday", "spot", 117L, 13199.471435546875, 13317.471435546875},
-        new Object[]{"1970-01-01", "Wednesday", "upfront", 28L, 28985.5751953125, 29014.5751953125},
-        new Object[]{"1970-01-01", "Wednesday", "total_market", 28L, 32753.337890625, 32782.337890625},
-        new Object[]{"1970-01-01", "Wednesday", "spot", 126L, 14271.368591308594, 14398.368591308594},
-        new Object[]{"1970-01-01", "Thursday", "upfront", 28L, 28562.748901367188, 28591.748901367188},
-        new Object[]{"1970-01-01", "Thursday", "total_market", 28L, 32361.38720703125, 32390.38720703125},
-        new Object[]{"1970-01-01", "Thursday", "spot", 126L, 14279.127197265625, 14406.127197265625},
-        new Object[]{"1970-01-01", "Friday", "upfront", 26L, 27297.8623046875, 27324.8623046875},
-        new Object[]{"1970-01-01", "Friday", "total_market", 26L, 30173.691650390625, 30200.691650390625},
-        new Object[]{"1970-01-01", "Friday", "spot", 117L, 13219.574157714844, 13337.574157714844},
-        new Object[]{"1970-01-01", "Saturday", "upfront", 26L, 27820.83154296875, 27847.83154296875},
-        new Object[]{"1970-01-01", "Saturday", "total_market", 26L, 30940.971923828125, 30967.971923828125},
-        new Object[]{"1970-01-01", "Saturday", "spot", 117L, 13493.751281738281, 13611.751281738281},
-        new Object[]{"1970-01-01", "Sunday", "upfront", 26L, 24791.223876953125, 24818.223876953125},
-        new Object[]{"1970-01-01", "Sunday", "total_market", 26L, 29305.086059570312, 29332.086059570312},
-        new Object[]{"1970-01-01", "Sunday", "spot", 117L, 13585.541015625, 13703.541015625}
+        array("1970-01-01", "Monday", "upfront", 26, 27619.58477783203D, 27646.58477783203D),
+        array("1970-01-01", "Monday", "total_market", 26, 30468.776733398438D, 30495.776733398438D),
+        array("1970-01-01", "Monday", "spot", 117, 13557.73889541626D, 13675.73889541626D),
+        array("1970-01-01", "Tuesday", "upfront", 26, 26968.28009033203D, 26995.28009033203D),
+        array("1970-01-01", "Tuesday", "total_market", 26, 29676.578247070312D, 29703.578247070312D),
+        array("1970-01-01", "Tuesday", "spot", 117, 13199.471267700195D, 13317.471267700195D),
+        array("1970-01-01", "Wednesday", "upfront", 28, 28985.57501220703D, 29014.57501220703D),
+        array("1970-01-01", "Wednesday", "total_market", 28, 32753.337280273438D, 32782.33728027344D),
+        array("1970-01-01", "Wednesday", "spot", 126, 14271.368713378906D, 14398.368713378906D),
+        array("1970-01-01", "Thursday", "upfront", 28, 28562.748779296875D, 28591.748779296875D),
+        array("1970-01-01", "Thursday", "total_market", 28, 32361.38690185547D, 32390.38690185547D),
+        array("1970-01-01", "Thursday", "spot", 126, 14279.127326965332D, 14406.127326965332D),
+        array("1970-01-01", "Friday", "upfront", 26, 27297.862365722656D, 27324.862365722656D),
+        array("1970-01-01", "Friday", "total_market", 26, 30173.691955566406D, 30200.691955566406D),
+        array("1970-01-01", "Friday", "spot", 117, 13219.574020385742D, 13337.574020385742D),
+        array("1970-01-01", "Saturday", "upfront", 26, 27820.831176757812D, 27847.831176757812D),
+        array("1970-01-01", "Saturday", "total_market", 26, 30940.971740722656D, 30967.971740722656D),
+        array("1970-01-01", "Saturday", "spot", 117, 13493.751190185547D, 13611.751190185547D),
+        array("1970-01-01", "Sunday", "upfront", 26, 24791.22381591797D, 24818.22381591797D),
+        array("1970-01-01", "Sunday", "total_market", 26, 29305.0859375D, 29332.0859375D),
+        array("1970-01-01", "Sunday", "spot", 117, 13585.540908813477D, 13703.540908813477D)
     );
 
     results = runQuery(builder.build(), true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    TestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -3768,39 +3341,39 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{
+    columnNames = array(
         "__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all", "sum_post", "avg_post"
-    };
+    );
     expectedResults = createExpectedRows(
         columnNames,
-        array("1970-01-01", "Friday", 26L, 0L, 26L, 0L, 26L, 27324.862365722656, 27324.9),
-        array("1970-01-01", "Friday", 26L, 0L, 52L, 0L, 52L, 57525.55432128906, 28762.8),
-        array("1970-01-01", "Friday", 117L, 91L, 169L, 91L, 169L, 70863.1283416748, 23621.0),
-        array("1970-01-01", "Monday", 26L, 0L, 26L, -91L, 195L, 98509.71311950684, 24627.4),
-        array("1970-01-01", "Monday", 26L, 0L, 52L, 0L, 221L, 129005.48985290527, 25801.1),
-        array("1970-01-01", "Monday", 117L, 91L, 169L, 91L, 338L, 142681.22874832153, 23780.2),
-        array("1970-01-01", "Saturday", 26L, 0L, 26L, -91L, 364L, 170529.05992507935, 24361.3),
-        array("1970-01-01", "Saturday", 26L, 0L, 52L, 0L, 390L, 201497.031665802, 25187.1),
-        array("1970-01-01", "Saturday", 117L, 91L, 169L, 91L, 507L, 215108.78285598755, 23901.0),
-        array("1970-01-01", "Sunday", 26L, 0L, 26L, -91L, 533L, 239927.00667190552, 23992.7),
-        array("1970-01-01", "Sunday", 26L, 0L, 52L, 0L, 559L, 269259.0926094055, 24478.1),
-        array("1970-01-01", "Sunday", 117L, 91L, 169L, 91L, 676L, 282962.633518219, 23580.2),
-        array("1970-01-01", "Thursday", 28L, 0L, 28L, -89L, 704L, 311554.38229751587, 23965.7),
-        array("1970-01-01", "Thursday", 28L, 0L, 56L, 0L, 732L, 343944.76919937134, 24567.5),
-        array("1970-01-01", "Thursday", 126L, 98L, 182L, 98L, 858L, 358350.89652633667, 23890.1),
-        array("1970-01-01", "Tuesday", 26L, 0L, 26L, -100L, 884L, 385346.1766166687, 24084.1),
-        array("1970-01-01", "Tuesday", 26L, 0L, 52L, 0L, 910L, 415049.754863739, 24414.7),
-        array("1970-01-01", "Tuesday", 117L, 91L, 169L, 91L, 1027L, 428367.2261314392, 23798.2),
-        array("1970-01-01", "Wednesday", 28L, 0L, 28L, -89L, 1055L, 457381.80114364624, 24072.7),
-        array("1970-01-01", "Wednesday", 28L, 0L, 56L, 0L, 1083L, 490164.1384239197, 24508.2),
-        array("1970-01-01", "Wednesday", 126L, 98L, 182L, 98L, 1209L, 504562.5071372986, 24026.8)
+        array("1970-01-01", "Friday", 26, 0L, 26L, 0L, 26L, 27324.862365722656, 27324.9),
+        array("1970-01-01", "Friday", 26, 0L, 52L, 0L, 52L, 57525.55432128906, 28762.8),
+        array("1970-01-01", "Friday", 117, 91L, 169L, 91L, 169L, 70863.1283416748, 23621.0),
+        array("1970-01-01", "Monday", 26, 0L, 26L, -91L, 195L, 98509.71311950684, 24627.4),
+        array("1970-01-01", "Monday", 26, 0L, 52L, 0L, 221L, 129005.48985290527, 25801.1),
+        array("1970-01-01", "Monday", 117, 91L, 169L, 91L, 338L, 142681.22874832153, 23780.2),
+        array("1970-01-01", "Saturday", 26, 0L, 26L, -91L, 364L, 170529.05992507935, 24361.3),
+        array("1970-01-01", "Saturday", 26, 0L, 52L, 0L, 390L, 201497.031665802, 25187.1),
+        array("1970-01-01", "Saturday", 117, 91L, 169L, 91L, 507L, 215108.78285598755, 23901.0),
+        array("1970-01-01", "Sunday", 26, 0L, 26L, -91L, 533L, 239927.00667190552, 23992.7),
+        array("1970-01-01", "Sunday", 26, 0L, 52L, 0L, 559L, 269259.0926094055, 24478.1),
+        array("1970-01-01", "Sunday", 117, 91L, 169L, 91L, 676L, 282962.633518219, 23580.2),
+        array("1970-01-01", "Thursday", 28, 0L, 28L, -89L, 704L, 311554.38229751587, 23965.7),
+        array("1970-01-01", "Thursday", 28, 0L, 56L, 0L, 732L, 343944.76919937134, 24567.5),
+        array("1970-01-01", "Thursday", 126, 98L, 182L, 98L, 858L, 358350.89652633667, 23890.1),
+        array("1970-01-01", "Tuesday", 26, 0L, 26L, -100L, 884L, 385346.1766166687, 24084.1),
+        array("1970-01-01", "Tuesday", 26, 0L, 52L, 0L, 910L, 415049.754863739, 24414.7),
+        array("1970-01-01", "Tuesday", 117, 91L, 169L, 91L, 1027L, 428367.2261314392, 23798.2),
+        array("1970-01-01", "Wednesday", 28, 0L, 28L, -89L, 1055L, 457381.80114364624, 24072.7),
+        array("1970-01-01", "Wednesday", 28, 0L, 56L, 0L, 1083L, 490164.1384239197, 24508.2),
+        array("1970-01-01", "Wednesday", 126, 98L, 182L, 98L, 1209L, 504562.5071372986, 24026.8)
     );
 
     results = runQuery(builder.build(), true);
     validate(columnNames, expectedResults, results);
 
     GroupByQuery query = builder.build();
-    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
+    query = query.withOverriddenContext(Query.GBY_PRE_ORDERING, true);
     query = (GroupByQuery) query.rewriteQuery(TestIndex.segmentWalker);
     DimensionSpec dimensionSpec = query.getDimensions().get(1);
     Assert.assertTrue(dimensionSpec instanceof DimensionSpecWithOrdering);  // 0 is basic ordering
@@ -3824,93 +3397,93 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all"};
+    columnNames = array("__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all");
     expectedResults = createExpectedRows(
         columnNames,
-        array("2011-01-01T00:00:00.000Z", "Friday", 4L, 0L, 4L, 0L, 4L),
-        array("2011-02-01T00:00:00.000Z", "Friday", 8L, 4L, 12L, 4L, 12L),
-        array("2011-03-01T00:00:00.000Z", "Friday", 8L, 0L, 20L, 0L, 20L),
-        array("2011-04-01T00:00:00.000Z", "Friday", 6L, -2L, 26L, -2L, 26L),
-        array("2011-01-01T00:00:00.000Z", "Friday", 4L, -2L, 30L, -2L, 30L),
-        array("2011-02-01T00:00:00.000Z", "Friday", 8L, 4L, 38L, 4L, 38L),
-        array("2011-03-01T00:00:00.000Z", "Friday", 8L, 0L, 46L, 0L, 46L),
-        array("2011-04-01T00:00:00.000Z", "Friday", 6L, -2L, 52L, -2L, 52L),
-        array("2011-01-01T00:00:00.000Z", "Friday", 18L, 12L, 70L, 12L, 70L),
-        array("2011-02-01T00:00:00.000Z", "Friday", 36L, 18L, 106L, 18L, 106L),
-        array("2011-03-01T00:00:00.000Z", "Friday", 36L, 0L, 142L, 0L, 142L),
-        array("2011-04-01T00:00:00.000Z", "Friday", 27L, -9L, 169L, -9L, 169L),
-        array("2011-01-01T00:00:00.000Z", "Monday", 6L, 0L, 6L, -21L, 175L),
-        array("2011-02-01T00:00:00.000Z", "Monday", 8L, 2L, 14L, 2L, 183L),
-        array("2011-03-01T00:00:00.000Z", "Monday", 8L, 0L, 22L, 0L, 191L),
-        array("2011-04-01T00:00:00.000Z", "Monday", 4L, -4L, 26L, -4L, 195L),
-        array("2011-01-01T00:00:00.000Z", "Monday", 6L, 2L, 32L, 2L, 201L),
-        array("2011-02-01T00:00:00.000Z", "Monday", 8L, 2L, 40L, 2L, 209L),
-        array("2011-03-01T00:00:00.000Z", "Monday", 8L, 0L, 48L, 0L, 217L),
-        array("2011-04-01T00:00:00.000Z", "Monday", 4L, -4L, 52L, -4L, 221L),
-        array("2011-01-01T00:00:00.000Z", "Monday", 27L, 23L, 79L, 23L, 248L),
-        array("2011-02-01T00:00:00.000Z", "Monday", 36L, 9L, 115L, 9L, 284L),
-        array("2011-03-01T00:00:00.000Z", "Monday", 36L, 0L, 151L, 0L, 320L),
-        array("2011-04-01T00:00:00.000Z", "Monday", 18L, -18L, 169L, -18L, 338L),
-        array("2011-01-01T00:00:00.000Z", "Saturday", 6L, 0L, 6L, -12L, 344L),
-        array("2011-02-01T00:00:00.000Z", "Saturday", 8L, 2L, 14L, 2L, 352L),
-        array("2011-03-01T00:00:00.000Z", "Saturday", 8L, 0L, 22L, 0L, 360L),
-        array("2011-04-01T00:00:00.000Z", "Saturday", 4L, -4L, 26L, -4L, 364L),
-        array("2011-01-01T00:00:00.000Z", "Saturday", 6L, 2L, 32L, 2L, 370L),
-        array("2011-02-01T00:00:00.000Z", "Saturday", 8L, 2L, 40L, 2L, 378L),
-        array("2011-03-01T00:00:00.000Z", "Saturday", 8L, 0L, 48L, 0L, 386L),
-        array("2011-04-01T00:00:00.000Z", "Saturday", 4L, -4L, 52L, -4L, 390L),
-        array("2011-01-01T00:00:00.000Z", "Saturday", 27L, 23L, 79L, 23L, 417L),
-        array("2011-02-01T00:00:00.000Z", "Saturday", 36L, 9L, 115L, 9L, 453L),
-        array("2011-03-01T00:00:00.000Z", "Saturday", 36L, 0L, 151L, 0L, 489L),
-        array("2011-04-01T00:00:00.000Z", "Saturday", 18L, -18L, 169L, -18L, 507L),
-        array("2011-01-01T00:00:00.000Z", "Sunday", 6L, 0L, 6L, -12L, 513L),
-        array("2011-02-01T00:00:00.000Z", "Sunday", 8L, 2L, 14L, 2L, 521L),
-        array("2011-03-01T00:00:00.000Z", "Sunday", 8L, 0L, 22L, 0L, 529L),
-        array("2011-04-01T00:00:00.000Z", "Sunday", 4L, -4L, 26L, -4L, 533L),
-        array("2011-01-01T00:00:00.000Z", "Sunday", 6L, 2L, 32L, 2L, 539L),
-        array("2011-02-01T00:00:00.000Z", "Sunday", 8L, 2L, 40L, 2L, 547L),
-        array("2011-03-01T00:00:00.000Z", "Sunday", 8L, 0L, 48L, 0L, 555L),
-        array("2011-04-01T00:00:00.000Z", "Sunday", 4L, -4L, 52L, -4L, 559L),
-        array("2011-01-01T00:00:00.000Z", "Sunday", 27L, 23L, 79L, 23L, 586L),
-        array("2011-02-01T00:00:00.000Z", "Sunday", 36L, 9L, 115L, 9L, 622L),
-        array("2011-03-01T00:00:00.000Z", "Sunday", 36L, 0L, 151L, 0L, 658L),
-        array("2011-04-01T00:00:00.000Z", "Sunday", 18L, -18L, 169L, -18L, 676L),
-        array("2011-01-01T00:00:00.000Z", "Thursday", 6L, 0L, 6L, -12L, 682L),
-        array("2011-02-01T00:00:00.000Z", "Thursday", 8L, 2L, 14L, 2L, 690L),
-        array("2011-03-01T00:00:00.000Z", "Thursday", 10L, 2L, 24L, 2L, 700L),
-        array("2011-04-01T00:00:00.000Z", "Thursday", 4L, -6L, 28L, -6L, 704L),
-        array("2011-01-01T00:00:00.000Z", "Thursday", 6L, 2L, 34L, 2L, 710L),
-        array("2011-02-01T00:00:00.000Z", "Thursday", 8L, 2L, 42L, 2L, 718L),
-        array("2011-03-01T00:00:00.000Z", "Thursday", 10L, 2L, 52L, 2L, 728L),
-        array("2011-04-01T00:00:00.000Z", "Thursday", 4L, -6L, 56L, -6L, 732L),
-        array("2011-01-01T00:00:00.000Z", "Thursday", 27L, 23L, 83L, 23L, 759L),
-        array("2011-02-01T00:00:00.000Z", "Thursday", 36L, 9L, 119L, 9L, 795L),
-        array("2011-03-01T00:00:00.000Z", "Thursday", 45L, 9L, 164L, 9L, 840L),
-        array("2011-04-01T00:00:00.000Z", "Thursday", 18L, -27L, 182L, -27L, 858L),
-        array("2011-01-01T00:00:00.000Z", "Tuesday", 4L, 0L, 4L, -14L, 862L),
-        array("2011-02-01T00:00:00.000Z", "Tuesday", 8L, 4L, 12L, 4L, 870L),
-        array("2011-03-01T00:00:00.000Z", "Tuesday", 10L, 2L, 22L, 2L, 880L),
-        array("2011-04-01T00:00:00.000Z", "Tuesday", 4L, -6L, 26L, -6L, 884L),
-        array("2011-01-01T00:00:00.000Z", "Tuesday", 4L, 0L, 30L, 0L, 888L),
-        array("2011-02-01T00:00:00.000Z", "Tuesday", 8L, 4L, 38L, 4L, 896L),
-        array("2011-03-01T00:00:00.000Z", "Tuesday", 10L, 2L, 48L, 2L, 906L),
-        array("2011-04-01T00:00:00.000Z", "Tuesday", 4L, -6L, 52L, -6L, 910L),
-        array("2011-01-01T00:00:00.000Z", "Tuesday", 18L, 14L, 70L, 14L, 928L),
-        array("2011-02-01T00:00:00.000Z", "Tuesday", 36L, 18L, 106L, 18L, 964L),
-        array("2011-03-01T00:00:00.000Z", "Tuesday", 45L, 9L, 151L, 9L, 1009L),
-        array("2011-04-01T00:00:00.000Z", "Tuesday", 18L, -27L, 169L, -27L, 1027L),
-        array("2011-01-01T00:00:00.000Z", "Wednesday", 6L, 0L, 6L, -12L, 1033L),
-        array("2011-02-01T00:00:00.000Z", "Wednesday", 8L, 2L, 14L, 2L, 1041L),
-        array("2011-03-01T00:00:00.000Z", "Wednesday", 10L, 2L, 24L, 2L, 1051L),
-        array("2011-04-01T00:00:00.000Z", "Wednesday", 4L, -6L, 28L, -6L, 1055L),
-        array("2011-01-01T00:00:00.000Z", "Wednesday", 6L, 2L, 34L, 2L, 1061L),
-        array("2011-02-01T00:00:00.000Z", "Wednesday", 8L, 2L, 42L, 2L, 1069L),
-        array("2011-03-01T00:00:00.000Z", "Wednesday", 10L, 2L, 52L, 2L, 1079L),
-        array("2011-04-01T00:00:00.000Z", "Wednesday", 4L, -6L, 56L, -6L, 1083L),
-        array("2011-01-01T00:00:00.000Z", "Wednesday", 27L, 23L, 83L, 23L, 1110L),
-        array("2011-02-01T00:00:00.000Z", "Wednesday", 36L, 9L, 119L, 9L, 1146L),
-        array("2011-03-01T00:00:00.000Z", "Wednesday", 45L, 9L, 164L, 9L, 1191L),
-        array("2011-04-01T00:00:00.000Z", "Wednesday", 18L, -27L, 182L, -27L, 1209L)
+        array("2011-01-01", "Friday", 4, 0L, 4L, 0L, 4L),
+        array("2011-02-01", "Friday", 8, 4L, 12L, 4L, 12L),
+        array("2011-03-01", "Friday", 8, 0L, 20L, 0L, 20L),
+        array("2011-04-01", "Friday", 6, -2L, 26L, -2L, 26L),
+        array("2011-01-01", "Friday", 4, -2L, 30L, -2L, 30L),
+        array("2011-02-01", "Friday", 8, 4L, 38L, 4L, 38L),
+        array("2011-03-01", "Friday", 8, 0L, 46L, 0L, 46L),
+        array("2011-04-01", "Friday", 6, -2L, 52L, -2L, 52L),
+        array("2011-01-01", "Friday", 18, 12L, 70L, 12L, 70L),
+        array("2011-02-01", "Friday", 36, 18L, 106L, 18L, 106L),
+        array("2011-03-01", "Friday", 36, 0L, 142L, 0L, 142L),
+        array("2011-04-01", "Friday", 27, -9L, 169L, -9L, 169L),
+        array("2011-01-01", "Monday", 6, 0L, 6L, -21L, 175L),
+        array("2011-02-01", "Monday", 8, 2L, 14L, 2L, 183L),
+        array("2011-03-01", "Monday", 8, 0L, 22L, 0L, 191L),
+        array("2011-04-01", "Monday", 4, -4L, 26L, -4L, 195L),
+        array("2011-01-01", "Monday", 6, 2L, 32L, 2L, 201L),
+        array("2011-02-01", "Monday", 8, 2L, 40L, 2L, 209L),
+        array("2011-03-01", "Monday", 8, 0L, 48L, 0L, 217L),
+        array("2011-04-01", "Monday", 4, -4L, 52L, -4L, 221L),
+        array("2011-01-01", "Monday", 27, 23L, 79L, 23L, 248L),
+        array("2011-02-01", "Monday", 36, 9L, 115L, 9L, 284L),
+        array("2011-03-01", "Monday", 36, 0L, 151L, 0L, 320L),
+        array("2011-04-01", "Monday", 18, -18L, 169L, -18L, 338L),
+        array("2011-01-01", "Saturday", 6, 0L, 6L, -12L, 344L),
+        array("2011-02-01", "Saturday", 8, 2L, 14L, 2L, 352L),
+        array("2011-03-01", "Saturday", 8, 0L, 22L, 0L, 360L),
+        array("2011-04-01", "Saturday", 4, -4L, 26L, -4L, 364L),
+        array("2011-01-01", "Saturday", 6, 2L, 32L, 2L, 370L),
+        array("2011-02-01", "Saturday", 8, 2L, 40L, 2L, 378L),
+        array("2011-03-01", "Saturday", 8, 0L, 48L, 0L, 386L),
+        array("2011-04-01", "Saturday", 4, -4L, 52L, -4L, 390L),
+        array("2011-01-01", "Saturday", 27, 23L, 79L, 23L, 417L),
+        array("2011-02-01", "Saturday", 36, 9L, 115L, 9L, 453L),
+        array("2011-03-01", "Saturday", 36, 0L, 151L, 0L, 489L),
+        array("2011-04-01", "Saturday", 18, -18L, 169L, -18L, 507L),
+        array("2011-01-01", "Sunday", 6, 0L, 6L, -12L, 513L),
+        array("2011-02-01", "Sunday", 8, 2L, 14L, 2L, 521L),
+        array("2011-03-01", "Sunday", 8, 0L, 22L, 0L, 529L),
+        array("2011-04-01", "Sunday", 4, -4L, 26L, -4L, 533L),
+        array("2011-01-01", "Sunday", 6, 2L, 32L, 2L, 539L),
+        array("2011-02-01", "Sunday", 8, 2L, 40L, 2L, 547L),
+        array("2011-03-01", "Sunday", 8, 0L, 48L, 0L, 555L),
+        array("2011-04-01", "Sunday", 4, -4L, 52L, -4L, 559L),
+        array("2011-01-01", "Sunday", 27, 23L, 79L, 23L, 586L),
+        array("2011-02-01", "Sunday", 36, 9L, 115L, 9L, 622L),
+        array("2011-03-01", "Sunday", 36, 0L, 151L, 0L, 658L),
+        array("2011-04-01", "Sunday", 18, -18L, 169L, -18L, 676L),
+        array("2011-01-01", "Thursday", 6, 0L, 6L, -12L, 682L),
+        array("2011-02-01", "Thursday", 8, 2L, 14L, 2L, 690L),
+        array("2011-03-01", "Thursday", 10, 2L, 24L, 2L, 700L),
+        array("2011-04-01", "Thursday", 4, -6L, 28L, -6L, 704L),
+        array("2011-01-01", "Thursday", 6, 2L, 34L, 2L, 710L),
+        array("2011-02-01", "Thursday", 8, 2L, 42L, 2L, 718L),
+        array("2011-03-01", "Thursday", 10, 2L, 52L, 2L, 728L),
+        array("2011-04-01", "Thursday", 4, -6L, 56L, -6L, 732L),
+        array("2011-01-01", "Thursday", 27, 23L, 83L, 23L, 759L),
+        array("2011-02-01", "Thursday", 36, 9L, 119L, 9L, 795L),
+        array("2011-03-01", "Thursday", 45, 9L, 164L, 9L, 840L),
+        array("2011-04-01", "Thursday", 18, -27L, 182L, -27L, 858L),
+        array("2011-01-01", "Tuesday", 4, 0L, 4L, -14L, 862L),
+        array("2011-02-01", "Tuesday", 8, 4L, 12L, 4L, 870L),
+        array("2011-03-01", "Tuesday", 10, 2L, 22L, 2L, 880L),
+        array("2011-04-01", "Tuesday", 4, -6L, 26L, -6L, 884L),
+        array("2011-01-01", "Tuesday", 4, 0L, 30L, 0L, 888L),
+        array("2011-02-01", "Tuesday", 8, 4L, 38L, 4L, 896L),
+        array("2011-03-01", "Tuesday", 10, 2L, 48L, 2L, 906L),
+        array("2011-04-01", "Tuesday", 4, -6L, 52L, -6L, 910L),
+        array("2011-01-01", "Tuesday", 18, 14L, 70L, 14L, 928L),
+        array("2011-02-01", "Tuesday", 36, 18L, 106L, 18L, 964L),
+        array("2011-03-01", "Tuesday", 45, 9L, 151L, 9L, 1009L),
+        array("2011-04-01", "Tuesday", 18, -27L, 169L, -27L, 1027L),
+        array("2011-01-01", "Wednesday", 6, 0L, 6L, -12L, 1033L),
+        array("2011-02-01", "Wednesday", 8, 2L, 14L, 2L, 1041L),
+        array("2011-03-01", "Wednesday", 10, 2L, 24L, 2L, 1051L),
+        array("2011-04-01", "Wednesday", 4, -6L, 28L, -6L, 1055L),
+        array("2011-01-01", "Wednesday", 6, 2L, 34L, 2L, 1061L),
+        array("2011-02-01", "Wednesday", 8, 2L, 42L, 2L, 1069L),
+        array("2011-03-01", "Wednesday", 10, 2L, 52L, 2L, 1079L),
+        array("2011-04-01", "Wednesday", 4, -6L, 56L, -6L, 1083L),
+        array("2011-01-01", "Wednesday", 27, 23L, 83L, 23L, 1110L),
+        array("2011-02-01", "Wednesday", 36, 9L, 119L, 9L, 1146L),
+        array("2011-03-01", "Wednesday", 45, 9L, 164L, 9L, 1191L),
+        array("2011-04-01", "Wednesday", 18, -27L, 182L, -27L, 1209L)
     );
     results = runQuery(builder.build(), true);
     validate(columnNames, expectedResults, results);
@@ -3932,30 +3505,30 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all"};
+    columnNames = array("__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all");
     expectedResults = createExpectedRows(
         columnNames,
-        array("1970-01-01T00:00:00.000Z", "Wednesday", 126L, 98L, 182L, 98L, 1209L),
-        array("1970-01-01T00:00:00.000Z", "Wednesday", 28L, 0L, 56L, 0L, 1083L),
-        array("1970-01-01T00:00:00.000Z", "Wednesday", 28L, 0L, 28L, -89L, 1055L),
-        array("1970-01-01T00:00:00.000Z", "Tuesday", 117L, 91L, 169L, 91L, 1027L),
-        array("1970-01-01T00:00:00.000Z", "Tuesday", 26L, 0L, 52L, 0L, 910L),
-        array("1970-01-01T00:00:00.000Z", "Tuesday", 26L, 0L, 26L, -100L, 884L),
-        array("1970-01-01T00:00:00.000Z", "Thursday", 126L, 98L, 182L, 98L, 858L),
-        array("1970-01-01T00:00:00.000Z", "Thursday", 28L, 0L, 56L, 0L, 732L),
-        array("1970-01-01T00:00:00.000Z", "Thursday", 28L, 0L, 28L, -89L, 704L),
-        array("1970-01-01T00:00:00.000Z", "Sunday", 117L, 91L, 169L, 91L, 676L),
-        array("1970-01-01T00:00:00.000Z", "Sunday", 26L, 0L, 52L, 0L, 559L),
-        array("1970-01-01T00:00:00.000Z", "Sunday", 26L, 0L, 26L, -91L, 533L),
-        array("1970-01-01T00:00:00.000Z", "Saturday", 117L, 91L, 169L, 91L, 507L),
-        array("1970-01-01T00:00:00.000Z", "Saturday", 26L, 0L, 52L, 0L, 390L),
-        array("1970-01-01T00:00:00.000Z", "Saturday", 26L, 0L, 26L, -91L, 364L),
-        array("1970-01-01T00:00:00.000Z", "Monday", 117L, 91L, 169L, 91L, 338L),
-        array("1970-01-01T00:00:00.000Z", "Monday", 26L, 0L, 52L, 0L, 221L),
-        array("1970-01-01T00:00:00.000Z", "Monday", 26L, 0L, 26L, -91L, 195L),
-        array("1970-01-01T00:00:00.000Z", "Friday", 117L, 91L, 169L, 91L, 169L),
-        array("1970-01-01T00:00:00.000Z", "Friday", 26L, 0L, 52L, 0L, 52L),
-        array("1970-01-01T00:00:00.000Z", "Friday", 26L, 0L, 26L, 0L, 26L)
+        array("1970-01-01T00:00:00.000Z", "Wednesday", 126, 98L, 182L, 98L, 1209L),
+        array("1970-01-01T00:00:00.000Z", "Wednesday", 28, 0L, 56L, 0L, 1083L),
+        array("1970-01-01T00:00:00.000Z", "Wednesday", 28, 0L, 28L, -89L, 1055L),
+        array("1970-01-01T00:00:00.000Z", "Tuesday", 117, 91L, 169L, 91L, 1027L),
+        array("1970-01-01T00:00:00.000Z", "Tuesday", 26, 0L, 52L, 0L, 910L),
+        array("1970-01-01T00:00:00.000Z", "Tuesday", 26, 0L, 26L, -100L, 884L),
+        array("1970-01-01T00:00:00.000Z", "Thursday", 126, 98L, 182L, 98L, 858L),
+        array("1970-01-01T00:00:00.000Z", "Thursday", 28, 0L, 56L, 0L, 732L),
+        array("1970-01-01T00:00:00.000Z", "Thursday", 28, 0L, 28L, -89L, 704L),
+        array("1970-01-01T00:00:00.000Z", "Sunday", 117, 91L, 169L, 91L, 676L),
+        array("1970-01-01T00:00:00.000Z", "Sunday", 26, 0L, 52L, 0L, 559L),
+        array("1970-01-01T00:00:00.000Z", "Sunday", 26, 0L, 26L, -91L, 533L),
+        array("1970-01-01T00:00:00.000Z", "Saturday", 117, 91L, 169L, 91L, 507L),
+        array("1970-01-01T00:00:00.000Z", "Saturday", 26, 0L, 52L, 0L, 390L),
+        array("1970-01-01T00:00:00.000Z", "Saturday", 26, 0L, 26L, -91L, 364L),
+        array("1970-01-01T00:00:00.000Z", "Monday", 117, 91L, 169L, 91L, 338L),
+        array("1970-01-01T00:00:00.000Z", "Monday", 26, 0L, 52L, 0L, 221L),
+        array("1970-01-01T00:00:00.000Z", "Monday", 26, 0L, 26L, -91L, 195L),
+        array("1970-01-01T00:00:00.000Z", "Friday", 117, 91L, 169L, 91L, 169L),
+        array("1970-01-01T00:00:00.000Z", "Friday", 26, 0L, 52L, 0L, 52L),
+        array("1970-01-01T00:00:00.000Z", "Friday", 26, 0L, 26L, 0L, 26L)
     );
 
     results = runQuery(builder.build(), true);
@@ -3970,7 +3543,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "market", "index", "min_week", "min_all"};
+    columnNames = array("dayOfWeek", "market", "index", "min_week", "min_all");
     expectedResults = createExpectedRows(
         columnNames,
         array("Friday", "upfront", 27297.862365722656, 27297.862365722656, 27297.862365722656),
@@ -4009,7 +3582,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "market", "index", "irr_all", "irr_week"};
+    columnNames = array("dayOfWeek", "market", "index", "irr_all", "irr_week");
     expectedResults = createExpectedRows(
         columnNames,
         array("Friday", "upfront", 27297.862365722656, null, null),
@@ -4048,7 +3621,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "market", "index", "npv_all", "npv_week"};
+    columnNames = array("dayOfWeek", "market", "index", "npv_all", "npv_week");
     expectedResults = createExpectedRows(
         columnNames,
         array("Friday", "upfront", 27297.862365722656, null, null),
@@ -4093,7 +3666,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[] {"dayOfWeek", "market", "index", "min_week", "min_all", "min_all[upfront]", "min_week[spot]"};
+    columnNames = array("dayOfWeek", "market", "index", "min_week", "min_all", "min_all[upfront]", "min_week[spot]");
     expectedResults = createExpectedRows(
         columnNames,
         array("Friday",
@@ -4161,7 +3734,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[] {"dayOfWeek", "market", "index", "sum_week", "sum_week_first", "sum_week_last"};
+    columnNames = array("dayOfWeek", "market", "index", "sum_week", "sum_week_first", "sum_week_last");
     expectedResults = createExpectedRows(
         columnNames,
         array("Wednesday",
@@ -4218,7 +3791,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[] {"rows", "columns"};
+    columnNames = array("rows", "columns");
     expectedResults = createExpectedRows(
         columnNames,
         array(
@@ -4271,7 +3844,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"rows", "columns"};
+    columnNames = array("rows", "columns");
     expectedResults = createExpectedRows(
         columnNames,
         array(
@@ -4316,7 +3889,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[] {"rows", "columns"};
+    columnNames = array("rows", "columns");
     expectedResults = createExpectedRows(columnNames,
         array(
             Arrays.asList("upfront", "total_market", "spot"),
@@ -4350,7 +3923,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "addRowsIndexConstant", "sum_week", "sum_all"};
+    columnNames = array("dayOfWeek", "addRowsIndexConstant", "sum_week", "sum_all");
     expectedResults = createExpectedRows(
         columnNames,
         array("Friday", 27324.862365722656, 27324.862365722656, 27324.862365722656),
@@ -4396,7 +3969,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "sum_week", "sum_week_ratio_permil", "sum_all", "sum_all_ratio_percent"};
+    columnNames = array("dayOfWeek", "sum_week", "sum_week_ratio_permil", "sum_all", "sum_all_ratio_percent");
     expectedResults = createExpectedRows(
         columnNames,
         array("Friday", 27297.862365722656, 386.15683475559473, 27297.862365722656, 5.423425266327249),
@@ -4435,7 +4008,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "index", "mean_all", "count_all", "mean_week", "count_week"};
+    columnNames = array("dayOfWeek", "index", "mean_all", "count_all", "mean_week", "count_week");
     expectedResults = createExpectedRows(
         columnNames,
         array("Friday", 27297.862365722656, 28735.77716064453, 21L, 28735.77716064453, 3L),
@@ -4481,29 +4054,29 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek", "rows", "row_num_all", "rank_all", "dense_rank_all", "row_num_week", "rank_week", "dense_rank_week"
-    };
+    );
 
     expectedResults = createExpectedRows(
         columnNames,
-        new Object[] {"Friday", 26L, 1L, 1L, 1L, 1L, 1L, 1L},
-        new Object[] {"Friday", 26L, 2L, 1L, 1L, 2L, 1L, 1L},
-        new Object[] {"Friday", 117L, 3L, 3L, 2L, 3L, 3L, 2L},
-        new Object[] {"Monday", 26L, 4L, 4L, 3L, 1L, 1L, 1L},
-        new Object[] {"Monday", 26L, 5L, 4L, 3L, 2L, 1L, 1L},
-        new Object[] {"Monday", 117L, 6L, 6L, 4L, 3L, 3L, 2L},
-        new Object[] {"Saturday", 26L, 7L, 7L, 5L, 1L, 1L, 1L},
-        new Object[] {"Saturday", 26L, 8L, 7L, 5L, 2L, 1L, 1L},
-        new Object[] {"Saturday", 117L, 9L, 9L, 6L, 3L, 3L, 2L},
-        new Object[] {"Sunday", 26L, 10L, 10L, 7L, 1L, 1L, 1L},
-        new Object[] {"Sunday", 26L, 11L, 10L, 7L, 2L, 1L, 1L},
-        new Object[] {"Sunday", 117L, 12L, 12L, 8L, 3L, 3L, 2L},
-        new Object[] {"Thursday", 28L, 13L, 13L, 9L, 1L, 1L, 1L},
-        new Object[] {"Thursday", 28L, 14L, 13L, 9L, 2L, 1L, 1L},
-        new Object[] {"Thursday", 126L, 15L, 15L, 10L, 3L, 3L, 2L},
-        new Object[] {"Tuesday", 26L, 16L, 16L, 11L, 1L, 1L, 1L},
-        new Object[] {"Tuesday", 26L, 17L, 16L, 11L, 2L, 1L, 1L}
+        array("Friday", 26, 1L, 1L, 1L, 1L, 1L, 1L),
+        array("Friday", 26, 2L, 1L, 1L, 2L, 1L, 1L),
+        array("Friday", 117, 3L, 3L, 2L, 3L, 3L, 2L),
+        array("Monday", 26, 4L, 4L, 3L, 1L, 1L, 1L),
+        array("Monday", 26, 5L, 4L, 3L, 2L, 1L, 1L),
+        array("Monday", 117, 6L, 6L, 4L, 3L, 3L, 2L),
+        array("Saturday", 26, 7L, 7L, 5L, 1L, 1L, 1L),
+        array("Saturday", 26, 8L, 7L, 5L, 2L, 1L, 1L),
+        array("Saturday", 117, 9L, 9L, 6L, 3L, 3L, 2L),
+        array("Sunday", 26, 10L, 10L, 7L, 1L, 1L, 1L),
+        array("Sunday", 26, 11L, 10L, 7L, 2L, 1L, 1L),
+        array("Sunday", 117, 12L, 12L, 8L, 3L, 3L, 2L),
+        array("Thursday", 28, 13L, 13L, 9L, 1L, 1L, 1L),
+        array("Thursday", 28, 14L, 13L, 9L, 2L, 1L, 1L),
+        array("Thursday", 126, 15L, 15L, 10L, 3L, 3L, 2L),
+        array("Tuesday", 26, 16L, 16L, 11L, 1L, 1L, 1L),
+        array("Tuesday", 26, 17L, 16L, 11L, 2L, 1L, 1L)
     );
 
     results = runQuery(builder.build());
@@ -4520,31 +4093,31 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "rows", "lead_all", "lag_all", "lead_week", "lag_week"};
+    columnNames = array("dayOfWeek", "rows", "lead_all", "lag_all", "lead_week", "lag_week");
 
     expectedResults = createExpectedRows(
         columnNames,
-        array("Friday", 26L, 117L, null, 26L, null),
-        array("Friday", 26L, 26L, null, 117L, 26L),
-        array("Friday", 117L, 26L, 26L, null, 26L),
-        array("Monday", 26L, 117L, 26L, 26L, null),
-        array("Monday", 26L, 26L, 117L, 117L, 26L),
-        array("Monday", 117L, 26L, 26L, null, 26L),
-        array("Saturday", 26L, 117L, 26L, 26L, null),
-        array("Saturday", 26L, 26L, 117L, 117L, 26L),
-        array("Saturday", 117L, 26L, 26L, null, 26L),
-        array("Sunday", 26L, 117L, 26L, 26L, null),
-        array("Sunday", 26L, 28L, 117L, 117L, 26L),
-        array("Sunday", 117L, 28L, 26L, null, 26L),
-        array("Thursday", 28L, 126L, 26L, 28L, null),
-        array("Thursday", 28L, 26L, 117L, 126L, 28L),
-        array("Thursday", 126L, 26L, 28L, null, 28L),
-        array("Tuesday", 26L, 117L, 28L, 26L, null),
-        array("Tuesday", 26L, 28L, 126L, 117L, 26L),
-        array("Tuesday", 117L, 28L, 26L, null, 26L),
-        array("Wednesday", 28L, 126L, 26L, 28L, null),
-        array("Wednesday", 28L, null, 117L, 126L, 28L),
-        array("Wednesday", 126L, null, 28L, null, 28L)
+        array("Friday", 26, 117, null, 26, null),
+        array("Friday", 26, 26, null, 117, 26),
+        array("Friday", 117, 26, 26, null, 26),
+        array("Monday", 26, 117, 26, 26, null),
+        array("Monday", 26, 26, 117, 117, 26),
+        array("Monday", 117, 26, 26, null, 26),
+        array("Saturday", 26, 117, 26, 26, null),
+        array("Saturday", 26, 26, 117, 117, 26),
+        array("Saturday", 117, 26, 26, null, 26),
+        array("Sunday", 26, 117, 26, 26, null),
+        array("Sunday", 26, 28, 117, 117, 26),
+        array("Sunday", 117, 28, 26, null, 26),
+        array("Thursday", 28, 126, 26, 28, null),
+        array("Thursday", 28, 26, 117, 126, 28),
+        array("Thursday", 126, 26, 28, null, 28),
+        array("Tuesday", 26, 117, 28, 26, null),
+        array("Tuesday", 26, 28, 126, 117, 26),
+        array("Tuesday", 117, 28, 26, null, 26),
+        array("Wednesday", 28, 126, 26, 28, null),
+        array("Wednesday", 28, null, 117, 126, 28),
+        array("Wednesday", 126, null, 28, null, 28)
     );
 
     results = runQuery(builder.build(), true);
@@ -4565,7 +4138,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "var_all", "stddev_all", "var_week", "stddev_week"};
+    columnNames = array("dayOfWeek", "var_all", "stddev_all", "var_week", "stddev_week");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -4610,7 +4183,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "p5_all", "p5_all_win", "p3_week", "p7_week"};
+    columnNames = array("dayOfWeek", "p5_all", "p5_all_win", "p3_week", "p7_week");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -4655,7 +4228,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "p5_all", "p5_all_first_two", "p5_week", "p5_week_last"};
+    columnNames = array("dayOfWeek", "p5_all", "p5_all_first_two", "p5_week", "p5_week_last");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -4759,10 +4332,10 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek",
+    columnNames = array("dayOfWeek",
         "0.p5_all", "0.p5_all_first_two", "0.p5_week", "0.p5_week_last",
         "1.p5_all", "1.p5_all_first_two", "1.p5_week", "1.p5_week_last",
-        "2.p5_all", "2.p5_all_first_two", "2.p5_week", "2.p5_week_last"};
+        "2.p5_all", "2.p5_all_first_two", "2.p5_week", "2.p5_week_last");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -4800,7 +4373,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"index", "index_bin"};
+    columnNames = array("index", "index_bin");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -4843,7 +4416,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"index", "index_bin"};
+    columnNames = array("index", "index_bin");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -4923,7 +4496,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    String[] columnNames = new String[]{"dayOfWeek", "upfront", "spot", "total_market"};
+    String[] columnNames = array("dayOfWeek", "upfront", "spot", "total_market");
 
     List<Row> expectedResults = createExpectedRows(
         columnNames,
@@ -4936,7 +4509,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         array("Wednesday", 28985.57501220703, 14271.368713378906, 32753.337280273438)
     );
 
-    Iterable<Row> results = runQuery(builder.build(), true);
+    List<Row> results = runQuery(builder.build(), true);
     validate(columnNames, expectedResults, results);
 
     // appendValueColumn = true
@@ -4952,7 +4525,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{"dayOfWeek", "upfront-index", "spot-index", "total_market-index"};
+    columnNames = array("dayOfWeek", "upfront-index", "spot-index", "total_market-index");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -4981,17 +4554,17 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{"dayOfWeek", "spot", "total_market", "upfront"};
+    columnNames = array("dayOfWeek", "spot", "total_market", "upfront");
 
     expectedResults = createExpectedRows(
         columnNames,
-        array("Friday", list(13219.574020385742D, 117L), list(30173.691955566406D, 26L), list(27297.862365722656D, 26L)),
-        array("Monday", list(13557.73889541626D, 117L), list(30468.776733398438D, 26L), list(27619.58477783203D, 26L)),
-        array("Saturday", list(13493.751190185547D, 117L), list(30940.971740722656D, 26L), list(27820.831176757812D, 26L)),
-        array("Sunday", list(13585.540908813477D, 117L), list(29305.0859375D, 26L), list(24791.22381591797D, 26L)),
-        array("Thursday", list(14279.127326965332D, 126L), list(32361.38690185547D, 28L), list(28562.748779296875D, 28L)),
-        array("Tuesday", list(13199.471267700195D, 117L), list(29676.578247070312D, 26L), list(26968.28009033203D, 26L)),
-        array("Wednesday", list(14271.368713378906D, 126L), list(32753.337280273438D, 28L), list(28985.57501220703D, 28L))
+        array("Friday", list(13219.574020385742D, 117), list(30173.691955566406D, 26), list(27297.862365722656D, 26)),
+        array("Monday", list(13557.73889541626D, 117), list(30468.776733398438D, 26), list(27619.58477783203D, 26)),
+        array("Saturday", list(13493.751190185547D, 117), list(30940.971740722656D, 26), list(27820.831176757812D, 26)),
+        array("Sunday", list(13585.540908813477D, 117), list(29305.0859375D, 26), list(24791.22381591797D, 26)),
+        array("Thursday", list(14279.127326965332D, 126), list(32361.38690185547D, 28), list(28562.748779296875D, 28)),
+        array("Tuesday", list(13199.471267700195D, 117), list(29676.578247070312D, 26), list(26968.28009033203D, 26)),
+        array("Wednesday", list(14271.368713378906D, 126), list(32753.337280273438D, 28), list(28985.57501220703D, 28))
     );
 
     results = runQuery(builder.build(), true);
@@ -5011,16 +4584,16 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "spot-index", "spot-rows", "total_market-index", "total_market-rows", "upfront-index", "upfront-rows"};
+    columnNames = array("dayOfWeek", "spot-index", "spot-rows", "total_market-index", "total_market-rows", "upfront-index", "upfront-rows");
     expectedResults = createExpectedRows(
         columnNames,
-        array("Friday", 13219.574020385742, 117L, 30173.691955566406, 26L, 27297.862365722656, 26L),
-        array("Monday", 13557.73889541626, 117L, 30468.776733398438, 26L, 27619.58477783203, 26L),
-        array("Saturday", 13493.751190185547, 117L, 30940.971740722656, 26L, 27820.831176757812, 26L),
-        array("Sunday", 13585.540908813477, 117L, 29305.0859375, 26L, 24791.22381591797, 26L),
-        array("Thursday", 14279.127326965332, 126L, 32361.38690185547, 28L, 28562.748779296875, 28L),
-        array("Tuesday", 13199.471267700195, 117L, 29676.578247070312, 26L, 26968.28009033203, 26L),
-        array("Wednesday", 14271.368713378906, 126L, 32753.337280273438, 28L, 28985.57501220703, 28L)
+        array("Friday", 13219.574020385742, 117, 30173.691955566406, 26, 27297.862365722656, 26),
+        array("Monday", 13557.73889541626, 117, 30468.776733398438, 26, 27619.58477783203, 26),
+        array("Saturday", 13493.751190185547, 117, 30940.971740722656, 26, 27820.831176757812, 26),
+        array("Sunday", 13585.540908813477, 117, 29305.0859375, 26, 24791.22381591797, 26),
+        array("Thursday", 14279.127326965332, 126, 32361.38690185547, 28, 28562.748779296875, 28),
+        array("Tuesday", 13199.471267700195, 117, 29676.578247070312, 26, 26968.28009033203, 26),
+        array("Wednesday", 14271.368713378906, 126, 32753.337280273438, 28, 28985.57501220703, 28)
     );
 
     results = runQuery(builder.build(), true);
@@ -5040,7 +4613,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "upfront", "spot", "total_market"};
+    columnNames = array("dayOfWeek", "upfront", "spot", "total_market");
     expectedResults = createExpectedRows(
         columnNames,
         array("Monday", 27619.58477783203, 13557.73889541626, 30468.776733398438),
@@ -5070,7 +4643,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{"dayOfWeek", "upfront", "spot"};
+    columnNames = array("dayOfWeek", "upfront", "spot");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -5108,7 +4681,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{"dayOfWeek", "upfr", "spot"};
+    columnNames = array("dayOfWeek", "upfr", "spot");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -5149,7 +4722,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{"market", "Monday", "Wednesday", "Friday", "sum"};
+    columnNames = array("market", "Monday", "Wednesday", "Friday", "sum");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -5193,7 +4766,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{"market", "Monday", "Wednesday", "Friday", "sum"};
+    columnNames = array("market", "Monday", "Wednesday", "Friday", "sum");
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -5248,11 +4821,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    String[] columnNames = new String[]{
+    String[] columnNames = array(
         "dayOfWeek",
         "spot-automotive", "spot-business", "spot-entertainment", "spot-health", "spot-mezzanine",
         "spot-news", "spot-premium", "spot-technology", "spot-travel",
-        "total_market-mezzanine", "total_market-premium", "upfront-mezzanine", "upfront-premium"};
+        "total_market-mezzanine", "total_market-premium", "upfront-mezzanine", "upfront-premium"
+    );
 
     List<Row> expectedResults = createExpectedRows(
         columnNames,
@@ -5274,7 +4848,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             15749.735595703125, null, 14765.832275390625, null
         )
     );
-    Iterable<Row> results = runQuery(builder.build());
+    List<Row> results = runQuery(builder.build());
     validate(columnNames, expectedResults, results);
 
     // with row evaluation
@@ -5292,11 +4866,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-automotive", "spot-business", "spot-entertainment", "spot-health", "spot-mezzanine",
         "spot-news", "spot-premium", "spot-technology", "spot-travel",
-        "total_market-mezzanine", "total_market-premium", "upfront-mezzanine", "upfront-premium", "test"};
+        "total_market-mezzanine", "total_market-premium", "upfront-mezzanine", "upfront-premium", "test"
+    );
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -5338,7 +4913,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-automotive-index", "spot-automotive-rows", "spot-business-index", "spot-business-rows",
         "spot-entertainment-index", "spot-entertainment-rows", "spot-health-index", "spot-health-rows",
@@ -5346,7 +4921,8 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         "spot-premium-index", "spot-premium-rows", "spot-technology-index", "spot-technology-rows",
         "spot-travel-index", "spot-travel-rows",
         "total_market-mezzanine-index", "total_market-mezzanine-rows", "total_market-premium-index", "total_market-premium-rows",
-        "upfront-mezzanine-index", "upfront-mezzanine-rows", "upfront-premium-index", "upfront-premium-rows"};
+        "upfront-mezzanine-index", "upfront-mezzanine-rows", "upfront-premium-index", "upfront-premium-rows"
+    );
 
     // market-quality-<metrics>
     // c(market,index) = sum(c(market,index))
@@ -5367,17 +4943,17 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
               null, null, null, null, null, null, null, null,
               null, null, null, null, null, null, null, null,
               null, null,
-              15301.728393554688, 13L, 15167.04833984375, 13L, 15479.327270507812, 13L, 12140.257507324219, 13L),
+              15301.728393554688, 13, 15167.04833984375, 13, 15479.327270507812, 13, 12140.257507324219, 13),
         array("Tuesday",
-              1664.368782043457, 13L, 1404.3215408325195, 13L, 1653.3230514526367, 13L, 1522.367774963379, 13L,
-              1369.873420715332, 13L, 1425.5140914916992, 13L, 1560.511329650879, 13L, 1068.2061462402344, 13L,
-              1530.9851303100586, 13L,
-              null, null, null, null, 15147.467102050781, 13L, 11820.81298828125, 13L),
+              1664.368782043457, 13, 1404.3215408325195, 13, 1653.3230514526367, 13, 1522.367774963379, 13,
+              1369.873420715332, 13, 1425.5140914916992, 13, 1560.511329650879, 13, 1068.2061462402344, 13,
+              1530.9851303100586, 13,
+              null, null, null, null, 15147.467102050781, 13, 11820.81298828125, 13),
         array("Wednesday",
-              1801.9095306396484, 14L, 1559.0761184692383, 14L, 1783.8484954833984, 14L, 1556.1792068481445, 14L,
-              1477.5527877807617, 14L, 1566.9974746704102, 14L, null, null, 1268.3166580200195, 14L,
-              1623.1850204467773, 14L,
-              15749.735595703125, 14L, null, null, 14765.832275390625, 14L, null, null)
+              1801.9095306396484, 14, 1559.0761184692383, 14, 1783.8484954833984, 14, 1556.1792068481445, 14,
+              1477.5527877807617, 14, 1566.9974746704102, 14, null, null, 1268.3166580200195, 14,
+              1623.1850204467773, 14,
+              15749.735595703125, 14, null, null, 14765.832275390625, 14, null, null)
     );
     results = runQuery(builder.build());
     validate(columnNames, expectedResults, results);
@@ -5397,11 +4973,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-automotive", "spot-business", "spot-entertainment", "spot-health", "spot-mezzanine",
         "spot-news", "spot-premium", "spot-technology", "spot-travel",
-        "total_market-mezzanine", "total_market-premium", "upfront-mezzanine", "upfront-premium"};
+        "total_market-mezzanine", "total_market-premium", "upfront-mezzanine", "upfront-premium"
+    );
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -5480,8 +5057,8 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                     PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
                              .withPartitionExpressions(
                                  PartitionExpression.from(
-                                     new String[]{"^spot-.*", "#_ = $sum(_)"},
-                                     new String[]{"^spot-.*", "_ = case(#_ == 0, 0.0, _ / #_ * 100)"}
+                                     array("^spot-.*", "#_ = $sum(_)"),
+                                     array("^spot-.*", "_ = case(#_ == 0, 0.0, _ / #_ * 100)")
                                  )
                              )
                 )
@@ -5529,34 +5106,34 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "rows_part", "index_part", "rows", "index"};
+    columnNames = array("dayOfWeek", "rows_part", "index_part", "rows", "index");
 
     expectedResults = createExpectedRows(
         columnNames,
-        array("Monday", 13L, 15301.728393554688, 13L, 15301.728393554688),
-        array("Monday", 26L, 30468.776733398438, 26L, 30468.776733398438),
-        array("Monday", 39L, 45948.10400390625, 39L, 45948.10400390625),
-        array("Monday", 52L, 58088.36151123047, 52L, 58088.36151123047),
-        array("Tuesday", 13L, 1664.368782043457, 65L, 59752.730293273926),
-        array("Tuesday", 26L, 3068.6903228759766, 78L, 61157.051834106445),
-        array("Tuesday", 39L, 4722.013374328613, 91L, 62810.37488555908),
-        array("Tuesday", 52L, 6244.381149291992, 104L, 64332.74266052246),
-        array("Tuesday", 65L, 7614.254570007324, 117L, 65702.6160812378),
-        array("Tuesday", 78L, 9039.768661499023, 130L, 67128.13017272949),
-        array("Tuesday", 91L, 10600.279991149902, 143L, 68688.64150238037),
-        array("Tuesday", 104L, 11668.486137390137, 156L, 69756.8476486206),
-        array("Tuesday", 117L, 13199.471267700195, 169L, 71287.83277893066),
-        array("Tuesday", 130L, 28346.938369750977, 182L, 86435.29988098145),
-        array("Tuesday", 143L, 40167.75135803223, 195L, 98256.1128692627),
-        array("Wednesday", 14L, 1801.9095306396484, 209L, 100058.02239990234),
-        array("Wednesday", 28L, 3360.9856491088867, 223L, 101617.09851837158),
-        array("Wednesday", 42L, 5144.834144592285, 237L, 103400.94701385498),
-        array("Wednesday", 56L, 6701.01335144043, 251L, 104957.12622070312),
-        array("Wednesday", 70L, 8178.566139221191, 265L, 106434.67900848389),
-        array("Wednesday", 84L, 9745.563613891602, 279L, 108001.6764831543),
-        array("Wednesday", 98L, 11013.880271911621, 293L, 109269.99314117432),
-        array("Wednesday", 112L, 12637.065292358398, 307L, 110893.1781616211),
-        array("Wednesday", 126L, 28386.800888061523, 321L, 126642.91375732422)
+        array("Monday", 13, 15301.728393554688, 13, 15301.728393554688),
+        array("Monday", 26, 30468.776733398438, 26, 30468.776733398438),
+        array("Monday", 39, 45948.10400390625, 39, 45948.10400390625),
+        array("Monday", 52, 58088.36151123047, 52, 58088.36151123047),
+        array("Tuesday", 13, 1664.368782043457, 65, 59752.730293273926),
+        array("Tuesday", 26, 3068.6903228759766, 78, 61157.051834106445),
+        array("Tuesday", 39, 4722.013374328613, 91, 62810.37488555908),
+        array("Tuesday", 52, 6244.381149291992, 104, 64332.74266052246),
+        array("Tuesday", 65, 7614.254570007324, 117, 65702.6160812378),
+        array("Tuesday", 78, 9039.768661499023, 130, 67128.13017272949),
+        array("Tuesday", 91, 10600.279991149902, 143, 68688.64150238037),
+        array("Tuesday", 104, 11668.486137390137, 156, 69756.8476486206),
+        array("Tuesday", 117, 13199.471267700195, 169, 71287.83277893066),
+        array("Tuesday", 130, 28346.938369750977, 182, 86435.29988098145),
+        array("Tuesday", 143, 40167.75135803223, 195, 98256.1128692627),
+        array("Wednesday", 14, 1801.9095306396484, 209, 100058.02239990234),
+        array("Wednesday", 28, 3360.9856491088867, 223, 101617.09851837158),
+        array("Wednesday", 42, 5144.834144592285, 237, 103400.94701385498),
+        array("Wednesday", 56, 6701.01335144043, 251, 104957.12622070312),
+        array("Wednesday", 70, 8178.566139221191, 265, 106434.67900848389),
+        array("Wednesday", 84, 9745.563613891602, 279, 108001.6764831543),
+        array("Wednesday", 98, 11013.880271911621, 293, 109269.99314117432),
+        array("Wednesday", 112, 12637.065292358398, 307, 110893.1781616211),
+        array("Wednesday", 126, 28386.800888061523, 321, 126642.91375732422)
     );
 
     results = runQuery(builder.build());
@@ -5581,34 +5158,34 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    columnNames = new String[]{"dayOfWeek", "index.percent", "rows.percent", "index", "rows"};
+    columnNames = array("dayOfWeek", "index.percent", "rows.percent", "index", "rows");
 
     expectedResults = createExpectedRows(
         columnNames,
-        array("Monday", 26.342, 25.0, 15301.728393554688, 13L),
-        array("Monday", 26.11, 25.0, 15167.04833984375, 13L),
-        array("Monday", 26.648, 25.0, 15479.327270507812, 13L),
-        array("Monday", 20.9, 25.0, 12140.257507324219, 13L),
-        array("Tuesday", 4.144, 9.091, 1664.368782043457, 13L),
-        array("Tuesday", 3.496, 9.091, 1404.3215408325195, 13L),
-        array("Tuesday", 4.116, 9.091, 1653.3230514526367, 13L),
-        array("Tuesday", 3.79, 9.091, 1522.367774963379, 13L),
-        array("Tuesday", 3.41, 9.091, 1369.873420715332, 13L),
-        array("Tuesday", 3.549, 9.091, 1425.5140914916992, 13L),
-        array("Tuesday", 3.885, 9.091, 1560.511329650879, 13L),
-        array("Tuesday", 2.659, 9.091, 1068.2061462402344, 13L),
-        array("Tuesday", 3.811, 9.091, 1530.9851303100586, 13L),
-        array("Tuesday", 37.711, 9.091, 15147.467102050781, 13L),
-        array("Tuesday", 29.429, 9.091, 11820.81298828125, 13L),
-        array("Wednesday", 4.176, 10.0, 1801.9095306396484, 14L),
-        array("Wednesday", 3.613, 10.0, 1559.0761184692383, 14L),
-        array("Wednesday", 4.134, 10.0, 1783.8484954833984, 14L),
-        array("Wednesday", 3.606, 10.0, 1556.1792068481445, 14L),
-        array("Wednesday", 3.424, 10.0, 1477.5527877807617, 14L),
-        array("Wednesday", 3.631, 10.0, 1566.9974746704102, 14L),
-        array("Wednesday", 2.939, 10.0, 1268.3166580200195, 14L),
-        array("Wednesday", 3.761, 10.0, 1623.1850204467773, 14L),
-        array("Wednesday", 36.498, 10.0, 15749.735595703125, 14L)
+        array("Monday", 26.342, 25.0, 15301.728393554688, 13),
+        array("Monday", 26.11, 25.0, 15167.04833984375, 13),
+        array("Monday", 26.648, 25.0, 15479.327270507812, 13),
+        array("Monday", 20.9, 25.0, 12140.257507324219, 13),
+        array("Tuesday", 4.144, 9.091, 1664.368782043457, 13),
+        array("Tuesday", 3.496, 9.091, 1404.3215408325195, 13),
+        array("Tuesday", 4.116, 9.091, 1653.3230514526367, 13),
+        array("Tuesday", 3.79, 9.091, 1522.367774963379, 13),
+        array("Tuesday", 3.41, 9.091, 1369.873420715332, 13),
+        array("Tuesday", 3.549, 9.091, 1425.5140914916992, 13),
+        array("Tuesday", 3.885, 9.091, 1560.511329650879, 13),
+        array("Tuesday", 2.659, 9.091, 1068.2061462402344, 13),
+        array("Tuesday", 3.811, 9.091, 1530.9851303100586, 13),
+        array("Tuesday", 37.711, 9.091, 15147.467102050781, 13),
+        array("Tuesday", 29.429, 9.091, 11820.81298828125, 13),
+        array("Wednesday", 4.176, 10.0, 1801.9095306396484, 14),
+        array("Wednesday", 3.613, 10.0, 1559.0761184692383, 14),
+        array("Wednesday", 4.134, 10.0, 1783.8484954833984, 14),
+        array("Wednesday", 3.606, 10.0, 1556.1792068481445, 14),
+        array("Wednesday", 3.424, 10.0, 1477.5527877807617, 14),
+        array("Wednesday", 3.631, 10.0, 1566.9974746704102, 14),
+        array("Wednesday", 2.939, 10.0, 1268.3166580200195, 14),
+        array("Wednesday", 3.761, 10.0, 1623.1850204467773, 14),
+        array("Wednesday", 36.498, 10.0, 15749.735595703125, 14)
     );
 
     results = runQuery(builder.build());
@@ -5667,7 +5244,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    String[] columnNames = new String[]{"dayOfWeek", "market", "sum_post", "sum_post.percent"};
+    String[] columnNames = array("dayOfWeek", "market", "sum_post", "sum_post.percent");
 
     List<Row> expectedResults = createExpectedRows(
         columnNames,
@@ -5740,10 +5317,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    String[] columnNames = new String[]{"MINUTE(request_time)", "SUM(MEASURE_1)", "SUM(MEASURE_1).percent"};
-
-    List<Row> expectedResults = createExpectedRows(
-        columnNames,
+    validate(
+        builder.build(),
+        array("MINUTE(request_time)", "SUM(MEASURE_1)", "SUM(MEASURE_1).percent"),
         array("2011-01-12 09:00", 4513.0, 0.8944754665688779),
         array("2011-01-13 09:00", 6090.949111938477, 1.2072245842562512),
         array("2011-01-14 09:00", 4935.488838195801, 0.9782126481920403),
@@ -5769,9 +5345,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         array("2011-02-04 09:00", 5469.789611816406, 1.0841109273350502),
         array("2011-02-05 09:00", 5469.095397949219, 1.0839733343209241)
     );
-
-    List<Row> results = runQuery(builder.build());
-    validate(columnNames, expectedResults, results, true);
   }
 
   @Test
@@ -5811,18 +5384,15 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
     );
 
-    String[] columnNames = new String[]{
-        "SUM(MEASURE_1)", "SUM(MEASURE_1).percent",
-        "SUM(MEASURE_2)", "SUM(MEASURE_2).percent",
-        "SUM(MEASURE_3)", "SUM(MEASURE_3).percent"};
-
-    List<Row> expectedResults = createExpectedRows(
-        columnNames,
+    validate(
+        builder.build(),
+        array(
+            "SUM(MEASURE_1)", "SUM(MEASURE_1).percent",
+            "SUM(MEASURE_2)", "SUM(MEASURE_2).percent",
+            "SUM(MEASURE_3)", "SUM(MEASURE_3).percent"
+        ),
         array(-1208.9999160766602, 100.0, -1208.999984741211, 100.0, -1208.9999923706055, 100.0)
     );
-
-    List<Row> results = runQuery(builder.build());
-    validate(columnNames, expectedResults, results, true);
   }
 
   @Test
@@ -5837,7 +5407,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new DoubleSumAggregatorFactory("aggregationfunc_001", null, "isNotNull(partial_null_column)", null)
         );
 
-    String[] columnNames = new String[]{"aggregationfunc_000", "aggregationfunc_001"};
+    String[] columnNames = array("aggregationfunc_000", "aggregationfunc_001");
 
     List<Row> expectedResults = createExpectedRows(columnNames, array(1023D, 186D));
     List<Row> results = runQuery(builder.build());
@@ -5847,7 +5417,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         new LongSumAggregatorFactory("aggregationfunc_000", null, "isNull(partial_null_column)", null),
         new LongSumAggregatorFactory("aggregationfunc_001", null, "isNotNull(partial_null_column)", null)
     );
-    expectedResults = createExpectedRows(columnNames, array(1023L, 186L));
+    expectedResults = createExpectedRows(columnNames, array(1023, 186));
     results = runQuery(builder.build());
     validate(columnNames, expectedResults, results, true);
 
@@ -5855,7 +5425,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         new GenericSumAggregatorFactory("aggregationfunc_000", null, "if (index < 100, 0, 1) && if (index > 1000, 0, 1)", null, ValueDesc.LONG),
         new GenericSumAggregatorFactory("aggregationfunc_001", null, "isNotNull(partial_null_column)", null, ValueDesc.LONG)
     );
-    expectedResults = createExpectedRows(columnNames, array(791L, 186L));
+    expectedResults = createExpectedRows(columnNames, array(791, 186));
     results = runQuery(builder.build());
     validate(columnNames, expectedResults, results, true);
   }
@@ -5872,11 +5442,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             GenericSumAggregatorFactory.expr("aggregationfunc_001", "isNotNull(partial_null_column)", ValueDesc.DOUBLE)
         );
 
-    String[] columnNames = new String[]{"aggregationfunc_000", "aggregationfunc_001"};
-
-    List<Row> expectedResults = createExpectedRows(columnNames, array(1023D, 186D));
-    List<Row> results = runQuery(builder.build());
-    validate(columnNames, expectedResults, results, true);
+    validate(
+        builder.build(),
+        array("aggregationfunc_000", "aggregationfunc_001"),
+        array(1023D, 186D)
+    );
   }
 
   @Test
@@ -5905,7 +5475,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                          )
         )));
 
-    String[] columnNames = new String[]{"D2.0누적실적", "D2.0누적실적.percent"};
+    String[] columnNames = array("D2.0누적실적", "D2.0누적실적.percent");
 
     List<Row> expectedResults = createExpectedRows(columnNames, array(5.5D, 100D));
     List<Row> results = runQuery(builder.build());
@@ -5952,67 +5522,67 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         );
 
-    String[] columnNames = new String[]{
+    String[] columnNames = array(
         "market", "quality", "dayOfWeek", "rows", "index", "addRowsIndexConstant"
-    };
+    );
     List<Row> expectedResults = createExpectedRows(
         columnNames,
-        array("spot", null, "Friday", 26L, 2880.166572570801, 2907.166572570801),
-        array("spot", null, "Saturday", 26L, 2912.418525695801, 2939.418525695801),
-        array("spot", null, "Sunday", 26L, 2925.456039428711, 2952.456039428711),
-        array("spot", null, "Thursday", 28L, 3121.1823120117188, 3150.1823120117188),
-        array("spot", null, "Tuesday", 26L, 2930.384750366211, 2957.384750366211),
-        array("spot", null, "Wednesday", 28L, 3111.8562088012695, 3140.8562088012695),
-        array("spot", "mezzanine", "Friday", 13L, 1358.3970184326172, 1372.3970184326172),
-        array("spot", "mezzanine", "Saturday", 13L, 1398.4330215454102, 1412.4330215454102),
-        array("spot", "mezzanine", "Sunday", 13L, 1392.425064086914, 1406.425064086914),
-        array("spot", "mezzanine", "Thursday", 14L, 1486.202865600586, 1501.202865600586),
-        array("spot", "mezzanine", "Tuesday", 13L, 1369.873420715332, 1383.873420715332),
-        array("spot", "mezzanine", "Wednesday", 14L, 1477.5527877807617, 1492.5527877807617),
-        array("spot", "premium", "Friday", 13L, 1521.7695541381836, 1535.7695541381836),
-        array("spot", "premium", "Saturday", 13L, 1513.9855041503906, 1527.9855041503906),
-        array("spot", "premium", "Sunday", 13L, 1533.0309753417969, 1547.0309753417969),
-        array("spot", "premium", "Thursday", 14L, 1634.9794464111328, 1649.9794464111328),
-        array("spot", "premium", "Tuesday", 13L, 1560.511329650879, 1574.511329650879),
-        array("total_market", null, "Friday", 26L, 30173.691955566406, 30200.691955566406),
-        array("total_market", null, "Monday", 26L, 30468.776733398438, 30495.776733398438),
-        array("total_market", null, "Saturday", 26L, 30940.971740722656, 30967.971740722656),
-        array("total_market", null, "Sunday", 26L, 29305.0859375, 29332.0859375),
-        array("total_market", null, "Thursday", 28L, 32361.38690185547, 32390.38690185547),
-        array("total_market", null, "Wednesday", 28L, 32753.337280273438, 32782.33728027344),
-        array("total_market", "mezzanine", "Friday", 13L, 14696.267150878906, 14710.267150878906),
-        array("total_market", "mezzanine", "Monday", 13L, 15301.728393554688, 15315.728393554688),
-        array("total_market", "mezzanine", "Saturday", 13L, 14784.656677246094, 14798.656677246094),
-        array("total_market", "mezzanine", "Sunday", 13L, 14311.892395019531, 14325.892395019531),
-        array("total_market", "mezzanine", "Thursday", 14L, 16161.914001464844, 16176.914001464844),
-        array("total_market", "mezzanine", "Wednesday", 14L, 15749.735595703125, 15764.735595703125),
-        array("total_market", "premium", "Friday", 13L, 15477.4248046875, 15491.4248046875),
-        array("total_market", "premium", "Monday", 13L, 15167.04833984375, 15181.04833984375),
-        array("total_market", "premium", "Saturday", 13L, 16156.315063476562, 16170.315063476562),
-        array("total_market", "premium", "Sunday", 13L, 14993.193542480469, 15007.193542480469),
-        array("total_market", "premium", "Thursday", 14L, 16199.472900390625, 16214.472900390625),
-        array("upfront", null, "Friday", 26L, 27297.862365722656, 27324.862365722656),
-        array("upfront", null, "Monday", 26L, 27619.58477783203, 27646.58477783203),
-        array("upfront", null, "Saturday", 26L, 27820.831176757812, 27847.831176757812),
-        array("upfront", null, "Sunday", 26L, 24791.22381591797, 24818.22381591797),
-        array("upfront", null, "Thursday", 28L, 28562.748779296875, 28591.748779296875),
-        array("upfront", null, "Tuesday", 26L, 26968.28009033203, 26995.28009033203),
-        array("upfront", null, "Wednesday", 28L, 28985.57501220703, 29014.57501220703),
-        array("upfront", "mezzanine", "Friday", 13L, 14354.38134765625, 14368.38134765625),
-        array("upfront", "mezzanine", "Monday", 13L, 15479.327270507812, 15493.327270507812),
-        array("upfront", "mezzanine", "Saturday", 13L, 13736.503540039062, 13750.503540039062),
-        array("upfront", "mezzanine", "Sunday", 13L, 12682.70849609375, 12696.70849609375),
-        array("upfront", "mezzanine", "Thursday", 14L, 15828.224243164062, 15843.224243164062),
-        array("upfront", "mezzanine", "Tuesday", 13L, 15147.467102050781, 15161.467102050781),
-        array("upfront", "mezzanine", "Wednesday", 14L, 14765.832275390625, 14780.832275390625),
-        array("upfront", "premium", "Friday", 13L, 12943.481018066406, 12957.481018066406),
-        array("upfront", "premium", "Monday", 13L, 12140.257507324219, 12154.257507324219),
-        array("upfront", "premium", "Saturday", 13L, 14084.32763671875, 14098.32763671875),
-        array("upfront", "premium", "Sunday", 13L, 12108.515319824219, 12122.515319824219),
-        array("upfront", "premium", "Thursday", 14L, 12734.524536132812, 12749.524536132812),
-        array("upfront", "premium", "Tuesday", 13L, 11820.81298828125, 11834.81298828125)
+        array("spot", null, "Friday", 26, 2880.166572570801, 2907.166572570801),
+        array("spot", null, "Saturday", 26, 2912.418525695801, 2939.418525695801),
+        array("spot", null, "Sunday", 26, 2925.456039428711, 2952.456039428711),
+        array("spot", null, "Thursday", 28, 3121.1823120117188, 3150.1823120117188),
+        array("spot", null, "Tuesday", 26, 2930.384750366211, 2957.384750366211),
+        array("spot", null, "Wednesday", 28, 3111.8562088012695, 3140.8562088012695),
+        array("spot", "mezzanine", "Friday", 13, 1358.3970184326172, 1372.3970184326172),
+        array("spot", "mezzanine", "Saturday", 13, 1398.4330215454102, 1412.4330215454102),
+        array("spot", "mezzanine", "Sunday", 13, 1392.425064086914, 1406.425064086914),
+        array("spot", "mezzanine", "Thursday", 14, 1486.202865600586, 1501.202865600586),
+        array("spot", "mezzanine", "Tuesday", 13, 1369.873420715332, 1383.873420715332),
+        array("spot", "mezzanine", "Wednesday", 14, 1477.5527877807617, 1492.5527877807617),
+        array("spot", "premium", "Friday", 13, 1521.7695541381836, 1535.7695541381836),
+        array("spot", "premium", "Saturday", 13, 1513.9855041503906, 1527.9855041503906),
+        array("spot", "premium", "Sunday", 13, 1533.0309753417969, 1547.0309753417969),
+        array("spot", "premium", "Thursday", 14, 1634.9794464111328, 1649.9794464111328),
+        array("spot", "premium", "Tuesday", 13, 1560.511329650879, 1574.511329650879),
+        array("total_market", null, "Friday", 26, 30173.691955566406, 30200.691955566406),
+        array("total_market", null, "Monday", 26, 30468.776733398438, 30495.776733398438),
+        array("total_market", null, "Saturday", 26, 30940.971740722656, 30967.971740722656),
+        array("total_market", null, "Sunday", 26, 29305.0859375, 29332.0859375),
+        array("total_market", null, "Thursday", 28, 32361.38690185547, 32390.38690185547),
+        array("total_market", null, "Wednesday", 28, 32753.337280273438, 32782.33728027344),
+        array("total_market", "mezzanine", "Friday", 13, 14696.267150878906, 14710.267150878906),
+        array("total_market", "mezzanine", "Monday", 13, 15301.728393554688, 15315.728393554688),
+        array("total_market", "mezzanine", "Saturday", 13, 14784.656677246094, 14798.656677246094),
+        array("total_market", "mezzanine", "Sunday", 13, 14311.892395019531, 14325.892395019531),
+        array("total_market", "mezzanine", "Thursday", 14, 16161.914001464844, 16176.914001464844),
+        array("total_market", "mezzanine", "Wednesday", 14, 15749.735595703125, 15764.735595703125),
+        array("total_market", "premium", "Friday", 13, 15477.4248046875, 15491.4248046875),
+        array("total_market", "premium", "Monday", 13, 15167.04833984375, 15181.04833984375),
+        array("total_market", "premium", "Saturday", 13, 16156.315063476562, 16170.315063476562),
+        array("total_market", "premium", "Sunday", 13, 14993.193542480469, 15007.193542480469),
+        array("total_market", "premium", "Thursday", 14, 16199.472900390625, 16214.472900390625),
+        array("upfront", null, "Friday", 26, 27297.862365722656, 27324.862365722656),
+        array("upfront", null, "Monday", 26, 27619.58477783203, 27646.58477783203),
+        array("upfront", null, "Saturday", 26, 27820.831176757812, 27847.831176757812),
+        array("upfront", null, "Sunday", 26, 24791.22381591797, 24818.22381591797),
+        array("upfront", null, "Thursday", 28, 28562.748779296875, 28591.748779296875),
+        array("upfront", null, "Tuesday", 26, 26968.28009033203, 26995.28009033203),
+        array("upfront", null, "Wednesday", 28, 28985.57501220703, 29014.57501220703),
+        array("upfront", "mezzanine", "Friday", 13, 14354.38134765625, 14368.38134765625),
+        array("upfront", "mezzanine", "Monday", 13, 15479.327270507812, 15493.327270507812),
+        array("upfront", "mezzanine", "Saturday", 13, 13736.503540039062, 13750.503540039062),
+        array("upfront", "mezzanine", "Sunday", 13, 12682.70849609375, 12696.70849609375),
+        array("upfront", "mezzanine", "Thursday", 14, 15828.224243164062, 15843.224243164062),
+        array("upfront", "mezzanine", "Tuesday", 13, 15147.467102050781, 15161.467102050781),
+        array("upfront", "mezzanine", "Wednesday", 14, 14765.832275390625, 14780.832275390625),
+        array("upfront", "premium", "Friday", 13, 12943.481018066406, 12957.481018066406),
+        array("upfront", "premium", "Monday", 13, 12140.257507324219, 12154.257507324219),
+        array("upfront", "premium", "Saturday", 13, 14084.32763671875, 14098.32763671875),
+        array("upfront", "premium", "Sunday", 13, 12108.515319824219, 12122.515319824219),
+        array("upfront", "premium", "Thursday", 14, 12734.524536132812, 12749.524536132812),
+        array("upfront", "premium", "Tuesday", 13, 11820.81298828125, 11834.81298828125)
     );
-    Iterable<Row> results = runQuery(builder.build());
+    List<Row> results = runQuery(builder.build());
     validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
@@ -6028,12 +5598,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-", "spot-mezzanine", "spot-premium",
         "total_market-", "total_market-mezzanine", "total_market-premium",
         "upfront-", "upfront-mezzanine", "upfront-premium"
-    };
+    );
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -6070,12 +5640,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-X", "spot-mezzanine", "spot-premium",
         "total_market-X", "total_market-mezzanine", "total_market-premium",
         "upfront-X", "upfront-mezzanine", "upfront-premium"
-    };
+    );
     expectedResults = createExpectedRows(
         columnNames,
         array("Monday",
@@ -6118,12 +5688,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot--index", "spot-mezzanine-index", "spot-premium-index",
         "total_market--index", "total_market-mezzanine-index", "total_market-premium-index",
         "upfront--index", "upfront-mezzanine-index", "upfront-premium-index"
-    };
+    );
 
     expectedResults = createExpectedRows(
         columnNames,
@@ -6166,12 +5736,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-X-index", "spot-mezzanine-index", "spot-premium-index",
         "total_market-X-index", "total_market-mezzanine-index", "total_market-premium-index",
         "upfront-X-index", "upfront-mezzanine-index", "upfront-premium-index"
-    };
+    );
     expectedResults = createExpectedRows(
         columnNames,
         array("Monday",
@@ -6207,7 +5777,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-", "spot-mezzanine", "spot-premium",
         "total_market-", "total_market-mezzanine", "total_market-premium",
@@ -6215,7 +5785,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         "spot-mezzanine.percent", "spot-premium.percent",
         "total_market-mezzanine.percent", "total_market-premium.percent",
         "upfront-mezzanine.percent", "upfront-premium.percent"
-    };
+    );
     expectedResults = createExpectedRows(
         columnNames,
         array(
@@ -6257,7 +5827,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-", "spot-mezzanine", "spot-premium",
         "total_market-", "total_market-mezzanine", "total_market-premium",
@@ -6265,31 +5835,31 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         "spot-mezzanine.percent", "spot-premium.percent",
         "total_market-mezzanine.percent", "total_market-premium.percent",
         "upfront-mezzanine.percent", "upfront-premium.percent"
-    };
+    );
 
     expectedResults = createExpectedRows(
         columnNames,
         array(
             "Monday",
             null, null, null,
-            list(30468.776733398438, 26L), list(15301.728393554688, 13L), list(15167.04833984375, 13L),
-            list(27619.58477783203, 26L), list(15479.327270507812, 13L), list(12140.257507324219, 13L),
+            list(30468.776733398438, 26), list(15301.728393554688, 13), list(15167.04833984375, 13),
+            list(27619.58477783203, 26), list(15479.327270507812, 13), list(12140.257507324219, 13),
             null, null, list(50.221, 50.0),
             list(49.779, 50.0), list(56.045, 50.0), list(43.955, 50.0)
         ),
         array(
             "Tuesday",
-            list(2930.384750366211, 26L), list(1369.873420715332, 13L), list(1560.511329650879, 13L),
+            list(2930.384750366211, 26), list(1369.873420715332, 13), list(1560.511329650879, 13),
             null, null, null,
-            list(26968.28009033203, 26L), list(15147.467102050781, 13L), list(11820.81298828125, 13L),
+            list(26968.28009033203, 26), list(15147.467102050781, 13), list(11820.81298828125, 13),
             list(46.747, 50.0), list(53.253, 50.0), null,
             null, list(56.168, 50.0), list(43.832, 50.0)
         ),
         array(
             "Wednesday",
-            list(3111.8562088012695, 28L), list(1477.5527877807617, 14L), null,
-            list(32753.337280273438, 28L), list(15749.735595703125, 14L), null,
-            list(28985.57501220703, 28L), list(14765.832275390625, 14L), null,
+            list(3111.8562088012695, 28), list(1477.5527877807617, 14), null,
+            list(32753.337280273438, 28), list(15749.735595703125, 14), null,
+            list(28985.57501220703, 28), list(14765.832275390625, 14), null,
             list(47.481, 50.0), null, list(48.086, 50.0), null, list(50.942, 50.0), null
         )
     );
@@ -6312,7 +5882,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-X", "spot-mezzanine", "spot-premium",
         "total_market-X", "total_market-mezzanine", "total_market-premium",
@@ -6320,31 +5890,31 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         "spot-mezzanine.percent", "spot-premium.percent",
         "total_market-mezzanine.percent", "total_market-premium.percent",
         "upfront-mezzanine.percent", "upfront-premium.percent"
-    };
+    );
 
     expectedResults = createExpectedRows(
         columnNames,
         array(
             "Monday",
             null, null, null,
-            list(30468.776733398438, 26L), list(15301.728393554688, 13L), list(15167.04833984375, 13L),
-            list(27619.58477783203, 26L), list(15479.327270507812, 13L), list(12140.257507324219, 13L),
+            list(30468.776733398438, 26), list(15301.728393554688, 13), list(15167.04833984375, 13),
+            list(27619.58477783203, 26), list(15479.327270507812, 13), list(12140.257507324219, 13),
             null, null, list(50.221, 50.0),
             list(49.779, 50.0), list(56.045, 50.0), list(43.955, 50.0)
         ),
         array(
             "Tuesday",
-            list(2930.384750366211, 26L), list(1369.873420715332, 13L), list(1560.511329650879, 13L),
+            list(2930.384750366211, 26), list(1369.873420715332, 13), list(1560.511329650879, 13),
             null, null, null,
-            list(26968.28009033203, 26L), list(15147.467102050781, 13L), list(11820.81298828125, 13L),
+            list(26968.28009033203, 26), list(15147.467102050781, 13), list(11820.81298828125, 13),
             list(46.747, 50.0), list(53.253, 50.0), null,
             null, list(56.168, 50.0), list(43.832, 50.0)
         ),
         array(
             "Wednesday",
-            list(3111.8562088012695, 28L), list(1477.5527877807617, 14L), null,
-            list(32753.337280273438, 28L), list(15749.735595703125, 14L), null,
-            list(28985.57501220703, 28L), list(14765.832275390625, 14L), null,
+            list(3111.8562088012695, 28), list(1477.5527877807617, 14), null,
+            list(32753.337280273438, 28), list(15749.735595703125, 14), null,
+            list(28985.57501220703, 28), list(14765.832275390625, 14), null,
             list(47.481, 50.0), null, list(48.086, 50.0), null, list(50.942, 50.0), null
         )
     );
@@ -6367,7 +5937,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot--index", "spot--rows",
         "spot-mezzanine-index", "spot-mezzanine-rows", "spot-premium-index", "spot-premium-rows",
@@ -6377,40 +5947,40 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         "upfront-mezzanine-index", "upfront-mezzanine-rows", "upfront-premium-index", "upfront-premium-rows",
         "spot-mezzanine-index.percent", "spot-mezzanine-rows.percent", "spot-premium-index.percent", "spot-premium-rows.percent",
         "total_market-mezzanine-index.percent", "total_market-mezzanine-rows.percent", "total_market-premium-index.percent", "total_market-premium-rows.percent",
-        "upfront-mezzanine-index.percent", "upfront-mezzanine-rows.percent", "upfront-premium-index.percent", "upfront-premium-rows.percent",
-    };
+        "upfront-mezzanine-index.percent", "upfront-mezzanine-rows.percent", "upfront-premium-index.percent", "upfront-premium-rows.percent"
+    );
     expectedResults = createExpectedRows(
         columnNames,
         array(
             "Monday",
             null, null,
             null, null, null, null,
-            30468.776733398438, 26L,
-            15301.728393554688, 13L, 15167.04833984375, 13L,
-            27619.58477783203, 26L,
-            15479.327270507812, 13L, 12140.257507324219, 13L,
+            30468.776733398438, 26,
+            15301.728393554688, 13, 15167.04833984375, 13,
+            27619.58477783203, 26,
+            15479.327270507812, 13, 12140.257507324219, 13,
             null, null, null, null,
             50.221, 50.0, 49.779, 50.0,
             56.045, 50.0, 43.955, 50.0),
         array(
             "Tuesday",
-            2930.384750366211, 26L,
-            1369.873420715332, 13L, 1560.511329650879, 13L,
+            2930.384750366211, 26,
+            1369.873420715332, 13, 1560.511329650879, 13,
             null, null,
             null, null, null, null,
-            26968.28009033203, 26L,
-            15147.467102050781, 13L, 11820.81298828125, 13L,
+            26968.28009033203, 26,
+            15147.467102050781, 13, 11820.81298828125, 13,
             46.747, 50.0, 53.253, 50.0,
             null, null, null, null,
               56.168, 50.0, 43.832, 50.0),
         array(
             "Wednesday",
-            3111.8562088012695, 28L,
-            1477.5527877807617, 14L, null, null,
-            32753.337280273438, 28L,
-            15749.735595703125, 14L, null, null,
-            28985.57501220703, 28L,
-            14765.832275390625, 14L, null, null,
+            3111.8562088012695, 28,
+            1477.5527877807617, 14, null, null,
+            32753.337280273438, 28,
+            15749.735595703125, 14, null, null,
+            28985.57501220703, 28,
+            14765.832275390625, 14, null, null,
             47.481, 50.0, null, null,
             48.086, 50.0, null, null,
             50.942, 50.0, null, null)
@@ -6436,7 +6006,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
     );
-    columnNames = new String[]{
+    columnNames = array(
         "dayOfWeek",
         "spot-X-index", "spot-X-rows",
         "spot-mezzanine-index", "spot-mezzanine-rows", "spot-premium-index", "spot-premium-rows",
@@ -6446,40 +6016,40 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         "upfront-mezzanine-index", "upfront-mezzanine-rows", "upfront-premium-index", "upfront-premium-rows",
         "spot-mezzanine-index.percent", "spot-mezzanine-rows.percent", "spot-premium-index.percent", "spot-premium-rows.percent",
         "total_market-mezzanine-index.percent", "total_market-mezzanine-rows.percent", "total_market-premium-index.percent", "total_market-premium-rows.percent",
-        "upfront-mezzanine-index.percent", "upfront-mezzanine-rows.percent", "upfront-premium-index.percent", "upfront-premium-rows.percent",
-    };
+        "upfront-mezzanine-index.percent", "upfront-mezzanine-rows.percent", "upfront-premium-index.percent", "upfront-premium-rows.percent"
+    );
     expectedResults = createExpectedRows(
         columnNames,
         array(
             "Monday",
             null, null,
             null, null, null, null,
-            30468.776733398438, 26L,
-            15301.728393554688, 13L, 15167.04833984375, 13L,
-            27619.58477783203, 26L,
-            15479.327270507812, 13L, 12140.257507324219, 13L,
+            30468.776733398438, 26,
+            15301.728393554688, 13, 15167.04833984375, 13,
+            27619.58477783203, 26,
+            15479.327270507812, 13, 12140.257507324219, 13,
             null, null, null, null,
             50.221, 50.0, 49.779, 50.0,
             56.045, 50.0, 43.955, 50.0),
         array(
             "Tuesday",
-            2930.384750366211, 26L,
-            1369.873420715332, 13L, 1560.511329650879, 13L,
+            2930.384750366211, 26,
+            1369.873420715332, 13, 1560.511329650879, 13,
             null, null,
             null, null, null, null,
-            26968.28009033203, 26L,
-            15147.467102050781, 13L, 11820.81298828125, 13L,
+            26968.28009033203, 26,
+            15147.467102050781, 13, 11820.81298828125, 13,
             46.747, 50.0, 53.253, 50.0,
             null, null, null, null,
               56.168, 50.0, 43.832, 50.0),
         array(
             "Wednesday",
-            3111.8562088012695, 28L,
-            1477.5527877807617, 14L, null, null,
-            32753.337280273438, 28L,
-            15749.735595703125, 14L, null, null,
-            28985.57501220703, 28L,
-            14765.832275390625, 14L, null, null,
+            3111.8562088012695, 28,
+            1477.5527877807617, 14, null, null,
+            32753.337280273438, 28,
+            15749.735595703125, 14, null, null,
+            28985.57501220703, 28,
+            14765.832275390625, 14, null, null,
             47.481, 50.0, null, null,
             48.086, 50.0, null, null,
             50.942, 50.0, null, null)
@@ -6487,18 +6057,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     results = runQuery(builder.build());
     validate(columnNames, expectedResults, results);
-  }
-
-  public void testBySegmentResults()
-  {
-  }
-
-  public void testBySegmentResultsUnOptimizedDimextraction()
-  {
-  }
-
-  public void testBySegmentResultsOptimizedDimextraction()
-  {
   }
 
   // Extraction Filters testing
@@ -6534,30 +6092,29 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .setDimFilter(DimFilters.or(dimFilters))
         .build();
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 135L),
-        createExpectedRow("2011-04-01", "alias", "business", "rows", 1L, "idx", 118L),
-        createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 1L, "idx", 158L),
-        createExpectedRow("2011-04-01", "alias", "health", "rows", 1L, "idx", 120L),
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-01", "alias", "premium", "rows", 3L, "idx", 2900L),
-        createExpectedRow("2011-04-01", "alias", "technology", "rows", 1L, "idx", 78L),
-        createExpectedRow("2011-04-01", "alias", "travel", "rows", 1L, "idx", 119L),
 
-        createExpectedRow("2011-04-02", "alias", "automotive", "rows", 1L, "idx", 147L),
-        createExpectedRow("2011-04-02", "alias", "business", "rows", 1L, "idx", 112L),
-        createExpectedRow("2011-04-02", "alias", "entertainment", "rows", 1L, "idx", 166L),
-        createExpectedRow("2011-04-02", "alias", "health", "rows", 1L, "idx", 113L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L),
-        createExpectedRow("2011-04-02", "alias", "premium", "rows", 3L, "idx", 2505L),
-        createExpectedRow("2011-04-02", "alias", "technology", "rows", 1L, "idx", 97L),
-        createExpectedRow("2011-04-02", "alias", "travel", "rows", 1L, "idx", 126L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "automotive", 1, 135),
+        array("2011-04-01", "business", 1, 118),
+        array("2011-04-01", "entertainment", 1, 158),
+        array("2011-04-01", "health", 1, 120),
+        array("2011-04-01", "mezzanine", 3, 2870),
+        array("2011-04-01", "news", 1, 121),
+        array("2011-04-01", "premium", 3, 2900),
+        array("2011-04-01", "technology", 1, 78),
+        array("2011-04-01", "travel", 1, 119),
+        array("2011-04-02", "automotive", 1, 147),
+        array("2011-04-02", "business", 1, 112),
+        array("2011-04-02", "entertainment", 1, 166),
+        array("2011-04-02", "health", 1, 113),
+        array("2011-04-02", "mezzanine", 3, 2447),
+        array("2011-04-02", "news", 1, 114),
+        array("2011-04-02", "premium", 3, 2505),
+        array("2011-04-02", "technology", 1, 97),
+        array("2011-04-02", "travel", 1, 126)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
-
   }
 
   @Test
@@ -6587,14 +6144,14 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setDimFilter(new SelectorDimFilter("quality", "", lookupExtractionFn))
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "mezzanine", 3, 2870),
+        array("2011-04-01", "news", 1, 121),
+        array("2011-04-02", "mezzanine", 3, 2447),
+        array("2011-04-02", "news", 1, 114)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
   }
 
   @Test
@@ -6614,11 +6171,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .setDimFilter(new SelectorDimFilter("quality", "NOT_THERE", lookupExtractionFn))
         .build();
-    List<Row> expectedResults = Arrays.asList();
 
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
+    validate(query, array("__time", "alias", "rows", "idx"));
   }
-
 
   @Test
   public void testGroupByWithExtractionDimFilterKeyIsNull()
@@ -6645,14 +6200,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         ).build();
 
-    final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
-    final List<Row> expectedResults = createExpectedRows(
-        columns,
-        array("2011-04-01", null, 13L, 6619L),
-        array("2011-04-02", null, 13L, 5827L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", null, 13, 6619),
+        array("2011-04-02", null, 13, 5827)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
   }
 
   @Test
@@ -6691,49 +6244,47 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = createExpectedRows(
-        new String[]{"__time", "alias", "rows", "idx", "idx2", "idx3"},
-        new Object[]{"2011-04-01", "automotive", 0L, 0L, 0L, 135L},
-        new Object[]{"2011-04-01", "business", 0L, 0L, 0L, 118L},
-        new Object[]{"2011-04-01", "entertainment", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "health", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "mezzanine", 3L, 2870L, 0L, 0L},
-        new Object[]{"2011-04-01", "news", 1L, 121L, 0L, 0L},
-        new Object[]{"2011-04-01", "premium", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "technology", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "travel", 0L, 0L, 0L, 0L},
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx", "idx2", "idx3"),
+        array("2011-04-01", "automotive", 0, 0, 0, 135),
+        array("2011-04-01", "business", 0, 0, 0, 118),
+        array("2011-04-01", "entertainment", 0, 0, 0, 0),
+        array("2011-04-01", "health", 0, 0, 0, 0),
+        array("2011-04-01", "mezzanine", 3, 2870, 0, 0),
+        array("2011-04-01", "news", 1, 121, 0, 0),
+        array("2011-04-01", "premium", 0, 0, 0, 0),
+        array("2011-04-01", "technology", 0, 0, 0, 0),
+        array("2011-04-01", "travel", 0, 0, 0, 0),
 
-        new Object[]{"2011-04-02", "automotive", 0L, 0L, 0L, 147L},
-        new Object[]{"2011-04-02", "business", 0L, 0L, 0L, 112L},
-        new Object[]{"2011-04-02", "entertainment", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-02", "health", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-02", "mezzanine", 3L, 2447L, 0L, 0L},
-        new Object[]{"2011-04-02", "news", 1L, 114L, 0L, 0L},
-        new Object[]{"2011-04-02", "premium", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-02", "technology", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-02", "travel", 0L, 0L, 0L, 0L}
+        array("2011-04-02", "automotive", 0, 0, 0, 147),
+        array("2011-04-02", "business", 0, 0, 0, 112),
+        array("2011-04-02", "entertainment", 0, 0, 0, 0),
+        array("2011-04-02", "health", 0, 0, 0, 0),
+        array("2011-04-02", "mezzanine", 3, 2447, 0, 0),
+        array("2011-04-02", "news", 1, 114, 0, 0),
+        array("2011-04-02", "premium", 0, 0, 0, 0),
+        array("2011-04-02", "technology", 0, 0, 0, 0),
+        array("2011-04-02", "travel", 0, 0, 0, 0)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
 
     query = query.withFilter(new RegexDimFilter("quality", "^[a-m].*$", null));
 
-    expectedResults = createExpectedRows(
-        new String[]{"__time", "alias", "rows", "idx", "idx2", "idx3"},
-        new Object[]{"2011-04-01", "automotive", 0L, 0L, 0L, 135L},
-        new Object[]{"2011-04-01", "business", 0L, 0L, 0L, 118L},
-        new Object[]{"2011-04-01", "entertainment", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "health", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "mezzanine", 3L, 2870L, 0L, 0L, 0L},
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx", "idx2", "idx3"),
+        array("2011-04-01", "automotive", 0, 0, 0, 135),
+        array("2011-04-01", "business", 0, 0, 0, 118),
+        array("2011-04-01", "entertainment", 0, 0, 0, 0),
+        array("2011-04-01", "health", 0, 0, 0, 0),
+        array("2011-04-01", "mezzanine", 3, 2870, 0, 0, 0),
 
-        new Object[]{"2011-04-02", "automotive", 0L, 0L, 0L, 147L},
-        new Object[]{"2011-04-02", "business", 0L, 0L, 0L, 112L},
-        new Object[]{"2011-04-02", "entertainment", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-02", "health", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-02", "mezzanine", 3L, 2447L, 0L, 0L}
+        array("2011-04-02", "automotive", 0, 0, 0, 147),
+        array("2011-04-02", "business", 0, 0, 0, 112),
+        array("2011-04-02", "entertainment", 0, 0, 0, 0),
+        array("2011-04-02", "health", 0, 0, 0, 0),
+        array("2011-04-02", "mezzanine", 3, 2447, 0, 0)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
   }
 
   @Test
@@ -6761,16 +6312,16 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         )
         .build();
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
-        createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
-        createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 2447L),
-        createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L)
+
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", "mezzanine", 3, 2870),
+        array("2011-04-01", "news", 1, 121),
+        array("2011-04-02", "mezzanine", 3, 2447),
+        array("2011-04-02", "news", 1, 114)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
   }
-
 
   @Test
   public void testGroupByWithExtractionDimFilterNullDims()
@@ -6797,14 +6348,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
         ).build();
 
-    final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
-    final List<Row> expectedResults = createExpectedRows(
-        columns,
-        array("2011-04-01", null, 13L, 6619L),
-        array("2011-04-02", null, 13L, 5827L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", null, 13, 6619),
+        array("2011-04-02", null, 13, 5827)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
   }
 
   @Test
@@ -6817,9 +6366,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
               new DateTime("2011-01-12T00:00:00.000Z"),
               new BySegmentResultValueClass<Row>(
                   createExpectedRows(
-                      new String[]{"__time", "alias", "rows", "idx"},
-                      array("2011-01-01", "mezzanine", 57L, 44838L),
-                      array("2011-02-01", "mezzanine", 84L, 64211L)
+                      array("__time", "alias", "rows", "idx"),
+                      array("2011-01-01", "mezzanine", 57, 44838),
+                      array("2011-02-01", "mezzanine", 84, 64211)
                   ),
                   getSegmentId(TestIndex.INTERVAL_TOP), new Interval("2011-01-12/2011-03-01")
               )
@@ -6828,9 +6377,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
               new DateTime("2011-03-01T00:00:00.000Z"),
               new BySegmentResultValueClass<Row>(
                   createExpectedRows(
-                      new String[]{"__time", "alias", "rows", "idx"},
-                      array("2011-03-01", "mezzanine", 93L, 72926L),
-                      array("2011-04-01", "mezzanine", 45L, 35611L)
+                      array("__time", "alias", "rows", "idx"),
+                      array("2011-03-01", "mezzanine", 93, 72926),
+                      array("2011-04-01", "mezzanine", 45, 35611)
                   ),
                   getSegmentId(TestIndex.INTERVAL_BOTTOM), new Interval("2011-03-01/2011-05-01")
               )
@@ -6842,11 +6391,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
               new DateTime("2011-01-12T00:00:00.000Z"),
               new BySegmentResultValueClass<Row>(
                   createExpectedRows(
-                      new String[]{"__time", "alias", "rows", "idx"},
-                      array("2011-01-01", "mezzanine", 57L, 44838L),
-                      array("2011-02-01", "mezzanine", 84L, 64211L),
-                      array("2011-03-01", "mezzanine", 93L, 72926L),
-                      array("2011-04-01", "mezzanine", 45L, 35611L)
+                      array("__time", "alias", "rows", "idx"),
+                      array("2011-01-01", "mezzanine", 57, 44838),
+                      array("2011-02-01", "mezzanine", 84, 64211),
+                      array("2011-03-01", "mezzanine", 93, 72926),
+                      array("2011-04-01", "mezzanine", 45, 35611)
                   ),
                   getSegmentId(TestIndex.INTERVAL), new Interval("2011-01-12/2011-05-01")
               )
@@ -6937,14 +6486,12 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .setDimFilter(superFilter).build();
 
-    final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
-    final List<Row> expectedResults = createExpectedRows(
-        columns,
-        array("2011-04-01", null, 13L, 6619L),
-        array("2011-04-02", null, 13L, 5827L)
+    validate(
+        query,
+        array("__time", "alias", "rows", "idx"),
+        array("2011-04-01", null, 13, 6619),
+        array("2011-04-02", null, 13, 5827)
     );
-
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, true), "");
   }
 
   @Test
@@ -6980,20 +6527,16 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "alias", "spot", "rows", 9L, "numVals", 1.0002442201269182d),
-        createExpectedRow("2011-04-01", "alias", "total_market", "rows", 2L, "numVals", 1.0002442201269182d),
-        createExpectedRow("2011-04-01", "alias", "upfront", "rows", 2L, "numVals", 1.0002442201269182d),
-        createExpectedRow("2011-04-02", "alias", "spot", "rows", 9L, "numVals", 1.0002442201269182d),
-        createExpectedRow("2011-04-02", "alias", "total_market", "rows", 2L, "numVals", 1.0002442201269182d),
-        createExpectedRow("2011-04-02", "alias", "upfront", "rows", 2L, "numVals", 1.0002442201269182d)
+    validate(
+        query,
+        array("__time", "alias", "rows", "numVals"),
+        array("2011-04-01", "spot", 9, 1.0002442201269182D),
+        array("2011-04-01", "total_market", 2, 1.0002442201269182D),
+        array("2011-04-01", "upfront", 2, 1.0002442201269182D),
+        array("2011-04-02", "spot", 9, 1.0002442201269182D),
+        array("2011-04-02", "total_market", 2, 1.0002442201269182D),
+        array("2011-04-02", "upfront", 2, 1.0002442201269182D)
     );
-
-    List<Row> results = runQuery(query, true);
-    for (Row r : results) {
-      System.out.println(r);
-    }
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -7011,8 +6554,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setGranularity(Granularities.DAY)
         .build();
 
-    String[] columnNames = {"__time", "alias", "idx1", "idx2"};
-    Object[][] objects = {
+    validate(
+        query,
+        array("__time", "alias", "idx1", "idx2"),
         array("2011-04-01T00:00:00.000Z", "automotive", 135.88510131835938, 145.88510131835938),
         array("2011-04-01T00:00:00.000Z", "business", 118.57034301757812, 128.57034301757812),
         array("2011-04-01T00:00:00.000Z", "entertainment", 158.74722290039062, 168.74722290039062),
@@ -7031,10 +6575,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         array("2011-04-02T00:00:00.000Z", "premium", 835.4716746012369, 845.4716746012369),
         array("2011-04-02T00:00:00.000Z", "technology", 97.38743591308594, 107.38743591308594),
         array("2011-04-02T00:00:00.000Z", "travel", 126.41136169433594, 136.41136169433594)
-    };
-    Iterable<Row> results = runQuery(query, true);
-    List<Row> expectedResults = createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    );
   }
 
   @Test
@@ -7055,17 +6596,16 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .build();
 
     String[] columnNames = {"__time", "alias", "idx1", "idx2"};
-    Object[][] objects = {
-        array("2011-04-01T00:00:00.000Z", "automotive", 135.88510131835938, 145.88510131835938),
-        array("2011-04-02T00:00:00.000Z", "automotive", 147.42593383789062, 157.42593383789062)
-    };
-    Iterable<Row> results = runQuery(query, true);
-    List<Row> expectedResults = createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array("2011-04-01", "automotive", 135.88510131835938, 145.88510131835938),
+        array("2011-04-02", "automotive", 147.42593383789062, 157.42593383789062)
+    );
+    List<Row> results = runQuery(query, true);
+    TestHelper.validate(columnNames, expectedResults, results);
 
     results = runQuery(query.withFilter(SelectorDimFilter.of("VC", "automotive")), true);
-    expectedResults = createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    TestHelper.validate(columnNames, expectedResults, results);
   }
 
   @Test
@@ -7089,10 +6629,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         )
         .outputColumns("__time", "market", "index", "sum5");
 
-    String[] columnNames = {"__time", "market", "index", "sum5"};
-
-    List<Row> expected = createExpectedRows(
-        columnNames,
+    validate(
+        builder.build(),
+        array("__time", "market", "index", "sum5"),
         array("2011-01-31", "spot", 6702.265960693359D, 23925.748176574707D),
         array("2011-02-28", "spot", 7058.767166137695D, 52978.629051208496D),
         array("2011-03-28", "spot", 7914.987197875977D, 78976.86014938354D),
@@ -7103,9 +6642,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         array("2011-02-28", "upfront", 14309.646179199219D, 112967.61041259766D),
         array("2011-03-28", "upfront", 15950.494201660156D, 158644.24676513672D)
     );
-
-    Iterable<Row> results = runQuery(builder.build(), false);
-    TestHelper.assertExpectedObjects(expected, results, "");
   }
 
   @Test
@@ -7122,22 +6658,19 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .aggregators(rowsCount, new LongSumAggregatorFactory("idx", "index"))
         .build();
 
-    String[] columns = new String[] {"alias", "rows", "idx"};
-    List<Row> expectedResults = createExpectedRows(
-        columns,
-        array("a", 2L, 282L),
-        array("preferred", 26L, 12446L),
-        array("b", 2L, 230L),
-        array("e", 2L, 324L),
-        array("h", 2L, 233L),
-        array("m", 6L, 5317L),
-        array("n", 2L, 235L),
-        array("p", 6L, 5405L),
-        array("t", 4L, 420L)
+    validate(
+        query,
+        array("alias", "rows", "idx"),
+        array("a", 2, 282),
+        array("preferred", 26, 12446),
+        array("b", 2, 230),
+        array("e", 2, 324),
+        array("h", 2, 233),
+        array("m", 6, 5317),
+        array("n", 2, 235),
+        array("p", 6, 5405),
+        array("t", 4, 420)
     );
-
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test(expected = QueryException.class)
@@ -7172,57 +6705,57 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .addContext(Query.GROUPED_DIMENSIONS, null)
         .build();
 
-    String[] columns = new String[] {"d0", "d1", "rows", "idx"};
+    String[] columns = array("d0", "d1", "rows", "idx");
     List<Row> expectedResults = createExpectedRows(
         columns,
-        array("a", "a", 2L, 282L),
-        array("a", "preferred", 2L, 282L),
-        array("b", "b", 2L, 230L),
-        array("b", "preferred", 2L, 230L),
-        array("e", "e", 2L, 324L),
-        array("e", "preferred", 2L, 324L),
-        array("h", "h", 2L, 233L),
-        array("h", "preferred", 2L, 233L),
-        array("m", "m", 6L, 5317L),
-        array("m", "preferred", 6L, 5317L),
-        array("n", "n", 2L, 235L),
-        array("n", "preferred", 2L, 235L),
-        array("p", "p", 6L, 5405L),
-        array("p", "preferred", 6L, 5405L),
-        array("preferred", "a", 2L, 282L),
-        array("preferred", "b", 2L, 230L),
-        array("preferred", "e", 2L, 324L),
-        array("preferred", "h", 2L, 233L),
-        array("preferred", "m", 6L, 5317L),
-        array("preferred", "n", 2L, 235L),
-        array("preferred", "p", 6L, 5405L),
-        array("preferred", "preferred", 26L, 12446L),
-        array("preferred", "t", 4L, 420L),
-        array("t", "preferred", 4L, 420L),
-        array("t", "t", 4L, 420L)
+        array("a", "a", 2, 282),
+        array("a", "preferred", 2, 282),
+        array("b", "b", 2, 230),
+        array("b", "preferred", 2, 230),
+        array("e", "e", 2, 324),
+        array("e", "preferred", 2, 324),
+        array("h", "h", 2, 233),
+        array("h", "preferred", 2, 233),
+        array("m", "m", 6, 5317),
+        array("m", "preferred", 6, 5317),
+        array("n", "n", 2, 235),
+        array("n", "preferred", 2, 235),
+        array("p", "p", 6, 5405),
+        array("p", "preferred", 6, 5405),
+        array("preferred", "a", 2, 282),
+        array("preferred", "b", 2, 230),
+        array("preferred", "e", 2, 324),
+        array("preferred", "h", 2, 233),
+        array("preferred", "m", 6, 5317),
+        array("preferred", "n", 2, 235),
+        array("preferred", "p", 6, 5405),
+        array("preferred", "preferred", 26, 12446),
+        array("preferred", "t", 4, 420),
+        array("t", "preferred", 4, 420),
+        array("t", "t", 4, 420)
     );
-    Iterable<Row> results = runQuery(query, true);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    List<Row> results = runQuery(query, true);
+    TestHelper.validate(columns, expectedResults, results);
 
     expectedResults = createExpectedRows(
         columns,
-        array("a", "a", 2L, 282L),
-        array("b", "b", 2L, 230L),
-        array("e", "e", 2L, 324L),
-        array("h", "h", 2L, 233L),
-        array("m", "m", 6L, 5317L),
-        array("n", "n", 2L, 235L),
-        array("p", "p", 6L, 5405L),
-        array("preferred", "preferred", 26L, 12446L),
-        array("t", "t", 4L, 420L)
+        array("a", "a", 2, 282),
+        array("b", "b", 2, 230),
+        array("e", "e", 2, 324),
+        array("h", "h", 2, 233),
+        array("m", "m", 6, 5317),
+        array("n", "n", 2, 235),
+        array("p", "p", 6, 5405),
+        array("preferred", "preferred", 26, 12446),
+        array("t", "t", 4, 420)
     );
     query = query.withOverriddenContext(Query.GROUPED_DIMENSIONS, "placementish");
     results = runQuery(query, false);   // todo cardinality estimation (timeseries query)
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    TestHelper.validate(columns, expectedResults, results);
 
-    expectedResults = createExpectedRows(columns, array("preferred", "preferred", 26L, 12446L));
+    expectedResults = createExpectedRows(columns, array("preferred", "preferred", 26, 12446));
     query = query.withFilter(SelectorDimFilter.of("d0", "preferred"));
     results = runQuery(query, false);   // todo cardinality estimation (timeseries query)
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    TestHelper.validate(columns, expectedResults, results);
   }
 }

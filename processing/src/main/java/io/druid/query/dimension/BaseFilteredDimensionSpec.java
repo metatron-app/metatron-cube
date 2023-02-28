@@ -21,6 +21,7 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.primitives.Ints;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -85,6 +86,12 @@ public abstract class BaseFilteredDimensionSpec implements DimensionSpec
   public DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
   {
     return delegate.decorate(selector, resolver);
+  }
+
+  @Override
+  public ValueDesc resolve(Supplier<? extends TypeResolver> resolver)
+  {
+    return delegate.resolve(resolver);
   }
 
   @Override

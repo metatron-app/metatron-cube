@@ -283,8 +283,8 @@ public class SqlResourceTest extends CalciteTestBase
 
     Assert.assertEquals(
         ImmutableList.of(
-            Arrays.asList("2000-01-01T00:00:00.000Z", 1, "", "a", 1.0, 1.0, "io.druid.query.aggregation.hyperloglog.HyperLogLogCollector", null),
-            Arrays.asList("2000-01-02T00:00:00.000Z", 1, "10.1", nullStr, 2.0, 2.0, "io.druid.query.aggregation.hyperloglog.HyperLogLogCollector", null)
+            Arrays.asList("2000-01-01T00:00:00.000Z", 1, "", "a", 1.0, 1.0, "WQAAAQAAAAKTEA==", null),
+            Arrays.asList("2000-01-02T00:00:00.000Z", 1, "10.1", nullStr, 2.0, 2.0, "WQAAAQAAAAFZAw==", null)
         ),
         doPost(new SqlQuery(query, ResultFormat.ARRAY.INSTANCE, false, null), new TypeReference<List<List<Object>>>() {}).rhs
     );
@@ -302,11 +302,11 @@ public class SqlResourceTest extends CalciteTestBase
 
     Assert.assertEquals(4, lines.size());
     Assert.assertEquals(
-        Arrays.asList("2000-01-01T00:00:00.000Z", 1, "", "a", 1.0, 1.0, "io.druid.query.aggregation.hyperloglog.HyperLogLogCollector", null),
+        Arrays.asList("2000-01-01T00:00:00.000Z", 1, "", "a", 1.0, 1.0, "WQAAAQAAAAKTEA==", null),
         JSON_MAPPER.readValue(lines.get(0), List.class)
     );
     Assert.assertEquals(
-        Arrays.asList("2000-01-02T00:00:00.000Z", 1, "10.1", nullStr, 2.0, 2.0, "io.druid.query.aggregation.hyperloglog.HyperLogLogCollector", null),
+        Arrays.asList("2000-01-02T00:00:00.000Z", 1, "10.1", nullStr, 2.0, 2.0, "WQAAAQAAAAFZAw==", null),
         JSON_MAPPER.readValue(lines.get(1), List.class)
     );
     Assert.assertEquals("", lines.get(2));
@@ -329,11 +329,11 @@ public class SqlResourceTest extends CalciteTestBase
         JSON_MAPPER.readValue(lines.get(0), List.class)
     );
     Assert.assertEquals(
-        Arrays.asList("2000-01-01T00:00:00.000Z", 1, "", "a", 1.0, 1.0, "io.druid.query.aggregation.hyperloglog.HyperLogLogCollector", null),
+        Arrays.asList("2000-01-01T00:00:00.000Z", 1, "", "a", 1.0, 1.0, "WQAAAQAAAAKTEA==", null),
         JSON_MAPPER.readValue(lines.get(1), List.class)
     );
     Assert.assertEquals(
-        Arrays.asList("2000-01-02T00:00:00.000Z", 1, "10.1", nullStr, 2.0, 2.0, "io.druid.query.aggregation.hyperloglog.HyperLogLogCollector", null),
+        Arrays.asList("2000-01-02T00:00:00.000Z", 1, "10.1", nullStr, 2.0, 2.0, "WQAAAQAAAAFZAw==", null),
         JSON_MAPPER.readValue(lines.get(2), List.class)
     );
     Assert.assertEquals("", lines.get(3));

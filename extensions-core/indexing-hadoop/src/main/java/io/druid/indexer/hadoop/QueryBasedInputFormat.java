@@ -35,7 +35,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.druid.client.JsonParserIterator;
+import io.druid.jackson.JsonParserIterator;
 import io.druid.client.StreamHandler;
 import io.druid.client.StreamHandlerFactory;
 import io.druid.common.guava.HostAndPort;

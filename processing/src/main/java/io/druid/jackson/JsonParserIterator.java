@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.client;
+package io.druid.jackson;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;

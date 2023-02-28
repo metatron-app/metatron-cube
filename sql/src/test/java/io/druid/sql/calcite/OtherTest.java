@@ -66,19 +66,19 @@ public class OtherTest extends CalciteQueryTestHelper
   public void testSelect() throws Exception
   {
     testQuery(
-        "SELECT st11_cat FROM profile",
-        new Object[]{newBitSet(3, 7, 18)},
+        "SELECT unwrap(st11_cat) FROM profile",
+        new Object[]{Arrays.asList(3, 7, 18)},
         new Object[]{null},
-        new Object[]{newBitSet(3, 9, 14)},
-        new Object[]{newBitSet(6, 14, 15, 16, 17)},
-        new Object[]{newBitSet(1, 4, 14, 18)}
+        new Object[]{Arrays.asList(3, 9, 14)},
+        new Object[]{Arrays.asList(6, 14, 15, 16, 17)},
+        new Object[]{Arrays.asList(1, 4, 14, 18)}
     );
     testQuery(
-        "SELECT st11_cat FROM profile where st11_cat IS NOT NULL",
-        new Object[]{newBitSet(3, 7, 18)},
-        new Object[]{newBitSet(3, 9, 14)},
-        new Object[]{newBitSet(6, 14, 15, 16, 17)},
-        new Object[]{newBitSet(1, 4, 14, 18)}
+        "SELECT unwrap(st11_cat) FROM profile where st11_cat IS NOT NULL",
+        new Object[]{Arrays.asList(3, 7, 18)},
+        new Object[]{Arrays.asList(3, 9, 14)},
+        new Object[]{Arrays.asList(6, 14, 15, 16, 17)},
+        new Object[]{Arrays.asList(1, 4, 14, 18)}
     );
     testQuery(
         "SELECT st11_cat[3], st11_cat[18] FROM profile",
@@ -95,22 +95,22 @@ public class OtherTest extends CalciteQueryTestHelper
     );
     testQuery(
         "SELECT cardinality(st11_cat), unwrap(st11_cat) FROM profile",
-        new Object[]{3L, Arrays.asList(3, 7, 18)},
-        new Object[]{0L, null},
-        new Object[]{3L, Arrays.asList(3, 9, 14)},
-        new Object[]{5L, Arrays.asList(6, 14, 15, 16, 17)},
-        new Object[]{4L, Arrays.asList(1, 4, 14, 18)}
+        new Object[]{3, Arrays.asList(3, 7, 18)},
+        new Object[]{0, null},
+        new Object[]{3, Arrays.asList(3, 9, 14)},
+        new Object[]{5, Arrays.asList(6, 14, 15, 16, 17)},
+        new Object[]{4, Arrays.asList(1, 4, 14, 18)}
     );
     testQuery(
         "SELECT cardinality(st11_cat), unwrap(st11_cat) FROM profile WHERE _bs(st11_cat) = '3'",
-        new Object[]{3L, Arrays.asList(3, 7, 18)},
-        new Object[]{3L, Arrays.asList(3, 9, 14)}
+        new Object[]{3, Arrays.asList(3, 7, 18)},
+        new Object[]{3, Arrays.asList(3, 9, 14)}
     );
     testQuery(
         "SELECT cardinality(st11_cat), unwrap(st11_cat) FROM profile WHERE _bs(st11_cat) IN ('3', '6', '9')",
-        new Object[]{3L, Arrays.asList(3, 7, 18)},
-        new Object[]{3L, Arrays.asList(3, 9, 14)},
-        new Object[]{5L, Arrays.asList(6, 14, 15, 16, 17)}
+        new Object[]{3, Arrays.asList(3, 7, 18)},
+        new Object[]{3, Arrays.asList(3, 9, 14)},
+        new Object[]{5, Arrays.asList(6, 14, 15, 16, 17)}
     );
   }
 

@@ -76,15 +76,15 @@ public class SketchGroupByQueryRunnerGenericTest extends SketchQueryRunnerTestHe
     String[] columnNames = {"__time", "alias", "rows", "idx"};
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
-        array("2011-04-01T00:00:00.000Z", "automotive", 2L, 282L),
-        array("2011-04-01T00:00:00.000Z", "business", 2L, 230L),
-        array("2011-04-01T00:00:00.000Z", "entertainment", 2L, 324L),
-        array("2011-04-01T00:00:00.000Z", "health", 2L, 233L),
-        array("2011-04-01T00:00:00.000Z", "mezzanine", 6L, 5317L),
-        array("2011-04-01T00:00:00.000Z", "news", 2L, 235L),
-        array("2011-04-01T00:00:00.000Z", "premium", 6L, 5405L),
-        array("2011-04-01T00:00:00.000Z", "technology", 2L, 175L),
-        array("2011-04-01T00:00:00.000Z", "travel", 2L, 245L)
+        array("2011-04-01T00:00:00.000Z", "automotive", 2, 282),
+        array("2011-04-01T00:00:00.000Z", "business", 2, 230),
+        array("2011-04-01T00:00:00.000Z", "entertainment", 2, 324),
+        array("2011-04-01T00:00:00.000Z", "health", 2, 233),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", 6, 5317),
+        array("2011-04-01T00:00:00.000Z", "news", 2, 235),
+        array("2011-04-01T00:00:00.000Z", "premium", 6, 5405),
+        array("2011-04-01T00:00:00.000Z", "technology", 2, 175),
+        array("2011-04-01T00:00:00.000Z", "travel", 2, 245)
     );
 
     List<Row> results = GroupByQueryRunnerTestHelper.runQuery(query);

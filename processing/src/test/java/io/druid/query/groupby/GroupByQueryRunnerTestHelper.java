@@ -37,6 +37,7 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
 import io.druid.query.TestQueryRunners;
+import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
@@ -124,7 +125,12 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 
   public static List<Row> runQuery(BaseAggregationQuery query)
   {
-    return runQuery(query, false);
+    return runQuery(
+        query,
+        query.getLimitSpec() == NoopLimitSpec.INSTANCE &&
+        query.getLateralView() == null &&
+        query.getHavingSpec() == null
+    );
   }
 
   public static List<Row> runQuery(BaseAggregationQuery query, boolean checkCount)
@@ -163,11 +169,21 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
+  public static <T> List<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
   {
     QueryRunner<T> theRunner = toMergeRunner(factory, runner, query);
 
     Sequence<T> queryResult = theRunner.run(query, Maps.<String, Object>newHashMap());
     return Sequences.toList(queryResult, Lists.<T>newArrayList());
+  }
+
+  public static void validate(BaseAggregationQuery query, String[] columnNames, Object[]... expected)
+  {
+    validate(columnNames, createExpectedRows(columnNames, expected), runQuery(query));
+  }
+
+  public static void validate(BaseAggregationQuery query, boolean count, String[] columnNames, Object[]... expected)
+  {
+    validate(columnNames, createExpectedRows(columnNames, expected), runQuery(query, count));
   }
 }

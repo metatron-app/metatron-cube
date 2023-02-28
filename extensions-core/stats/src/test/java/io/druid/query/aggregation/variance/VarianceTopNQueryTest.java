@@ -94,7 +94,7 @@ public class VarianceTopNQueryTest
     boolean mmaped = TestIndex.MMAPPED_SPLIT.equals(dataSource);
     Map<String, Object> row1 = ImmutableMap.<String, Object>builder()
         .put("market", "spot")
-        .put("rows", 837L)
+        .put("rows", 837)
         .put("index", 95606.57232284546D)
         .put("addRowsIndexConstant", 96444.57232284546D)
         .put("uniques", QueryRunnerTestHelper.UNIQUES_9)
@@ -104,7 +104,7 @@ public class VarianceTopNQueryTest
         .build();
     Map<String, Object> row2 = ImmutableMap.<String, Object>builder()
         .put("market", "total_market")
-        .put("rows", 186L)
+        .put("rows", 186)
         .put("index", 215679.82879638672D)
         .put("addRowsIndexConstant", 215866.82879638672D)
         .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
@@ -114,7 +114,7 @@ public class VarianceTopNQueryTest
         .build();
     Map<String, Object> row3 = ImmutableMap.<String, Object>builder()
         .put("market", "upfront")
-        .put("rows", 186L)
+        .put("rows", 186)
         .put("index", 192046.1060180664D)
         .put("addRowsIndexConstant", 192233.1060180664D)
         .put("uniques", QueryRunnerTestHelper.UNIQUES_2)

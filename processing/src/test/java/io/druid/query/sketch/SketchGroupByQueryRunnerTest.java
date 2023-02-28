@@ -49,13 +49,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static io.druid.segment.TestHelper.array;
+
 /**
  */
 @RunWith(Parameterized.class)
 public class SketchGroupByQueryRunnerTest
 {
   private final QueryRunner<Row> runner;
-  private GroupByQueryRunnerFactory factory;
+  private final GroupByQueryRunnerFactory factory;
 
   @Parameterized.Parameters
   public static Collection<?> constructorFeeder() throws IOException
@@ -209,39 +211,38 @@ public class SketchGroupByQueryRunnerTest
         .setOutputColumns(Arrays.asList("alias", SketchTestHelper.cardinalityOfIndexMetric))
         .build();
 
-    RowBuilder builder = new RowBuilder(new String[]{"alias", SketchTestHelper.cardinalityOfIndexMetric});
+    String[] columnNames = {"__time", "alias", "index_cardinality"};
+    List<Row> expectedResults = TestHelper.createExpectedRows(
+        columnNames,
+        array("1970-01-01", "automotive", 93L),
+        array("1970-01-01", "business", 93L),
+        array("1970-01-01", "entertainment", 93L),
+        array("1970-01-01", "health", 93L),
+        array("1970-01-01", "mezzanine", 279L),
+        array("1970-01-01", "news", 93L),
+        array("1970-01-01", "premium", 279L),
+        array("1970-01-01", "technology", 93L),
+        array("1970-01-01", "travel", 93L)
+    );
 
-    List<Row> expectedResults = builder
-        .add("1970-01-01", "automotive", 93.0)
-        .add("1970-01-01", "business", 93.0)
-        .add("1970-01-01", "entertainment", 93.0)
-        .add("1970-01-01", "health", 93.0)
-        .add("1970-01-01", "mezzanine", 279.0)
-        .add("1970-01-01", "news", 93.0)
-        .add("1970-01-01", "premium", 279.0)
-        .add("1970-01-01", "technology", 93.0)
-        .add("1970-01-01", "travel", 93.0)
-        .build();
+    List<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.validate(columnNames, expectedResults, results);
 
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
-
+    expectedResults = TestHelper.createExpectedRows(
+        columnNames,
+        array("1970-01-01", "automotive", 78L),
+        array("1970-01-01", "business", 77L),
+        array("1970-01-01", "entertainment", 80L),
+        array("1970-01-01", "health", 68L),
+        array("1970-01-01", "mezzanine", 255L),
+        array("1970-01-01", "news", 83L),
+        array("1970-01-01", "premium", 277L),
+        array("1970-01-01", "technology", 17L),
+        array("1970-01-01", "travel", 92L)
+    );
     query = query.withFilter(new MathExprFilter("index > 100"));
-
-    expectedResults = builder
-        .add("1970-01-01", "automotive", 78.0)
-        .add("1970-01-01", "business", 77.0)
-        .add("1970-01-01", "entertainment", 80.0)
-        .add("1970-01-01", "health", 68.0)
-        .add("1970-01-01", "mezzanine", 255.0)
-        .add("1970-01-01", "news", 83.0)
-        .add("1970-01-01", "premium", 277.0)
-        .add("1970-01-01", "technology", 17.0)
-        .add("1970-01-01", "travel", 92.0)
-        .build();
-
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    TestHelper.validate(columnNames, expectedResults, results);
   }
 
   @Test
@@ -258,27 +259,26 @@ public class SketchGroupByQueryRunnerTest
         .setOutputColumns(Arrays.asList("market", SketchTestHelper.cardinalityOfQualityMetric))
         .build();
 
-    RowBuilder builder =
-        new RowBuilder(new String[]{"market", SketchTestHelper.cardinalityOfQualityMetric});
+    String[] columnNames = {"__time", "market", "quality_cardinality"};
+    List<Row> expectedResults = TestHelper.createExpectedRows(
+        columnNames,
+        array("1970-01-01", "spot", 9L),
+        array("1970-01-01", "total_market", 2L),
+        array("1970-01-01", "upfront", 2L)
+    );
 
-    List<Row> expectedResults = builder
-        .add("1970-01-01", "spot", 9.0)
-        .add("1970-01-01", "total_market", 2.0)
-        .add("1970-01-01", "upfront", 2.0)
-        .build();
-
-    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    List<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.validate(columnNames, expectedResults, results);
 
     query = query.withFilter(new MathExprFilter("index > 150"));
 
-    expectedResults = builder
-        .add("1970-01-01", "spot", 6.0)
-        .add("1970-01-01", "total_market", 2.0)
-        .add("1970-01-01", "upfront", 2.0)
-        .build();
-
+    expectedResults = TestHelper.createExpectedRows(
+        columnNames,
+        array("1970-01-01", "spot", 6L),
+        array("1970-01-01", "total_market", 2L),
+        array("1970-01-01", "upfront", 2L)
+    );
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "");
+    TestHelper.validate(columnNames, expectedResults, results);
   }
 }

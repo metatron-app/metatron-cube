@@ -178,7 +178,7 @@ public class GroupByQueryUnpivotTest
         );
 
     List<Row> expectedResults;
-    Iterable<Row> results;
+    List<Row> results;
     String[] columnNames;
 
     columnNames = new String[]{"__time", "market", "quality", "count"};

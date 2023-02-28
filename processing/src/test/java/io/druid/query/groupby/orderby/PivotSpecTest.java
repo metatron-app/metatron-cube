@@ -21,6 +21,7 @@ package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -125,11 +126,11 @@ public class PivotSpecTest
     );
     PivotSpec pivot = PivotSpec.of(PivotColumnSpec.toSpecs("col2"), "col3");
     WindowingSpec.PartitionEvaluator evaluator = pivot.create(context);
-    Iterable<Row> results = Iterables.concat(
+    List<Row> results = Lists.newArrayList(Iterables.concat(
         evaluator.evaluate(new Object[]{"a"}, Arrays.asList(rows1.get(0))),
         evaluator.evaluate(new Object[]{"b"}, Arrays.asList(rows1.get(1))),
         evaluator.evaluate(new Object[]{"c"}, Arrays.asList(rows1.get(2)))
-    );
+    ));
     GroupByQueryRunnerTestHelper.validate(columns2, expected, results);
   }
 }

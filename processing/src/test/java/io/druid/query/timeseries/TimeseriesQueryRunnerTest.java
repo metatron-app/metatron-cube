@@ -170,7 +170,7 @@ public class TimeseriesQueryRunnerTest
 
       Assert.assertEquals(
           result.toString(),
-          QueryRunnerTestHelper.skippedDay.equals(current) ? 0L : 13L,
+          QueryRunnerTestHelper.skippedDay.equals(current) ? 0 : 13,
           result.getLongMetric("rows")
       );
       Assert.assertEquals(
@@ -181,7 +181,7 @@ public class TimeseriesQueryRunnerTest
       Assert.assertEquals(
           result.toString(),
           new Double(expectedIndex[count]) +
-          (QueryRunnerTestHelper.skippedDay.equals(current) ? 0L : 13L) + 1L,
+          (QueryRunnerTestHelper.skippedDay.equals(current) ? 0 : 13) + 1,
           result.getDoubleMetric("addRowsIndexConstant"),
           0.0
       );
@@ -263,7 +263,7 @@ public class TimeseriesQueryRunnerTest
 
       Assert.assertEquals(
           result.toString(),
-          QueryRunnerTestHelper.skippedDay.equals(result.getTimestamp()) ? 0L : 2L,
+          QueryRunnerTestHelper.skippedDay.equals(result.getTimestamp()) ? 0 : 2,
           result.getLongMetric("rows")
       );
       Assert.assertEquals(
@@ -298,11 +298,11 @@ public class TimeseriesQueryRunnerTest
     List<Row> expectedResults = Arrays.<Row>asList(
         new MapBasedRow(
             new DateTime("2011-04-01"),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 6619, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         ),
         new MapBasedRow(
             new DateTime("2011-04-02"),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 5827, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
 
@@ -335,14 +335,14 @@ public class TimeseriesQueryRunnerTest
 
     List<Row> expected = GroupByQueryRunnerTest.createExpectedRows(
         new String[]{"__time", "rows", "idx", "idx+10", "uniques"},
-        new Object[]{"2011-01-12", 13L, 4500L, 4510L, QueryRunnerTestHelper.UNIQUES_9},
-        new Object[]{"2011-01-13", 13L, 6071L, 6081L, QueryRunnerTestHelper.UNIQUES_9},
-        new Object[]{"2011-01-14", 13L, 4916L, 4926L, QueryRunnerTestHelper.UNIQUES_9},
-        new Object[]{"2011-01-15", 13L, 5719L, 5729L, QueryRunnerTestHelper.UNIQUES_9},
-        new Object[]{"2011-01-16", 13L, 4692L, 4702L, QueryRunnerTestHelper.UNIQUES_9},
-        new Object[]{"2011-01-17", 13L, 4644L, 4654L, QueryRunnerTestHelper.UNIQUES_9},
-        new Object[]{"2011-01-18", 13L, 4392L, 4402L, QueryRunnerTestHelper.UNIQUES_9},
-        new Object[]{"2011-01-19", 13L, 4589L, 4599L, QueryRunnerTestHelper.UNIQUES_9}
+        new Object[]{"2011-01-12", 13, 4500, 4510L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-13", 13, 6071, 6081L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-14", 13, 4916, 4926L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-15", 13, 5719, 5729L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-16", 13, 4692, 4702L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-17", 13, 4644, 4654L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-18", 13, 4392, 4402L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-19", 13, 4589, 4599L, QueryRunnerTestHelper.UNIQUES_9}
     );
 
     Iterable<Row> results = Sequences.toList(
@@ -400,14 +400,14 @@ public class TimeseriesQueryRunnerTest
     String[] columnNames = {Column.TIME_COLUMN_NAME, "idx", "idx.params"};
     List<Row> expected = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
-        new Object[]{"2011-01-12", 4500L, null},
-        new Object[]{"2011-01-13", 6071L, null},
-        new Object[]{"2011-01-14", 4916L, null},
-        new Object[]{"2011-01-15", 5719L, null},
-        new Object[]{"2011-01-16", 4692L, null},
-        new Object[]{"2011-01-17", 4644L, null},
-        new Object[]{"2011-01-18", 4392L, null},
-        new Object[]{"2011-01-19", 4589L, null},
+        new Object[]{"2011-01-12", 4500, null},
+        new Object[]{"2011-01-13", 6071, null},
+        new Object[]{"2011-01-14", 4916, null},
+        new Object[]{"2011-01-15", 5719, null},
+        new Object[]{"2011-01-16", 4692, null},
+        new Object[]{"2011-01-17", 4644, null},
+        new Object[]{"2011-01-18", 4392, null},
+        new Object[]{"2011-01-19", 4589, null},
         new Object[]{
             "2011-01-20",
             new double[]{2719.4776163876427D, 5227.333335325231D, 7735.189054262819D},
@@ -469,11 +469,11 @@ public class TimeseriesQueryRunnerTest
     List<Row> expectedResults = Arrays.<Row>asList(
         new MapBasedRow(
             new DateTime("2011-03-31", DateTimeZone.forID("America/Los_Angeles")),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L, "idx2", 6619L + 130L)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 6619, "idx2", 6619 + 130)
         ),
         new MapBasedRow(
             new DateTime("2011-04-01T", DateTimeZone.forID("America/Los_Angeles")),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "idx2", 5827L + 130L)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 5827, "idx2", 5827 + 130)
         )
     );
 
@@ -508,7 +508,7 @@ public class TimeseriesQueryRunnerTest
     List<Row> expectedResults1 = Arrays.<Row>asList(
         new MapBasedRow(
             new DateTime("2011-04-01"),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 5827, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
 
@@ -538,7 +538,7 @@ public class TimeseriesQueryRunnerTest
     List<Row> expectedResults2 = Arrays.<Row>asList(
         new MapBasedRow(
             new DateTime("2011-04-02"),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 5827, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
 
@@ -580,11 +580,11 @@ public class TimeseriesQueryRunnerTest
     List<Row> expectedResults1 = Arrays.<Row>asList(
         new MapBasedRow(
             new DateTime("2011-01-06T00:00:00.000-08:00", DateTimeZone.forID("America/Los_Angeles")),
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 6071L)
+                ImmutableMap.<String, Object>of("rows", 13, "idx", 6071)
         ),
         new MapBasedRow(
             new DateTime("2011-01-13T00:00:00.000-08:00", DateTimeZone.forID("America/Los_Angeles")),
-                ImmutableMap.<String, Object>of("rows", 91L, "idx", 33382L)
+                ImmutableMap.<String, Object>of("rows", 91, "idx", 33382)
         )
     );
 
@@ -625,13 +625,13 @@ public class TimeseriesQueryRunnerTest
             Arrays.<Row>asList(
                 new MapBasedRow(
                     new DateTime("2011-04-14T00"),
-                    ImmutableMap.<String, Object>of("rows", 13L, "idx", 4907L)
+                    ImmutableMap.<String, Object>of("rows", 13, "idx", 4907)
                 )
             ),
             Arrays.<Row>asList(
                 new MapBasedRow(
                     new DateTime("2011-04-15T00"),
-                    ImmutableMap.<String, Object>of("rows", 13L, "idx", 4717L)
+                    ImmutableMap.<String, Object>of("rows", 13, "idx", 4717)
                 )
             )
         )
@@ -673,7 +673,7 @@ public class TimeseriesQueryRunnerTest
     List<Row> expectedResults1 = Arrays.<Row>asList(
         new MapBasedRow(
             new DateTime("2011-04-14T23:01Z"),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 4717L)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 4717)
         )
     );
 
@@ -708,7 +708,7 @@ public class TimeseriesQueryRunnerTest
     List<Row> expectedResults1 = Arrays.<Row>asList(
         new MapBasedRow(
             new DateTime("2011-04-01"),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 5827, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
     Iterable<Row> results1 = Sequences.toList(
@@ -738,7 +738,7 @@ public class TimeseriesQueryRunnerTest
     List<Row> expectedResults2 = Arrays.<Row>asList(
         new MapBasedRow(
             new DateTime("2011-04-02"),
-            ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
+            ImmutableMap.<String, Object>of("rows", 13, "idx", 5827, "uniques", QueryRunnerTestHelper.UNIQUES_9)
         )
     );
 
@@ -800,8 +800,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 13L,
-                "index", 6619L,
+                "rows", 13,
+                "index", 6619,
                 "addRowsIndexConstant", 6633.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -809,8 +809,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 13L,
-                "index", 5827L,
+                "rows", 13,
+                "index", 5827,
                 "addRowsIndexConstant", 5841.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -847,8 +847,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 11L,
-                "index", 3783L,
+                "rows", 11,
+                "index", 3783,
                 "addRowsIndexConstant", 3795.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -856,8 +856,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 11L,
-                "index", 3313L,
+                "rows", 11,
+                "index", 3313,
                 "addRowsIndexConstant", 3325.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -894,8 +894,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 9L,
-                "index", 1102L,
+                "rows", 9,
+                "index", 1102,
                 "addRowsIndexConstant", 1112.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -903,8 +903,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 9L,
-                "index", 1120L,
+                "rows", 9,
+                "index", 1120,
                 "addRowsIndexConstant", 1130.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -941,8 +941,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 2L,
-                "index", 2681L,
+                "rows", 2,
+                "index", 2681,
                 "addRowsIndexConstant", 2684.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
@@ -950,8 +950,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 2L,
-                "index", 2193L,
+                "rows", 2,
+                "index", 2193,
                 "addRowsIndexConstant", 2196.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
@@ -988,8 +988,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 2L,
-                "index", 2836L,
+                "rows", 2,
+                "index", 2836,
                 "addRowsIndexConstant", 2839.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
@@ -997,8 +997,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 2L,
-                "index", 2514L,
+                "rows", 2,
+                "index", 2514,
                 "addRowsIndexConstant", 2517.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_2
             )
@@ -1039,7 +1039,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 2L,
+                "rows", 2,
                 "index", 254.4554443359375D,
                 "addRowsIndexConstant", 257.4554443359375D,
                 "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1048,7 +1048,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 2L,
+                "rows", 2,
                 "index", 260.4129638671875D,
                 "addRowsIndexConstant", 263.4129638671875D,
                 "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1091,7 +1091,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 1L,
+                "rows", 1,
                 "index", new Float(135.885094).doubleValue(),
                 "addRowsIndexConstant", new Float(137.885094).doubleValue(),
                 "uniques", QueryRunnerTestHelper.UNIQUES_1
@@ -1100,7 +1100,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 1L,
+                "rows", 1,
                 "index", new Float(147.425935).doubleValue(),
                 "addRowsIndexConstant", new Float(149.425935).doubleValue(),
                 "uniques", QueryRunnerTestHelper.UNIQUES_1
@@ -1121,14 +1121,14 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 1L,
+                "rows", 1,
                 "index", new Float(135.885094).doubleValue()
             )
         ),
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 1L,
+                "rows", 1,
                 "index", new Float(147.425935).doubleValue()
             )
         )
@@ -1157,14 +1157,14 @@ public class TimeseriesQueryRunnerTest
     if (descending) {
       expectedResults = GroupByQueryRunnerTest.createExpectedRows(
           columnNames,
-          new Object[]{"2011-04-02", 1L, 147.42593383789062d, "Apr 02"},
-          new Object[]{"2011-04-01", 1L, 135.88510131835938d, "Apr 01"}
+          new Object[]{"2011-04-02", 1, 147.42593383789062d, "Apr 02"},
+          new Object[]{"2011-04-01", 1, 135.88510131835938d, "Apr 01"}
       );
     } else {
       expectedResults = GroupByQueryRunnerTest.createExpectedRows(
           columnNames,
-          new Object[]{"2011-04-01", 1L, 135.88510131835938d, "Apr 01"},
-          new Object[]{"2011-04-02", 1L, 147.42593383789062d, "Apr 02"}
+          new Object[]{"2011-04-01", 1, 135.88510131835938d, "Apr 01"},
+          new Object[]{"2011-04-02", 1, 147.42593383789062d, "Apr 02"}
       );
     }
 
@@ -1202,7 +1202,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 1L,
+                "rows", 1,
                 "index", new Float(118.570340).doubleValue(),
                 "addRowsIndexConstant", new Float(120.570340).doubleValue(),
                 "uniques", QueryRunnerTestHelper.UNIQUES_1
@@ -1211,7 +1211,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 1L,
+                "rows", 1,
                 "index", new Float(112.987027).doubleValue(),
                 "addRowsIndexConstant", new Float(114.987027).doubleValue(),
                 "uniques", QueryRunnerTestHelper.UNIQUES_1
@@ -1255,8 +1255,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 13L,
-                "index", 6619L,
+                "rows", 13,
+                "index", 6619,
                 "addRowsIndexConstant", 6633.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -1264,8 +1264,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 13L,
-                "index", 5827L,
+                "rows", 13,
+                "index", 5827,
                 "addRowsIndexConstant", 5841.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -1314,8 +1314,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
             ImmutableMap.<String, Object>of(
-                "rows", 13L,
-                "index", 6619L,
+                "rows", 13,
+                "index", 6619,
                 "addRowsIndexConstant", 6633.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -1323,8 +1323,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
             ImmutableMap.<String, Object>of(
-                "rows", 13L,
-                "index", 5827L,
+                "rows", 13,
+                "index", 5827,
                 "addRowsIndexConstant", 5841.0,
                 "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -1359,7 +1359,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "rows", 2L,
+                    "rows", 2,
                     "index", 254.4554443359375D,
                     "addRowsIndexConstant", 257.4554443359375D,
                     "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1368,7 +1368,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
                 ImmutableMap.<String, Object>of(
-                    "rows", 2L,
+                    "rows", 2,
                     "index", 260.4129638671875D,
                     "addRowsIndexConstant", 263.4129638671875D,
                     "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1444,7 +1444,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "rows", 13L,
+                    "rows", 13,
                     "index", 6626.151596069336,
                     "addRowsIndexConstant", 6640.151596069336,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -1453,7 +1453,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
                 ImmutableMap.<String, Object>of(
-                    "rows", 13L,
+                    "rows", 13,
                     "index", 5833.2095947265625,
                     "addRowsIndexConstant", 5847.2095947265625,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -1485,7 +1485,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "rows", 13L,
+                    "rows", 13,
                     "index", 6626.151596069336,
                     "addRowsIndexConstant", 6640.151596069336,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -1494,7 +1494,7 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
                 ImmutableMap.<String, Object>of(
-                    "rows", 13L,
+                    "rows", 13,
                     "index", 5833.2095947265625,
                     "addRowsIndexConstant", 5847.2095947265625,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -1808,11 +1808,11 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "filteredAgg", 18L,
+                    "filteredAgg", 18,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,
-                    "rows", 26L
+                    "rows", 26
             )
         )
     );
@@ -1856,11 +1856,11 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "filteredAgg", 0L,
+                    "filteredAgg", 0,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,
-                    "rows", 26L
+                    "rows", 26
             )
         )
     );
@@ -1904,11 +1904,11 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "filteredAgg", 26L,
+                    "filteredAgg", 26,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,
-                    "rows", 26L
+                    "rows", 26
                 )
             )
     );
@@ -1953,11 +1953,11 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "filteredAgg", 26L,
+                    "filteredAgg", 26,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,
-                    "rows", 26L
+                    "rows", 26
             )
         )
     );
@@ -2002,11 +2002,11 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "filteredAgg", 26L,
+                    "filteredAgg", 26,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,
-                    "rows", 26L
+                    "rows", 26
                 )
         )
     );
@@ -2034,7 +2034,7 @@ public class TimeseriesQueryRunnerTest
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
                     "rows",
-                    26L,
+                    26,
                     "ntimestamps",
                     13.0,
                     "sumtime",
@@ -2105,8 +2105,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-01"),
                 ImmutableMap.<String, Object>of(
-                    "rows", 9L,
-                    "index", 1102L,
+                    "rows", 9,
+                    "index", 1102,
                     "addRowsIndexConstant", 1112.0,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
             )
@@ -2114,8 +2114,8 @@ public class TimeseriesQueryRunnerTest
         new MapBasedRow(
             new DateTime("2011-04-02"),
                 ImmutableMap.<String, Object>of(
-                    "rows", 9L,
-                    "index", 1120L,
+                    "rows", 9,
+                    "index", 1120,
                     "addRowsIndexConstant", 1130.0,
                     "uniques", QueryRunnerTestHelper.UNIQUES_9
                 )
@@ -2206,25 +2206,25 @@ public class TimeseriesQueryRunnerTest
 
     List<Row> expectedResults = GroupByQueryRunnerTest.createExpectedRows(
         columnNames,
-        new Object[]{"2011-01-12",  4L, 3600.0, 3605.0},
-        new Object[]{"2011-01-13", 12L, 5983.074401855469, 5996.074401855469},
-        new Object[]{"2011-01-14", 10L, 4644.134963989258, 4655.134963989258},
-        new Object[]{"2011-01-15",  9L, 5356.181037902832, 5366.181037902832},
-        new Object[]{"2011-01-16",  8L, 4247.914710998535, 4256.914710998535},
-        new Object[]{"2011-01-17", 11L, 4461.939956665039, 4473.939956665039},
-        new Object[]{"2011-01-18", 10L, 4127.733467102051, 4138.733467102051},
-        new Object[]{"2011-01-19",  9L, 4243.135475158691, 4253.135475158691},
-        new Object[]{"2011-01-20",  9L, 4076.9225158691406, 4086.9225158691406},
-        new Object[]{"2011-01-22", 10L, 5874.600471496582, 5885.600471496582},
-        new Object[]{"2011-01-23", 11L, 5400.676559448242, 5412.676559448242},
-        new Object[]{"2011-01-24", 10L, 4710.972122192383, 4721.972122192383},
-        new Object[]{"2011-01-25", 10L, 4906.999092102051, 4917.999092102051},
-        new Object[]{"2011-01-26", 10L, 6022.893226623535, 6033.893226623535},
-        new Object[]{"2011-01-27", 12L, 5934.857353210449, 5947.857353210449},
-        new Object[]{"2011-01-28", 11L, 5579.304672241211, 5591.304672241211},
-        new Object[]{"2011-01-29", 13L, 5346.517524719238, 5360.517524719238},
-        new Object[]{"2011-01-30", 12L, 5400.307342529297, 5413.307342529297},
-        new Object[]{"2011-01-31", 11L, 5727.540992736816, 5739.540992736816}
+        new Object[]{"2011-01-12",  4, 3600.0, 3605.0},
+        new Object[]{"2011-01-13", 12, 5983.074401855469, 5996.074401855469},
+        new Object[]{"2011-01-14", 10, 4644.134963989258, 4655.134963989258},
+        new Object[]{"2011-01-15",  9, 5356.181037902832, 5366.181037902832},
+        new Object[]{"2011-01-16",  8, 4247.914710998535, 4256.914710998535},
+        new Object[]{"2011-01-17", 11, 4461.939956665039, 4473.939956665039},
+        new Object[]{"2011-01-18", 10, 4127.733467102051, 4138.733467102051},
+        new Object[]{"2011-01-19",  9, 4243.135475158691, 4253.135475158691},
+        new Object[]{"2011-01-20",  9, 4076.9225158691406, 4086.9225158691406},
+        new Object[]{"2011-01-22", 10, 5874.600471496582, 5885.600471496582},
+        new Object[]{"2011-01-23", 11, 5400.676559448242, 5412.676559448242},
+        new Object[]{"2011-01-24", 10, 4710.972122192383, 4721.972122192383},
+        new Object[]{"2011-01-25", 10, 4906.999092102051, 4917.999092102051},
+        new Object[]{"2011-01-26", 10, 6022.893226623535, 6033.893226623535},
+        new Object[]{"2011-01-27", 12, 5934.857353210449, 5947.857353210449},
+        new Object[]{"2011-01-28", 11, 5579.304672241211, 5591.304672241211},
+        new Object[]{"2011-01-29", 13, 5346.517524719238, 5360.517524719238},
+        new Object[]{"2011-01-30", 12, 5400.307342529297, 5413.307342529297},
+        new Object[]{"2011-01-31", 11, 5727.540992736816, 5739.540992736816}
     );
 
     TimeseriesQuery query = builder.build();
@@ -2236,16 +2236,16 @@ public class TimeseriesQueryRunnerTest
 
     expectedResults = GroupByQueryRunnerTest.createExpectedRows(
         columnNames,
-        new Object[]{"2011-01-29", 13L, 5346.517524719238, 5360.517524719238},
-        new Object[]{"2011-01-30", 12L, 5400.307342529297, 5413.307342529297},
-        new Object[]{"2011-01-27", 12L, 5934.857353210449, 5947.857353210449},
-        new Object[]{"2011-01-13", 12L, 5983.074401855469, 5996.074401855469},
-        new Object[]{"2011-01-17", 11L, 4461.939956665039, 4473.939956665039},
-        new Object[]{"2011-01-23", 11L, 5400.676559448242, 5412.676559448242},
-        new Object[]{"2011-01-28", 11L, 5579.304672241211, 5591.304672241211},
-        new Object[]{"2011-01-31", 11L, 5727.540992736816, 5739.540992736816},
-        new Object[]{"2011-01-18", 10L, 4127.733467102051, 4138.733467102051},
-        new Object[]{"2011-01-14", 10L, 4644.134963989258, 4655.134963989258}
+        new Object[]{"2011-01-29", 13, 5346.517524719238, 5360.517524719238},
+        new Object[]{"2011-01-30", 12, 5400.307342529297, 5413.307342529297},
+        new Object[]{"2011-01-27", 12, 5934.857353210449, 5947.857353210449},
+        new Object[]{"2011-01-13", 12, 5983.074401855469, 5996.074401855469},
+        new Object[]{"2011-01-17", 11, 4461.939956665039, 4473.939956665039},
+        new Object[]{"2011-01-23", 11, 5400.676559448242, 5412.676559448242},
+        new Object[]{"2011-01-28", 11, 5579.304672241211, 5591.304672241211},
+        new Object[]{"2011-01-31", 11, 5727.540992736816, 5739.540992736816},
+        new Object[]{"2011-01-18", 10, 4127.733467102051, 4138.733467102051},
+        new Object[]{"2011-01-14", 10, 4644.134963989258, 4655.134963989258}
     );
 
     query = query.withLimitSpec(
@@ -2269,25 +2269,25 @@ public class TimeseriesQueryRunnerTest
     columnNames = new String[]{"__time", "rows", "index", "addRowsIndexConstant", "delta", "runningSum"};
     expectedResults = GroupByQueryRunnerTest.createExpectedRows(
         columnNames,
-        new Object[]{"2011-01-12", 4L, 3600.0, 3605.0, 0.0, 4L},
-        new Object[]{"2011-01-13", 12L, 5983.074401855469, 5996.074401855469, 2383.0744018554688, 16L},
-        new Object[]{"2011-01-14", 10L, 4644.134963989258, 4655.134963989258, -1338.939437866211, 26L},
-        new Object[]{"2011-01-15", 9L, 5356.181037902832, 5366.181037902832, 712.0460739135742, 35L},
-        new Object[]{"2011-01-16", 8L, 4247.914710998535, 4256.914710998535, -1108.2663269042969, 43L},
-        new Object[]{"2011-01-17", 11L, 4461.939956665039, 4473.939956665039, 214.0252456665039, 54L},
-        new Object[]{"2011-01-18", 10L, 4127.733467102051, 4138.733467102051, -334.2064895629883, 64L},
-        new Object[]{"2011-01-19", 9L, 4243.135475158691, 4253.135475158691, 115.40200805664062, 73L},
-        new Object[]{"2011-01-20", 9L, 4076.9225158691406, 4086.9225158691406, -166.21295928955078, 82L},
-        new Object[]{"2011-01-22", 10L, 5874.600471496582, 5885.600471496582, 1797.6779556274414, 92L},
-        new Object[]{"2011-01-23", 11L, 5400.676559448242, 5412.676559448242, -473.92391204833984, 103L},
-        new Object[]{"2011-01-24", 10L, 4710.972122192383, 4721.972122192383, -689.7044372558594, 113L},
-        new Object[]{"2011-01-25", 10L, 4906.999092102051, 4917.999092102051, 196.02696990966797, 123L},
-        new Object[]{"2011-01-26", 10L, 6022.893226623535, 6033.893226623535, 1115.8941345214844, 133L},
-        new Object[]{"2011-01-27", 12L, 5934.857353210449, 5947.857353210449, -88.03587341308594, 145L},
-        new Object[]{"2011-01-28", 11L, 5579.304672241211, 5591.304672241211, -355.5526809692383, 156L},
-        new Object[]{"2011-01-29", 13L, 5346.517524719238, 5360.517524719238, -232.78714752197266, 169L},
-        new Object[]{"2011-01-30", 12L, 5400.307342529297, 5413.307342529297, 53.789817810058594, 181L},
-        new Object[]{"2011-01-31", 11L, 5727.540992736816, 5739.540992736816, 327.23365020751953, 192L}
+        new Object[]{"2011-01-12", 4, 3600.0, 3605.0, 0.0, 4L},
+        new Object[]{"2011-01-13", 12, 5983.074401855469, 5996.074401855469, 2383.0744018554688, 16L},
+        new Object[]{"2011-01-14", 10, 4644.134963989258, 4655.134963989258, -1338.939437866211, 26L},
+        new Object[]{"2011-01-15", 9, 5356.181037902832, 5366.181037902832, 712.0460739135742, 35L},
+        new Object[]{"2011-01-16", 8, 4247.914710998535, 4256.914710998535, -1108.2663269042969, 43L},
+        new Object[]{"2011-01-17", 11, 4461.939956665039, 4473.939956665039, 214.0252456665039, 54L},
+        new Object[]{"2011-01-18", 10, 4127.733467102051, 4138.733467102051, -334.2064895629883, 64L},
+        new Object[]{"2011-01-19", 9, 4243.135475158691, 4253.135475158691, 115.40200805664062, 73L},
+        new Object[]{"2011-01-20", 9, 4076.9225158691406, 4086.9225158691406, -166.21295928955078, 82L},
+        new Object[]{"2011-01-22", 10, 5874.600471496582, 5885.600471496582, 1797.6779556274414, 92L},
+        new Object[]{"2011-01-23", 11, 5400.676559448242, 5412.676559448242, -473.92391204833984, 103L},
+        new Object[]{"2011-01-24", 10, 4710.972122192383, 4721.972122192383, -689.7044372558594, 113L},
+        new Object[]{"2011-01-25", 10, 4906.999092102051, 4917.999092102051, 196.02696990966797, 123L},
+        new Object[]{"2011-01-26", 10, 6022.893226623535, 6033.893226623535, 1115.8941345214844, 133L},
+        new Object[]{"2011-01-27", 12, 5934.857353210449, 5947.857353210449, -88.03587341308594, 145L},
+        new Object[]{"2011-01-28", 11, 5579.304672241211, 5591.304672241211, -355.5526809692383, 156L},
+        new Object[]{"2011-01-29", 13, 5346.517524719238, 5360.517524719238, -232.78714752197266, 169L},
+        new Object[]{"2011-01-30", 12, 5400.307342529297, 5413.307342529297, 53.789817810058594, 181L},
+        new Object[]{"2011-01-31", 11, 5727.540992736816, 5739.540992736816, 327.23365020751953, 192L}
     );
     results = Sequences.toList(
         query.run(TestIndex.segmentWalker, CONTEXT),

@@ -99,15 +99,15 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     List<Object[]> expected;
     if (descending) {
       expected = createExpected(
-          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},
-          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "mezzanine", 826.0601806640625D, 826.0602F},
-          new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128F}
+          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177D},
+          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "mezzanine", 826.0601806640625D, 826.0602D},
+          new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128D}
       );
     } else {
       expected = createExpected(
-          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "automotive", 100D, 100F},
-          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "business", 100D, 100F},
-          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "entertainment", 100D, 100F}
+          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "automotive", 100D, 100D},
+          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "business", 100D, 100D},
+          new Object[]{"2011-01-12T00:00:00.000Z", "spot", "entertainment", 100D, 100D}
       );
     }
 
@@ -120,15 +120,15 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     query = query.withFilter(new MathExprFilter("index > 200"));
     if (descending) {
       expected = createExpected(
-          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},
-          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "mezzanine", 826.0601806640625D, 826.0602F},
-          new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128F}
+          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177D},
+          new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "mezzanine", 826.0601806640625D, 826.0602D},
+          new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128D}
       );
     } else {
       expected = createExpected(
-          new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "mezzanine", 1000D, 1000F},
-          new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "premium", 1000D, 1000F},
-          new Object[]{"2011-01-12T00:00:00.000Z", "upfront", "mezzanine", 800D, 800F}
+          new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "mezzanine", 1000D, 1000D},
+          new Object[]{"2011-01-12T00:00:00.000Z", "total_market", "premium", 1000D, 1000D},
+          new Object[]{"2011-01-12T00:00:00.000Z", "upfront", "mezzanine", 800D, 800D}
       );
     }
     results = Sequences.toList(
@@ -227,9 +227,9 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
         Lists.<Object[]>newArrayList()
     );
     List<Object[]> expected = createExpected(
-        new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128F},
-        new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177F},
-        new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "mezzanine", 1040.945556640625D, 1040.9456F}
+        new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "premium", 1689.0128173828125D, 1689.0128D},
+        new Object[]{"2011-01-13T00:00:00.000Z", "upfront", "premium", 1564.61767578125D, 1564.6177D},
+        new Object[]{"2011-01-13T00:00:00.000Z", "total_market", "mezzanine", 1040.945556640625D, 1040.9456D}
     );
     validate(expected, results);
   }

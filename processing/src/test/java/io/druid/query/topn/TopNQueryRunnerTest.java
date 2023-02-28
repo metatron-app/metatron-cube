@@ -173,9 +173,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     List<Map<String, Object>> expectedRows = createExpected(
         new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
-        new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
-        new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
-        new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
+        new Object[]{"total_market", 186, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
+        new Object[]{"upfront", 186, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
+        new Object[]{"spot", 837, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
     );
     if (direction == Direction.ASCENDING) {
       Collections.reverse(expectedRows);
@@ -196,9 +196,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     query = query.withOutputColumns(Arrays.asList("market", "rows", "index"));
     expectedRows = createExpected(
         new String[]{"market", "rows", "index"},
-        new Object[]{"total_market", 186L, 215679.82879638672D},
-        new Object[]{"upfront", 186L, 192046.1060180664D},
-        new Object[]{"spot", 837L, 95606.57232284546D}
+        new Object[]{"total_market", 186, 215679.82879638672D},
+        new Object[]{"upfront", 186, 192046.1060180664D},
+        new Object[]{"spot", 837, 95606.57232284546D}
     );
     if (direction == Direction.ASCENDING) {
       Collections.reverse(expectedRows);
@@ -235,9 +235,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     List<Map<String, Object>> expectedRows = createExpected(
         new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
-        new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
-        new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
-        new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
+        new Object[]{"total_market", 186, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
+        new Object[]{"upfront", 186, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
+        new Object[]{"spot", 837, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
     );
     if (direction == Direction.ASCENDING) {
       Collections.reverse(expectedRows);
@@ -278,16 +278,16 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     if (direction == Direction.DESCENDING) {
       expectedRows = createExpected(
           new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
-          new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D},
-          new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
-          new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D}
+          new Object[]{"spot", 837, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D},
+          new Object[]{"total_market", 186, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
+          new Object[]{"upfront", 186, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D}
       );
     } else {
       expectedRows = createExpected(
           new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
-          new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
-          new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
-          new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
+          new Object[]{"total_market", 186, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
+          new Object[]{"upfront", 186, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
+          new Object[]{"spot", 837, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D}
       );
     }
 
@@ -488,9 +488,9 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     List<Map<String, Object>> expectedRows = createExpected(
         new String[]{"market", "index", "addRowsIndexConstant", "rows", "uniques"},
-        new Object[]{"total_market", 5351.814697265625D, 5356.814697265625D, 4L, UNIQUES_2},
-        new Object[]{"upfront", 4875.669677734375D, 4880.669677734375D, 4L, UNIQUES_2},
-        new Object[]{"spot", 2231.8768157958984D, 2250.8768157958984D, 18L, UNIQUES_9}
+        new Object[]{"total_market", 5351.814697265625D, 5356.814697265625D, 4, UNIQUES_2},
+        new Object[]{"upfront", 4875.669677734375D, 4880.669677734375D, 4, UNIQUES_2},
+        new Object[]{"spot", 2231.8768157958984D, 2250.8768157958984D, 18, UNIQUES_9}
     );
     if (direction == Direction.ASCENDING) {
       Collections.reverse(expectedRows);
@@ -540,21 +540,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -605,21 +605,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "market", "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         "market", "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         "market", "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -653,21 +653,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -701,14 +701,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -742,7 +742,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -776,21 +776,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 2L,
+                        "rows", 2,
                         "index", 2591.68359375D,
                         "addRowsIndexConstant", 2594.68359375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 2L,
+                        "rows", 2,
                         "index", 2508.39599609375D,
                         "addRowsIndexConstant", 2511.39599609375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 2L,
+                        "rows", 2,
                         "index", 220.63774871826172D,
                         "addRowsIndexConstant", 223.63774871826172D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
@@ -828,21 +828,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 1L,
+                        "rows", 1,
                         "index", new Float(1447.341160).doubleValue(),
                         "addRowsIndexConstant", new Float(1449.341160).doubleValue(),
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 1L,
+                        "rows", 1,
                         "index", new Float(1314.839715).doubleValue(),
                         "addRowsIndexConstant", new Float(1316.839715).doubleValue(),
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 1L,
+                        "rows", 1,
                         "index", new Float(109.705815).doubleValue(),
                         "addRowsIndexConstant", new Float(111.705815).doubleValue(),
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
@@ -876,14 +876,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1035,14 +1035,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "placementish", "a",
-                        "rows", 2L,
+                        "rows", 2,
                         "index", 283.31103515625D,
                         "addRowsIndexConstant", 286.31103515625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
                     ),
                     ImmutableMap.<String, Object>of(
                         "placementish", "preferred",
-                        "rows", 2L,
+                        "rows", 2,
                         "index", 283.31103515625D,
                         "addRowsIndexConstant", 286.31103515625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
@@ -1076,21 +1076,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "placementish", "preferred",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 514.868408203125D,
                         "addRowsIndexConstant", 519.868408203125D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         "placementish",
-                        "a", "rows", 2L,
+                        "a", "rows", 2,
                         "index", 283.31103515625D,
                         "addRowsIndexConstant", 286.31103515625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
                     ),
                     ImmutableMap.<String, Object>of(
                         "placementish", "b",
-                        "rows", 2L,
+                        "rows", 2,
                         "index", 231.557373046875D,
                         "addRowsIndexConstant", 234.557373046875D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
@@ -1124,28 +1124,28 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "placementish", "preferred",
-                        "rows", 26L,
+                        "rows", 26,
                         "index", 12459.361190795898D,
                         "addRowsIndexConstant", 12486.361190795898D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         "placementish", "p",
-                        "rows", 6L,
+                        "rows", 6,
                         "index", 5407.213653564453D,
                         "addRowsIndexConstant", 5414.213653564453D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
                     ),
                     ImmutableMap.<String, Object>of(
                         "placementish", "m",
-                        "rows", 6L,
+                        "rows", 6,
                         "index", 5320.717338562012D,
                         "addRowsIndexConstant", 5327.717338562012D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_1
                     ),
                     ImmutableMap.<String, Object>of(
                         "placementish", "t",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 422.3440856933594D,
                         "addRowsIndexConstant", 427.3440856933594D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1179,7 +1179,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     new LinkedHashMap<String, Object>()
                     {{
                         put("doesn't exist", null);
-                        put("rows", 26L);
+                        put("rows", 26);
                         put("index", 12459.361190795898D);
                         put("addRowsIndexConstant", 12486.361190795898D);
                         put("uniques", QueryRunnerTestHelper.UNIQUES_9);
@@ -1214,7 +1214,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     new LinkedHashMap<String, Object>()
                     {{
                         put("doesn't exist", null);
-                        put("rows", 4L);
+                        put("rows", 4);
                         put("index", 4875.669677734375D);
                         put("addRowsIndexConstant", 4880.669677734375D);
                         put("uniques", QueryRunnerTestHelper.UNIQUES_2);
@@ -1249,7 +1249,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     new LinkedHashMap<String, Object>()
                     {{
                         put("doesn't exist", null);
-                        put("rows", 26L);
+                        put("rows", 26);
                         put("index", 12459.361190795898D);
                         put("addRowsIndexConstant", 12486.361190795898D);
                         put("uniques", QueryRunnerTestHelper.UNIQUES_9);
@@ -1282,21 +1282,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1329,14 +1329,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1369,14 +1369,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1409,14 +1409,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -1449,14 +1449,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -1514,7 +1514,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                         "index", 503332.5071372986D,
                         QueryRunnerTestHelper.marketDimension, "POTATO",
                         "uniques", QueryRunnerTestHelper.UNIQUES_9,
-                        "rows", 1209L
+                        "rows", 1209
                     )
                 )
             )
@@ -1559,13 +1559,13 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.qualityDimension, "e",
-                        "rows", 558L,
+                        "rows", 558,
                         "index", 246645.1204032898,
                         "addRowsIndexConstant", 247204.1204032898
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.qualityDimension, "r",
-                        "rows", 372L,
+                        "rows", 372,
                         "index", 222051.08961486816,
                         "addRowsIndexConstant", 222424.08961486816
                     )
@@ -1588,8 +1588,8 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
             "2011-01-12T00:00:00.000Z",
             new String[]{QueryRunnerTestHelper.qualityDimension, "rows", "index", "addRowsIndexConstant"},
             Arrays.asList(
-                new Object[]{"n", 93L, -2786.472755432129, -2692.472755432129},
-                new Object[]{"u", 186L, -3949.824363708496, -3762.824363708496}
+                new Object[]{"n", 93, -2786.472755432129, -2692.472755432129},
+                new Object[]{"u", 186, -3949.824363708496, -3762.824363708496}
             )
         )
     );
@@ -1625,21 +1625,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "s",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "t",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "u",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1690,21 +1690,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "2spot0",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "1total_market0",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "3upfront0",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1755,21 +1755,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "2spot0",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "1total_market0",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "3upfront0",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1821,21 +1821,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "2spot0",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "1total_market0",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "3upfront0",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1889,21 +1889,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot0",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market0",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront0",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -1956,21 +1956,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "1upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "2spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "3total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2023,21 +2023,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "1upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "2spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "3total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2091,21 +2091,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "1upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "2spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "3total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2145,21 +2145,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "s",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "t",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "u",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2199,21 +2199,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "t",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "o",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "f",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2253,14 +2253,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "t",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "u",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2317,14 +2317,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "t",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "u",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2365,14 +2365,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "t",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "s",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -2412,14 +2412,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "o",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "f",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2475,7 +2475,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -2483,14 +2483,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     new LinkedHashMap<String, Object>()
                     {{
                         put(QueryRunnerTestHelper.marketDimension, null);
-                        put("rows", 4L);
+                        put("rows", 4);
                         put("index", 5351.814697265625D);
                         put("addRowsIndexConstant", 5356.814697265625D);
                         put("uniques", QueryRunnerTestHelper.UNIQUES_2);
                       }},
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2553,7 +2553,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -2561,14 +2561,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     new LinkedHashMap<String, Object>()
                     {{
                         put(QueryRunnerTestHelper.marketDimension, "");
-                        put("rows", 4L);
+                        put("rows", 4);
                         put("index", 5351.814697265625D);
                         put("addRowsIndexConstant", 5356.814697265625D);
                         put("uniques", QueryRunnerTestHelper.UNIQUES_2);
                       }},
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2603,21 +2603,21 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "upfront",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "addRowsIndexConstant", 4880.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     ),
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "total_market",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 5351.814697265625D,
                         "addRowsIndexConstant", 5356.814697265625D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
@@ -2764,7 +2764,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>builder()
                                 .put(QueryRunnerTestHelper.marketDimension, "total_market")
-                                .put("rows", 186L)
+                                .put("rows", 186)
                                 .put("index", 215679.82879638672D)
                                 .put("addRowsIndexConstant", 215866.82879638672D)
                                 .put(QueryRunnerTestHelper.dependentPostAggMetric, 216053.82879638672D)
@@ -2778,7 +2778,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                                 .build(),
                     ImmutableMap.<String, Object>builder()
                                 .put(QueryRunnerTestHelper.marketDimension, "upfront")
-                                .put("rows", 186L)
+                                .put("rows", 186)
                                 .put("index", 192046.1060180664D)
                                 .put("addRowsIndexConstant", 192233.1060180664D)
                                 .put(QueryRunnerTestHelper.dependentPostAggMetric, 192420.1060180664D)
@@ -2792,7 +2792,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                                 .build(),
                     ImmutableMap.<String, Object>builder()
                                 .put(QueryRunnerTestHelper.marketDimension, "spot")
-                                .put("rows", 837L)
+                                .put("rows", 837)
                                 .put("index", 95606.57232284546D)
                                 .put("addRowsIndexConstant", 96444.57232284546D)
                                 .put(QueryRunnerTestHelper.dependentPostAggMetric, 97282.57232284546D)
@@ -2844,7 +2844,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         Arrays.<Map<String, Object>>asList(
             ImmutableMap.<String, Object>builder()
                         .put(QueryRunnerTestHelper.marketDimension, "total_market")
-                        .put("rows", 186L)
+                        .put("rows", 186)
                         .put("index", 215679.82879638672D)
                         .put("addRowsIndexConstant", 215866.82879638672D)
                         .put(QueryRunnerTestHelper.dependentPostAggMetric, 216053.82879638672D)
@@ -2854,7 +2854,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                         .build(),
             ImmutableMap.<String, Object>builder()
                         .put(QueryRunnerTestHelper.marketDimension, "upfront")
-                        .put("rows", 186L)
+                        .put("rows", 186)
                         .put("index", 192046.1060180664D)
                         .put("addRowsIndexConstant", 192233.1060180664D)
                         .put(QueryRunnerTestHelper.dependentPostAggMetric, 192420.1060180664D)
@@ -2864,7 +2864,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                         .build(),
             ImmutableMap.<String, Object>builder()
                         .put(QueryRunnerTestHelper.marketDimension, "spot")
-                        .put("rows", 837L)
+                        .put("rows", 837)
                         .put("index", 95606.57232284546D)
                         .put("addRowsIndexConstant", 96444.57232284546D)
                         .put(QueryRunnerTestHelper.dependentPostAggMetric, 97282.57232284546D)
@@ -2925,7 +2925,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     ImmutableMap.<String, Object>of(
                         "market", "spot",
                         "rows",
-                        18L,
+                        18,
                         "ntimestamps",
                         9.0,
                         "sumtime",
@@ -2934,7 +2934,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     ImmutableMap.<String, Object>of(
                         "market", "total_market",
                         "rows",
-                        4L,
+                        4,
                         "ntimestamps",
                         2.0,
                         "sumtime",
@@ -2943,7 +2943,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     ImmutableMap.<String, Object>of(
                         "market", "upfront",
                         "rows",
-                        4L,
+                        4,
                         "ntimestamps",
                         2.0,
                         "sumtime",
@@ -2975,11 +2975,11 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "market", "spot",
-                        "rows", 9L
+                        "rows", 9
                     ),
                     ImmutableMap.<String, Object>of(
                         "market", "total_market",
-                        "rows", 2L
+                        "rows", 2
                     )
                 )
             )
@@ -3024,13 +3024,13 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "dayOfWeek", "Wednesday",
-                        "rows", 182L,
+                        "rows", 182,
                         "index", 76010.28100585938,
                         "addRowsIndexConstant", 76193.28100585938
                     ),
                     ImmutableMap.<String, Object>of(
                         "dayOfWeek", "Thursday",
-                        "rows", 182L,
+                        "rows", 182,
                         "index", 75203.26300811768,
                         "addRowsIndexConstant", 75386.26300811768
                     )
@@ -3067,7 +3067,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("null_column", null);
-    map.put("rows", 1209L);
+    map.put("rows", 1209);
     map.put("index", 503332.5071372986D);
     map.put("addRowsIndexConstant", 504542.5071372986D);
     map.put("uniques", QueryRunnerTestHelper.UNIQUES_9);
@@ -3115,7 +3115,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("null_column", null);
-    map.put("rows", 1209L);
+    map.put("rows", 1209);
     map.put("index", 503332.5071372986D);
     map.put("addRowsIndexConstant", 504542.5071372986D);
     map.put("uniques", QueryRunnerTestHelper.UNIQUES_9);
@@ -3149,7 +3149,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("partial_null_column", null);
-    map.put("rows", 22L);
+    map.put("rows", 22);
     map.put("index", 7583.691513061523D);
     map.put("uniques", QueryRunnerTestHelper.UNIQUES_9);
     List<Result<TopNResultValue>> expectedResults = Arrays.asList(
@@ -3160,7 +3160,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                     map,
                     ImmutableMap.<String, Object>of(
                         "partial_null_column", "value",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     )
@@ -3187,7 +3187,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("partial_null_column", null);
-    map.put("rows", 22L);
+    map.put("rows", 22);
     map.put("index", 7583.691513061523D);
     map.put("uniques", QueryRunnerTestHelper.UNIQUES_9);
     List<Result<TopNResultValue>> expectedResults = Arrays.asList(
@@ -3224,7 +3224,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "partial_null_column", "value",
-                        "rows", 4L,
+                        "rows", 4,
                         "index", 4875.669677734375D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_2
                     )
@@ -3254,11 +3254,11 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "market", "spot",
-                        "rows", 9L
+                        "rows", 9
                     ),
                     ImmutableMap.<String, Object>of(
                         "market", "total_market",
-                        "rows", 2L
+                        "rows", 2
                     )
                 )
             )
@@ -3302,7 +3302,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         QueryRunnerTestHelper.marketDimension, "spot",
-                        "rows", 18L,
+                        "rows", 18,
                         "index", 2231.8768157958984D,
                         "addRowsIndexConstant", 2250.8768157958984D,
                         "uniques", QueryRunnerTestHelper.UNIQUES_9
@@ -3351,7 +3351,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("null_column", null);
-    map.put("rows", 1209L);
+    map.put("rows", 1209);
     map.put("index", 503332.5071372986D);
     map.put("addRowsIndexConstant", 504542.5071372986D);
     map.put("uniques", QueryRunnerTestHelper.UNIQUES_9);
@@ -3398,7 +3398,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     Map<String, Object> map = Maps.newHashMap();
     map.put("null_column", null);
-    map.put("rows", 1209L);
+    map.put("rows", 1209);
     map.put("index", 503332.5071372986D);
     map.put("addRowsIndexConstant", 504542.5071372986D);
     map.put("uniques", QueryRunnerTestHelper.UNIQUES_9);

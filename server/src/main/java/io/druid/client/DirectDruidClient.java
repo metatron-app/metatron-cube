@@ -30,6 +30,7 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
+import io.druid.jackson.JsonParserIterator;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.http.client.ChannelResource;

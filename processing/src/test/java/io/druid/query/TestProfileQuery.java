@@ -25,6 +25,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.StreamQuery;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Test;
@@ -52,16 +53,17 @@ public class TestProfileQuery extends TestHelper
   {
     StreamQuery stream = Druids.newSelectQueryBuilder()
                                .dataSource("profile")
-                               .columns("st11_cat")
+                               .virtualColumns(new ExprVirtualColumn("bitset.unwrap(st11_cat)", "unwrap"))
+                               .columns("unwrap")
                                .streaming();
 
     List<Object[]> result = runQuery(stream);
     List<String> expected = Arrays.asList(
-        "[{3, 7, 18}]",
+        "[[3, 7, 18]]",
         "[null]",
-        "[{3, 9, 14}]",
-        "[{6, 14, 15, 16, 17}]",
-        "[{1, 4, 14, 18}]"
+        "[[3, 9, 14]]",
+        "[[6, 14, 15, 16, 17]]",
+        "[[1, 4, 14, 18]]"
     );
     TestHelper.assertExpectedObjects(expected, GuavaUtils.transform(result, a -> Arrays.toString(a)));
 
@@ -76,12 +78,12 @@ public class TestProfileQuery extends TestHelper
     );
     TestHelper.assertExpectedObjects(expected, GuavaUtils.transform(result, a -> Arrays.toString(a)));
 
-    stream = stream.withColumns(Arrays.asList("st11_cat"))
+    stream = stream.withColumns(Arrays.asList("unwrap"))
                    .withFilter(new SelectorDimFilter("st11_cat", "18", null));
     result = runQuery(stream);
     expected = Arrays.asList(
-        "[{3, 7, 18}]",
-        "[{1, 4, 14, 18}]"
+        "[[3, 7, 18]]",
+        "[[1, 4, 14, 18]]"
     );
     TestHelper.assertExpectedObjects(expected, GuavaUtils.transform(result, a -> Arrays.toString(a)));
   }
@@ -100,17 +102,17 @@ public class TestProfileQuery extends TestHelper
     Iterable<Row> results = runQuery(query);
 
     Object[][] objects = {
-        array("2020-01-01", "1", 1L),
-        array("2020-01-01", "14", 3L),
-        array("2020-01-01", "15", 1L),
-        array("2020-01-01", "16", 1L),
-        array("2020-01-01", "17", 1L),
-        array("2020-01-01", "18", 2L),
-        array("2020-01-01", "3", 2L),
-        array("2020-01-01", "4", 1L),
-        array("2020-01-01", "6", 1L),
-        array("2020-01-01", "7", 1L),
-        array("2020-01-01", "9", 1L)
+        array("2020-01-01", "1", 1),
+        array("2020-01-01", "14", 3),
+        array("2020-01-01", "15", 1),
+        array("2020-01-01", "16", 1),
+        array("2020-01-01", "17", 1),
+        array("2020-01-01", "18", 2),
+        array("2020-01-01", "3", 2),
+        array("2020-01-01", "4", 1),
+        array("2020-01-01", "6", 1),
+        array("2020-01-01", "7", 1),
+        array("2020-01-01", "9", 1)
     };
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");

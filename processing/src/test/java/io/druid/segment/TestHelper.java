@@ -548,37 +548,43 @@ public class TestHelper
 
 //    Assert.assertEquals(String.format("%s: map keys", msg), expectedMap.keySet(), actualMap.keySet());
     for (final String key : expectedMap.keySet()) {
-      final Object expectedValue = expectedMap.get(key);
-      final Object actualValue = actualMap.get(key);
+      final Object ev = expectedMap.get(key);
+      final Object rv = actualMap.get(key);
 
-      if (expectedValue instanceof Float || expectedValue instanceof Double) {
+      if (ev instanceof Float && rv instanceof Double || ev instanceof Double && rv instanceof Float) {
         Assert.assertEquals(
             String.format("%s: key[%s]", msg, key),
-            ((Number) expectedValue).doubleValue(),
-            ((Number) actualValue).doubleValue(),
-            ((Number) expectedValue).doubleValue() * 1e-6
+            ((Number) ev).doubleValue(),
+            ((Number) rv).doubleValue(),
+            ((Number) ev).doubleValue() * 1e-6
         );
-      } else if (expectedValue instanceof Double[]) {
+      } else if (ev instanceof Long && rv instanceof Integer || ev instanceof Integer && rv instanceof Long) {
+        Assert.assertEquals(
+            String.format("%s: key[%s]", msg, key),
+            ((Number) ev).longValue(),
+            ((Number) rv).longValue()
+        );
+      } else if (ev instanceof Double[]) {
         Assert.assertArrayEquals(
             String.format("%s: key[%s]", msg, key),
-            Doubles.toArray(Arrays.asList((Double[]) expectedValue)),
-            Doubles.toArray(Arrays.asList((Double[]) actualValue)),
+            Doubles.toArray(Arrays.asList((Double[]) ev)),
+            Doubles.toArray(Arrays.asList((Double[]) rv)),
             0.0001
         );
-      } else if (expectedValue != null && expectedValue.getClass().isArray()) {
-        int length = Array.getLength(expectedValue);
+      } else if (ev != null && ev.getClass().isArray()) {
+        int length = Array.getLength(ev);
         for (int i = 0; i < length; i++) {
           Assert.assertEquals(
               String.format("%s: key[%s.%d]", msg, key, i),
-              Array.get(expectedValue, i),
-              Array.get(actualValue, i)
+              Array.get(ev, i),
+              Array.get(rv, i)
           );
         }
       } else {
         Assert.assertEquals(
             String.format("%s: key[%s]", msg, key),
-            expectedValue,
-            actualValue
+            ev,
+            rv
         );
       }
     }
@@ -649,6 +655,11 @@ public class TestHelper
     catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public static String[] array(String... objects)
+  {
+    return objects;
   }
 
   public static Object[] array(Object... objects)
@@ -763,7 +774,7 @@ public class TestHelper
     return expected;
   }
 
-  public static void validate(String[] columnNames, List<Row> expected, Iterable<Row> resultIterable)
+  public static void validate(String[] columnNames, List<Row> expected, List<Row> resultIterable)
   {
     validate(columnNames, expected, resultIterable, false);
   }
@@ -771,7 +782,23 @@ public class TestHelper
   public static void validate(
       String[] columnNames,
       List<Row> expected,
-      Iterable<Row> resultIterable,
+      List<Row> resultIterable,
+      boolean ensureColumnNames
+  )
+  {
+    try {
+      _validate(columnNames, expected, resultIterable, ensureColumnNames);
+    }
+    catch (AssertionError e) {
+      printToExpected(columnNames, resultIterable);
+      throw e;
+    }
+  }
+
+  private static void _validate(
+      String[] columnNames,
+      List<Row> expected,
+      List<Row> resultIterable,
       boolean ensureColumnNames
   )
   {
@@ -786,8 +813,10 @@ public class TestHelper
       for (String columnName : columnNames) {
         final Object ev = e.getRaw(columnName);
         final Object rv = r.getRaw(columnName);
-        if ((ev instanceof Float && rv instanceof Double) || (ev instanceof Double && rv instanceof Float)) {
+        if (ev instanceof Float && rv instanceof Double || ev instanceof Double && rv instanceof Float) {
           Assert.assertEquals(((Number) ev).doubleValue(), ((Number) rv).doubleValue(), 0.0001);
+        } else if (ev instanceof Long && rv instanceof Integer || ev instanceof Integer && rv instanceof Long) {
+          Assert.assertEquals(((Number) ev).longValue(), ((Number) rv).longValue());
         } else {
           Assert.assertEquals(i + " th " + columnName, ev, rv);
         }

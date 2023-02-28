@@ -470,17 +470,20 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   @Test
   public void testSelectStar() throws Exception
   {
+    Object[][] expected = {
+        {946684800000L, 1L, "", "a", 1.0D, 1.0D, "WQAAAQAAAAKTEA=="},
+        {946771200000L, 1L, "10.1", "", 2.0D, 2.0D, "WQAAAQAAAAFZAw=="},
+        {946857600000L, 1L, "2", "", 3.0D, 3.0D, "WQAAAQAAAALfCA=="},
+        {978307200000L, 1L, "1", "a", 4.0D, 4.0D, "WQAAAQAAAALVAQ=="},
+        {978393600000L, 1L, "def", "abc", 5.0D, 5.0D, "WQAAAQAAAAC5Aw=="},
+        {978480000000L, 1L, "abc", "", 6.0D, 6.0D, "WQAAAQAAAAMnMA=="}
+    };
     testQuery(
         "SELECT * FROM druid.foo",
         newScan().dataSource(CalciteTests.DATASOURCE1)
                  .columns("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1")
                  .streaming(),
-        new Object[]{T("2000-01-01"), 1L, "", "a", 1d, 1.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2000-01-02"), 1L, "10.1", "", 2d, 2.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2000-01-03"), 1L, "2", "", 3d, 3.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-01"), 1L, "1", "a", 4d, 4.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6.0, HyperLogLogCollector.class.getName()}
+        expected
     );
   }
 
@@ -503,7 +506,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                  .columns("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1")
                  .streaming(),
         ImmutableList.of(
-            new Object[]{T("2000-01-01"), 1L, "forbidden", "abcd", 9999.0d, 0.0, HyperLogLogCollector.class.getName()}
+            new Object[]{T("2000-01-01"), 1L, "forbidden", "abcd", 9999.0d, 0.0, "WQAAAQAAAACiAg=="}
         )
     );
   }
@@ -542,8 +545,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                  .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
                  .limit(2)
                  .streaming(),
-        new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2000-01-02"), 1L, "10.1", "", 2.0d, 2.0, HyperLogLogCollector.class.getName()}
+        new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0, "WQAAAQAAAAKTEA=="},
+        new Object[]{T("2000-01-02"), 1L, "10.1", "", 2.0d, 2.0, "WQAAAQAAAAFZAw=="}
     );
   }
 
@@ -588,26 +591,29 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                  .orderBy(OrderByColumnSpec.desc("__time"))
                  .limit(2)
                  .streaming(),
-        new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6d, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5d, HyperLogLogCollector.class.getName()}
+        new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6d, "WQAAAQAAAAMnMA=="},
+        new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5d, "WQAAAQAAAAC5Aw=="}
     );
   }
 
   @Test
   public void testSelectStarWithoutLimitTimeAscending() throws Exception
   {
+    Object[][] expected = {
+        {946684800000L, 1L, "", "a", 1.0D, 1.0D, "WQAAAQAAAAKTEA=="},
+        {946771200000L, 1L, "10.1", "", 2.0D, 2.0D, "WQAAAQAAAAFZAw=="},
+        {946857600000L, 1L, "2", "", 3.0D, 3.0D, "WQAAAQAAAALfCA=="},
+        {978307200000L, 1L, "1", "a", 4.0D, 4.0D, "WQAAAQAAAALVAQ=="},
+        {978393600000L, 1L, "def", "abc", 5.0D, 5.0D, "WQAAAQAAAAC5Aw=="},
+        {978480000000L, 1L, "abc", "", 6.0D, 6.0D, "WQAAAQAAAAMnMA=="}
+    };
     testQuery(
         "SELECT * FROM druid.foo ORDER BY __time",
         newScan().dataSource(CalciteTests.DATASOURCE1)
                  .columns("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1")
                  .orderBy(OrderByColumnSpec.asc("__time"))
                  .streaming(),
-        new Object[]{T("2000-01-01"), 1L, "", "a", 1d, 1.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2000-01-02"), 1L, "10.1", "", 2d, 2.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2000-01-03"), 1L, "2", "", 3d, 3.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-01"), 1L, "1", "a", 4d, 4.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5.0, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6.0, HyperLogLogCollector.class.getName()}
+        expected
     );
   }
 
@@ -1508,9 +1514,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 )
             )
             .streaming(),
-        new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0d, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-01"), 1L, "1", "a", 4.0d, 4.0d, HyperLogLogCollector.class.getName()},
-        new Object[]{T("2001-01-02"), 1L, "def", "abc", 5.0d, 5.0d, HyperLogLogCollector.class.getName()}
+        new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0d, "WQAAAQAAAAKTEA=="},
+        new Object[]{T("2001-01-01"), 1L, "1", "a", 4.0d, 4.0d, "WQAAAQAAAALVAQ=="},
+        new Object[]{T("2001-01-02"), 1L, "def", "abc", 5.0d, 5.0d, "WQAAAQAAAAC5Aw=="}
     );
   }
 

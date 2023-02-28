@@ -29,7 +29,7 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.druid.client.ImmutableDruidServer;
-import io.druid.client.JsonParserIterator;
+import io.druid.jackson.JsonParserIterator;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
