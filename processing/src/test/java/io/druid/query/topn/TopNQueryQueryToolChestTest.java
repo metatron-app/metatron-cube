@@ -60,28 +60,29 @@ public class TopNQueryQueryToolChestTest
   @Test
   public void testCacheStrategy() throws Exception
   {
+    TopNQuery query = new TopNQuery(
+        new TableDataSource("dummy" ),
+        null,
+        new DefaultDimensionSpec("test", "test"),
+        new NumericTopNMetricSpec("metric1" ),
+        3,
+        new MultipleIntervalSegmentSpec(
+            ImmutableList.of(
+                new Interval(
+                    "2015-01-01/2015-01-02"
+                )
+            )
+        ),
+        null,
+        QueryGranularities.ALL,
+        ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("metric1" )),
+        null,
+        null,
+        null
+    );
     CacheStrategy<Result<TopNResultValue>, List<Object>, TopNQuery> strategy =
         new TopNQueryQueryToolChest(null, null).getCacheStrategyIfExists(
-            new TopNQuery(
-                new TableDataSource("dummy"),
-                null,
-                new DefaultDimensionSpec("test", "test"),
-                new NumericTopNMetricSpec("metric1"),
-                3,
-                new MultipleIntervalSegmentSpec(
-                    ImmutableList.of(
-                        new Interval(
-                            "2015-01-01/2015-01-02"
-                        )
-                    )
-                ),
-                null,
-                QueryGranularities.ALL,
-                ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("metric1")),
-                null,
-                null,
-                null
-            )
+            query
         );
 
     final Result<TopNResultValue> result = new Result<>(
@@ -97,7 +98,7 @@ public class TopNQueryQueryToolChestTest
         )
     );
 
-    Object preparedValue = strategy.prepareForCache().apply(
+    Object preparedValue = strategy.prepareForCache(query).apply(
         result
     );
 
@@ -107,7 +108,7 @@ public class TopNQueryQueryToolChestTest
         strategy.getCacheObjectClazz()
     );
 
-    Result<TopNResultValue> fromCacheResult = strategy.pullFromCache().apply(fromCacheValue);
+    Result<TopNResultValue> fromCacheResult = strategy.pullFromCache(query).apply(fromCacheValue);
 
     Assert.assertEquals(result, fromCacheResult);
   }

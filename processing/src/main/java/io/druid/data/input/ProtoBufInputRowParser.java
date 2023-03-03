@@ -34,6 +34,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.ParseSpec;
+import io.druid.query.QueryException;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -148,7 +149,7 @@ public class ProtoBufInputRowParser implements InputRowParser<ByteBuffer>
       return descriptor = file.getMessageTypes().get(0);
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 }

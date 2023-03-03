@@ -26,6 +26,7 @@ import com.google.inject.Inject;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -35,7 +36,7 @@ import java.util.Map;
 
 /**
  */
-public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQuery>
+public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>>
 {
   private final GenericQueryMetricsFactory metricsFactory;
 
@@ -54,14 +55,14 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
   }
 
   @Override
-  public QueryMetrics<? super JMXQuery> makeMetrics(JMXQuery query)
+  public QueryMetrics makeMetrics(Query<Map<String, Object>> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
   public Function<Sequence<Map<String, Object>>, Sequence<Map<String, Object>>> asMap(
-      final JMXQuery query,
+      final Query<Map<String, Object>> query,
       final String timestampColumn
   )
   {
@@ -102,7 +103,7 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
   }
 
   @Override
-  public TypeReference<Map<String, Object>> getResultTypeReference(JMXQuery query)
+  public TypeReference<Map<String, Object>> getResultTypeReference(Query<Map<String, Object>> query)
   {
     return MAP_TYPE_REFERENCE;
   }

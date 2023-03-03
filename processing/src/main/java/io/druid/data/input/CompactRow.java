@@ -32,6 +32,11 @@ import java.util.Collection;
  */
 public class CompactRow extends AbstractRow
 {
+  public static CompactRow of(Object... values)
+  {
+    return new CompactRow(values);
+  }
+
   public static Function<Object[], Row> WRAP = array -> new CompactRow(array);
   public static Function<Row, Object[]> UNWRAP = row -> ((CompactRow) row).values;
 

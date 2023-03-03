@@ -16,16 +16,15 @@
 
 package io.druid.segment.bitmap;
 
-import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.query.QueryException;
 import org.roaringbitmap.IntIterator;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.MutableRoaringBitmap;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
@@ -81,7 +80,7 @@ public class WrappedRoaringBitmap implements MutableBitmap
       return out.toByteArray();
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 
@@ -190,8 +189,8 @@ public class WrappedRoaringBitmap implements MutableBitmap
           )
       );
     }
-    catch (IOException e) {
-      throw Throwables.propagate(e);
+    catch (Exception e) {
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 

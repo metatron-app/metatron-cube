@@ -42,7 +42,7 @@ import java.util.Map;
 /**
  *
  */
-public class HistogramQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row, HistogramQuery>
+public class HistogramQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row>
 {
   @Inject
   public HistogramQueryRunnerFactory(HistogramQueryToolChest toolChest, QueryWatcher queryWatcher)

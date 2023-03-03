@@ -113,7 +113,7 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
     if (query instanceof ConveyQuery) {
       return QueryRunners.wrap(((ConveyQuery<T>) query).getValues());
     }
-    QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
+    QueryToolChest<T> toolChest = warehouse.getToolChest(query);
 
     if (query.getDataSource() instanceof QueryDataSource) {
       QueryRunner<T> runner = toolChest.handleSubQuery(this);

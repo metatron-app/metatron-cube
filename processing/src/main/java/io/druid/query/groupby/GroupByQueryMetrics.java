@@ -24,7 +24,7 @@ import io.druid.query.QueryMetrics;
 /**
  * Specialization of {@link QueryMetrics} for {@link GroupByQuery}.
  */
-public interface GroupByQueryMetrics extends QueryMetrics<GroupByQuery>
+public interface GroupByQueryMetrics extends QueryMetrics
 {
   /**
    * Sets the size of {@link GroupByQuery#getDimensions()} of the given query as dimension.

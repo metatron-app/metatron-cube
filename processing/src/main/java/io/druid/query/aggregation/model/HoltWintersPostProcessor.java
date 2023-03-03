@@ -22,13 +22,13 @@ package io.druid.query.aggregation.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.QueryException;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.model.HoltWintersModel.SeasonalityType;
 import io.druid.segment.ObjectArray;
@@ -194,7 +194,7 @@ public class HoltWintersPostProcessor extends PredictPostProcessor
     }
     catch (Exception e) {
       LOG.warn(e, "Failed");
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
     return rows;
   }

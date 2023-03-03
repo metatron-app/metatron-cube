@@ -123,14 +123,14 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> context)
   {
-    final QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
+    final QueryToolChest<T> toolChest = warehouse.getToolChest(query);
     final ObjectMapper mapper = query.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
                                 ? customMapper
                                 : objectMapper;
 
     final JavaType typeRef = toolChest.getResultTypeReference(query, objectMapper.getTypeFactory());
 
-    final QueryMetrics<?> queryMetrics = toolChest.makeMetrics(query);
+    final QueryMetrics queryMetrics = toolChest.makeMetrics(query);
     queryMetrics.server(host);
 
     if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
@@ -200,7 +200,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       return objectMapper.writeValueAsBytes(query.withOverriddenContext(Query.TIMEOUT, remain));
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 

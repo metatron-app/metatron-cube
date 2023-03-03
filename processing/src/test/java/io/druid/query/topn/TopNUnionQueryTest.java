@@ -26,6 +26,7 @@ import io.druid.collections.StupidPool;
 import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.QueryRunners;
 import io.druid.query.Result;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -35,57 +36,23 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@RunWith(Parameterized.class)
 public class TopNUnionQueryTest
 {
-  private final QueryRunner runner;
-
-  public TopNUnionQueryTest(
-      QueryRunner runner
-  )
-  {
-    this.runner = runner;
-  }
-
-  @Parameterized.Parameters
-  public static Iterable<Object[]> constructorFeeder() throws IOException
-  {
-    return QueryRunnerTestHelper.cartesian(
-        Iterables.concat(
-            QueryRunnerTestHelper.makeUnionQueryRunners(
-                new TopNQueryRunnerFactory(
-                    TestQueryRunners.getPool(),
-                    new TopNQueryQueryToolChest(
-                        new TopNQueryConfig(),
-                        TestHelper.testTopNQueryEngine()
-                    ),
-                    TestHelper.NOOP_QUERYWATCHER
-                ),
-                QueryRunnerTestHelper.unionDataSource
-            ),
-            QueryRunnerTestHelper.makeUnionQueryRunners(
-                new TopNQueryRunnerFactory(
-                    StupidPool.heap(2000),
-                    new TopNQueryQueryToolChest(
-                        new TopNQueryConfig(),
-                        TestHelper.testTopNQueryEngine()
-                    ),
-                    TestHelper.NOOP_QUERYWATCHER
-                ),
-                QueryRunnerTestHelper.unionDataSource
-            )
-        )
-    );
-  }
+  private final TopNQueryQueryToolChest toolchest = new TopNQueryQueryToolChest(
+      new TopNQueryConfig(), TestHelper.testTopNQueryEngine()
+  );
+  private final TopNQueryRunnerFactory factory1 = new TopNQueryRunnerFactory(
+      TestQueryRunners.getPool(), toolchest, TestHelper.NOOP_QUERYWATCHER
+  );
+  private final TopNQueryRunnerFactory factory2 = new TopNQueryRunnerFactory(
+      StupidPool.heap(2000), toolchest, TestHelper.NOOP_QUERYWATCHER
+  );
 
   @Test
   public void testTopNUnionQuery()
@@ -168,9 +135,12 @@ public class TopNUnionQueryTest
             )
         )
     );
-    HashMap<String,Object> context = new HashMap<String, Object>();
-    TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
+    for (QueryRunner<Result<TopNResultValue>> runner : Iterables.concat(
+        QueryRunnerTestHelper.makeUnionQueryRunners(query, factory1, QueryRunnerTestHelper.unionDataSource),
+        QueryRunnerTestHelper.makeUnionQueryRunners(query, factory2, QueryRunnerTestHelper.unionDataSource)
+    )) {
+      HashMap<String,Object> context = new HashMap<String, Object>();
+      TestHelper.assertExpectedResults(expectedResults, QueryRunners.run(query, runner));
+    }
   }
-
-
 }

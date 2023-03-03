@@ -44,7 +44,7 @@ import java.util.concurrent.ExecutorService;
 /**
  *
  */
-public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object[], DimensionSamplingQuery>
+public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object[]>
 {
   private static final Logger LOG = new Logger(DimensionSamplingQueryRunnerFactory.class);
 
@@ -56,14 +56,15 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
 
   @Override
   public Supplier<Object> preFactoring(
-      DimensionSamplingQuery query,
+      Query<Object[]> query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
   )
   {
-    int numSample = (int) (segments.stream().mapToInt(s -> s.getNumRows()).sum() * query.getSampleRatio());
-    return Suppliers.ofInstance(new Sampler(Math.max(10, numSample), query.getDimensions()));
+    DimensionSamplingQuery sampling = (DimensionSamplingQuery) query;
+    int numSample = (int) (segments.stream().mapToInt(s -> s.getNumRows()).sum() * sampling.getSampleRatio());
+    return Suppliers.ofInstance(new Sampler(Math.max(10, numSample), sampling.getDimensions()));
   }
 
   @Override

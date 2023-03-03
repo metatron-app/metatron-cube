@@ -35,7 +35,7 @@ import java.util.Map;
 /**
  */
 public class SelectMetaQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<Result<SelectMetaResultValue>, SelectMetaQuery>
+    extends QueryRunnerFactory.Abstract<Result<SelectMetaResultValue>>
 {
   private final SelectMetaQueryEngine engine;
 

@@ -26,13 +26,12 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.BulkRow;
 import io.druid.data.input.BulkSequence;
 
-import javax.annotation.Nullable;
 import java.util.function.ToIntFunction;
 
 /**
  *
  */
-public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[], DimensionSamplingQuery>
+public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[]>
 {
   private final GenericQueryMetricsFactory metricsFactory;
 
@@ -49,14 +48,14 @@ public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[], Di
   }
 
   @Override
-  public QueryMetrics<? super DimensionSamplingQuery> makeMetrics(DimensionSamplingQuery query)
+  public QueryMetrics makeMetrics(Query<Object[]> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeReference getResultTypeReference(@Nullable DimensionSamplingQuery query)
+  public TypeReference getResultTypeReference(Query<Object[]> query)
   {
     if (query != null && query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       return BulkRow.TYPE_REFERENCE;
@@ -67,7 +66,7 @@ public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[], Di
 
   @Override
   @SuppressWarnings("unchecked")
-  public Sequence<Object[]> deserializeSequence(DimensionSamplingQuery query, Sequence sequence)
+  public Sequence<Object[]> deserializeSequence(Query<Object[]> query, Sequence sequence)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> Sequences.once(bulk.decompose()));
@@ -76,7 +75,7 @@ public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[], Di
   }
 
   @Override
-  public Sequence serializeSequence(DimensionSamplingQuery query, Sequence<Object[]> sequence, QuerySegmentWalker segmentWalker)
+  public Sequence serializeSequence(Query<Object[]> query, Sequence<Object[]> sequence, QuerySegmentWalker segmentWalker)
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
@@ -86,7 +85,7 @@ public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[], Di
   }
 
   @Override
-  public ToIntFunction numRows(DimensionSamplingQuery query)
+  public ToIntFunction numRows(Query<Object[]> query)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       return v -> ((BulkRow) v).count();

@@ -48,7 +48,7 @@ public class MapQueryToolChestWarehouse implements QueryToolChestWarehouse
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query)
+  public <T> QueryToolChest<T> getToolChest(Query<?> query)
   {
     return toolchests.get(query.getClass());
   }

@@ -80,7 +80,7 @@ public class MapVirtualColumnTest
   @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    QueryRunnerFactory<Result<SelectResultValue>, SelectQuery> factory = TestHelper.factoryFor(SelectQuery.class);
+    QueryRunnerFactory<Result<SelectResultValue>> factory = TestHelper.factoryFor(SelectQuery.class);
 
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())

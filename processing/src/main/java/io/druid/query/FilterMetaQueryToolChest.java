@@ -43,13 +43,13 @@ public class FilterMetaQueryToolChest extends QueryToolChest.CacheSupport<long[]
   }
 
   @Override
-  public TypeReference<long[]> getResultTypeReference(FilterMetaQuery query)
+  public TypeReference<long[]> getResultTypeReference(Query<long[]> query)
   {
     return TYPE_REFERENCE;
   }
 
   @Override
-  public QueryMetrics<? super FilterMetaQuery> makeMetrics(FilterMetaQuery query)
+  public QueryMetrics makeMetrics(Query<long[]> query)
   {
     return metricsFactory.makeMetrics(query);
   }
@@ -74,9 +74,9 @@ public class FilterMetaQueryToolChest extends QueryToolChest.CacheSupport<long[]
   }
 
   @Override
-  public IdenticalCacheStrategy getCacheStrategy(final FilterMetaQuery query)
+  public IdenticalCacheStrategy<FilterMetaQuery> getCacheStrategy(final FilterMetaQuery query)
   {
-    return new IdenticalCacheStrategy()
+    return new IdenticalCacheStrategy<FilterMetaQuery>()
     {
       @Override
       public byte[] computeCacheKey(FilterMetaQuery query, int limit)

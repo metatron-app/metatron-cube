@@ -29,7 +29,6 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
-import io.druid.java.util.common.ISE;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -44,6 +43,7 @@ import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
@@ -137,7 +137,7 @@ import static java.lang.Double.NaN;
 public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 {
   private final QueryRunner runner;
-  private QueryRunnerFactory<Row, Query<Row>> factory;
+  private QueryRunnerFactory<Row> factory;
 
   @Parameterized.Parameters
   public static Collection<?> constructorFeeder() throws IOException
@@ -145,7 +145,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     return GroupByQueryRunnerTestHelper.createRunners();
   }
 
-  public GroupByQueryRunnerTest(QueryRunnerFactory<Row, Query<Row>> factory, QueryRunner<Row> runner)
+  public GroupByQueryRunnerTest(QueryRunnerFactory<Row> factory, QueryRunner<Row> runner)
   {
     this.factory = factory;
     this.runner = runner;
@@ -604,7 +604,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
-  @Test(expected = ISE.class)
+  @Test(expected = QueryException.class)
   public void testGroupByMaxRowsLimitContextOverrid()
   {
     GroupByQuery query = GroupByQuery

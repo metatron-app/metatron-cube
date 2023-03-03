@@ -315,8 +315,8 @@ public class RealtimePlumber implements Plumber
       return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, objectMapper);
     }
     final boolean skipIncrementalSegment = query.getContextBoolean(SKIP_INCREMENTAL_SEGMENT, false);
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    final QueryToolChest<T, Query<T>> toolchest = factory.getToolchest();
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
+    final QueryToolChest<T> toolchest = factory.getToolchest();
 
     List<TimelineObjectHolder<Sink>> querySinks = Lists.newArrayList();
     for (Interval interval : query.getIntervals()) {

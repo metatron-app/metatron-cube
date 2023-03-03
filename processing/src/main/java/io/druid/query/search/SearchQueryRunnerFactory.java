@@ -26,13 +26,12 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
-import io.druid.query.search.search.SearchQuery;
 import io.druid.segment.Segment;
 
 /**
  *
  */
-public class SearchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<SearchResultValue>, SearchQuery>
+public class SearchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<SearchResultValue>>
 {
   @Inject
   public SearchQueryRunnerFactory(SearchQueryQueryToolChest toolChest, QueryWatcher queryWatcher)

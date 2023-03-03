@@ -45,7 +45,7 @@ import java.util.Map;
 /**
  *
  */
-public class DeleteColumnsToolChest extends QueryToolChest.MetricSupport<DDLResult, DeleteColumnsQuery>
+public class DeleteColumnsToolChest extends QueryToolChest.MetricSupport<DDLResult>
 {
   private static final TypeReference<DDLResult> DDL_TYPE_REFERENCE = new TypeReference<DDLResult>()
   {
@@ -105,7 +105,7 @@ public class DeleteColumnsToolChest extends QueryToolChest.MetricSupport<DDLResu
   }
 
   @Override
-  public TypeReference<DDLResult> getResultTypeReference(DeleteColumnsQuery query)
+  public TypeReference<DDLResult> getResultTypeReference(Query<DDLResult> query)
   {
     return DDL_TYPE_REFERENCE;
   }

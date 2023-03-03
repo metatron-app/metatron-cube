@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
@@ -38,6 +37,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import io.druid.query.QueryException;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 
@@ -223,7 +223,7 @@ public class PivotColumnSpec extends OrderingSpec
           }
           catch (Exception e) {
             LOG.info("Failed on expression %s", expression);
-            throw Throwables.propagate(e);
+            throw QueryException.wrapIfNeeded(e);
           }
         }
       };

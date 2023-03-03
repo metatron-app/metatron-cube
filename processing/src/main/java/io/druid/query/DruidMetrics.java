@@ -46,22 +46,22 @@ public class DruidMetrics
   {
     int retVal = 0;
     for (AggregatorFactory agg : aggs) {
-      // This needs to change when we have support column types better
-      if (agg.getOutputType() !=null && !agg.getOutputType().isPrimitive()) {
+      // This needs to be changed when we have better column types
+      if (agg.getOutputType() != null && !agg.getOutputType().isPrimitive()) {
         retVal++;
       }
     }
     return retVal;
   }
 
-  public static <T> QueryMetrics<?> makeRequestMetrics(
+  public static <T> QueryMetrics makeRequestMetrics(
       final GenericQueryMetricsFactory metricsFactory,
-      final QueryToolChest<T, Query<T>> toolChest,
+      final QueryToolChest<T> toolChest,
       final Query<T> query,
       final String remoteAddr
   ) throws JsonProcessingException
   {
-    QueryMetrics<? super Query<T>> queryMetrics;
+    QueryMetrics queryMetrics;
     if (toolChest != null) {
       queryMetrics = toolChest.makeMetrics(query);
     } else {

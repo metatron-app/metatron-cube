@@ -47,8 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-public class SegmentMetadataQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<SegmentAnalysis, SegmentMetadataQuery>
+public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstract<SegmentAnalysis>
 {
   private static final Logger log = new Logger(SegmentMetadataQueryRunnerFactory.class);
 

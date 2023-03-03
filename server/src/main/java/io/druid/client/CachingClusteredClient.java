@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -58,6 +57,7 @@ import io.druid.query.DataSources;
 import io.druid.query.FilterableManagementQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
@@ -84,7 +84,6 @@ import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceInstance;
 import org.joda.time.Interval;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -156,7 +155,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
   {
-    final QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
+    final QueryToolChest<T> toolChest = warehouse.getToolChest(query);
 
     if (query instanceof Query.ManagementQuery) {
       try {
@@ -170,7 +169,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         return QueryUtils.mergeSort(query, sequences);
       }
       catch (Exception e) {
-        throw Throwables.propagate(e);
+        throw QueryException.wrapIfNeeded(e);
       }
     }
 
@@ -414,8 +413,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                         cacheObjectClazz
                     );
                   }
-                  catch (IOException e) {
-                    throw Throwables.propagate(e);
+                  catch (Exception e) {
+                    throw QueryException.wrapIfNeeded(e);
                   }
                   finally {
                     cacheAccessor.addTime(System.currentTimeMillis() - prev);
@@ -433,7 +432,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             localized, MetricManipulatorFns.deserializing()
         );
         final Function<Result<BySegmentResultValue<T>>, Sequence<T>> populator = bySegmentPopulator(
-            columns, deserializer, strategy, cachePopulatorMap
+            localized, columns, deserializer, strategy, cachePopulatorMap
         );
         final int parallelism = queryConfig.getQueryParallelism(localized);
         final Execs.ExecutorQueue<Sequence> queue = new Execs.ExecutorQueue(parallelism);
@@ -481,6 +480,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   }
 
   private Function<Result<BySegmentResultValue<T>>, Sequence<T>> bySegmentPopulator(
+      Query<T> query,
       List<String> columns,
       Function<T, T> deserializer,
       CacheStrategy strategy,
@@ -490,7 +490,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     if (strategy == null) {
       return null;
     }
-    final Function<T, Object> prepareForCache = strategy.prepareForCache();
+    final Function<T, Object> prepareForCache = strategy.prepareForCache(query);
     return new Function<Result<BySegmentResultValue<T>>, Sequence<T>>()
     {
       // Acctually do something with the results
@@ -599,7 +599,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     {
       super(new AtomicLong(), new AtomicInteger());
       this.counter = strategy.numRows(query);
-      this.pullFromCacheFunction = strategy.pullFromCache();
+      this.pullFromCacheFunction = strategy.pullFromCache(query);
     }
 
     public void addTime(long time)

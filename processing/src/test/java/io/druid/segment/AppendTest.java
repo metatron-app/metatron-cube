@@ -181,7 +181,7 @@ public class AppendTest
     TimeBoundaryQuery query = Druids.newTimeBoundaryQueryBuilder()
                                     .dataSource(dataSource)
                                     .build();
-    QueryRunner runner = TestQueryRunners.makeTimeBoundaryQueryRunner(segment);
+    QueryRunner runner = TestQueryRunners.makeTimeBoundaryQueryRunner(query, segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -206,7 +206,7 @@ public class AppendTest
     TimeBoundaryQuery query = Druids.newTimeBoundaryQueryBuilder()
                                     .dataSource(dataSource)
                                     .build();
-    QueryRunner runner = TestQueryRunners.makeTimeBoundaryQueryRunner(segment2);
+    QueryRunner runner = TestQueryRunners.makeTimeBoundaryQueryRunner(query, segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -229,7 +229,7 @@ public class AppendTest
     );
 
     TimeseriesQuery query = makeTimeseriesQuery();
-    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment);
+    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(query, segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
@@ -252,7 +252,7 @@ public class AppendTest
     );
 
     TimeseriesQuery query = makeTimeseriesQuery();
-    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment2);
+    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(query, segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
@@ -275,7 +275,7 @@ public class AppendTest
     );
 
     TimeseriesQuery query = makeFilteredTimeseriesQuery();
-    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment);
+    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(query, segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
@@ -298,7 +298,7 @@ public class AppendTest
     );
 
     TimeseriesQuery query = makeFilteredTimeseriesQuery();
-    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment2);
+    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(query, segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }
@@ -345,7 +345,7 @@ public class AppendTest
     );
 
     TopNQuery query = makeTopNQuery();
-    QueryRunner runner = TestQueryRunners.makeTopNQueryRunner(segment);
+    QueryRunner runner = TestQueryRunners.makeTopNQueryRunner(query, segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -392,7 +392,7 @@ public class AppendTest
     );
 
     TopNQuery query = makeTopNQuery();
-    QueryRunner runner = TestQueryRunners.makeTopNQueryRunner(segment2);
+    QueryRunner runner = TestQueryRunners.makeTopNQueryRunner(query, segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -420,7 +420,7 @@ public class AppendTest
     );
 
     TopNQuery query = makeFilteredTopNQuery();
-    QueryRunner runner = TestQueryRunners.makeTopNQueryRunner(segment);
+    QueryRunner runner = TestQueryRunners.makeTopNQueryRunner(query, segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -438,7 +438,7 @@ public class AppendTest
     );
 
     TopNQuery query = makeFilteredTopNQuery();
-    QueryRunner runner = TestQueryRunners.makeTopNQueryRunner(segment2);
+    QueryRunner runner = TestQueryRunners.makeTopNQueryRunner(query, segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -461,7 +461,7 @@ public class AppendTest
     );
 
     SearchQuery query = makeSearchQuery();
-    QueryRunner runner = TestQueryRunners.makeSearchQueryRunner(segment);
+    QueryRunner runner = TestQueryRunners.makeSearchQueryRunner(query, segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -483,7 +483,7 @@ public class AppendTest
     );
 
     SearchQuery query = makeSearchQuery();
-    QueryRunner runner = TestQueryRunners.makeSearchQueryRunner(segment2);
+    QueryRunner runner = TestQueryRunners.makeSearchQueryRunner(query, segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -504,7 +504,7 @@ public class AppendTest
     );
 
     SearchQuery query = makeFilteredSearchQuery();
-    QueryRunner runner = TestQueryRunners.makeSearchQueryRunner(segment);
+    QueryRunner runner = TestQueryRunners.makeSearchQueryRunner(query, segment);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -526,7 +526,7 @@ public class AppendTest
     );
 
     SearchQuery query = makeFilteredSearchQuery();
-    QueryRunner runner = TestQueryRunners.makeSearchQueryRunner(segment2);
+    QueryRunner runner = TestQueryRunners.makeSearchQueryRunner(query, segment2);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedResults(expectedResults, runner.run(query, context));
   }
@@ -566,7 +566,7 @@ public class AppendTest
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(addRowsIndexConstant))
                                   .build();
-    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(segment3);
+    QueryRunner runner = TestQueryRunners.makeTimeSeriesQueryRunner(query, segment3);
     HashMap<String,Object> context = new HashMap<String, Object>();
     TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "");
   }

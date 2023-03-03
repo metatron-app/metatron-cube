@@ -41,7 +41,7 @@ import java.util.Map;
 /**
  */
 public class DataSourceQueryQueryToolChest
-    extends QueryToolChest<Result<DataSourceMetadataResultValue>, DataSourceMetadataQuery>
+    extends QueryToolChest<Result<DataSourceMetadataResultValue>>
 {
   private static final TypeReference<Result<DataSourceMetadataResultValue>> TYPE_REFERENCE = new TypeReference<Result<DataSourceMetadataResultValue>>()
   {
@@ -56,7 +56,7 @@ public class DataSourceQueryQueryToolChest
   }
 
   @Override
-  public <T extends LogicalSegment> List<T> filterSegments(DataSourceMetadataQuery query, List<T> segments)
+  public <T extends LogicalSegment> List<T> filterSegments(Query<Result<DataSourceMetadataResultValue>> query, List<T> segments)
   {
     if (segments.size() <= 1) {
       return segments;
@@ -106,13 +106,13 @@ public class DataSourceQueryQueryToolChest
   }
 
   @Override
-  public QueryMetrics<Query<?>> makeMetrics(DataSourceMetadataQuery query)
+  public QueryMetrics makeMetrics(Query<Result<DataSourceMetadataResultValue>> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public TypeReference<Result<DataSourceMetadataResultValue>> getResultTypeReference(DataSourceMetadataQuery query)
+  public TypeReference<Result<DataSourceMetadataResultValue>> getResultTypeReference(Query<Result<DataSourceMetadataResultValue>> query)
   {
     return TYPE_REFERENCE;
   }

@@ -36,7 +36,7 @@ import java.util.Map;
 
 /**
  */
-public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row, TimeseriesQuery>
+public class TimeseriesQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row>
 {
   private final TimeseriesQueryEngine engine;
   private final QueryConfig config;

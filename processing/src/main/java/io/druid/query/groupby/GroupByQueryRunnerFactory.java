@@ -78,8 +78,8 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 public class GroupByQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<Row, GroupByQuery>
-    implements QueryRunnerFactory.Splitable<Row, GroupByQuery>
+    extends QueryRunnerFactory.Abstract<Row>
+    implements QueryRunnerFactory.Splitable<Row>
 {
   private static final Logger logger = new Logger(GroupByQueryRunnerFactory.class);
 
@@ -107,12 +107,13 @@ public class GroupByQueryRunnerFactory
 
   @Override
   public Supplier<Object> preFactoring(
-      GroupByQuery query,
+      Query<Row> base,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
   )
   {
+    GroupByQuery query = (GroupByQuery) base;
     List<ValueType> types = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
       ValueDesc type = dimensionSpec.resolve(resolver);
@@ -140,15 +141,16 @@ public class GroupByQueryRunnerFactory
 
   @Override
   public List<List<Segment>> splitSegments(
-      GroupByQuery query,
+      Query<Row> base,
       List<Segment> segments,
       Supplier<Object> optimizer,
       Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker
   )
   {
+    GroupByQuery query = (GroupByQuery) base;
     // this possibly does not reduce total cardinality to handle..
-    if (Granularities.ALL.equals(query.getGranularity())) {
+    if (Granularities.isAll(query.getGranularity())) {
       return null;  // cannot split on time
     }
     if (query.getDimensions().isEmpty()) {
@@ -232,15 +234,16 @@ public class GroupByQueryRunnerFactory
   }
 
   @Override
-  public List<GroupByQuery> splitQuery(
-      GroupByQuery query,
+  public List<Query<Row>> splitQuery(
+      Query<Row> base,
       List<Segment> segments,
       Supplier<Object> optimizer,
       Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker
   )
   {
-    if (!Granularities.ALL.equals(query.getGranularity()) || BaseQuery.isBySegment(query)) {
+    GroupByQuery query = (GroupByQuery) base;
+    if (!Granularities.isAll(query.getGranularity()) || BaseQuery.isBySegment(query)) {
       return null;  // cannot split on column
     }
     if (query.getLimitSpec().getSegmentLimit() != null) {
@@ -307,7 +310,7 @@ public class GroupByQueryRunnerFactory
     OrderByColumnSpec orderingSpec = DimensionSpecs.asOrderByColumnSpec(dimensionSpec);
     String dimension = mapping.getOrDefault(dimensionSpec.getOutputName(), dimensionSpec.getOutputName());
 
-    List<GroupByQuery> splits = Lists.newArrayList();
+    List<Query<Row>> splits = Lists.newArrayList();
     for (DimFilter filter : QueryUtils.toSplitter(dimension, orderingSpec, thresholds)) {
       logger.debug("--> split filter : %s", filter);
       splits.add(query.withFilter(DimFilters.and(query.getFilter(), filter)));

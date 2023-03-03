@@ -148,18 +148,18 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   }
 
   @Override
-  public Function<Row, Row> makePreComputeManipulatorFn(final T query, final MetricManipulationFn fn)
+  public Function<Row, Row> makePreComputeManipulatorFn(final Query<Row> query, final MetricManipulationFn fn)
   {
     if (fn == MetricManipulatorFns.identity()) {
       return super.makePreComputeManipulatorFn(query, fn);
     }
     final List<String> columns = query.estimatedOutputColumns();
-    return manipulateMetricOnCompactRow(query.aggregatorSpecs, columns, fn);
+    return manipulateMetricOnCompactRow(BaseQuery.getAggregators(query), columns, fn);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public Sequence<Row> deserializeSequence(T query, Sequence sequence)
+  public Sequence<Row> deserializeSequence(Query<Row> query, Sequence sequence)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       sequence = Sequences.explode(
@@ -170,17 +170,19 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   }
 
   @Override
-  public Sequence serializeSequence(T query, Sequence<Row> sequence, QuerySegmentWalker segmentWalker)
+  public Sequence serializeSequence(Query<Row> query, Sequence<Row> sequence, QuerySegmentWalker segmentWalker)
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return BulkSequence.fromRow(sequence, Queries.relaySchema(query, segmentWalker), query.getSimpleLimit());
+      return BulkSequence.fromRow(
+          sequence, Queries.relaySchema(query, segmentWalker), ((BaseAggregationQuery) query).getSimpleLimit()
+      );
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }
 
   @Override
-  public ToIntFunction numRows(T query)
+  public ToIntFunction numRows(Query<Row> query)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       return v -> ((BulkRow) v).count();
@@ -189,18 +191,17 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   }
 
   @Override
-  public Function<Row, Row> makePostComputeManipulatorFn(final T query, final MetricManipulationFn fn)
+  public Function<Row, Row> makePostComputeManipulatorFn(final Query<Row> query, final MetricManipulationFn fn)
   {
     if (fn == MetricManipulatorFns.identity()) {
       return super.makePostComputeManipulatorFn(query, fn);
     }
+    final List<AggregatorFactory> metrics = BaseQuery.getAggregators(query);
     if (!BaseQuery.isBrokerSide(query)) {
-      return manipulateMetricOnCompactRow(query.aggregatorSpecs, query.estimatedOutputColumns(), fn);
+      return manipulateMetricOnCompactRow(metrics, query.estimatedOutputColumns(), fn);
     }
     return new Function<Row, Row>()
     {
-      private final List<AggregatorFactory> metrics = query.getAggregatorSpecs();
-
       @Override
       public Row apply(Row input)
       {
@@ -245,7 +246,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeReference getResultTypeReference(T query)
+  public TypeReference getResultTypeReference(Query<Row> query)
   {
     if (query != null && query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       return BulkRow.TYPE_REFERENCE;
@@ -255,7 +256,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   }
 
   @Override
-  public CacheStrategy<Row, Object[], T> getCacheStrategy(final T query)
+  public CacheStrategy<Row, Object[], T> getCacheStrategy(final T base)
   {
     return new CacheStrategy<Row, Object[], T>()
     {
@@ -279,20 +280,13 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       }
 
       @Override
-      public Function<Row, Object[]> prepareForCache()
+      public Function<Row, Object[]> prepareForCache(T query)
       {
-        return new Function<Row, Object[]>()
-        {
-          @Override
-          public Object[] apply(Row input)
-          {
-            return ((CompactRow) input).getValues();
-          }
-        };
+        return CompactRow.UNWRAP;
       }
 
       @Override
-      public Function<Object[], Row> pullFromCache()
+      public Function<Object[], Row> pullFromCache(T query)
       {
         return new Function<Object[], Row>()
         {
@@ -316,7 +310,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   protected abstract byte queryCode();
 
   @Override
-  public Function<Sequence<Row>, Sequence<Map<String, Object>>> asMap(final T query, final String timestampColumn)
+  public Function<Sequence<Row>, Sequence<Map<String, Object>>> asMap(final Query<Row> query, final String timestampColumn)
   {
     return new Function<Sequence<Row>, Sequence<Map<String, Object>>>()
     {

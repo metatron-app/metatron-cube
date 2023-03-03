@@ -60,29 +60,30 @@ public class TimeseriesQueryQueryToolChestTest
   @Test
   public void testCacheStrategy() throws Exception
   {
+    TimeseriesQuery query = new TimeseriesQuery(
+        new TableDataSource("dummy" ),
+        new MultipleIntervalSegmentSpec(
+            ImmutableList.of(
+                new Interval(
+                    "2015-01-01/2015-01-02"
+                )
+            )
+        ),
+        descending,
+        null,
+        QueryGranularities.ALL,
+        null,
+        ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("metric1" )),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    );
     CacheStrategy<Row, Object[], TimeseriesQuery> strategy =
         new TimeseriesQueryQueryToolChest().getCacheStrategyIfExists(
-            new TimeseriesQuery(
-                new TableDataSource("dummy"),
-                new MultipleIntervalSegmentSpec(
-                    ImmutableList.of(
-                        new Interval(
-                            "2015-01-01/2015-01-02"
-                        )
-                    )
-                ),
-                descending,
-                null,
-                QueryGranularities.ALL,
-                null,
-                ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("metric1")),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-            )
+            query
         );
 
     final CompactRow result = new CompactRow(
@@ -90,7 +91,7 @@ public class TimeseriesQueryQueryToolChestTest
         new Object[]{new DateTime(123L).getMillis(), 2}
     );
 
-    Object preparedValue = strategy.prepareForCache().apply(result);
+    Object preparedValue = strategy.prepareForCache(query).apply(result);
 
     ObjectMapper objectMapper = new DefaultObjectMapper();
     Object[] fromCacheValue = objectMapper.readValue(
@@ -98,7 +99,7 @@ public class TimeseriesQueryQueryToolChestTest
         strategy.getCacheObjectClazz()
     );
 
-    CompactRow fromCacheResult = (CompactRow) strategy.pullFromCache().apply(fromCacheValue);
+    CompactRow fromCacheResult = (CompactRow) strategy.pullFromCache(query).apply(fromCacheValue);
     Assert.assertEquals(result.getTimestampFromEpoch(), fromCacheResult.getTimestampFromEpoch());
   }
 }

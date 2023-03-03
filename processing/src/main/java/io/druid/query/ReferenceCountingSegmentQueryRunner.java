@@ -20,7 +20,6 @@
 package io.druid.query;
 
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.CloseQuietly;
@@ -33,13 +32,13 @@ import java.util.Map;
  */
 public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
 {
-  private final QueryRunnerFactory<T, Query<T>> factory;
+  private final QueryRunnerFactory<T> factory;
   private final ReferenceCountingSegment adapter;
   private final SegmentDescriptor descriptor;
   private final Supplier<Object> optimizer;
 
   public ReferenceCountingSegmentQueryRunner(
-      QueryRunnerFactory<T, Query<T>> factory,
+      QueryRunnerFactory<T> factory,
       ReferenceCountingSegment adapter,
       SegmentDescriptor descriptor,
       Supplier<Object> optimizer
@@ -60,11 +59,12 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
       return new ReportTimelineMissingSegmentQueryRunner<T>(descriptor).run(query, responseContext);
     }
     try {
-      return Sequences.withBaggage(factory.createRunner(adapter, optimizer).run(query, responseContext), closeable);
+      QueryRunner<T> runner = factory.createRunner(adapter, optimizer);
+      return Sequences.withBaggage(runner.run(query, responseContext), closeable);
     }
     catch (Exception e) {
       CloseQuietly.close(closeable);
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 }

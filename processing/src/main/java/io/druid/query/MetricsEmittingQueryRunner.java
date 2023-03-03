@@ -37,19 +37,19 @@ import java.util.function.ObjLongConsumer;
 public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
 {
   private final ServiceEmitter emitter;
-  private final QueryToolChest<T, ? extends Query<T>> queryToolChest;
+  private final QueryToolChest<T> queryToolChest;
   private final QueryRunner<T> queryRunner;
   private final long creationTimeNs;
-  private final ObjLongConsumer<? super QueryMetrics<?>> reportMetric;
-  private final Consumer<QueryMetrics<?>> applyCustomDimensions;
+  private final ObjLongConsumer<? super QueryMetrics> reportMetric;
+  private final Consumer<QueryMetrics> applyCustomDimensions;
 
   public MetricsEmittingQueryRunner(
       ServiceEmitter emitter,
-      QueryToolChest<T, ? extends Query<T>> queryToolChest,
+      QueryToolChest<T> queryToolChest,
       QueryRunner<T> queryRunner,
       long creationTimeNs,
-      ObjLongConsumer<? super QueryMetrics<?>> reportMetric,
-      Consumer<QueryMetrics<?>> applyCustomDimensions
+      ObjLongConsumer<? super QueryMetrics> reportMetric,
+      Consumer<QueryMetrics> applyCustomDimensions
   )
   {
     this.emitter = emitter;
@@ -62,10 +62,10 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
 
   public MetricsEmittingQueryRunner(
       ServiceEmitter emitter,
-      QueryToolChest<T, ? extends Query<T>> queryToolChest,
+      QueryToolChest<T> queryToolChest,
       QueryRunner<T> queryRunner,
-      ObjLongConsumer<? super QueryMetrics<?>> reportMetric,
-      Consumer<QueryMetrics<?>> applyCustomDimensions
+      ObjLongConsumer<? super QueryMetrics> reportMetric,
+      Consumer<QueryMetrics> applyCustomDimensions
   )
   {
     this(emitter, queryToolChest, queryRunner, -1, reportMetric, applyCustomDimensions);
@@ -87,7 +87,7 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
   {
-    final QueryMetrics<?> queryMetrics = QueryToolChest.getQueryMetrics(query, queryToolChest);
+    final QueryMetrics queryMetrics = QueryToolChest.getQueryMetrics(query, queryToolChest);
     applyCustomDimensions.accept(queryMetrics);
 
 
@@ -153,7 +153,7 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
       private <OutType> Yielder<OutType> makeYielder(
           final long startTimeNs,
           final Yielder<OutType> yielder,
-          final QueryMetrics<?> queryMetrics)
+          final QueryMetrics queryMetrics)
       {
         return new Yielder<OutType>()
         {

@@ -42,27 +42,28 @@ public class SearchQueryQueryToolChestTest
   @Test
   public void testCacheStrategy() throws Exception
   {
+    SearchQuery query = new SearchQuery(
+        new TableDataSource("dummy" ),
+        null,
+        QueryGranularities.ALL,
+        1,
+        new MultipleIntervalSegmentSpec(
+            ImmutableList.of(
+                new Interval(
+                    "2015-01-01/2015-01-02"
+                )
+            )
+        ),
+        null,
+        ImmutableList.of(Druids.DIMENSION_IDENTITY.apply("dim1" )),
+        new FragmentSearchQuerySpec(ImmutableList.of("a", "b")),
+        null,
+        true,
+        null
+    );
     CacheStrategy<Result<SearchResultValue>, Object, SearchQuery> strategy =
         new SearchQueryQueryToolChest(null).getCacheStrategyIfExists(
-            new SearchQuery(
-                new TableDataSource("dummy"),
-                null,
-                QueryGranularities.ALL,
-                1,
-                new MultipleIntervalSegmentSpec(
-                    ImmutableList.of(
-                        new Interval(
-                            "2015-01-01/2015-01-02"
-                        )
-                    )
-                ),
-                null,
-                ImmutableList.of(Druids.DIMENSION_IDENTITY.apply("dim1")),
-                new FragmentSearchQuerySpec(ImmutableList.of("a", "b")),
-                null,
-                true,
-                null
-            )
+            query
         );
 
     final Result<SearchResultValue> result = new Result<>(
@@ -73,7 +74,7 @@ public class SearchQueryQueryToolChestTest
     )
     );
 
-    Object preparedValue = strategy.prepareForCache().apply(
+    Object preparedValue = strategy.prepareForCache(query).apply(
         result
     );
 
@@ -83,7 +84,7 @@ public class SearchQueryQueryToolChestTest
         strategy.getCacheObjectClazz()
     );
 
-    Result<SearchResultValue> fromCacheResult = strategy.pullFromCache().apply(fromCacheValue);
+    Result<SearchResultValue> fromCacheResult = strategy.pullFromCache(query).apply(fromCacheValue);
 
     Assert.assertEquals(result, fromCacheResult);
   }

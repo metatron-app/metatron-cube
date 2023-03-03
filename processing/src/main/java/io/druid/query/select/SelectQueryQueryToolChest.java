@@ -76,7 +76,7 @@ import java.util.function.ToIntFunction;
 
 /**
  */
-public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResultValue>, SelectQuery>
+public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResultValue>>
 {
   private static final TypeReference<Result<SelectResultValue>> TYPE_REFERENCE =
       new TypeReference<Result<SelectResultValue>>()
@@ -240,20 +240,20 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public QueryMetrics<Query<?>> makeMetrics(SelectQuery query)
+  public QueryMetrics makeMetrics(Query<Result<SelectResultValue>> query)
   {
-    return metricsFactory.makeMetrics(query).granularity(query.getGranularity());
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public TypeReference<Result<SelectResultValue>> getResultTypeReference(SelectQuery query)
+  public TypeReference<Result<SelectResultValue>> getResultTypeReference(Query<Result<SelectResultValue>> query)
   {
     return TYPE_REFERENCE;
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public ToIntFunction numRows(SelectQuery query)
+  public ToIntFunction numRows(Query<Result<SelectResultValue>> query)
   {
     if (BaseQuery.isBySegment(query)) {
       return v -> {
@@ -268,9 +268,9 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public <T extends LogicalSegment> List<T> filterSegments(SelectQuery query, List<T> segments)
+  public <T extends LogicalSegment> List<T> filterSegments(Query<Result<SelectResultValue>> query, List<T> segments)
   {
-    return filterSegmentsOnPagingSpec(query, segments);
+    return filterSegmentsOnPagingSpec((SelectQuery) query, segments);
   }
 
   static <T extends LogicalSegment> List<T> filterSegmentsOnPagingSpec(SelectQuery query, List<T> segments)
@@ -335,18 +335,19 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public SelectQuery optimizeQuery(SelectQuery query, QuerySegmentWalker walker)
+  public SelectQuery optimizeQuery(Query<Result<SelectResultValue>> query, QuerySegmentWalker walker)
   {
-    PagingSpec pagingSpec = query.getPagingSpec();
+    SelectQuery select = (SelectQuery) query;
+    PagingSpec pagingSpec = select.getPagingSpec();
     if (!pagingSpec.getPagingIdentifiers().isEmpty() || pagingSpec.getThreshold() == 0) {
       // todo
-      return query;
+      return select;
     }
 
     int threshold = pagingSpec.getThreshold();
     List<String> dataSourceNames = query.getDataSource().getNames();
 
-    SelectMetaQuery metaQuery = query.toMetaQuery(false);
+    SelectMetaQuery metaQuery = select.toMetaQuery(false);
     List<Result<SelectMetaResultValue>> results = Sequences.toList(QueryRunners.run(metaQuery, walker));
 
     Comparator<Interval> comparator = query.isDescending() ? JodaUtils.intervalsByEndThenStart()
@@ -395,11 +396,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     }
     if (targetDataSources.size() == 1) {
       LOG.info("Filtered %d segment interval into %d", totalSegments, targetIntervals.size());
-      return query.withDataSource(new TableDataSource(targetDataSources.get(0)))
-                  .withQuerySegmentSpec(new MultipleIntervalSegmentSpec(targetIntervals));
+      return select.withDataSource(new TableDataSource(targetDataSources.get(0)))
+                   .withQuerySegmentSpec(new MultipleIntervalSegmentSpec(targetIntervals));
     }
     LOG.info("Filtered %d dataSource into %d", mapping.size(), targetDataSources.size());
-    return query.withDataSource(new UnionDataSource(targetDataSources));
+    return select.withDataSource(new UnionDataSource(targetDataSources));
   }
 
   private String findDataSource(List<String> dataSourceNames, String identifier)
@@ -420,7 +421,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
 
   @Override
   public Function<Sequence<Result<SelectResultValue>>, Sequence<Map<String, Object>>> asMap(
-      final SelectQuery query,
+      final Query<Result<SelectResultValue>> query,
       final String timestampColumn
   )
   {

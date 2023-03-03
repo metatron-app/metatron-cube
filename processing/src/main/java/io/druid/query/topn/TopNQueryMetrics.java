@@ -24,7 +24,7 @@ import io.druid.query.QueryMetrics;
 /**
  * Specialization of {@link QueryMetrics} for {@link TopNQuery}.
  */
-public interface TopNQueryMetrics extends QueryMetrics<TopNQuery>
+public interface TopNQueryMetrics extends QueryMetrics
 {
   /**
    * Sets {@link TopNQuery#getThreshold()} of the given query as dimension.

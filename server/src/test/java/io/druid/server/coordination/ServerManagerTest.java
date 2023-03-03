@@ -156,7 +156,7 @@ public class ServerManagerTest
           }
 
           @Override
-          public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
+          public <T> QueryRunnerFactory<T> findFactory(Class clazz)
           {
             return (QueryRunnerFactory) factory;
           }
@@ -519,7 +519,7 @@ public class ServerManagerTest
     }
   }
 
-  public static class MyQueryRunnerFactory implements QueryRunnerFactory<Result<SearchResultValue>, SearchQuery>
+  public static class MyQueryRunnerFactory implements QueryRunnerFactory<Result<SearchResultValue>>
   {
     private final CountDownLatch waitLatch;
     private final CountDownLatch waitYieldLatch;
@@ -564,14 +564,14 @@ public class ServerManagerTest
     }
 
     @Override
-    public QueryToolChest<Result<SearchResultValue>, SearchQuery> getToolchest()
+    public QueryToolChest<Result<SearchResultValue>> getToolchest()
     {
-      return new NoopQueryToolChest<Result<SearchResultValue>, SearchQuery>();
+      return new NoopQueryToolChest<Result<SearchResultValue>>();
     }
 
     @Override
     public Supplier<Object> preFactoring(
-        SearchQuery query,
+        Query<Result<SearchResultValue>> query,
         List<Segment> segments,
         Supplier<RowResolver> resolver,
         ExecutorService exec
@@ -596,7 +596,7 @@ public class ServerManagerTest
     }
   }
 
-  public static class NoopQueryToolChest<T, QueryType extends Query<T>> extends QueryToolChest<T, QueryType>
+  public static class NoopQueryToolChest<T> extends QueryToolChest<T>
   {
     @Override
     public QueryRunner<T> mergeResults(QueryRunner<T> runner)
@@ -604,13 +604,13 @@ public class ServerManagerTest
       return runner;
     }
 
-    public QueryMetrics<Query<?>> makeMetrics(QueryType query)
+    public QueryMetrics makeMetrics(Query<T> query)
     {
-      return new DefaultQueryMetrics<>(new DefaultObjectMapper());
+      return new DefaultQueryMetrics(new DefaultObjectMapper());
     }
 
     @Override
-    public TypeReference<T> getResultTypeReference(QueryType query)
+    public TypeReference<T> getResultTypeReference(Query<T> query)
     {
       return new TypeReference<T>() {};
     }

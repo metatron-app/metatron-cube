@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
@@ -109,12 +108,9 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
                           log.debug("accumulated in %,d msec", (System.currentTimeMillis() - start));
                           return null;
                         }
-                        catch (QueryException e) {
-                          throw Throwables.propagate(e);
-                        }
                         catch (Exception e) {
                           log.error(e, "Exception with one of the sequences!");
-                          throw Throwables.propagate(e);
+                          throw QueryException.wrapIfNeeded(e);
                         }
                       }
                     };

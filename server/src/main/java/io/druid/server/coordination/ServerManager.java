@@ -310,12 +310,12 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       return QueryRunnerHelper.toManagementRunner(query, conglomerate, exec, objectMapper);
     }
 
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
     if (factory == null) {
       throw new ISE("Unknown query type[%s].", query.getClass());
     }
 
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    final QueryToolChest<T> toolChest = factory.getToolchest();
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
     DataSource dataSource = query.getDataSource();
@@ -422,16 +422,16 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       );
     }
 
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
     if (factory == null) {
       log.makeAlert("Unknown resolved type, [%s]", query.getClass())
          .addData("dataSource", query.getDataSource())
          .emit();
       return NoopQueryRunner.instance();
     }
-    QueryRunnerFactory.Splitable<T, Query<T>> splitable = null;
+    QueryRunnerFactory.Splitable<T> splitable = null;
     if (factory instanceof QueryRunnerFactory.Splitable) {
-      splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
+      splitable = (QueryRunnerFactory.Splitable<T>) factory;
     }
 
     List<Segment> targets = Lists.newArrayList();
@@ -453,7 +453,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
 
     final Supplier<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    final QueryToolChest<T> toolChest = factory.getToolchest();
     final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<T>(toolChest, emitter);
 
     final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
@@ -518,7 +518,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   }
 
   private <T> Function<Segment, QueryRunner<T>> buildAndDecorateQueryRunner(
-      final QueryRunnerFactory<T, Query<T>> factory,
+      final QueryRunnerFactory<T> factory,
       final Supplier<Object> optimizer,
       final CPUTimeMetricBuilder<T> reporter
   )
@@ -528,7 +528,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       @Override
       public QueryRunner<T> apply(final Segment segment)
       {
-        final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+        final QueryToolChest<T> toolChest = factory.getToolchest();
         final SpecificSegmentSpec segmentSpec = segment.asSpec();
         return reporter.accumulate(
             new SpecificSegmentQueryRunner<T>(

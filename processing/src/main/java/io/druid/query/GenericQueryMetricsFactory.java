@@ -39,5 +39,5 @@ public interface GenericQueryMetricsFactory
    * Creates a {@link QueryMetrics} for query, which doesn't have predefined QueryMetrics subclass. This method must
    * call {@link QueryMetrics#query(Query)} with the given query on the created QueryMetrics object before returning.
    */
-  QueryMetrics<Query<?>> makeMetrics(Query<?> query);
+  QueryMetrics makeMetrics(Query<?> query);
 }

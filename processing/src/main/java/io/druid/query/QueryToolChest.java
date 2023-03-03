@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -54,7 +53,7 @@ import java.util.function.ToIntFunction;
  * evolution and is only semi-stable, so proprietary Query implementations should be ready for the potential
  * maintenance burden when upgrading versions.
  */
-public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultType>>
+public abstract class QueryToolChest<T>
 {
   protected static final TypeReference<Object[]> ARRAY_TYPE_REFERENCE = new TypeReference<Object[]>() {};
   protected static final TypeReference<Row> ROW_TYPE_REFERENCE = new TypeReference<Row>() {};
@@ -84,7 +83,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return a QueryRunner that potentially merges the stream of ordered ResultType objects
    */
-  public abstract QueryRunner<ResultType> mergeResults(QueryRunner<ResultType> runner);
+  public abstract QueryRunner<T> mergeResults(QueryRunner<T> runner);
 
   /**
    * Creates a {@link QueryMetrics} object that is used to generate metrics for this specific query type.  This exists
@@ -107,7 +106,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return A QueryMetrics that can be used to make metrics for the provided query
    */
-  public abstract QueryMetrics<? super QueryType> makeMetrics(QueryType query);
+  public abstract QueryMetrics makeMetrics(Query<T> query);
 
   /**
    * Creates a Function that can take in a ResultType and return a new ResultType having applied
@@ -124,7 +123,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return A function that will apply the provided fn to all metrics in the input ResultType object
    */
-  public Function<ResultType, ResultType> makePreComputeManipulatorFn(QueryType query, MetricManipulationFn fn)
+  public Function<T, T> makePreComputeManipulatorFn(Query<T> query, MetricManipulationFn fn)
   {
     // called with local query
     return GuavaUtils.identity("preCompute");
@@ -139,12 +138,12 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @return
    */
   @SuppressWarnings("unchecked")
-  public Sequence<ResultType> deserializeSequence(QueryType query, Sequence sequence)
+  public Sequence<T> deserializeSequence(Query<T> query, Sequence sequence)
   {
     return Sequences.map(sequence, makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing()));
   }
 
-  public Sequence serializeSequence(QueryType query, Sequence<ResultType> sequence, QuerySegmentWalker segmentWalker)
+  public Sequence serializeSequence(Query<T> query, Sequence<T> sequence, QuerySegmentWalker segmentWalker)
   {
     return sequence;
   }
@@ -161,7 +160,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return A function that will apply the provided fn to all metrics in the input ResultType object
    */
-  public Function<ResultType, ResultType> makePostComputeManipulatorFn(QueryType query, MetricManipulationFn fn)
+  public Function<T, T> makePostComputeManipulatorFn(Query<T> query, MetricManipulationFn fn)
   {
     return GuavaUtils.identity("postCompute");
   }
@@ -173,7 +172,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @return A TypeReference to indicate to Jackson what type of data will exist for this query
    * @param query
    */
-  public JavaType getResultTypeReference(QueryType query, TypeFactory factory)
+  public JavaType getResultTypeReference(Query<T> query, TypeFactory factory)
   {
     JavaType baseType = factory.constructType(getResultTypeReference(query));
     if (query != null && BaseQuery.isBySegment(query)) {
@@ -184,15 +183,15 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     return baseType;
   }
 
-  protected abstract TypeReference<ResultType> getResultTypeReference(QueryType query);
+  protected abstract TypeReference<T> getResultTypeReference(Query<T> query);
 
-  public BySegmentResultValue<ResultType> bySegment(
-      QueryType query,
-      Sequence<ResultType> sequence,
+  public BySegmentResultValue<T> bySegment(
+      Query<T> query,
+      Sequence<T> sequence,
       String segmentId
   )
   {
-    return new BySegmentResultValueClass<ResultType>(
+    return new BySegmentResultValueClass<T>(
         Sequences.toList(sequence),
         segmentId,
         query.getIntervals().get(0)
@@ -219,7 +218,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return The wrapped runner
    */
-  public QueryRunner<ResultType> preMergeQueryDecoration(QueryRunner<ResultType> runner)
+  public QueryRunner<T> preMergeQueryDecoration(QueryRunner<T> runner)
   {
     return runner;
   }
@@ -237,18 +236,17 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return The wrapped runner
    */
-  public QueryRunner<ResultType> postMergeQueryDecoration(QueryRunner<ResultType> runner)
+  public QueryRunner<T> postMergeQueryDecoration(QueryRunner<T> runner)
   {
     return runner;
   }
 
-  @SuppressWarnings("unchecked")
-  public QueryRunner<ResultType> finalizeResults(QueryRunner<ResultType> runner)
+  public QueryRunner<T> finalizeResults(QueryRunner<T> runner)
   {
-    return new FinalizeResultsQueryRunner<>(runner, (QueryToolChest<ResultType, Query<ResultType>>) this);
+    return new FinalizeResultsQueryRunner<>(runner, this);
   }
 
-  public QueryRunner<ResultType> finalQueryDecoration(QueryRunner<ResultType> runner)
+  public QueryRunner<T> finalQueryDecoration(QueryRunner<T> runner)
   {
     return runner;
   }
@@ -264,12 +262,12 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return The list of segments to actually query
    */
-  public <T extends LogicalSegment> List<T> filterSegments(QueryType query, List<T> segments)
+  public <S extends LogicalSegment> List<S> filterSegments(Query<T> query, List<S> segments)
   {
     return segments;
   }
 
-  public QueryType optimizeQuery(QueryType query, QuerySegmentWalker walker)
+  public Query<T> optimizeQuery(Query<T> query, QuerySegmentWalker walker)
   {
     return query;
   }
@@ -281,12 +279,12 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @param query
    * @return
    */
-  public Function<Sequence<ResultType>, Sequence<Map<String, Object>>> asMap(QueryType query, String timestampColumn)
+  public Function<Sequence<T>, Sequence<Map<String, Object>>> asMap(Query<T> query, String timestampColumn)
   {
     throw new UnsupportedOperationException("asMap");
   }
 
-  public <I> Query<I> prepareSubQuery(Query<ResultType> outerQuery, Query<I> innerQuery)
+  public <I> Query<I> prepareSubQuery(Query<T> outerQuery, Query<I> innerQuery)
   {
     innerQuery = innerQuery.withOverriddenContext(BaseQuery.copyContextForMeta(outerQuery.getContext()));
     if (innerQuery instanceof Query.FilterSupport) {
@@ -300,12 +298,12 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @param segmentWalker
    *
    */
-  public <I> QueryRunner<ResultType> handleSubQuery(QuerySegmentWalker segmentWalker)
+  public <I> QueryRunner<T> handleSubQuery(QuerySegmentWalker segmentWalker)
   {
     throw new UnsupportedOperationException("handleSourceQuery");
   }
 
-  protected abstract class SubQueryRunner<I> implements QueryRunner<ResultType>
+  protected abstract class SubQueryRunner<I> implements QueryRunner<T>
   {
     protected final QuerySegmentWalker segmentWalker;
 
@@ -315,7 +313,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @Override
-    public Sequence<ResultType> run(Query<ResultType> query, Map<String, Object> responseContext)
+    public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
     {
       IncrementalIndex accumulated = accumulate(query, responseContext);
       if (accumulated.isEmpty()) {
@@ -325,7 +323,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       String id = DataSegment.toSegmentId(sources, accumulated.getInterval(), "temporary", 0);
       Segment segment = new IncrementalIndexSegment(accumulated, DataSegment.asKey(id));
 
-      Sequence<Sequence<ResultType>> sequences = Sequences.map(
+      Sequence<Sequence<T>> sequences = Sequences.map(
           Sequences.simple(query.getIntervals()),
           query(query, segment)
       );
@@ -333,7 +331,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @SuppressWarnings("unchecked")
-    private IncrementalIndex accumulate(Query<ResultType> query, Map<String, Object> responseContext)
+    private IncrementalIndex accumulate(Query<T> query, Map<String, Object> responseContext)
     {
       long start = System.currentTimeMillis();
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
@@ -356,11 +354,11 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       return accumulated;
     }
 
-    protected abstract Function<Interval, Sequence<ResultType>> query(Query<ResultType> query, Segment segment);
+    protected abstract Function<Interval, Sequence<T>> query(Query<T> query, Segment segment);
 
-    protected Sequence<ResultType> mergeQuery(
-        Query<ResultType> query,
-        Sequence<Sequence<ResultType>> sequences,
+    protected Sequence<T> mergeQuery(
+        Query<T> query,
+        Sequence<Sequence<T>> sequences,
         Segment segment
     )
     {
@@ -368,7 +366,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @SuppressWarnings("unchecked")
-    public Sequence<ResultType> runStreaming(Query<ResultType> query, Map<String, Object> responseContext)
+    public Sequence<T> runStreaming(Query<T> query, Map<String, Object> responseContext)
     {
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
       Query subQuery = dataSource.getQuery();
@@ -390,12 +388,12 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       return streamMerge(query, Sequences.map(cursors, streamQuery(query)));
     }
 
-    protected Function<Cursor, Sequence<ResultType>> streamQuery(Query<ResultType> query)
+    protected Function<Cursor, Sequence<T>> streamQuery(Query<T> query)
     {
       throw new UnsupportedOperationException("streaming sub-query handler");
     }
 
-    protected Sequence<ResultType> streamMerge(Query<ResultType> query, Sequence<Sequence<ResultType>> sequences)
+    protected Sequence<T> streamMerge(Query<T> query, Sequence<Sequence<T>> sequences)
     {
       return Sequences.concat(query.estimatedOutputColumns(), sequences);
     }
@@ -406,7 +404,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
         segment.close();
       }
       catch (Exception e) {
-        throw Throwables.propagate(e);
+        throw QueryException.wrapIfNeeded(e);
       }
     }
   }
@@ -420,31 +418,31 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @Override
-    public Sequence<ResultType> run(Query<ResultType> query, Map<String, Object> responseContext)
+    public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
     {
       return runStreaming(query, responseContext);
     }
 
     @Override
-    protected final Function<Interval, Sequence<ResultType>> query(Query<ResultType> query, Segment segment)
+    protected final Function<Interval, Sequence<T>> query(Query<T> query, Segment segment)
     {
       throw new UnsupportedOperationException("streaming only sub-query handler");
     }
 
     @Override
-    protected abstract Function<Cursor, Sequence<ResultType>> streamQuery(Query<ResultType> query);
+    protected abstract Function<Cursor, Sequence<T>> streamQuery(Query<T> query);
   }
 
-  public final <X> CacheStrategy<ResultType, X, QueryType> getCacheStrategyIfExists(QueryType query)
+  @SuppressWarnings("unchecked")
+  public final <X, Q> CacheStrategy<T, X, Q> getCacheStrategyIfExists(Query<T> query)
   {
     if (this instanceof CacheSupport) {
-      return ((CacheSupport<ResultType, X, QueryType>) this).getCacheStrategy(query);
+      return ((CacheSupport<T, X, Q>) this).getCacheStrategy((Q) query);
     }
     return null;
   }
 
-  public static abstract class CacheSupport<ResultType, X, QueryType extends Query<ResultType>>
-      extends QueryToolChest<ResultType, QueryType>
+  public static abstract class CacheSupport<T, X, Q> extends QueryToolChest<T>
   {
     /**
      * Returns a CacheStrategy to be used to load data into the cache and remove it from the cache.
@@ -455,13 +453,13 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
      *
      * @return A CacheStrategy that can be used to populate and read from the Cache
      */
-    public abstract CacheStrategy<ResultType, X, QueryType> getCacheStrategy(QueryType query);
+    public abstract CacheStrategy<T, X, Q> getCacheStrategy(Q query);
   }
 
-  protected abstract class IdenticalCacheStrategy extends CacheStrategy.Identitcal<ResultType, QueryType>
+  protected abstract class IdenticalCacheStrategy<Q> implements CacheStrategy.Identitcal<T, Q>
   {
     @Override
-    public final TypeReference<ResultType> getCacheObjectClazz()
+    public final TypeReference<T> getCacheObjectClazz()
     {
       return getResultTypeReference(null);
     }
@@ -475,12 +473,12 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     return toolChest == null ? QueryToolChest.ROW_COUNTER : toolChest.numRows(query);
   }
 
-  public ToIntFunction numRows(QueryType query)
+  public ToIntFunction numRows(Query<T> query)
   {
     return ROW_COUNTER;
   }
 
-  public static abstract class MetricSupport<R, Q extends Query<R>> extends QueryToolChest<R, Q>
+  public static abstract class MetricSupport<T> extends QueryToolChest<T>
   {
     private final GenericQueryMetricsFactory metricsFactory;
 
@@ -490,7 +488,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     @Override
-    public QueryMetrics<? super Q> makeMetrics(Q query)
+    public QueryMetrics makeMetrics(Query<T> query)
     {
       return metricsFactory.makeMetrics(query);
     }

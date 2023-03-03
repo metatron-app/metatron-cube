@@ -42,7 +42,7 @@ import java.util.Map;
 
 /**
  */
-public class ConfigQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<String, Object>, ConfigQuery>
+public class ConfigQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<String, Object>>
 {
   private final DruidNode node;
   private final Injector injector;

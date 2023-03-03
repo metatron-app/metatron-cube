@@ -111,18 +111,18 @@ public class SelectMetaQueryToolChest
   }
 
   @Override
-  public QueryMetrics<? super SelectMetaQuery> makeMetrics(SelectMetaQuery query)
+  public QueryMetrics makeMetrics(Query<Result<SelectMetaResultValue>> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public IdenticalCacheStrategy getCacheStrategy(final SelectMetaQuery query)
+  public IdenticalCacheStrategy<SelectMetaQuery> getCacheStrategy(SelectMetaQuery query)
   {
     if (query.getPagingSpec() != null) {
       return null;
     }
-    return new IdenticalCacheStrategy()
+    return new IdenticalCacheStrategy<SelectMetaQuery>()
     {
       @Override
       public byte[] computeCacheKey(SelectMetaQuery query, int limit)
@@ -140,14 +140,14 @@ public class SelectMetaQueryToolChest
   }
 
   @Override
-  public <T extends LogicalSegment> List<T> filterSegments(SelectMetaQuery query, List<T> segments)
+  public <T extends LogicalSegment> List<T> filterSegments(Query<Result<SelectMetaResultValue>> query, List<T> segments)
   {
     // shares same logic
-    return SelectQueryQueryToolChest.filterSegmentsOnPagingSpec(query.toBaseQuery(), segments);
+    return SelectQueryQueryToolChest.filterSegmentsOnPagingSpec(((SelectMetaQuery) query).toBaseQuery(), segments);
   }
 
   @Override
-  public TypeReference<Result<SelectMetaResultValue>> getResultTypeReference(SelectMetaQuery query)
+  public TypeReference<Result<SelectMetaResultValue>> getResultTypeReference(Query<Result<SelectMetaResultValue>> query)
   {
     return TYPE_REFERENCE;
   }

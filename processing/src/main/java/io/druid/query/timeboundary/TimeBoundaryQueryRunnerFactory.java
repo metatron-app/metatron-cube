@@ -22,8 +22,8 @@ package io.druid.query.timeboundary;
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
-import io.druid.common.guava.BaseSequence;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -35,13 +35,12 @@ import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.util.Iterator;
 import java.util.Map;
 
 /**
  */
 public class TimeBoundaryQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>
+    extends QueryRunnerFactory.Abstract<Result<TimeBoundaryResultValue>>
 {
   @Inject
   public TimeBoundaryQueryRunnerFactory(QueryWatcher queryWatcher)
@@ -78,38 +77,28 @@ public class TimeBoundaryQueryRunnerFactory
 
       final TimeBoundaryQuery legacyQuery = (TimeBoundaryQuery) input;
 
-      return new BaseSequence<>(
-          new BaseSequence.IteratorMaker<Result<TimeBoundaryResultValue>, Iterator<Result<TimeBoundaryResultValue>>>()
-          {
-            @Override
-            public Iterator<Result<TimeBoundaryResultValue>> make()
-            {
-              if (adapter == null) {
-                throw new ISE(
-                    "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
-                );
-              }
-
-              final Interval timeMinMax = adapter.getTimeMinMax();
-              final DateTime minTime = legacyQuery.getBound().equalsIgnoreCase(TimeBoundaryQuery.MAX_TIME)
-                                       ? null
-                                       : timeMinMax.getStart();
-              final DateTime maxTime = legacyQuery.getBound().equalsIgnoreCase(TimeBoundaryQuery.MIN_TIME)
-                                       ? null
-                                       : timeMinMax.getEnd();
-
-
-              return legacyQuery.buildResult(
-                  adapter.getInterval().getStart(),
-                  minTime,
-                  maxTime
-              ).iterator();
+      return Sequences.simple(
+          () -> {
+            if (adapter == null) {
+              throw new ISE(
+                  "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
+              );
             }
 
-            @Override
-            public void cleanup(Iterator<Result<TimeBoundaryResultValue>> toClean)
-            {
-            }
+            final Interval timeMinMax = adapter.getTimeMinMax();
+            final DateTime minTime = legacyQuery.getBound().equalsIgnoreCase(TimeBoundaryQuery.MAX_TIME)
+                                     ? null
+                                     : timeMinMax.getStart();
+            final DateTime maxTime = legacyQuery.getBound().equalsIgnoreCase(TimeBoundaryQuery.MIN_TIME)
+                                     ? null
+                                     : timeMinMax.getEnd();
+
+
+            return legacyQuery.buildResult(
+                adapter.getInterval().getStart(),
+                minTime,
+                maxTime
+            ).iterator();
           }
       );
     }

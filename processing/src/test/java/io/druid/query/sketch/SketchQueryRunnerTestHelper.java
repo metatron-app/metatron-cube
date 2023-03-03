@@ -29,7 +29,6 @@ import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.JoinQueryConfig;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
@@ -119,10 +118,10 @@ public class SketchQueryRunnerTestHelper extends QueryRunnerTestHelper
   protected void assertCache(SketchQuery query, Object[] result)
   {
     CacheStrategy<Object[], Object[], SketchQuery> strategy = toolChest.getCacheStrategyIfExists(query);
-    Object[] cached = strategy.prepareForCache().apply(result);
+    Object[] cached = strategy.prepareForCache(query).apply(result);
     Assert.assertArrayEquals(result, cached);
 
-    Object[] out = strategy.pullFromCache().apply(cached);
+    Object[] out = strategy.pullFromCache(query).apply(cached);
     Assert.assertArrayEquals(result, out);
   }
 }

@@ -1376,24 +1376,16 @@ public class SchemalessTestFull
       String failMsg
   )
   {
-    testFullOnTimeseries(TestQueryRunners.makeTimeSeriesQueryRunner(adapter), expectedTimeseriesResults, failMsg);
-    testFilteredTimeseries(
-        TestQueryRunners.makeTimeSeriesQueryRunner(adapter),
-        expectedFilteredTimeseriesResults,
-        failMsg
-    );
-    testFullOnTopN(TestQueryRunners.makeTopNQueryRunner(adapter), expectedTopNResults, failMsg);
-    testFilteredTopN(TestQueryRunners.makeTopNQueryRunner(adapter), expectedFilteredTopNResults, failMsg);
-    testFullOnSearch(TestQueryRunners.makeSearchQueryRunner(adapter), expectedSearchResults, failMsg);
-    testFilteredSearch(TestQueryRunners.makeSearchQueryRunner(adapter), expectedFilteredSearchResults, failMsg);
-    testTimeBoundary(TestQueryRunners.makeTimeBoundaryQueryRunner(adapter), expectedTimeBoundaryResults, failMsg);
+    testFullOnTimeseries(adapter, expectedTimeseriesResults, failMsg);
+    testFilteredTimeseries(adapter, expectedFilteredTimeseriesResults, failMsg);
+    testFullOnTopN(adapter, expectedTopNResults, failMsg);
+    testFilteredTopN(adapter, expectedFilteredTopNResults, failMsg);
+    testFullOnSearch(adapter, expectedSearchResults, failMsg);
+    testFilteredSearch(adapter, expectedFilteredSearchResults, failMsg);
+    testTimeBoundary(adapter, expectedTimeBoundaryResults, failMsg);
   }
 
-  private void testFullOnTimeseries(
-      QueryRunner runner,
-      List<Row> expectedResults,
-      String failMsg
-  )
+  private void testFullOnTimeseries(Segment adapter, List<Row> expectedResults, String failMsg)
   {
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
@@ -1416,17 +1408,13 @@ public class SchemalessTestFull
     failMsg += " timeseries ";
     HashMap<String, Object> context = new HashMap<>();
     Iterable<Row> actualResults = Sequences.toList(
-        runner.run(query, context),
+        TestQueryRunners.makeTimeSeriesQueryRunner(query, adapter).run(query, context),
         Lists.<Row>newArrayList()
     );
     TestHelper.assertExpectedObjects(expectedResults, actualResults, failMsg);
   }
 
-  private void testFilteredTimeseries(
-      QueryRunner runner,
-      List<Row> expectedResults,
-      String failMsg
-  )
+  private void testFilteredTimeseries(Segment adapter, List<Row> expectedResults, String failMsg)
   {
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
@@ -1450,14 +1438,14 @@ public class SchemalessTestFull
     failMsg += " filtered timeseries ";
     HashMap<String, Object> context = new HashMap<>();
     Iterable<Row> actualResults = Sequences.toList(
-        runner.run(query, context),
+        TestQueryRunners.makeTimeSeriesQueryRunner(query, adapter).run(query, context),
         Lists.<Row>newArrayList()
     );
     TestHelper.assertExpectedObjects(expectedResults, actualResults, failMsg);
   }
 
 
-  private void testFullOnTopN(QueryRunner runner, List<Result<TopNResultValue>> expectedResults, String failMsg)
+  private void testFullOnTopN(Segment adapter, List<Result<TopNResultValue>> expectedResults, String failMsg)
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
@@ -1483,14 +1471,14 @@ public class SchemalessTestFull
     failMsg += " topN ";
     HashMap<String, Object> context = new HashMap<>();
     Iterable<Result<TopNResultValue>> actualResults = Sequences.toList(
-        runner.run(query, context),
+        TestQueryRunners.makeTopNQueryRunner(query, adapter).run(query, context),
         Lists.<Result<TopNResultValue>>newArrayList()
     );
 
     TestHelper.assertExpectedResults(expectedResults, actualResults, failMsg);
   }
 
-  private void testFilteredTopN(QueryRunner runner, List<Result<TopNResultValue>> expectedResults, String failMsg)
+  private void testFilteredTopN(Segment adapter, List<Result<TopNResultValue>> expectedResults, String failMsg)
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
@@ -1517,13 +1505,13 @@ public class SchemalessTestFull
     failMsg += " filtered topN ";
     HashMap<String, Object> context = new HashMap<>();
     Iterable<Result<TopNResultValue>> actualResults = Sequences.toList(
-        runner.run(query, context),
+        TestQueryRunners.makeTopNQueryRunner(query, adapter).run(query, context),
         Lists.<Result<TopNResultValue>>newArrayList()
     );
     TestHelper.assertExpectedResults(expectedResults, actualResults, failMsg);
   }
 
-  private void testFullOnSearch(QueryRunner runner, List<Result<SearchResultValue>> expectedResults, String failMsg)
+  private void testFullOnSearch(Segment adapter, List<Result<SearchResultValue>> expectedResults, String failMsg)
   {
     SearchQuery query = Druids.newSearchQueryBuilder()
                               .dataSource(dataSource)
@@ -1535,13 +1523,13 @@ public class SchemalessTestFull
     failMsg += " search ";
     HashMap<String, Object> context = new HashMap<>();
     Iterable<Result<SearchResultValue>> actualResults = Sequences.toList(
-        runner.run(query, context),
+        TestQueryRunners.makeSearchQueryRunner(query, adapter).run(query, context),
         Lists.<Result<SearchResultValue>>newArrayList()
     );
     TestHelper.assertExpectedResults(expectedResults, actualResults, failMsg);
   }
 
-  private void testFilteredSearch(QueryRunner runner, List<Result<SearchResultValue>> expectedResults, String failMsg)
+  private void testFilteredSearch(Segment adapter, List<Result<SearchResultValue>> expectedResults, String failMsg)
   {
     SearchQuery query = Druids.newSearchQueryBuilder()
                               .dataSource(dataSource)
@@ -1554,17 +1542,13 @@ public class SchemalessTestFull
     failMsg += " filtered search ";
     HashMap<String, Object> context = new HashMap<>();
     Iterable<Result<SearchResultValue>> actualResults = Sequences.toList(
-        runner.run(query, context),
+        TestQueryRunners.makeSearchQueryRunner(query, adapter).run(query, context),
         Lists.<Result<SearchResultValue>>newArrayList()
     );
     TestHelper.assertExpectedResults(expectedResults, actualResults, failMsg);
   }
 
-  private void testTimeBoundary(
-      QueryRunner runner,
-      List<Result<TimeBoundaryResultValue>> expectedResults,
-      String failMsg
-  )
+  private void testTimeBoundary(Segment adapter, List<Result<TimeBoundaryResultValue>> expectedResults, String failMsg)
   {
     TimeBoundaryQuery query = Druids.newTimeBoundaryQueryBuilder()
                                     .dataSource("testing")
@@ -1573,7 +1557,7 @@ public class SchemalessTestFull
     failMsg += " timeBoundary ";
     HashMap<String, Object> context = new HashMap<>();
     Iterable<Result<TimeBoundaryResultValue>> actualResults = Sequences.toList(
-        runner.run(query, context),
+        TestQueryRunners.makeTimeBoundaryQueryRunner(query, adapter).run(query, context),
         Lists.<Result<TimeBoundaryResultValue>>newArrayList()
     );
     TestHelper.assertExpectedResults(expectedResults, actualResults, failMsg);

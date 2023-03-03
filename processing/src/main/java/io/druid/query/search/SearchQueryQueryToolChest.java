@@ -183,19 +183,20 @@ public class SearchQueryQueryToolChest
     );
   }
 
-  public QueryMetrics<Query<?>> makeMetrics(SearchQuery query)
+  @Override
+  public QueryMetrics makeMetrics(Query<Result<SearchResultValue>> query)
   {
-    return metricsFactory.makeMetrics(query).granularity(query.getGranularity());
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public TypeReference<Result<SearchResultValue>> getResultTypeReference(SearchQuery query)
+  public TypeReference<Result<SearchResultValue>> getResultTypeReference(Query<Result<SearchResultValue>> query)
   {
     return TYPE_REFERENCE;
   }
 
   @Override
-  public JavaType getResultTypeReference(SearchQuery query, TypeFactory factory)
+  public JavaType getResultTypeReference(Query<Result<SearchResultValue>> query, TypeFactory factory)
   {
     if (query != null && BaseQuery.isBySegment(query)) {
       return factory.constructParametricType(Result.class, BySegmentSearchResultValue.class);
@@ -205,7 +206,7 @@ public class SearchQueryQueryToolChest
 
   @Override
   public BySegmentSearchResultValue bySegment(
-      SearchQuery query,
+      Query<Result<SearchResultValue>> query,
       Sequence<Result<SearchResultValue>> sequence,
       String segmentId
   )
@@ -215,7 +216,7 @@ public class SearchQueryQueryToolChest
 
   @Override
   @SuppressWarnings("unchecked")
-  public ToIntFunction numRows(SearchQuery query)
+  public ToIntFunction numRows(Query<Result<SearchResultValue>> query)
   {
     if (BaseQuery.isBySegment(query)) {
       return v -> ((Result<BySegmentSearchResultValue>) v).getValue().countAll();
@@ -250,7 +251,7 @@ public class SearchQueryQueryToolChest
       }
 
       @Override
-      public Function<Result<SearchResultValue>, Object> prepareForCache()
+      public Function<Result<SearchResultValue>, Object> prepareForCache(SearchQuery query)
       {
         return new Function<Result<SearchResultValue>, Object>()
         {
@@ -263,7 +264,7 @@ public class SearchQueryQueryToolChest
       }
 
       @Override
-      public Function<Object, Result<SearchResultValue>> pullFromCache()
+      public Function<Object, Result<SearchResultValue>> pullFromCache(SearchQuery query)
       {
         return new Function<Object, Result<SearchResultValue>>()
         {

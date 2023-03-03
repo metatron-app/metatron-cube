@@ -19,6 +19,7 @@
 
 package io.druid.granularity;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import org.joda.time.Period;
 
@@ -59,6 +60,23 @@ public class Granularities
   public static boolean isAll(Granularity granularity)
   {
     return ALL.equals(granularity);
+  }
+
+  private static final Map<Granularity, String> SERIALIZED = Maps.newConcurrentMap();
+
+  public static String serialize(Granularity granularity, ObjectMapper mapper)
+  {
+    if (granularity != null) {
+      return SERIALIZED.computeIfAbsent(granularity, k -> {
+        try {
+          return mapper.writeValueAsString(granularity);
+        }
+        catch (Exception e) {
+          return null;
+        }
+      });
+    }
+    return null;
   }
 
   public static int getOnlyDurationIndex(Period period)

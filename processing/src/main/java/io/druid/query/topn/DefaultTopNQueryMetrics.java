@@ -22,8 +22,9 @@ package io.druid.query.topn;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.query.DefaultQueryMetrics;
 import io.druid.query.DruidMetrics;
+import io.druid.query.Query;
 
-public class DefaultTopNQueryMetrics extends DefaultQueryMetrics<TopNQuery> implements TopNQueryMetrics
+public class DefaultTopNQueryMetrics extends DefaultQueryMetrics implements TopNQueryMetrics
 {
 
   public DefaultTopNQueryMetrics(ObjectMapper jsonMapper)
@@ -32,14 +33,14 @@ public class DefaultTopNQueryMetrics extends DefaultQueryMetrics<TopNQuery> impl
   }
 
   @Override
-  public void query(TopNQuery query)
+  public void query(Query<?> query)
   {
-    super.query(query);
-    threshold(query);
-    dimension(query);
-    numMetrics(query);
-    numComplexMetrics(query);
-    granularity(query.getGranularity());
+    TopNQuery topN = (TopNQuery) query;
+    super.query(topN);
+    threshold(topN);
+    dimension(topN);
+    numMetrics(topN);
+    numComplexMetrics(topN);
   }
 
   @Override

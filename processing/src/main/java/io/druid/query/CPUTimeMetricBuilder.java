@@ -25,12 +25,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class CPUTimeMetricBuilder<T>
 {
-  private final QueryToolChest<T, Query<T>> toolChest;
+  private final QueryToolChest<T> toolChest;
   private final ServiceEmitter emitter;
   private final AtomicLong accumulator;
 
   public CPUTimeMetricBuilder(
-      QueryToolChest<T, Query<T>> toolChest,
+      QueryToolChest<T> toolChest,
       ServiceEmitter emitter
   )
   {

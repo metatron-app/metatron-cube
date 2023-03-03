@@ -37,7 +37,6 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.java.util.common.ISE;
 import io.druid.js.JavaScriptConfig;
 import io.druid.math.expr.Parser;
 import io.druid.query.BaseAggregationQuery;
@@ -748,7 +747,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
   }
 
-  @Test(expected = ISE.class)
+  @Test(expected = QueryException.class)
   public void testGroupByMaxRowsLimitContextOverrid()
   {
     GroupByQuery query = GroupByQuery

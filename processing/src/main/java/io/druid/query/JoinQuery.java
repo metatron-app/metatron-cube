@@ -30,7 +30,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
@@ -74,9 +73,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-
-import static io.druid.query.JoinType.LO;
-import static io.druid.query.JoinType.RO;
 
 /**
  */
@@ -724,7 +720,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       return objectMapper.writeValueAsBytes(value);
     }
     catch (JsonProcessingException e) {
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 

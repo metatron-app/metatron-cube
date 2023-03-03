@@ -41,14 +41,13 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 
 /**
  */
-public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
+public class StreamQueryToolChest extends QueryToolChest<Object[]>
 {
   private final GenericQueryMetricsFactory metricsFactory;
 
@@ -81,14 +80,14 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   }
 
   @Override
-  public QueryMetrics<? super StreamQuery> makeMetrics(StreamQuery query)
+  public QueryMetrics makeMetrics(Query<Object[]> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeReference getResultTypeReference(@Nullable StreamQuery query)
+  public TypeReference getResultTypeReference(Query<Object[]> query)
   {
     if (query != null && query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       return BulkRow.TYPE_REFERENCE;
@@ -99,7 +98,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Sequence<Object[]> deserializeSequence(StreamQuery query, Sequence sequence)
+  public Sequence<Object[]> deserializeSequence(Query<Object[]> query, Sequence sequence)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> Sequences.once(bulk.decompose()));
@@ -108,17 +107,18 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   }
 
   @Override
-  public Sequence serializeSequence(StreamQuery query, Sequence<Object[]> sequence, QuerySegmentWalker segmentWalker)
+  public Sequence serializeSequence(Query<Object[]> query, Sequence<Object[]> sequence, QuerySegmentWalker segmentWalker)
   {
     // see CCC.prepareQuery()
-    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return BulkSequence.fromArray(sequence, Queries.relaySchema(query, segmentWalker), query.getSimpleLimit());
+    StreamQuery stream = (StreamQuery) query;
+    if (stream.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      return BulkSequence.fromArray(sequence, Queries.relaySchema(stream, segmentWalker), stream.getSimpleLimit());
     }
-    return super.serializeSequence(query, sequence, segmentWalker);
+    return super.serializeSequence(stream, sequence, segmentWalker);
   }
 
   @Override
-  public ToIntFunction numRows(StreamQuery query)
+  public ToIntFunction numRows(Query<Object[]> query)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       return v -> ((BulkRow) v).count();
@@ -128,18 +128,11 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
 
   @Override
   public Function<Sequence<Object[]>, Sequence<Map<String, Object>>> asMap(
-      final StreamQuery query,
+      final Query<Object[]> query,
       final String timestampColumn
   )
   {
-    return new Function<Sequence<Object[]>, Sequence<Map<String, Object>>>()
-    {
-      @Override
-      public Sequence<Map<String, Object>> apply(Sequence<Object[]> sequence)
-      {
-        return query.asMap(sequence);
-      }
-    };
+    return sequence -> ((StreamQuery) query).asMap(sequence);
   }
 
   @Override

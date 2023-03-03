@@ -50,11 +50,10 @@ public class DefaultGenericQueryMetricsFactory implements GenericQueryMetricsFac
   }
 
   @Override
-  public QueryMetrics<Query<?>> makeMetrics(Query<?> query)
+  public QueryMetrics makeMetrics(Query<?> query)
   {
-    DefaultQueryMetrics<Query<?>> queryMetrics = new DefaultQueryMetrics<>(jsonMapper);
+    DefaultQueryMetrics queryMetrics = new DefaultQueryMetrics(jsonMapper);
     queryMetrics.query(query);
     return queryMetrics;
   }
-
 }

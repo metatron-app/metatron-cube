@@ -21,6 +21,5 @@ package io.druid.query.topn;
 
 public interface TopNQueryMetricsFactory
 {
-
   TopNQueryMetrics makeMetrics();
 }

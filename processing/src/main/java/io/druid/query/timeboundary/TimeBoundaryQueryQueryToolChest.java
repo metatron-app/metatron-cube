@@ -29,7 +29,6 @@ import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-
 import io.druid.query.BySegmentSkippingQueryRunner;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
@@ -72,14 +71,15 @@ public class TimeBoundaryQueryQueryToolChest
   }
 
   @Override
-  public <T extends LogicalSegment> List<T> filterSegments(TimeBoundaryQuery query, List<T> segments)
+  public <T extends LogicalSegment> List<T> filterSegments(Query<Result<TimeBoundaryResultValue>> query, List<T> segments)
   {
+    TimeBoundaryQuery boundary = (TimeBoundaryQuery) query;
     if (segments.size() <= 1) {
       return segments;
     }
 
-    final T min = query.isMaxTime() ? null : segments.get(0);
-    final T max = query.isMinTime() ? null : segments.get(segments.size() - 1);
+    final T min = boundary.isMaxTime() ? null : segments.get(0);
+    final T max = boundary.isMinTime() ? null : segments.get(segments.size() - 1);
 
     return Lists.newArrayList(
         Iterables.filter(
@@ -120,13 +120,13 @@ public class TimeBoundaryQueryQueryToolChest
   }
 
   @Override
-  public QueryMetrics<Query<?>> makeMetrics(TimeBoundaryQuery query)
+  public QueryMetrics makeMetrics(Query<Result<TimeBoundaryResultValue>> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public TypeReference<Result<TimeBoundaryResultValue>> getResultTypeReference(TimeBoundaryQuery query)
+  public TypeReference<Result<TimeBoundaryResultValue>> getResultTypeReference(Query<Result<TimeBoundaryResultValue>> query)
   {
     return TYPE_REFERENCE;
   }
@@ -152,7 +152,7 @@ public class TimeBoundaryQueryQueryToolChest
       }
 
       @Override
-      public Function<Result<TimeBoundaryResultValue>, Object> prepareForCache()
+      public Function<Result<TimeBoundaryResultValue>, Object> prepareForCache(TimeBoundaryQuery query)
       {
         return new Function<Result<TimeBoundaryResultValue>, Object>()
         {
@@ -165,7 +165,7 @@ public class TimeBoundaryQueryQueryToolChest
       }
 
       @Override
-      public Function<Object, Result<TimeBoundaryResultValue>> pullFromCache()
+      public Function<Object, Result<TimeBoundaryResultValue>> pullFromCache(TimeBoundaryQuery query)
       {
         return new Function<Object, Result<TimeBoundaryResultValue>>()
         {

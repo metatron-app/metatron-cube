@@ -141,8 +141,9 @@ public class TopNQueryQueryToolChest
   }
 
   @SuppressWarnings("unchecked")
-  private IdentityFunction<Result<TopNResultValue>> toPostAggregator(TopNQuery topN)
+  private IdentityFunction<Result<TopNResultValue>> toPostAggregator(Query<Result<TopNResultValue>> query)
   {
+    TopNQuery topN = (TopNQuery) query;
     if (GuavaUtils.isNullOrEmpty(topN.getPostAggregatorSpecs())) {
       return IdentityFunction.INSTANCE;
     }
@@ -180,7 +181,7 @@ public class TopNQueryQueryToolChest
   }
 
   @Override
-  public TopNQueryMetrics makeMetrics(TopNQuery query)
+  public TopNQueryMetrics makeMetrics(Query<Result<TopNResultValue>> query)
   {
     TopNQueryMetrics queryMetrics = metricsFactory.makeMetrics();
     queryMetrics.query(query);
@@ -189,7 +190,7 @@ public class TopNQueryQueryToolChest
 
   @Override
   public Function<Result<TopNResultValue>, Result<TopNResultValue>> makePreComputeManipulatorFn(
-      final TopNQuery query, final MetricManipulationFn fn
+      final Query<Result<TopNResultValue>> query, final MetricManipulationFn fn
   )
   {
     return makeComputeManipulatorFn(query, fn);
@@ -197,18 +198,19 @@ public class TopNQueryQueryToolChest
 
   @Override
   public Function<Result<TopNResultValue>, Result<TopNResultValue>> makePostComputeManipulatorFn(
-      final TopNQuery query, final MetricManipulationFn fn
+      final Query<Result<TopNResultValue>> query, final MetricManipulationFn fn
   )
   {
     return makeComputeManipulatorFn(query, fn);
   }
 
   private Function<Result<TopNResultValue>, Result<TopNResultValue>> makeComputeManipulatorFn(
-      final TopNQuery query,
+      final Query<Result<TopNResultValue>> query,
       final MetricManipulationFn fn
   )
   {
-    if (fn == MetricManipulatorFns.identity() || GuavaUtils.isNullOrEmpty(query.getAggregatorSpecs())) {
+    TopNQuery topN = (TopNQuery) query;
+    if (fn == MetricManipulatorFns.identity() || GuavaUtils.isNullOrEmpty(topN.getAggregatorSpecs())) {
       return Functions.identity();
     }
     return new Function<Result<TopNResultValue>, Result<TopNResultValue>>()
@@ -218,7 +220,7 @@ public class TopNQueryQueryToolChest
       {
         final DateTime timestamp = result.getTimestamp();
         final TopNResultValue holder = result.getValue();
-        final AggregatorFactory[] factories = query.getAggregatorSpecs().toArray(new AggregatorFactory[0]);
+        final AggregatorFactory[] factories = topN.getAggregatorSpecs().toArray(new AggregatorFactory[0]);
         return new Result<TopNResultValue>(
             timestamp,
             new TopNResultValue(GuavaUtils.transform(
@@ -242,13 +244,13 @@ public class TopNQueryQueryToolChest
   }
 
   @Override
-  public TypeReference<Result<TopNResultValue>> getResultTypeReference(TopNQuery query)
+  public TypeReference<Result<TopNResultValue>> getResultTypeReference(Query<Result<TopNResultValue>> query)
   {
     return TYPE_REFERENCE;
   }
 
   @Override
-  public JavaType getResultTypeReference(TopNQuery query, TypeFactory factory)
+  public JavaType getResultTypeReference(Query<Result<TopNResultValue>> query, TypeFactory factory)
   {
     if (query != null && BaseQuery.isBySegment(query)) {
       return factory.constructParametricType(Result.class, BySegmentTopNResultValue.class);
@@ -258,7 +260,7 @@ public class TopNQueryQueryToolChest
 
   @Override
   public BySegmentTopNResultValue bySegment(
-      TopNQuery query,
+      Query<Result<TopNResultValue>> query,
       Sequence<Result<TopNResultValue>> sequence,
       String segmentId
   )
@@ -268,7 +270,7 @@ public class TopNQueryQueryToolChest
 
   @Override
   @SuppressWarnings("unchecked")
-  public ToIntFunction numRows(TopNQuery query)
+  public ToIntFunction numRows(Query<Result<TopNResultValue>> query)
   {
     if (BaseQuery.isBySegment(query)) {
       return v -> ((Result<BySegmentTopNResultValue>) v).getValue().countAll();
@@ -281,16 +283,6 @@ public class TopNQueryQueryToolChest
   {
     return new CacheStrategy<Result<TopNResultValue>, List<Object>, TopNQuery>()
     {
-      private final List<AggregatorFactory> aggs = Lists.newArrayList(query.getAggregatorSpecs());
-      private final List<PostAggregator.Processor> postAggs = PostAggregators.toProcessors(PostAggregators.decorate(
-          AggregatorUtil.pruneDependentPostAgg(
-              query.getPostAggregatorSpecs(),
-              query.getTopNMetricSpec()
-                   .getMetricName(query.getDimensionSpec())
-          ),
-          query.getAggregatorSpecs()
-      ));
-
       @Override
       public byte[] computeCacheKey(TopNQuery query, int limit)
       {
@@ -313,7 +305,7 @@ public class TopNQueryQueryToolChest
       }
 
       @Override
-      public Function<Result<TopNResultValue>, List<Object>> prepareForCache()
+      public Function<Result<TopNResultValue>, List<Object>> prepareForCache(TopNQuery query)
       {
         return new Function<Result<TopNResultValue>, List<Object>>()
         {
@@ -341,10 +333,20 @@ public class TopNQueryQueryToolChest
       }
 
       @Override
-      public Function<List<Object>, Result<TopNResultValue>> pullFromCache()
+      public Function<List<Object>, Result<TopNResultValue>> pullFromCache(TopNQuery query)
       {
         return new Function<List<Object>, Result<TopNResultValue>>()
         {
+          private final List<AggregatorFactory> aggs = Lists.newArrayList(query.getAggregatorSpecs());
+          private final List<PostAggregator.Processor> postAggs = PostAggregators.toProcessors(PostAggregators.decorate(
+              AggregatorUtil.pruneDependentPostAgg(
+                  query.getPostAggregatorSpecs(),
+                  query.getTopNMetricSpec()
+                       .getMetricName(query.getDimensionSpec())
+              ),
+              query.getAggregatorSpecs()
+          ));
+
           private final Granularity granularity = query.getGranularity();
 
           @Override
@@ -493,7 +495,7 @@ public class TopNQueryQueryToolChest
 
   @Override
   public Function<Sequence<Result<TopNResultValue>>, Sequence<Map<String, Object>>> asMap(
-      final TopNQuery query, final String timestampColumn
+      final Query<Result<TopNResultValue>> query, final String timestampColumn
   )
   {
     return new Function<Sequence<Result<TopNResultValue>>, Sequence<Map<String, Object>>>()

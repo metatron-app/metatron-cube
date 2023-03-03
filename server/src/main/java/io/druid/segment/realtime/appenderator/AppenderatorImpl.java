@@ -402,12 +402,12 @@ public class AppenderatorImpl implements Appenderator
 
   private <T> QueryRunner<T> toQueryRunner(final Query<T> query, Iterable<SegmentDescriptor> specs)
   {
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
     if (factory == null) {
       throw new ISE("Unknown query type[%s].", query.getClass());
     }
 
-    final QueryToolChest<T, Query<T>> toolchest = factory.getToolchest();
+    final QueryToolChest<T> toolchest = factory.getToolchest();
     final boolean skipIncrementalSegment = query.getContextValue(CONTEXT_SKIP_INCREMENTAL_SEGMENT, false);
 
     final List<SegmentDescriptor> descriptors = Lists.newArrayList(specs);
@@ -576,7 +576,7 @@ public class AppenderatorImpl implements Appenderator
    */
   private <T> QueryRunner<T> withPerSinkMetrics(
       final QueryRunner<T> sinkRunner,
-      final QueryToolChest<T, ? extends Query<T>> queryToolChest,
+      final QueryToolChest<T> queryToolChest,
       final String sinkSegmentIdentifier,
       final AtomicLong cpuTimeAccumulator
   )

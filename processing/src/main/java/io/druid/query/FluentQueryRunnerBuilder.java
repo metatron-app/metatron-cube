@@ -26,15 +26,15 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class FluentQueryRunnerBuilder<T>
 {
-  private final QueryToolChest<T, Query<T>> toolChest;
+  private final QueryToolChest<T> toolChest;
   private final QueryRunner<T> runner;
 
-  public static <T> FluentQueryRunnerBuilder<T> create(QueryToolChest<T, Query<T>> toolChest, QueryRunner<T> baseRunner)
+  public static <T> FluentQueryRunnerBuilder<T> create(QueryToolChest<T> toolChest, QueryRunner<T> baseRunner)
   {
     return new FluentQueryRunnerBuilder<T>(toolChest, baseRunner);
   }
 
-  private FluentQueryRunnerBuilder(QueryToolChest<T, Query<T>> toolChest, QueryRunner<T> baseRunner)
+  private FluentQueryRunnerBuilder(QueryToolChest<T> toolChest, QueryRunner<T> baseRunner)
   {
     this.toolChest = toolChest;
     this.runner = baseRunner;

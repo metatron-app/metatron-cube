@@ -19,7 +19,6 @@
 
 package io.druid.query;
 
-import io.druid.granularity.Granularity;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import org.joda.time.Interval;
 
@@ -89,7 +88,7 @@ import org.joda.time.Interval;
  * Adding new methods to QueryMetrics
  * ----------------------------------
  * 1. When adding a new method for setting a dimension, which could be pulled from the query object, always make them
- * accept a single `QueryType query` parameter, letting the implementations to do all the work of carving the dimension
+ * accept a single `Query<?> query` parameter, letting the implementations to do all the work of carving the dimension
  * value out of the query object.
  *
  * 2. When adding a new method for setting a dimension, which becomes known in the process of the query execution or
@@ -136,50 +135,55 @@ import org.joda.time.Interval;
  * dimensions than the default generic QueryMetrics. So those subinterfaces shouldn't be taken as direct examples for
  * following the plan specified above.
  *
- * @param <QueryType>
+ * @param 
  */
-public interface QueryMetrics<QueryType extends Query<?>>
+public interface QueryMetrics
 {
-
   /**
    * Pulls all information from the query object into dimensions of future metrics.
    */
-  void query(QueryType query);
+  void query(Query<?> query);
 
   /**
    * Sets {@link Query#getDataSource()} of the given query as dimension.
    */
-  void dataSource(QueryType query);
+  void dataSource(Query<?> query);
 
   /**
    * Sets {@link Query#getType()} of the given query as dimension.
    */
-  void queryType(QueryType query);
+  void queryType(Query<?> query);
 
   /**
    * Sets {@link Query#getIntervals()} of the given query as dimension.
    */
-  void interval(QueryType query);
+  void interval(Query<?> query);
 
   /**
    * Sets {@link Query#hasFilters()} of the given query as dimension.
    */
-  void hasFilters(QueryType query);
+  void hasFilters(Query<?> query);
 
   /**
    * Sets {@link Query#getDuration()} of the given query as dimension.
    */
-  void duration(QueryType query);
+  void duration(Query<?> query);
 
   /**
    * Sets {@link Query#getId()} of the given query as dimension.
    */
-  void queryId(QueryType query);
+  void queryId(Query<?> query);
+
+
+  /**
+   * Sets {@link Query#getGranularity()} of the given query as dimension.
+   */
+  void granularity(Query<?> query);
 
   /**
    * Sets {@link Query#getContext()} of the given query as dimension.
    */
-  void context(QueryType query);
+  void context(Query<?> query);
 
   void server(String host);
 
@@ -196,65 +200,60 @@ public interface QueryMetrics<QueryType extends Query<?>>
   /**
    * Registers "query time" metric.
    */
-  QueryMetrics<QueryType> reportQueryTime(long timeNs);
+  QueryMetrics reportQueryTime(long timeNs);
 
   /**
    * Registers "query bytes" metric.
    */
-  QueryMetrics<QueryType> reportQueryBytes(long byteCount);
+  QueryMetrics reportQueryBytes(long byteCount);
 
   /**
    * Registers "query rows" metric.
    */
-  QueryMetrics<QueryType> reportQueryRows(int rows);
+  QueryMetrics reportQueryRows(int rows);
 
   /**
    * Registers "wait time" metric.
    */
-  QueryMetrics<QueryType> reportWaitTime(long timeNs);
+  QueryMetrics reportWaitTime(long timeNs);
 
   /**
    * Registers "segment time" metric.
    */
-  QueryMetrics<QueryType> reportSegmentTime(long timeNs);
+  QueryMetrics reportSegmentTime(long timeNs);
 
   /**
    * Registers "segmentAndCache time" metric.
    */
-  QueryMetrics<QueryType> reportSegmentAndCacheTime(long timeNs);
+  QueryMetrics reportSegmentAndCacheTime(long timeNs);
 
   /**
    * Registers "interval chunk time" metric.
    */
-  QueryMetrics<QueryType> reportIntervalChunkTime(long timeNs);
+  QueryMetrics reportIntervalChunkTime(long timeNs);
 
   /**
    * Registers "cpu time" metric.
    */
-  QueryMetrics<QueryType> reportCpuTime(long timeNs);
+  QueryMetrics reportCpuTime(long timeNs);
 
   /**
    * Registers "time to first byte" metric.
    */
-  QueryMetrics<QueryType> reportNodeTimeToFirstByte(long timeNs);
+  QueryMetrics reportNodeTimeToFirstByte(long timeNs);
 
   /**
    * Registers "node time" metric.
    */
-  QueryMetrics<QueryType> reportNodeTime(long timeNs);
+  QueryMetrics reportNodeTime(long timeNs);
 
   /**
    * Registers "node bytes" metric.
    */
-  QueryMetrics<QueryType> reportNodeBytes(long byteCount);
+  QueryMetrics reportNodeBytes(long byteCount);
 
   /**
    * Emits all metrics, registered since the last {@code emit()} call on this QueryMetrics object.
    */
   void emit(ServiceEmitter emitter);
-
-  default QueryMetrics<QueryType> granularity(Granularity granularity)
-  {
-    return this;
-  }
 }

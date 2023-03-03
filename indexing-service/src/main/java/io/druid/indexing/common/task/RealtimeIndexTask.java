@@ -185,8 +185,8 @@ public class RealtimeIndexTask extends AbstractTask
   public <T> QueryRunner<T> getQueryRunner(Query<T> query)
   {
     if (plumber != null) {
-      QueryRunnerFactory<T, Query<T>> factory = queryRunnerFactoryConglomerate.findFactory(query);
-      QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+      QueryRunnerFactory<T> factory = queryRunnerFactoryConglomerate.findFactory(query);
+      QueryToolChest<T> toolChest = factory.getToolchest();
 
       return QueryRunners.finalizeAndPostProcessing(plumber.getQueryRunner(query), toolChest, jsonMapper);
     } else {

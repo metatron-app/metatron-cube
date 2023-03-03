@@ -156,7 +156,7 @@ public class ConcatSequenceTest
     final int[] closedCount = {0};
     final Sequence<Integer> seq = Sequences.concat(
         new BaseSequence<>(
-            new BaseSequence.IteratorMaker<Sequence<Integer>, Iterator<Sequence<Integer>>>()
+            new BaseSequence.IteratorMaker<Sequence<Integer>>()
             {
               @Override
               public Iterator<Sequence<Integer>> make()
@@ -219,7 +219,7 @@ public class ConcatSequenceTest
     final AtomicInteger closedCount = new AtomicInteger(0);
     final Sequence<Integer> seq = Sequences.concat(
         new BaseSequence<>(
-            new BaseSequence.IteratorMaker<Sequence<Integer>, Iterator<Sequence<Integer>>>()
+            new BaseSequence.IteratorMaker<Sequence<Integer>>()
             {
               @Override
               public Iterator<Sequence<Integer>> make()

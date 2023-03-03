@@ -22,8 +22,9 @@ package io.druid.query.groupby;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.query.DefaultQueryMetrics;
 import io.druid.query.DruidMetrics;
+import io.druid.query.Query;
 
-public class DefaultGroupByQueryMetrics extends DefaultQueryMetrics<GroupByQuery> implements GroupByQueryMetrics
+public class DefaultGroupByQueryMetrics extends DefaultQueryMetrics implements GroupByQueryMetrics
 {
 
   public DefaultGroupByQueryMetrics(ObjectMapper jsonMapper)
@@ -32,13 +33,13 @@ public class DefaultGroupByQueryMetrics extends DefaultQueryMetrics<GroupByQuery
   }
 
   @Override
-  public void query(GroupByQuery query)
+  public void query(Query<?> query)
   {
+    GroupByQuery groupBy = (GroupByQuery) query;
     super.query(query);
-    numDimensions(query);
-    numMetrics(query);
-    numComplexMetrics(query);
-    granularity(query.getGranularity());
+    numDimensions(groupBy);
+    numMetrics(groupBy);
+    numComplexMetrics(groupBy);
   }
 
   @Override

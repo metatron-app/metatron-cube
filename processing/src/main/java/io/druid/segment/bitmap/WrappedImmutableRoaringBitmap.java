@@ -16,9 +16,9 @@
 
 package io.druid.segment.bitmap;
 
-import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.query.QueryException;
 import org.roaringbitmap.IntIterator;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
@@ -87,7 +87,7 @@ public class WrappedImmutableRoaringBitmap implements ImmutableBitmap
       return out.toByteArray();
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 

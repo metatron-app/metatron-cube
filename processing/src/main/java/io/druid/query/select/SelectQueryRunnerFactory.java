@@ -47,7 +47,7 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 public class SelectQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<Result<SelectResultValue>, SelectQuery>
+    extends QueryRunnerFactory.Abstract<Result<SelectResultValue>>
 {
   private static final Logger LOG = new Logger(SelectQueryRunnerFactory.class);
 
@@ -67,7 +67,7 @@ public class SelectQueryRunnerFactory
 
   @Override
   public Supplier<Object> preFactoring(
-      SelectQuery query,
+      Query<Result<SelectResultValue>> query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
@@ -76,10 +76,11 @@ public class SelectQueryRunnerFactory
     if (segments.size() < config.getOptimizeSegmentThreshold()) {
       return null;
     }
-    PagingSpec pagingSpec = query.getPagingSpec();
+    SelectQuery select = (SelectQuery) query;
+    PagingSpec pagingSpec = select.getPagingSpec();
     int threshold = pagingSpec.getThreshold();
     if (threshold > 0) {
-      final SelectMetaQuery baseQuery = query.toMetaQuery(false);
+      final SelectMetaQuery baseQuery = select.toMetaQuery(false);
       final SelectMetaQueryEngine engine = new SelectMetaQueryEngine();
 
       final Set<String> targets = Sets.newHashSet();

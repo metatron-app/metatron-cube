@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -288,7 +287,7 @@ public class ModuleBuiltinFunctions implements Function.Library
             return jsonMapper.writeValueAsString(Evals.evalValue(args.get(0), bindings));
           }
           catch (Exception e) {
-            throw Throwables.propagate(e);
+            throw QueryException.wrapIfNeeded(e);
           }
         }
       };

@@ -40,7 +40,7 @@ import java.util.Map;
 
 /**
  */
-public class LoadQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<String, Object>, LoadQuery>
+public class LoadQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<String, Object>>
 {
   private final Provider<QuerySegmentWalker> segmentWalker;   // walk around for circular reference.. todo
 

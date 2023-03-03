@@ -19,7 +19,6 @@ package io.druid.segment.bitmap;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.metamx.collections.bitmap.BitmapFactory;
@@ -28,6 +27,7 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.data.VLongUtils;
 import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.QueryException;
 import org.roaringbitmap.IntIterator;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.BufferFastAggregation;
@@ -69,7 +69,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
       };
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 
@@ -116,7 +116,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
       return ((WrappedRoaringBitmap) mutableBitmap).toImmutableBitmap();
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 

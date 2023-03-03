@@ -168,20 +168,21 @@ public class TimeBoundaryQueryQueryToolChestTest
   @Test
   public void testCacheStrategy() throws Exception
   {
+    TimeBoundaryQuery query = new TimeBoundaryQuery(
+        new TableDataSource("dummy" ),
+        new MultipleIntervalSegmentSpec(
+            ImmutableList.of(
+                new Interval(
+                    "2015-01-01/2015-01-02"
+                )
+            )
+        ),
+        null,
+        null
+    );
     CacheStrategy<Result<TimeBoundaryResultValue>, Object, TimeBoundaryQuery> strategy =
         new TimeBoundaryQueryQueryToolChest().getCacheStrategyIfExists(
-            new TimeBoundaryQuery(
-                new TableDataSource("dummy"),
-                new MultipleIntervalSegmentSpec(
-                    ImmutableList.of(
-                        new Interval(
-                            "2015-01-01/2015-01-02"
-                        )
-                    )
-                ),
-                null,
-                null
-            )
+            query
         );
 
     final Result<TimeBoundaryResultValue> result = new Result<>(
@@ -193,7 +194,7 @@ public class TimeBoundaryQueryQueryToolChestTest
     )
     );
 
-    Object preparedValue = strategy.prepareForCache().apply(
+    Object preparedValue = strategy.prepareForCache(query).apply(
         result
     );
 
@@ -203,7 +204,7 @@ public class TimeBoundaryQueryQueryToolChestTest
         strategy.getCacheObjectClazz()
     );
 
-    Result<TimeBoundaryResultValue> fromCacheResult = strategy.pullFromCache().apply(fromCacheValue);
+    Result<TimeBoundaryResultValue> fromCacheResult = strategy.pullFromCache(query).apply(fromCacheValue);
 
     Assert.assertEquals(result, fromCacheResult);
   }

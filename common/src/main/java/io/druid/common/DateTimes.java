@@ -84,6 +84,11 @@ public final class DateTimes
     return new DateTime(instant, ISOChronology.getInstanceUTC());
   }
 
+  public static long millis(String instant)
+  {
+    return of(instant).getMillis();
+  }
+
   public static DateTime of(long instant)
   {
     return new DateTime(instant, ISOChronology.getInstanceUTC());

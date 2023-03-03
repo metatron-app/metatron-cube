@@ -60,8 +60,8 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 public class StreamQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<Object[], StreamQuery>
-    implements QueryRunnerFactory.Splitable<Object[], StreamQuery>
+    extends QueryRunnerFactory.Abstract<Object[]>
+    implements QueryRunnerFactory.Splitable<Object[]>
 {
   private static final Logger logger = new Logger(StreamQueryRunnerFactory.class);
 
@@ -78,7 +78,7 @@ public class StreamQueryRunnerFactory
 
   @Override
   public Supplier<Object> preFactoring(
-      StreamQuery query,
+      Query<Object[]> query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
@@ -89,7 +89,7 @@ public class StreamQueryRunnerFactory
 
   @Override
   public List<List<Segment>> splitSegments(
-      StreamQuery query,
+      Query<Object[]> query,
       List<Segment> targets,
       Supplier<Object> optimizer,
       Supplier<RowResolver> resolver,
@@ -105,15 +105,16 @@ public class StreamQueryRunnerFactory
   private static final int SPLIT_MAX_SPLIT = 32;
 
   @Override
-  public List<StreamQuery> splitQuery(
-      StreamQuery query,
+  public List<Query<Object[]>> splitQuery(
+      Query<Object[]> query,
       List<Segment> segments,
       Supplier<Object> optimizer,
       Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker
   )
   {
-    List<OrderByColumnSpec> orderingSpecs = query.getOrderingSpecs();
+    StreamQuery stream = (StreamQuery) query;
+    List<OrderByColumnSpec> orderingSpecs = stream.getOrderingSpecs();
     if (GuavaUtils.isNullOrEmpty(orderingSpecs) || OrderByColumnSpec.isSimpleTimeOrdered(orderingSpecs)) {
       return null;
     }
@@ -121,7 +122,7 @@ public class StreamQueryRunnerFactory
     if (numSplit < 2) {
       int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
       if (splitRows > SPLIT_MIN_ROWS) {
-        int numRows = getNumRows(query, segments, resolver, splitRows, cache(query));
+        int numRows = getNumRows(stream, segments, resolver, splitRows, cache(query));
         if (numRows >= 0) {
           logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
           numSplit = numRows / splitRows;
@@ -135,14 +136,14 @@ public class StreamQueryRunnerFactory
 
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
 
-    OrderByColumnSpec orderingSpec = query.getOrderingSpecs().get(0);
+    OrderByColumnSpec orderingSpec = stream.getOrderingSpecs().get(0);
     Map<String, String> mapping = QueryUtils.aliasMapping(query);
     String sortColumn = mapping.getOrDefault(orderingSpec.getDimension(), orderingSpec.getDimension());
 
     DimensionSpec ordering = orderingSpec.asDimensionSpec();
     long start = System.currentTimeMillis();
     Object[] thresholds = Queries.makeColumnHistogramOn(
-        resolver, segments, segmentWalker, query.asTimeseriesQuery(), ordering, numSplit, strategy, -1, cache(query)
+        resolver, segments, segmentWalker, stream.asTimeseriesQuery(), ordering, numSplit, strategy, -1, cache(query)
     );
     long elapsed = System.currentTimeMillis() - start;
     if (thresholds == null || thresholds.length < 3) {
@@ -150,10 +151,10 @@ public class StreamQueryRunnerFactory
     }
     logger.info("split %s on values : %s (%d msec)", sortColumn, Arrays.toString(thresholds), elapsed);
 
-    List<StreamQuery> splits = Lists.newArrayList();
+    List<Query<Object[]>> splits = Lists.newArrayList();
     for (DimFilter filter : QueryUtils.toSplitter(sortColumn, orderingSpec, thresholds)) {
       logger.debug("--> split filter : %s", filter);
-      splits.add(query.withFilter(DimFilters.and(query.getFilter(), filter)));
+      splits.add(stream.withFilter(DimFilters.and(stream.getFilter(), filter)));
     }
     return splits;
   }

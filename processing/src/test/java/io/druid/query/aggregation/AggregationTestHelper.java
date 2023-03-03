@@ -169,7 +169,7 @@ public class AggregationTestHelper
   {
     ObjectMapper mapper = new DefaultObjectMapper();
 
-    QueryRunnerFactory<Result<SelectResultValue>, SelectQuery> factory = TestHelper.factoryFor(SelectQuery.class);
+    QueryRunnerFactory<Result<SelectResultValue>> factory = TestHelper.factoryFor(SelectQuery.class);
 
     IndexIO indexIO = new IndexIO(
         mapper

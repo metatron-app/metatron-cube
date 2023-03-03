@@ -479,7 +479,8 @@ public class BrokerServerView implements TimelineServerView
       if (server.equals(node)) {
         return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, smileMapper);
       }
-      final QueryToolChest<T, Query<T>> toolchest = conglomerate.findFactory(query).getToolchest();
+      final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
+      final QueryToolChest<T> toolchest = factory.getToolchest();
       final JavaType reference = toolchest.getResultTypeReference(query, smileMapper.getTypeFactory());
       final String prefix = ServiceTypes.TYPE_TO_RESOURCE.getOrDefault(server.getType(), server.getType());
       final String resource = String.format("druid/%s/v1/%s", prefix, query.getType());
@@ -528,13 +529,13 @@ public class BrokerServerView implements TimelineServerView
     } else {
       throw new UOE("Invalid segment spec for broker %s", query.getQuerySegmentSpec());
     }
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
     if (factory == null) {
       log.warn("Unknown query type, [%s]", query.getClass());
       return NoopQueryRunner.instance();
     }
 
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    final QueryToolChest<T> toolChest = factory.getToolchest();
 
     final TimelineLookup<LocalSegment> timeline = indexMap.get(DataSources.getName(query));
     if (timeline == null) {
@@ -593,14 +594,14 @@ public class BrokerServerView implements TimelineServerView
 
   // copied from server manager, except cache populator
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
-      final QueryRunnerFactory<T, Query<T>> factory,
+      final QueryRunnerFactory<T> factory,
       final LocalSegment segment,
       final SegmentDescriptor descriptor,
       final Supplier<Object> optimizer,
       final CPUTimeMetricBuilder<T> reporter
   )
   {
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    final QueryToolChest<T> toolChest = factory.getToolchest();
     SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(descriptor);
     return reporter.accumulate(
         new SpecificSegmentQueryRunner<T>(

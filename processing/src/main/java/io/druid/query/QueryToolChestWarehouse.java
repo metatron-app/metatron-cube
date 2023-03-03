@@ -25,5 +25,5 @@ public interface QueryToolChestWarehouse
 {
   QueryConfig getQueryConfig();
 
-  <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query);
+  <T> QueryToolChest<T> getToolChest(Query<?> query);
 }

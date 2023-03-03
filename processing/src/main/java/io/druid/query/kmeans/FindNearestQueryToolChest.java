@@ -34,7 +34,7 @@ import java.util.Comparator;
 
 /**
  */
-public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, FindNearestQuery>
+public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc>
 {
   private static final TypeReference<CentroidDesc> TYPE_REFERENCE =
       new TypeReference<CentroidDesc>()
@@ -75,13 +75,13 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
   }
 
   @Override
-  public QueryMetrics<? super FindNearestQuery> makeMetrics(FindNearestQuery query)
+  public QueryMetrics makeMetrics(Query<CentroidDesc> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public TypeReference<CentroidDesc> getResultTypeReference(FindNearestQuery query)
+  public TypeReference<CentroidDesc> getResultTypeReference(Query<CentroidDesc> query)
   {
     return TYPE_REFERENCE;
   }

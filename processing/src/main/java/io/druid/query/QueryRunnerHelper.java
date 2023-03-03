@@ -74,8 +74,8 @@ public class QueryRunnerHelper
       ObjectMapper mapper
   )
   {
-    QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
+    QueryToolChest<T> toolChest = factory.getToolchest();
 
     exec = exec == null ? Execs.newDirectExecutorService() : exec;
     return QueryRunners.finalizeAndPostProcessing(

@@ -311,7 +311,7 @@ public class RealtimeManagerTest
       }
 
       @Override
-      public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
+      public <T> QueryRunnerFactory<T> findFactory(Class clazz)
       {
         return factory;
       }

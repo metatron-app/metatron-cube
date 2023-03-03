@@ -84,7 +84,7 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   }
 
   @Override
-  public TimeseriesQueryMetrics makeMetrics(TimeseriesQuery query)
+  public TimeseriesQueryMetrics makeMetrics(Query<Row> query)
   {
     TimeseriesQueryMetrics queryMetrics = metricsFactory.makeMetrics();
     queryMetrics.query(query);

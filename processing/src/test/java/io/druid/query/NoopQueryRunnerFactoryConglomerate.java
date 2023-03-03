@@ -30,7 +30,7 @@ public class NoopQueryRunnerFactoryConglomerate implements QueryRunnerFactoryCon
   }
 
   @Override
-  public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
+  public <T> QueryRunnerFactory<T> findFactory(Class clazz)
   {
     throw new UnsupportedOperationException();
   }

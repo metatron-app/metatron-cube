@@ -398,6 +398,25 @@ public class TimeseriesQuery extends BaseAggregationQuery
     );
   }
 
+  public Query<Row> withDescending(boolean descending)
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        descending,
+        filter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
   public static class Builder extends BaseAggregationQuery.Builder<TimeseriesQuery>
   {
     public Builder() { }

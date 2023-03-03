@@ -22,7 +22,6 @@ package io.druid.client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.cache.Cache;
@@ -34,12 +33,11 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.SegmentDescriptor;
 
-import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -50,7 +48,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
   private final byte[] segmentIdentifier;
   private final SegmentDescriptor segmentDescriptor;
   private final QueryRunner<T> base;
-  private final QueryToolChest<T, Query<T>> toolChest;
+  private final QueryToolChest<T> toolChest;
   private final Cache cache;
   private final ObjectMapper mapper;
   private final CacheConfig cacheConfig;
@@ -61,7 +59,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
       SegmentDescriptor segmentDescriptor,
       ObjectMapper mapper,
       Cache cache,
-      QueryToolChest<T, Query<T>> toolchest,
+      QueryToolChest<T> toolchest,
       QueryRunner<T> base,
       ExecutorService backgroundExecutorService,
       CacheConfig cacheConfig
@@ -112,31 +110,24 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
         }
         final TypeReference<?> cacheObjectClazz = strategy.getCacheObjectClazz();
 
-        final Sequence<Object> sequence = Sequences.simple(
-            new Iterable<Object>()
-            {
-              @Override
-              public Iterator<Object> iterator()
-              {
-                try {
-                  return mapper.readValues(
-                      mapper.getFactory().createParser(cachedResult),
-                      cacheObjectClazz
-                  );
-                }
-                catch (IOException e) {
-                  throw Throwables.propagate(e);
-                }
-              }
-            }
-        );
-        return Sequences.map(columns, sequence, strategy.pullFromCache());
+        final Sequence<Object> sequence = Sequences.simple(() -> {
+          try {
+            return mapper.readValues(
+                mapper.getFactory().createParser(cachedResult),
+                cacheObjectClazz
+            );
+          }
+          catch (Exception e) {
+            throw QueryException.wrapIfNeeded(e);
+          }
+        });
+        return Sequences.map(columns, sequence, strategy.pullFromCache(query));
       }
     }
 
     if (populateCache) {
       final CachePopulator populator = new CachePopulator(cache, mapper, key);
-      final Function<T, Object> cacheFn = strategy.prepareForCache();
+      final Function<T, Object> cacheFn = strategy.prepareForCache(query);
 
       return Sequences.withEffect(
           Sequences.map(

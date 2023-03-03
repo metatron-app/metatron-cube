@@ -32,6 +32,7 @@ import io.druid.java.util.common.parsers.Parser;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
+import io.druid.query.QueryException;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpecs;
@@ -122,7 +123,7 @@ public class RequestLogParseSpec implements ParseSpec
           result = mapper.readValue(splits[3], Map.class);
         }
         catch (Exception e) {
-          throw Throwables.propagate(e);
+          throw QueryException.wrapIfNeeded(e);
         }
         event.put("queryType", query.getType());
         event.put("dataSource", query.getDataSource().getNames());

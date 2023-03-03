@@ -26,7 +26,7 @@ import io.druid.segment.Segment;
 
 /**
  */
-public class FilterMetaQueryRunnerFactory extends QueryRunnerFactory.Abstract<long[], FilterMetaQuery>
+public class FilterMetaQueryRunnerFactory extends QueryRunnerFactory.Abstract<long[]>
 {
   @Inject
   public FilterMetaQueryRunnerFactory(FilterMetaQueryToolChest toolChest, QueryWatcher queryWatcher)

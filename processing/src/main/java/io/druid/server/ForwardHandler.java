@@ -24,7 +24,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -41,9 +40,11 @@ import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryException;
 import io.druid.query.QueryResult;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
 import io.druid.query.QueryVisitor;
@@ -160,7 +161,7 @@ public class ForwardHandler implements ForwardConstants
           );
         }
         catch (Exception e) {
-          throw Throwables.propagate(e);
+          throw QueryException.wrapIfNeeded(e);
         }
       }
 
@@ -176,8 +177,9 @@ public class ForwardHandler implements ForwardConstants
         }
         // union-all does not have toolchest. delegate it to inner query
         Query<T> representative = BaseQuery.getRepresentative(query);
+        QueryToolChest<T> toolChest = warehouse.getToolChest(representative);
         String timestampColumn = PropUtils.parseString(context, ForwardConstants.TIMESTAMP_COLUMN);
-        return warehouse.getToolChest(representative).asMap(query, timestampColumn).apply(sequence);
+        return toolChest.asMap(query, timestampColumn).apply(sequence);
       }
     };
   }

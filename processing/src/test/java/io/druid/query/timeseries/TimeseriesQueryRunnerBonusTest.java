@@ -28,7 +28,6 @@ import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
-import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -36,7 +35,6 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.segment.IncrementalIndexSegment;
-import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
@@ -112,16 +110,11 @@ public class TimeseriesQueryRunnerBonusTest
   private List<Row> runTimeseriesCount(IncrementalIndex index)
   {
     final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
-    final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
+    final QueryRunnerFactory<Row> factory = new TimeseriesQueryRunnerFactory(
         toolChest,
         new TimeseriesQueryEngine(),
         new QueryConfig(),
         TestHelper.NOOP_QUERYWATCHER
-    );
-
-    final QueryRunner<Row> runner = makeQueryRunner(
-        factory,
-        new IncrementalIndexSegment(index, DataSegment.asKey("test"))
     );
 
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
@@ -136,20 +129,20 @@ public class TimeseriesQueryRunnerBonusTest
                                   .descending(descending)
                                   .build();
     HashMap<String,Object> context = new HashMap<String, Object>();
+
+    final QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
+        toolChest.mergeResults(
+            factory.createRunner(
+                new IncrementalIndexSegment(index, DataSegment.asKey("test" )),
+                null
+            )),
+        toolChest
+    );
+
     return Sequences.toList(
         runner.run(query, context),
         Lists.<Row>newArrayList()
     );
   }
 
-  private static <T> QueryRunner<T> makeQueryRunner(
-      QueryRunnerFactory<T, Query<T>> factory,
-      Segment adapter
-  )
-  {
-    return new FinalizeResultsQueryRunner<T>(
-        factory.getToolchest().mergeResults(factory.createRunner(adapter, null)),
-        factory.getToolchest()
-    );
-  }
 }

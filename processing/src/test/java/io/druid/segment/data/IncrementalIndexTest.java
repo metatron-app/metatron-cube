@@ -541,16 +541,16 @@ public class IncrementalIndexTest
     Assert.assertTrue("Did not hit concurrency, please try again", concurrentlyRan.get() > 0);
     queryExecutor.shutdown();
     indexExecutor.shutdown();
-    QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
-        toolChest.mergeResults(factory.createRunner(incrementalIndexSegment, null)),
-        factory.getToolchest()
-    );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource("xxx")
                                   .granularity(QueryGranularities.ALL)
                                   .intervals(ImmutableList.of(queryInterval))
                                   .aggregators(queryAggregatorFactories)
                                   .build();
+    QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
+        toolChest.mergeResults(factory.createRunner(incrementalIndexSegment, null)),
+        factory.getToolchest()
+    );
     Map<String, Object> context = new HashMap<String, Object>();
     List<Row> results = Sequences.toList(
         runner.run(query, context),

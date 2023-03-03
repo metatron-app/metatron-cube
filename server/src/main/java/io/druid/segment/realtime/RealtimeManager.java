@@ -197,7 +197,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
     if (query instanceof Query.ManagementQuery) {
       return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, objectMapper);
     }
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
     final Map<Integer, FireChief> partitionChiefs = chiefs.get(Iterables.getOnlyElement(query.getDataSource()
                                                                                              .getNames()));
 
@@ -227,7 +227,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
     if (query instanceof Query.ManagementQuery) {
       return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, objectMapper);
     }
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
     final Map<Integer, FireChief> partitionChiefs = chiefs.get(
         Iterables.getOnlyElement(
             query.getDataSource()
@@ -440,8 +440,8 @@ public class RealtimeManager implements ForwardingSegmentWalker
 
     public <T> QueryRunner<T> getQueryRunner(Query<T> query)
     {
-      QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-      QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+      QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
+      QueryToolChest<T> toolChest = factory.getToolchest();
 
       return QueryRunners.finalizeAndPostProcessing(plumber.getQueryRunner(query), toolChest, mapper);
     }

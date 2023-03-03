@@ -19,13 +19,13 @@
 
 package io.druid.query.spec;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
 import io.druid.common.guava.Yielder;
 import io.druid.common.guava.YieldingAccumulator;
 import io.druid.query.Query;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
@@ -185,7 +185,7 @@ public class SpecificSegmentQueryRunner<T> implements QueryRunner<T>
       return toRun.call();
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw QueryException.wrapIfNeeded(e);
     }
     finally {
       currThread.setName(currName);

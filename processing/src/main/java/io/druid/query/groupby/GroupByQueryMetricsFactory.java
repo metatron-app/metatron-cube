@@ -21,6 +21,5 @@ package io.druid.query.groupby;
 
 public interface GroupByQueryMetricsFactory
 {
-
   GroupByQueryMetrics makeMetrics();
 }

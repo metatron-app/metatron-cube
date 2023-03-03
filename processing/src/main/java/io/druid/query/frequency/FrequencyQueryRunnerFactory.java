@@ -54,7 +54,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object[], FrequencyQuery>
+public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object[]>
 {
   @Inject
   public FrequencyQueryRunnerFactory(FrequencyQueryToolChest toolChest, QueryWatcher queryWatcher)
@@ -64,13 +64,13 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
 
   @Override
   public Supplier<Object> preFactoring(
-      FrequencyQuery query,
+      Query<Object[]> query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
   )
   {
-    return Suppliers.ofInstance(CountMinSketch.fromCompressedBytes(query.getSketch()));
+    return Suppliers.ofInstance(CountMinSketch.fromCompressedBytes(((FrequencyQuery) query).getSketch()));
   }
 
   @Override

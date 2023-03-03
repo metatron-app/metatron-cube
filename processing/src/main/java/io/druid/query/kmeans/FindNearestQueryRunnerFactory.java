@@ -45,7 +45,7 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 public class FindNearestQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<CentroidDesc, FindNearestQuery>
+    extends QueryRunnerFactory.Abstract<CentroidDesc>
 {
   private final StreamQueryEngine engine;
   private final QueryConfig config;
@@ -65,7 +65,7 @@ public class FindNearestQueryRunnerFactory
 
   @Override
   public Supplier<Object> preFactoring(
-      FindNearestQuery query,
+      Query<CentroidDesc> query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec

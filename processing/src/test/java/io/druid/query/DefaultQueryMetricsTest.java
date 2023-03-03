@@ -50,7 +50,7 @@ public class DefaultQueryMetricsTest
   {
     CachingEmitter cachingEmitter = new CachingEmitter();
     ServiceEmitter serviceEmitter = new ServiceEmitter("", "", cachingEmitter);
-    DefaultQueryMetrics<Query<?>> queryMetrics = new DefaultQueryMetrics<>(new DefaultObjectMapper());
+    DefaultQueryMetrics queryMetrics = new DefaultQueryMetrics(new DefaultObjectMapper());
     TopNQuery query = new TopNQueryBuilder()
         .dataSource("xx")
         .granularity(Granularities.ALL)
@@ -66,7 +66,7 @@ public class DefaultQueryMetricsTest
         .filters(new SelectorDimFilter("tags", "t3", null))
         .build();
     queryMetrics.query(query);
-    queryMetrics.granularity(query.getGranularity());
+    queryMetrics.granularity(query);
 
     queryMetrics.reportQueryTime(0).emit(serviceEmitter);
     Map<String, Object> actualEvent = cachingEmitter.getLastEmittedEvent().toMap();
@@ -94,14 +94,14 @@ public class DefaultQueryMetricsTest
   {
     CachingEmitter cachingEmitter = new CachingEmitter();
     ServiceEmitter serviceEmitter = new ServiceEmitter("", "", cachingEmitter);
-    DefaultQueryMetrics<Query<?>> queryMetrics = new DefaultQueryMetrics<>(new DefaultObjectMapper());
+    DefaultQueryMetrics queryMetrics = new DefaultQueryMetrics(new DefaultObjectMapper());
     testQueryMetricsDefaultMetricNamesAndUnits(cachingEmitter, serviceEmitter, queryMetrics);
   }
 
   public static void testQueryMetricsDefaultMetricNamesAndUnits(
       CachingEmitter cachingEmitter,
       ServiceEmitter serviceEmitter,
-      QueryMetrics<? extends Query<?>> queryMetrics
+      QueryMetrics queryMetrics
   )
   {
     queryMetrics.reportQueryTime(1000001).emit(serviceEmitter);

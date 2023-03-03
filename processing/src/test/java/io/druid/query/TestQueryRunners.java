@@ -20,16 +20,23 @@
 package io.druid.query;
 
 import io.druid.collections.StupidPool;
+import io.druid.data.input.Row;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
+import io.druid.query.search.SearchResultValue;
+import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
+import io.druid.query.timeboundary.TimeBoundaryResultValue;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
+import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryConfig;
 import io.druid.query.topn.TopNQueryQueryToolChest;
 import io.druid.query.topn.TopNQueryRunnerFactory;
+import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 
@@ -47,9 +54,7 @@ public class TestQueryRunners
     return pool;
   }
 
-  public static <T> QueryRunner<T> makeTopNQueryRunner(
-      Segment adapter
-  )
+  public static QueryRunner<Result<TopNResultValue>> makeTopNQueryRunner(TopNQuery query, Segment adapter)
   {
     QueryRunnerFactory factory = new TopNQueryRunnerFactory(
         pool,
@@ -64,9 +69,7 @@ public class TestQueryRunners
     );
   }
 
-  public static <T> QueryRunner<T> makeTimeSeriesQueryRunner(
-      Segment adapter
-  )
+  public static QueryRunner<Row> makeTimeSeriesQueryRunner(TimeseriesQuery query, Segment adapter)
   {
     QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         new TimeseriesQueryQueryToolChest(),
@@ -80,8 +83,8 @@ public class TestQueryRunners
     );
   }
 
-  public static <T> QueryRunner<T> makeSearchQueryRunner(
-      Segment adapter
+  public static QueryRunner<Result<SearchResultValue>> makeSearchQueryRunner(
+      SearchQuery query, Segment adapter
   )
   {
     QueryRunnerFactory factory = new SearchQueryRunnerFactory(new SearchQueryQueryToolChest(
@@ -93,8 +96,8 @@ public class TestQueryRunners
     );
   }
 
-  public static <T> QueryRunner<T> makeTimeBoundaryQueryRunner(
-      Segment adapter
+  public static QueryRunner<Result<TimeBoundaryResultValue>> makeTimeBoundaryQueryRunner(
+      TimeBoundaryQuery query, Segment adapter
   )
   {
     QueryRunnerFactory factory = TestHelper.factoryFor(TimeBoundaryQuery.class);

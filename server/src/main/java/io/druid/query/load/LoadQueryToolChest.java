@@ -22,6 +22,7 @@ package io.druid.query.load;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.inject.Inject;
 import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -30,7 +31,7 @@ import java.util.Map;
 
 /**
  */
-public class LoadQueryToolChest extends QueryToolChest<Map<String, Object>, LoadQuery>
+public class LoadQueryToolChest extends QueryToolChest<Map<String, Object>>
 {
   private final GenericQueryMetricsFactory metricsFactory;
 
@@ -49,13 +50,13 @@ public class LoadQueryToolChest extends QueryToolChest<Map<String, Object>, Load
   }
 
   @Override
-  public QueryMetrics<? super LoadQuery> makeMetrics(LoadQuery query)
+  public QueryMetrics makeMetrics(Query<Map<String, Object>> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public TypeReference<Map<String, Object>> getResultTypeReference(LoadQuery query)
+  public TypeReference<Map<String, Object>> getResultTypeReference(Query<Map<String, Object>> query)
   {
     return MAP_TYPE_REFERENCE;
   }

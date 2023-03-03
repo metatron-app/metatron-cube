@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
 import io.druid.common.guava.BaseSequence;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -39,7 +40,7 @@ import java.util.Map;
 /**
  */
 public class DataSourceMetadataQueryRunnerFactory
-    extends QueryRunnerFactory.Abstract<Result<DataSourceMetadataResultValue>, DataSourceMetadataQuery>
+    extends QueryRunnerFactory.Abstract<Result<DataSourceMetadataResultValue>>
 {
   @Inject
   public DataSourceMetadataQueryRunnerFactory(
@@ -79,32 +80,19 @@ public class DataSourceMetadataQueryRunnerFactory
 
       final DataSourceMetadataQuery legacyQuery = (DataSourceMetadataQuery) input;
 
-      return new BaseSequence<>(
-          new BaseSequence.IteratorMaker<Result<DataSourceMetadataResultValue>, Iterator<Result<DataSourceMetadataResultValue>>>()
-          {
-            @Override
-            public Iterator<Result<DataSourceMetadataResultValue>> make()
-            {
-              if (adapter == null) {
-                throw new ISE(
-                    "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
-                );
-              }
+      return Sequences.simple(() -> {
+        if (adapter == null) {
+          throw new ISE(
+              "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
+          );
+        }
 
-              // ??
-              return legacyQuery.buildResult(
-                  adapter.getInterval().getStart(),
-                  adapter.getTimeMinMax().getEnd()
-              ).iterator();
-            }
-
-            @Override
-            public void cleanup(Iterator<Result<DataSourceMetadataResultValue>> toClean)
-            {
-
-            }
-          }
-      );
+        // ??
+        return legacyQuery.buildResult(
+            adapter.getInterval().getStart(),
+            adapter.getTimeMinMax().getEnd()
+        ).iterator();
+      });
     }
   }
 }

@@ -40,7 +40,7 @@ import java.util.List;
 
 public class SelectQueryConcatTest
 {
-  QueryRunnerFactory<Result<SelectResultValue>, SelectQuery> factory = TestHelper.factoryFor(SelectQuery.class);
+  QueryRunnerFactory<Result<SelectResultValue>> factory = TestHelper.factoryFor(SelectQuery.class);
 
   private final CharSource input = CharSource.wrap(
       "2011-01-12T00:00:00.000Z\tspot\tAutoMotive\tPREFERRED\ta\u0001preferred\t100.000000\n" +

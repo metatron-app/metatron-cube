@@ -24,15 +24,14 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
@@ -83,7 +82,7 @@ public class PropertiesModule implements Module
           fileProps.load(new InputStreamReader(stream, Charsets.UTF_8));
           instance.putAll(fileProps);
         }
-        catch (IOException e) {
+        catch (Exception e) {
           throw Throwables.propagate(e);
         }
       }

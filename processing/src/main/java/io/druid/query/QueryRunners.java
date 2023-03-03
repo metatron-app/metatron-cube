@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
@@ -318,7 +317,7 @@ public class QueryRunners
     }
     catch (ExecutionException e) {
       IOUtils.closeQuietly(closeOnFailure);
-      throw Throwables.propagate(e.getCause());
+      throw QueryException.wrapIfNeeded(e.getCause());
     }
   }
 
@@ -382,7 +381,7 @@ public class QueryRunners
 
   public static <T> QueryRunner<T> getSubQueryResolver(
       final QueryRunner<T> baseRunner,
-      final QueryToolChest<T, Query<T>> toolChest,
+      final QueryToolChest<T> toolChest,
       final QuerySegmentWalker segmentWalker
   )
   {
@@ -407,7 +406,7 @@ public class QueryRunners
 
   public static <T> QueryRunner<T> finalizeAndPostProcessing(
       final QueryRunner<T> baseRunner,
-      final QueryToolChest<T, Query<T>> toolChest,
+      final QueryToolChest<T> toolChest,
       final ObjectMapper objectMapper
   )
   {

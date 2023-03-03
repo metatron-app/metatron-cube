@@ -33,13 +33,13 @@ import java.util.concurrent.ExecutorService;
 /**
  * An interface that defines the nitty gritty implementation details of a Query on a Segment
  */
-public interface QueryRunnerFactory<T, QueryType extends Query<T>>
+public interface QueryRunnerFactory<T>
 {
   /**
    * @return
    */
   default Supplier<Object> preFactoring(
-      QueryType query,
+      Query<T> query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
@@ -60,7 +60,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    */
   QueryRunner<T> _createRunner(Segment segment, Supplier<Object> optimizer);
 
-  default QueryRunner<T> createRunner(final Segment segment, final Supplier<Object> optimizer)
+  default QueryRunner<T> createRunner(Segment segment, Supplier<Object> optimizer)
   {
     final QueryRunner<T> runner = _createRunner(segment, optimizer);    // eager instantiate
     return (query, responseContext) -> runner.run(BaseQuery.specialize(query, segment), responseContext);
@@ -98,20 +98,20 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    *
    * @return an instance of the toolchest for this specific query type.
    */
-  QueryToolChest<T, QueryType> getToolchest();
+  QueryToolChest<T> getToolchest();
 
-  interface Splitable<T, QueryType extends Query<T>> extends QueryRunnerFactory<T, QueryType>
+  interface Splitable<T> extends QueryRunnerFactory<T>
   {
     List<List<Segment>> splitSegments(
-        QueryType query,
+        Query<T> query,
         List<Segment> targets,
         Supplier<Object> optimizer,
         Supplier<RowResolver> resolver,
         QuerySegmentWalker segmentWalker
     );
 
-    List<QueryType> splitQuery(
-        QueryType query,
+    List<Query<T>> splitQuery(
+        Query<T> query,
         List<Segment> targets,
         Supplier<Object> optimizer,
         Supplier<RowResolver> resolver,
@@ -119,9 +119,9 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
     );
   }
 
-  abstract class Abstract<T, QueryType extends Query<T>> implements QueryRunnerFactory<T, QueryType>
+  abstract class Abstract<T> implements QueryRunnerFactory<T>
   {
-    protected final QueryToolChest<T, QueryType> toolChest;
+    protected final QueryToolChest<T> toolChest;
     protected final QueryWatcher queryWatcher;
 
     @BitmapCache
@@ -133,7 +133,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
       return queryWatcher.getSessionCache(query.getId()).wrap(cache);
     }
 
-    protected Abstract(QueryToolChest<T, QueryType> toolChest, QueryWatcher queryWatcher)
+    protected Abstract(QueryToolChest<T> toolChest, QueryWatcher queryWatcher)
     {
       this.toolChest = toolChest;
       this.queryWatcher = queryWatcher;
@@ -151,7 +151,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
     }
 
     @Override
-    public final QueryToolChest<T, QueryType> getToolchest()
+    public final QueryToolChest<T> getToolchest()
     {
       return toolChest;
     }

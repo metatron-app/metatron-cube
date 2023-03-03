@@ -51,7 +51,7 @@ import java.util.Map;
 
 /**
  */
-public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<String, Object>, JMXQuery>
+public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<String, Object>>
 {
   private final DruidNode node;
 

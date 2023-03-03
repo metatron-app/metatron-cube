@@ -50,7 +50,7 @@ import java.util.function.BiFunction;
 
 /**
  */
-public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQuery>
+public class FrequencyQueryToolChest extends QueryToolChest<Object[]>
 {
   private final GenericQueryMetricsFactory metricsFactory;
 
@@ -78,7 +78,6 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
     return new QueryRunner<Object[]>()
     {
       @Override
-      @SuppressWarnings("unchecked")
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         final FrequencyQuery frequency = (FrequencyQuery) query;
@@ -128,7 +127,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
   }
 
   @Override
-  public QueryMetrics<? super FrequencyQuery> makeMetrics(FrequencyQuery query)
+  public QueryMetrics makeMetrics(Query<Object[]> query)
   {
     return metricsFactory.makeMetrics(query);
   }
@@ -170,7 +169,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
 
   @Override
   public Function<Sequence<Object[]>, Sequence<Map<String, Object>>> asMap(
-      final FrequencyQuery query,
+      final Query<Object[]> query,
       final String timestampColumn
   )
   {
@@ -198,7 +197,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
   }
 
   @Override
-  public TypeReference<Object[]> getResultTypeReference(FrequencyQuery query)
+  public TypeReference<Object[]> getResultTypeReference(Query<Object[]> query)
   {
     return ARRAY_TYPE_REFERENCE;
   }

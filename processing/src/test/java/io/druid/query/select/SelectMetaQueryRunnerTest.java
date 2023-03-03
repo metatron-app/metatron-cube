@@ -267,9 +267,9 @@ public class SelectMetaQueryRunnerTest
 
     ObjectMapper mapper = TestIndex.segmentWalker.getMapper();
     CacheStrategy cacheStrategy = new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()).getCacheStrategy(schemaQuery);
-    Schema cached = (Schema) cacheStrategy.pullFromCache().apply(
+    Schema cached = (Schema) cacheStrategy.pullFromCache(query).apply(
         mapper.readValue(
-            mapper.writeValueAsBytes(cacheStrategy.prepareForCache().apply(schema2)), cacheStrategy.getCacheObjectClazz()
+            mapper.writeValueAsBytes(cacheStrategy.prepareForCache(query).apply(schema2)), cacheStrategy.getCacheObjectClazz()
         )
     );
     Assert.assertTrue(Iterables.elementsEqual(cached.columnAndTypes(), schema2.columnAndTypes()));

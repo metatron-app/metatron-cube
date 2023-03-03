@@ -29,7 +29,7 @@ import io.druid.segment.Segment;
 
 /**
  */
-public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object[], SketchQuery>
+public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object[]>
 {
   @Inject
   public SketchQueryRunnerFactory(

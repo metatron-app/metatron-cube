@@ -61,9 +61,7 @@ import java.util.Set;
 public class SegmentMetadataQueryQueryToolChest
     extends QueryToolChest.CacheSupport<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery>
 {
-  private static final TypeReference<SegmentAnalysis> TYPE_REFERENCE = new TypeReference<SegmentAnalysis>()
-  {
-  };
+  private static final TypeReference<SegmentAnalysis> TYPE_REFERENCE = new TypeReference<SegmentAnalysis>() {};
   private static final Function<SegmentAnalysis, SegmentAnalysis> MERGE_TRANSFORM_FN = new Function<SegmentAnalysis, SegmentAnalysis>()
   {
     @Override
@@ -127,20 +125,21 @@ public class SegmentMetadataQueryQueryToolChest
   }
 
   @Override
-  public QueryMetrics<Query<?>> makeMetrics(SegmentMetadataQuery query)
+  public QueryMetrics makeMetrics(Query<SegmentAnalysis> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
-  public TypeReference<SegmentAnalysis> getResultTypeReference(SegmentMetadataQuery query)
+  @Override
+  public TypeReference<SegmentAnalysis> getResultTypeReference(Query<SegmentAnalysis> query)
   {
     return TYPE_REFERENCE;
   }
 
   @Override
-  public IdenticalCacheStrategy getCacheStrategy(SegmentMetadataQuery query)
+  public IdenticalCacheStrategy<SegmentMetadataQuery> getCacheStrategy(SegmentMetadataQuery query)
   {
-    return new IdenticalCacheStrategy()
+    return new IdenticalCacheStrategy<SegmentMetadataQuery>()
     {
       @Override
       public byte[] computeCacheKey(SegmentMetadataQuery query, int limit)
@@ -157,8 +156,9 @@ public class SegmentMetadataQueryQueryToolChest
   }
 
   @Override
-  public <T extends LogicalSegment> List<T> filterSegments(SegmentMetadataQuery query, List<T> segments)
+  public <T extends LogicalSegment> List<T> filterSegments(Query<SegmentAnalysis> base, List<T> segments)
   {
+    SegmentMetadataQuery query = (SegmentMetadataQuery) base;
     if (!query.isUsingDefaultInterval()) {
       return segments;
     }

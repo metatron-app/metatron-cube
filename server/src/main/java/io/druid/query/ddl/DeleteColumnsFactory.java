@@ -42,7 +42,7 @@ import java.util.Map;
 /**
  *
  */
-public class DeleteColumnsFactory extends QueryRunnerFactory.Abstract<DDLResult, DeleteColumnsQuery>
+public class DeleteColumnsFactory extends QueryRunnerFactory.Abstract<DDLResult>
 {
   private static final Logger LOG = new Logger(DeleteColumnsFactory.class);
 

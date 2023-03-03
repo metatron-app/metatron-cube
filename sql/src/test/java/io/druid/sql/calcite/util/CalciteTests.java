@@ -202,9 +202,10 @@ public class CalciteTests
                 }
 
                 @Override
-                public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
+                public <T> QueryToolChest<T> getToolChest(final Query<?> query)
                 {
-                  return TestHelper.CONGLOMERATE.findFactory(query).getToolchest();
+                  QueryRunnerFactory<T> factory = TestHelper.CONGLOMERATE.findFactory(query);
+                  return factory.getToolchest();
                 }
               }
           );
@@ -297,9 +298,9 @@ public class CalciteTests
           }
 
           @Override
-          public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
+          public <T> QueryToolChest<T> getToolChest(final Query<?> query)
           {
-            final QueryRunnerFactory<T, QueryType> factory = TestHelper.CONGLOMERATE.findFactory(query);
+            final QueryRunnerFactory<T> factory = TestHelper.CONGLOMERATE.findFactory(query);
             return factory == null ? null : factory.getToolchest();
           }
         },

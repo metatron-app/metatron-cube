@@ -31,7 +31,6 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.BytesRef;
@@ -42,6 +41,7 @@ import io.druid.common.guava.Yielder;
 import io.druid.common.utils.Sequences;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BulkRow;
+import io.druid.query.QueryException;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.segment.StringArray;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -113,8 +113,8 @@ public class DruidDefaultSerializersModule extends SimpleModule
                     try {
                       jgen.writeObject(o1);
                     }
-                    catch (IOException e) {
-                      throw Throwables.propagate(e);
+                    catch (Exception e) {
+                      throw QueryException.wrapIfNeeded(e);
                     }
                     return null;
                   }

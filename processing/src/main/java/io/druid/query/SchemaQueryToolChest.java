@@ -80,13 +80,13 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   }
 
   @Override
-  public QueryMetrics<? super SchemaQuery> makeMetrics(SchemaQuery query)
+  public QueryMetrics makeMetrics(Query<Schema> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public JavaType getResultTypeReference(SchemaQuery query, TypeFactory factory)
+  public JavaType getResultTypeReference(Query<Schema> query, TypeFactory factory)
   {
     if (query != null && BaseQuery.isBySegment(query)) {
       return factory.constructParametricType(Result.class, BySegmentSchemaValue.class);
@@ -95,7 +95,7 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   }
 
   @Override
-  public BySegmentResultValue<Schema> bySegment(SchemaQuery query, Sequence<Schema> sequence, String segmentId)
+  public BySegmentResultValue<Schema> bySegment(Query<Schema> query, Sequence<Schema> sequence, String segmentId)
   {
     // realtime node can return multiple schemas for single segment range.. fxxx
     List<Schema> schemas = Sequences.toList(sequence);
@@ -107,9 +107,9 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   }
 
   @Override
-  public IdenticalCacheStrategy getCacheStrategy(SchemaQuery query)
+  public IdenticalCacheStrategy<SchemaQuery> getCacheStrategy(SchemaQuery query)
   {
-    return new IdenticalCacheStrategy()
+    return new IdenticalCacheStrategy<SchemaQuery>()
     {
       @Override
       public byte[] computeCacheKey(SchemaQuery query, int limit)
@@ -120,7 +120,7 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   }
 
   @Override
-  public TypeReference<Schema> getResultTypeReference(SchemaQuery query)
+  public TypeReference<Schema> getResultTypeReference(Query<Schema> query)
   {
     return TYPE_REFERENCE;
   }

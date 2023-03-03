@@ -714,8 +714,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     if (query instanceof ConveyQuery) {
       return QueryRunners.wrap(((ConveyQuery<T>) query).getValues());
     }
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    final QueryToolChest<T, Query<T>> toolChest = factory == null ? null : factory.getToolchest();
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
+    final QueryToolChest<T> toolChest = factory == null ? null : factory.getToolchest();
     if (query.getDataSource() instanceof QueryDataSource) {
       Preconditions.checkNotNull(factory, "%s does not supports nested query", query);
       QueryRunner<T> runner = toolChest.handleSubQuery(this);
@@ -766,7 +766,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+        QueryToolChest<T> toolChest = factory.getToolchest();
         Function manipulatorFn = toolChest.makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing());
         if (BaseQuery.isBySegment(query)) {
           manipulatorFn = BySegmentResultValue.applyAll(manipulatorFn);
@@ -788,11 +788,12 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   private <T> QueryRunner<T> toLocalQueryRunner(Query<T> query, Iterable<Pair<SegmentDescriptor, Segment>> segments)
   {
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    QueryRunnerFactory.Splitable<T, Query<T>> splitable = null;
+    final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
+    final QueryToolChest<T> toolChest = factory.getToolchest();
+
+    QueryRunnerFactory.Splitable<T> splitable = null;
     if (factory instanceof QueryRunnerFactory.Splitable) {
-      splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
+      splitable = (QueryRunnerFactory.Splitable<T>) factory;
     }
 
     List<Segment> targets = Lists.newArrayList();
@@ -876,7 +877,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       Query<T> resolved,
       QueryRunner<T> runner,
       QuerySegmentWalker segmentWalker,
-      QueryToolChest<T, Query<T>> toolChest
+      QueryToolChest<T> toolChest
   )
   {
     return (dummy, response) -> {
@@ -914,9 +915,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   }
 
   @Override
-  public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query)
+  public <T> QueryToolChest<T> getToolChest(Query<?> query)
   {
-    QueryRunnerFactory<T, QueryType> factory = conglomerate.findFactory(query);
+    QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
     return factory == null ? null : factory.getToolchest();
   }
 
@@ -934,9 +935,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       }
 
       @Override
-      public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query)
+      public <T> QueryToolChest<T> getToolChest(Query<?> query)
       {
-        final QueryRunnerFactory<T, QueryType> factory = conglomerate.findFactory(query);
+        final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
         return factory == null ? null : factory.getToolchest();
       }
     };

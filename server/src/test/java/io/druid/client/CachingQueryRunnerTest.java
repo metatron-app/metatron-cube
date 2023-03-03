@@ -236,7 +236,7 @@ public class CachingQueryRunnerTest
     byte[] cacheValue = cache.get(cacheKey);
     Assert.assertNotNull(cacheValue);
 
-    Function<Object, Result> fn = cacheStrategy.pullFromCache();
+    Function<Object, Result> fn = cacheStrategy.pullFromCache(query);
     List<Result> cacheResults = Lists.newArrayList(
         Iterators.transform(
             objectMapper.readValues(
@@ -272,7 +272,7 @@ public class CachingQueryRunnerTest
         cache,
         objectMapper,
         cacheKey,
-        Iterables.transform(expectedResults, cacheStrategy.prepareForCache())
+        Iterables.transform(expectedResults, cacheStrategy.prepareForCache(query))
     );
 
     CachingQueryRunner runner = new CachingQueryRunner(

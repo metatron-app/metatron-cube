@@ -169,12 +169,8 @@ public class QueryConfig
     if (BaseQuery.isBySegment(query)) {
       return false;
     }
-    if (query instanceof GroupByQuery &&
+    if ((query instanceof GroupByQuery || query instanceof DimensionSamplingQuery) &&
         query.getContextBoolean(Query.GBY_USE_BULK_ROW, groupBy.get().isUseBulkRow())) {
-      return true;
-    }
-    if (query instanceof DimensionSamplingQuery &&
-        query.getContextBoolean(Query.STREAM_USE_BULK_ROW, groupBy.get().isUseBulkRow())) {
       return true;
     }
     if (query instanceof StreamQuery &&

@@ -25,19 +25,19 @@ import java.util.List;
 
 /**
  */
-public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T>
+public class BaseSequence<T> implements Sequence<T>
 {
   private static final Logger log = new Logger(BaseSequence.class);
 
   private final List<String> columns;
-  private final IteratorMaker<T, IterType> maker;
+  private final IteratorMaker<T> maker;
 
-  public BaseSequence(IteratorMaker<T, IterType> maker)
+  public BaseSequence(IteratorMaker<T> maker)
   {
     this(null, maker);
   }
 
-  public BaseSequence(List<String> columns, IteratorMaker<T, IterType> maker)
+  public BaseSequence(List<String> columns, IteratorMaker<T> maker)
   {
     this.columns = columns;
     this.maker = maker;
@@ -52,7 +52,7 @@ public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T
   @Override
   public <OutType> OutType accumulate(OutType initValue, final Accumulator<OutType, T> fn)
   {
-    IterType iterator = maker.make();
+    Iterator<T> iterator = maker.make();
     try {
       while (iterator.hasNext()) {
         initValue = fn.accumulate(initValue, iterator.next());
@@ -67,7 +67,7 @@ public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T
   @Override
   public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
   {
-    final IterType iterator = maker.make();
+    final Iterator<T> iterator = maker.make();
 
     try {
       return makeYielder(initValue, accumulator, iterator);
@@ -88,7 +88,7 @@ public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T
   private <OutType> Yielder<OutType> makeYielder(
       final OutType initValue,
       final YieldingAccumulator<OutType, T> accumulator,
-      final IterType iter
+      final Iterator<T> iter
   )
   {
     OutType retVal = initValue;
@@ -153,10 +153,10 @@ public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T
     };
   }
 
-  public static interface IteratorMaker<T, IterType extends Iterator<T>>
+  public static interface IteratorMaker<T>
   {
-    IterType make();
+    Iterator<T> make();
 
-    void cleanup(IterType iterFromMake);
+    default void cleanup(Iterator<T> iterFromMake) {}
   }
 }

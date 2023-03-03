@@ -27,13 +27,11 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.BulkRow;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -227,8 +225,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
     try {
       return mapper.readValue(values, factory.constructParametricType(List.class, BulkRow.class));
     }
-    catch (IOException e) {
-      throw Throwables.propagate(e);
+    catch (Exception e) {
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 

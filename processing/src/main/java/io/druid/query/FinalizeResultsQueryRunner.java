@@ -35,7 +35,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
 {
   public static <T> QueryRunner<T> finalizeAndPostProcessing(
       final QueryRunner<T> baseRunner,
-      final QueryToolChest<T, Query<T>> toolChest,
+      final QueryToolChest<T> toolChest,
       final ObjectMapper objectMapper
   )
   {
@@ -47,9 +47,9 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
   }
 
   private final QueryRunner<T> baseRunner;
-  private final QueryToolChest<T, Query<T>> toolChest;
+  private final QueryToolChest<T> toolChest;
 
-  public FinalizeResultsQueryRunner(QueryRunner<T> baseRunner, QueryToolChest<T, Query<T>> toolChest)
+  public FinalizeResultsQueryRunner(QueryRunner<T> baseRunner, QueryToolChest<T> toolChest)
   {
     this.baseRunner = baseRunner;
     this.toolChest = toolChest;

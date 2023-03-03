@@ -26,14 +26,16 @@ import com.google.common.base.Functions;
 import java.util.function.ToIntFunction;
 
 /**
-*/
-public interface CacheStrategy<T, CacheType, QueryType extends Query<T>>
+ *
+ */
+public interface CacheStrategy<T, CacheType, QueryType>
 {
   /**
    * Computes the cache key for the given query
    *
    * @param query the query to compute a cache key for
    * @param limit
+   *
    * @return the cache key
    */
   byte[] computeCacheKey(QueryType query, int limit);
@@ -47,35 +49,39 @@ public interface CacheStrategy<T, CacheType, QueryType extends Query<T>>
 
   /**
    * Returns a function that converts from the QueryType's result type to something cacheable.
-   *
+   * <p>
    * The resulting function must be thread-safe.
+   *
+   * @param query
    *
    * @return a thread-safe function that converts the QueryType's result type into something cacheable
    */
-  Function<T, CacheType> prepareForCache();
+  Function<T, CacheType> prepareForCache(QueryType query);
 
   /**
    * A function that does the inverse of the operation that the function prepareForCache returns
    *
+   * @param query
+   *
    * @return A function that does the inverse of the operation that the function prepareForCache returns
    */
-  Function<CacheType, T> pullFromCache();
+  Function<CacheType, T> pullFromCache(QueryType query);
 
   default ToIntFunction<T> numRows(QueryType query)
   {
     return row -> 1;
   }
 
-  abstract class Identitcal<T, QueryType extends Query<T>> implements CacheStrategy<T, T, QueryType>
+  interface Identitcal<T, QueryType> extends CacheStrategy<T, T, QueryType>
   {
     @Override
-    public Function<T, T> prepareForCache()
+    default Function<T, T> prepareForCache(QueryType query)
     {
       return Functions.identity();
     }
 
     @Override
-    public Function<T, T> pullFromCache()
+    default Function<T, T> pullFromCache(QueryType query)
     {
       return Functions.identity();
     }

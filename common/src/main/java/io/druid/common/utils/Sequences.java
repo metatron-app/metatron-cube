@@ -79,7 +79,7 @@ public class Sequences
 
   public static <T> Sequence<T> simple(final List<String> columns, final Iterable<T> iterable)
   {
-    return new BaseSequence<>(columns, new BaseSequence.IteratorMaker<T, Iterator<T>>()
+    return new BaseSequence<>(columns, new BaseSequence.IteratorMaker<T>()
     {
       @Override
       public Iterator<T> make()
@@ -458,7 +458,7 @@ public class Sequences
   {
     Sequence<T> sequence = new BaseSequence<>(
         columns,
-        new BaseSequence.IteratorMaker<T, Iterator<T>>()
+        new BaseSequence.IteratorMaker<T>()
         {
           @Override
           public Iterator<T> make()

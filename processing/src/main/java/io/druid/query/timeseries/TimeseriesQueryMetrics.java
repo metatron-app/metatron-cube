@@ -24,7 +24,7 @@ import io.druid.query.QueryMetrics;
 /**
  * Specialization of {@link QueryMetrics} for {@link TimeseriesQuery}.
  */
-public interface TimeseriesQueryMetrics extends QueryMetrics<TimeseriesQuery>
+public interface TimeseriesQueryMetrics extends QueryMetrics
 {
   /**
    * Sets the number of metrics of the given timeseries query as dimension.

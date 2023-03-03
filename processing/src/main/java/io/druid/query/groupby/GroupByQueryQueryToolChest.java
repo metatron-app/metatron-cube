@@ -188,7 +188,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   }
 
   @Override
-  public GroupByQueryMetrics makeMetrics(GroupByQuery query)
+  public GroupByQueryMetrics makeMetrics(Query<Row> query)
   {
     GroupByQueryMetrics queryMetrics = metricsFactory.makeMetrics();
     queryMetrics.query(query);

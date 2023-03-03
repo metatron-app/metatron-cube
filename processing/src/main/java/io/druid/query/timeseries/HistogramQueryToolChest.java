@@ -23,13 +23,14 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.inject.Inject;
 import io.druid.data.input.Row;
 import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 
 /**
  */
-public class HistogramQueryToolChest extends QueryToolChest<Row, HistogramQuery>
+public class HistogramQueryToolChest extends QueryToolChest<Row>
 {
   private final GenericQueryMetricsFactory metricsFactory;
 
@@ -46,14 +47,13 @@ public class HistogramQueryToolChest extends QueryToolChest<Row, HistogramQuery>
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public QueryMetrics makeMetrics(HistogramQuery query)
+  public QueryMetrics makeMetrics(Query<Row> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  protected TypeReference<Row> getResultTypeReference(HistogramQuery query)
+  protected TypeReference<Row> getResultTypeReference(Query<Row> query)
   {
     return ROW_TYPE_REFERENCE;
   }

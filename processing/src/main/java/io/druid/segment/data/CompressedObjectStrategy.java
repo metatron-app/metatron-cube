@@ -19,7 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.ning.compress.BufferRecycler;
 import com.ning.compress.lzf.LZFDecoder;
@@ -28,6 +27,7 @@ import io.airlift.compress.zstd.ZstdCompressor;
 import io.airlift.compress.zstd.ZstdDecompressor;
 import io.druid.collections.ResourceHolder;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.QueryException;
 import io.druid.segment.CompressedPools;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
@@ -249,7 +249,7 @@ public abstract class CompressedObjectStrategy<T extends Buffer> implements Obje
       }
       catch (Exception e) {
         log.error(e, "Error compressing data");
-        throw Throwables.propagate(e);
+        throw QueryException.wrapIfNeeded(e);
       }
     }
   }

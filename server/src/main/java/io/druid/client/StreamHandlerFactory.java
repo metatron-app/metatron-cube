@@ -20,7 +20,6 @@
 package io.druid.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
 import io.druid.common.utils.StringUtils;
 import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.logger.Logger;
@@ -198,7 +197,7 @@ public class StreamHandlerFactory
         if (!done.get()) {
           LOG.error(e, "Enqueue interrupted");
           Thread.currentThread().interrupt();
-          throw Throwables.propagate(e);
+          throw QueryException.wrapIfNeeded(e);
         }
       }
       catch (Exception e) {
@@ -217,7 +216,7 @@ public class StreamHandlerFactory
         if (!done.get()) {
           LOG.error(e, "Dequeue interrupted");
           Thread.currentThread().interrupt();
-          throw Throwables.propagate(e);
+          throw QueryException.wrapIfNeeded(e);
         }
       } catch (Exception e) {
         if (!done.get()) {

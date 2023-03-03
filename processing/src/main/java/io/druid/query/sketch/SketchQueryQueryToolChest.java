@@ -25,7 +25,6 @@ import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.query.CacheStrategy;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
@@ -68,18 +67,18 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
   }
 
   @Override
-  public QueryMetrics<? super SketchQuery> makeMetrics(SketchQuery query)
+  public QueryMetrics makeMetrics(Query<Object[]> query)
   {
     return metricsFactory.makeMetrics(query);
   }
 
   @Override
-  public Function<Object[], Object[]> makePreComputeManipulatorFn(SketchQuery query, MetricManipulationFn fn)
+  public Function<Object[], Object[]> makePreComputeManipulatorFn(Query<Object[]> query, MetricManipulationFn fn)
   {
     // fn is for aggregators.. we don't need to apply it
     return new Function<Object[], Object[]>()
     {
-      private final SketchOp sketchOp = query.getSketchOp();
+      private final SketchOp sketchOp = ((SketchQuery) query).getSketchOp();
 
       @Override
       public Object[] apply(Object[] input)
@@ -94,15 +93,15 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
   }
 
   @Override
-  public TypeReference<Object[]> getResultTypeReference(SketchQuery query)
+  public TypeReference<Object[]> getResultTypeReference(Query<Object[]> query)
   {
     return ARRAY_TYPE_REFERENCE;
   }
 
   @Override
-  public CacheStrategy<Object[], Object[], SketchQuery> getCacheStrategy(final SketchQuery query)
+  public IdenticalCacheStrategy<SketchQuery> getCacheStrategy(final SketchQuery query)
   {
-    return new IdenticalCacheStrategy()
+    return new IdenticalCacheStrategy<SketchQuery>()
     {
       @Override
       public byte[] computeCacheKey(SketchQuery query, int limit)
@@ -119,7 +118,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
       }
 
       @Override
-      public Function<Object[], Object[]> pullFromCache()
+      public Function<Object[], Object[]> pullFromCache(SketchQuery query)
       {
         final SketchOp sketchOp = query.getSketchOp();
         final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());

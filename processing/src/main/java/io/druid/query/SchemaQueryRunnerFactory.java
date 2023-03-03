@@ -30,7 +30,7 @@ import java.util.Map;
 
 /**
  */
-public class SchemaQueryRunnerFactory extends QueryRunnerFactory.Abstract<Schema, SchemaQuery>
+public class SchemaQueryRunnerFactory extends QueryRunnerFactory.Abstract<Schema>
 {
   @Inject
   public SchemaQueryRunnerFactory(SchemaQueryToolChest toolChest, QueryWatcher queryWatcher)

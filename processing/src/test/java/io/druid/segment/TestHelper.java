@@ -303,7 +303,7 @@ public class TestHelper
     );
   }
 
-  public static <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> factoryFor(Class clazz)
+  public static <T> QueryRunnerFactory<T> factoryFor(Class clazz)
   {
     return CONGLOMERATE.findFactory(clazz);
   }
@@ -355,7 +355,7 @@ public class TestHelper
         @Override
         public QueryMetrics makeMetrics(Query query)
         {
-          return new DefaultQueryMetrics<>(new DefaultObjectMapper());
+          return new DefaultQueryMetrics(new DefaultObjectMapper());
         }
 
         @Override

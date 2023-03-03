@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
@@ -163,7 +162,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
             t = t.getCause();
           }
           joinQuery.setException(t);
-          throw Throwables.propagate(t);
+          throw QueryException.wrapIfNeeded(t);
         }
       }
     };

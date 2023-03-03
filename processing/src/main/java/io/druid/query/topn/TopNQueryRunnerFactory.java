@@ -25,6 +25,7 @@ import io.druid.cache.SessionCache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.guice.annotations.Global;
+import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
@@ -40,7 +41,7 @@ import java.util.concurrent.ExecutorService;
 /**
  *
  */
-public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<TopNResultValue>, TopNQuery>
+public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<TopNResultValue>>
 {
   private final TopNQueryEngine queryEngine;
 
@@ -57,14 +58,15 @@ public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<T
 
   @Override
   public Supplier<Object> preFactoring(
-      TopNQuery query,
+      Query<Result<TopNResultValue>> query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
   )
   {
-    if (!GuavaUtils.isNullOrEmpty(query.getVirtualColumns())) {
-      VirtualColumns.assertDimensionIndexed(resolver.get(), query.getDimensionSpec());
+    TopNQuery topN = (TopNQuery) query;
+    if (!GuavaUtils.isNullOrEmpty(topN.getVirtualColumns())) {
+      VirtualColumns.assertDimensionIndexed(resolver.get(), topN.getDimensionSpec());
     }
     return null;
   }

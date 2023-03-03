@@ -23,7 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-import io.druid.granularity.Granularity;
+import io.druid.granularity.Granularities;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import org.joda.time.Interval;
@@ -32,7 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMetrics<QueryType>
+public class DefaultQueryMetrics implements QueryMetrics
 {
   protected final ObjectMapper jsonMapper;
   protected final ServiceMetricEvent.Builder builder = new ServiceMetricEvent.Builder();
@@ -44,7 +44,7 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
   }
 
   @Override
-  public void query(QueryType query)
+  public void query(Query<?> query)
   {
     dataSource(query);
     queryType(query);
@@ -52,22 +52,23 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
     hasFilters(query);
     duration(query);
     queryId(query);
+    granularity(query);
   }
 
   @Override
-  public void dataSource(QueryType query)
+  public void dataSource(Query<?> query)
   {
     builder.setDimension(DruidMetrics.DATASOURCE, DataSources.getMetricName(query.getDataSource()));
   }
 
   @Override
-  public void queryType(QueryType query)
+  public void queryType(Query<?> query)
   {
     builder.setDimension(DruidMetrics.TYPE, query.getType());
   }
 
   @Override
-  public void interval(QueryType query)
+  public void interval(Query<?> query)
   {
     builder.setDimension(
         DruidMetrics.INTERVAL,
@@ -76,25 +77,25 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
   }
 
   @Override
-  public void hasFilters(QueryType query)
+  public void hasFilters(Query<?> query)
   {
     builder.setDimension("hasFilters", String.valueOf(query.hasFilters()));
   }
 
   @Override
-  public void duration(QueryType query)
+  public void duration(Query<?> query)
   {
     builder.setDimension("duration", query.getDuration().toString());
   }
 
   @Override
-  public void queryId(QueryType query)
+  public void queryId(Query<?> query)
   {
     builder.setDimension(DruidMetrics.ID, Strings.nullToEmpty(query.getId()));
   }
 
   @Override
-  public void context(QueryType query)
+  public void context(Query<?> query)
   {
     try {
       builder.setDimension(
@@ -148,76 +149,76 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
   }
 
   @Override
-  public QueryMetrics<QueryType> reportQueryTime(long timeNs)
+  public QueryMetrics reportQueryTime(long timeNs)
   {
     return defaultTimeMetric("query/time", timeNs);
   }
 
   @Override
-  public QueryMetrics<QueryType> reportQueryBytes(long byteCount)
+  public QueryMetrics reportQueryBytes(long byteCount)
   {
     metrics.put("query/bytes", byteCount);
     return this;
   }
 
   @Override
-  public QueryMetrics<QueryType> reportQueryRows(int rows)
+  public QueryMetrics reportQueryRows(int rows)
   {
     metrics.put("query/rows", rows);
     return this;
   }
 
   @Override
-  public QueryMetrics<QueryType> reportWaitTime(long timeNs)
+  public QueryMetrics reportWaitTime(long timeNs)
   {
     return defaultTimeMetric("query/wait/time", timeNs);
   }
 
   @Override
-  public QueryMetrics<QueryType> reportSegmentTime(long timeNs)
+  public QueryMetrics reportSegmentTime(long timeNs)
   {
     return defaultTimeMetric("query/segment/time", timeNs);
   }
 
   @Override
-  public QueryMetrics<QueryType> reportSegmentAndCacheTime(long timeNs)
+  public QueryMetrics reportSegmentAndCacheTime(long timeNs)
   {
     return defaultTimeMetric("query/segmentAndCache/time", timeNs);
   }
 
   @Override
-  public QueryMetrics<QueryType> reportIntervalChunkTime(long timeNs)
+  public QueryMetrics reportIntervalChunkTime(long timeNs)
   {
     return defaultTimeMetric("query/intervalChunk/time", timeNs);
   }
 
   @Override
-  public QueryMetrics<QueryType> reportCpuTime(long timeNs)
+  public QueryMetrics reportCpuTime(long timeNs)
   {
     metrics.put("query/cpu/time", TimeUnit.NANOSECONDS.toMicros(timeNs));
     return this;
   }
 
   @Override
-  public QueryMetrics<QueryType> reportNodeTimeToFirstByte(long timeNs)
+  public QueryMetrics reportNodeTimeToFirstByte(long timeNs)
   {
     return defaultTimeMetric("query/node/ttfb", timeNs);
   }
 
   @Override
-  public QueryMetrics<QueryType> reportNodeTime(long timeNs)
+  public QueryMetrics reportNodeTime(long timeNs)
   {
     return defaultTimeMetric("query/node/time", timeNs);
   }
 
-  private QueryMetrics<QueryType> defaultTimeMetric(String metricName, long timeNs)
+  private QueryMetrics defaultTimeMetric(String metricName, long timeNs)
   {
     metrics.put(metricName, TimeUnit.NANOSECONDS.toMillis(timeNs));
     return this;
   }
 
   @Override
-  public QueryMetrics<QueryType> reportNodeBytes(long byteCount)
+  public QueryMetrics reportNodeBytes(long byteCount)
   {
     metrics.put("query/node/bytes", byteCount);
     return this;
@@ -233,20 +234,11 @@ public class DefaultQueryMetrics<QueryType extends Query<?>> implements QueryMet
   }
 
   @Override
-  public QueryMetrics<QueryType> granularity(Granularity granularity)
+  public void granularity(Query<?> query)
   {
-    try {
-      builder.setDimension(
-          "granularity",
-          jsonMapper.writeValueAsString(granularity == null
-                                        ? ImmutableMap.of()
-                                        : granularity
-          )
-      );
-      return this;
-    }
-    catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
+    String serialized = Granularities.serialize(query.getGranularity(), jsonMapper);
+    if (serialized != null) {
+      builder.setDimension("granularity", serialized);
     }
   }
 }

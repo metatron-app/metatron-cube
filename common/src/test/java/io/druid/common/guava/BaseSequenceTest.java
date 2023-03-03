@@ -50,7 +50,7 @@ public class BaseSequenceTest
   {
     final AtomicInteger closedCounter = new AtomicInteger(0);
     Sequence<Integer> seq = new BaseSequence<>(
-        new BaseSequence.IteratorMaker<Integer, Iterator<Integer>>()
+        new BaseSequence.IteratorMaker<Integer>()
         {
           @Override
           public Iterator<Integer> make()
