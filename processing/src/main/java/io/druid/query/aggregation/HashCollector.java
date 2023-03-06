@@ -24,7 +24,7 @@ import io.druid.segment.DimensionSelector;
 
 public interface HashCollector
 {
-  void collect(Object[] values, BytesRef bytes);
+  void collect(BytesRef[] values, BytesRef bytes);
 
   interface ScanSupport extends HashCollector
   {

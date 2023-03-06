@@ -25,6 +25,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.BinaryRef;
+import io.druid.data.ValueType;
 import io.druid.data.input.BytesOutputStream;
 
 import javax.annotation.Nullable;
@@ -127,6 +128,16 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     catch (MalformedURLException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public static Function<Object, byte[]> serializer(final ValueType type)
+  {
+    return v -> v == null ? EMPTY_BYTES : type.toBytes(v);
+  }
+
+  public static byte[] toUtf8WithNullToEmpty(final Object string)
+  {
+    return toUtf8WithNullToEmpty(Objects.toString(string, null));
   }
 
   public static byte[] toUtf8WithNullToEmpty(final String string)

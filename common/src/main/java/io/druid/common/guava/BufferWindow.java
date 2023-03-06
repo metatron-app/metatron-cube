@@ -27,13 +27,13 @@ import java.nio.ByteBuffer;
 public class BufferWindow implements Comparable<BufferWindow>, BinaryRef
 {
   private ByteBuffer buffer;
-  private int from;
+  private int offset;
   private int length;
 
   public BufferWindow set(ByteBuffer buffer, int from, int length)
   {
     this.buffer = buffer;
-    this.from = from;
+    this.offset = from;
     this.length = length;
     return this;
   }
@@ -47,15 +47,15 @@ public class BufferWindow implements Comparable<BufferWindow>, BinaryRef
   @Override
   public byte get(int index)
   {
-    return buffer.get(from + index);
+    return buffer.get(offset + index);
   }
 
   @Override
   public ByteBuffer toBuffer()
   {
     return (ByteBuffer) buffer.asReadOnlyBuffer()
-                              .limit(from + length)
-                              .position(from);
+                              .limit(offset + length)
+                              .position(offset);
   }
 
   @Override
@@ -63,7 +63,7 @@ public class BufferWindow implements Comparable<BufferWindow>, BinaryRef
   {
     final byte[] bytes = new byte[length];
     for (int i = 0; i < length; i++) {
-      bytes[i] = buffer.get(from + i);
+      bytes[i] = buffer.get(offset + i);
     }
     return bytes;
   }
@@ -73,7 +73,7 @@ public class BufferWindow implements Comparable<BufferWindow>, BinaryRef
   {
     output.ensureCapacity(length);
     for (int i = 0; i < length; i++) {
-      output.write(buffer.get(from + i));
+      output.write(buffer.get(offset + i));
     }
     return output;
   }
@@ -86,7 +86,7 @@ public class BufferWindow implements Comparable<BufferWindow>, BinaryRef
       return false;
     }
     for (int i = 0; i < length; i++) {
-      if (buffer.get(from + i) != o.buffer.get(o.from + i)) {
+      if (buffer.get(offset + i) != o.buffer.get(o.offset + i)) {
         return false;
       }
     }
@@ -96,8 +96,8 @@ public class BufferWindow implements Comparable<BufferWindow>, BinaryRef
   @Override
   public int compareTo(final BufferWindow o)
   {
-    final int limit = from + Math.min(length, length);
-    for (int i = from, j = o.from; i < limit; i++, j++) {
+    final int limit = offset + Math.min(length, length);
+    for (int i = offset, j = o.offset; i < limit; i++, j++) {
       final int cmp = Integer.compare(buffer.get(i) & 0xff, o.buffer.get(j) & 0xff);
       if (cmp != 0) {
         return cmp;

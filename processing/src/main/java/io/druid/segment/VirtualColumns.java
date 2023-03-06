@@ -208,7 +208,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     }
   }
 
-  private static abstract class MimicDimension implements DimensionSelector
+  private static abstract class MimicDimension implements DimensionSelector.Mimic
   {
     final ValueDesc type;
     final Supplier<?> supplier;
@@ -249,6 +249,12 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     public int lookupId(Object name)
     {
       return valToId.getOrDefault(name, -1);
+    }
+
+    @Override
+    public Object get()
+    {
+      return supplier.get();
     }
   }
 

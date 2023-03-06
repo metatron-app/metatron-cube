@@ -31,9 +31,9 @@ import java.util.Objects;
  */
 public class ObjectArray<T> implements Comparable<ObjectArray<T>>, Iterable<T>
 {
-  public static ObjectArray of(Object... elements)
+  public static ObjectArray<Object> of(Object... elements)
   {
-    return new ObjectArray(Preconditions.checkNotNull(elements));
+    return new ObjectArray<>(Preconditions.checkNotNull(elements));
   }
 
   protected final T[] array;
@@ -109,21 +109,16 @@ public class ObjectArray<T> implements Comparable<ObjectArray<T>>, Iterable<T>
     return Arrays.asList(array).iterator();
   }
 
-  public static class WithHash<T> extends ObjectArray<T>
+  public static <T> ObjectArray<T> withHash(T[] array, int hash)
   {
-    private final int hash;
-
-    public WithHash(T[] array, int hash)
+    return new ObjectArray<T>(array)
     {
-      super(Arrays.copyOf(array, array.length));
-      this.hash = hash;
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return hash;
-    }
+      @Override
+      public int hashCode()
+      {
+        return hash;
+      }
+    };
   }
 
   public static class From<T> extends ObjectArray<T>

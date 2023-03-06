@@ -400,8 +400,13 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
   public HyperLogLogCollector clear()
   {
     estimatedCardinality = null;
-    storageBuffer.position(0);
-    storageBuffer.put(context.EMPTY_BYTES);
+    if (storageBuffer.hasArray()) {
+      Arrays.fill(storageBuffer.array(), (byte) 0);
+      storageBuffer.array()[0] = context.HEADER;
+    } else {
+      storageBuffer.position(0);
+      storageBuffer.put(context.EMPTY_BYTES);
+    }
     storageBuffer.position(0);
     return this;
   }
@@ -703,11 +708,12 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
       writeShort(output, context.MAX_OVERFLOW_REGISTER_BYTE, getMaxOverflowRegister());
     }
 
+    int remain = numNonZeroRegisters;
     int x = context.HEADER_NUM_BYTES;
     if (storageBuffer.hasArray()) {
       final byte[] array = storageBuffer.array();
       final int offset = storageBuffer.arrayOffset();
-      for (int i = context.HEADER_NUM_BYTES; i < context.NUM_BYTES_FOR_DENSE_STORAGE; i++) {
+      for (int i = context.HEADER_NUM_BYTES; remain > 0 && i < context.NUM_BYTES_FOR_DENSE_STORAGE; i++) {
         final byte v = array[offset + i];
         if (v != 0) {
           // same as writeShort() but seemed not inlined
@@ -715,10 +721,11 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
           output[x + 1] = (byte) (i & 0xff);
           output[x + 2] = v;
           x += SPARSE_BUCKET_SIZE;
+          remain -= nibbles(v);
         }
       }
     } else {
-      for (int i = context.HEADER_NUM_BYTES; i < context.NUM_BYTES_FOR_DENSE_STORAGE; i++) {
+      for (int i = context.HEADER_NUM_BYTES; remain > 0 && i < context.NUM_BYTES_FOR_DENSE_STORAGE; i++) {
         final byte v = storageBuffer.get(i);
         if (v != 0) {
           // same as writeShort() but seemed not inlined
@@ -726,6 +733,7 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
           output[x + 1] = (byte) (i & 0xff);
           output[x + 2] = v;
           x += SPARSE_BUCKET_SIZE;
+          remain -= nibbles(v);
         }
       }
     }
@@ -851,15 +859,15 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
     int count = 0;
     for (int i = context.HEADER_NUM_BYTES; i < context.NUM_BYTES_FOR_DENSE_STORAGE; i++) {
       final byte val = (byte) (storageBuffer.get(i) - 0x11);
-      if ((val & 0xf0) != 0) {
-        ++count;
-      }
-      if ((val & 0x0f) != 0) {
-        ++count;
-      }
       storageBuffer.put(i, val);
+      count += nibbles(val);
     }
     return count;
+  }
+
+  private static int nibbles(final byte v)
+  {
+    return ((v & UPPER_NIBBLE) == 0 ? 0 : 1) + ((v & LOWER_NIBBLE) == 0 ? 0 : 1);
   }
 
   private void convertToMutableByteBuffer()
@@ -986,7 +994,7 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
   }
 
   @Override
-  public void collect(Object[] values, BytesRef bytes)
+  public void collect(BytesRef[] values, BytesRef bytes)
   {
     add(Murmur3.hash64(bytes));
   }

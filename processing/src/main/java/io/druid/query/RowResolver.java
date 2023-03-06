@@ -220,7 +220,10 @@ public class RowResolver implements io.druid.data.RowSignature
   public RowResolver resolve(StreamQuery query)
   {
     List<String> names = query.getColumns();
-    List<ValueDesc> types = names.stream().map(this::resolve).collect(Collectors.toList());
+    List<ValueDesc> types = names.stream()
+                                 .map(this::resolve)
+                                 .map(desc -> desc.unwrapDimension())
+                                 .collect(Collectors.toList());
     return new RowResolver(RowSignature.of(names, types), virtualColumns);
   }
 }

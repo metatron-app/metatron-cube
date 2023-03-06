@@ -261,7 +261,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
     private BloomTest(BloomKFilter filter) {this.filter = filter;}
 
     @Override
-    public void collect(Object[] values, BytesRef bytes)
+    public void collect(BytesRef[] values, BytesRef bytes)
     {
       status = filter.test(bytes);
     }

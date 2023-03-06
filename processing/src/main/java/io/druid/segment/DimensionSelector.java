@@ -137,4 +137,8 @@ public interface DimensionSelector
 
     <T> T apply(Tools.Function<T> function);  // on current
   }
+
+  interface Mimic extends DimensionSelector, ObjectColumnSelector
+  {
+  }
 }

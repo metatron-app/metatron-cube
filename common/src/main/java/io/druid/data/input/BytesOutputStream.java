@@ -85,6 +85,17 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
     write(b, 0, b.length);
   }
 
+  public void write(final byte[][] bs, final byte separator)
+  {
+    if (bs.length > 0) {
+      write(bs[0]);
+      for (int i = 1; i < bs.length; i++) {
+        write(separator);
+        write(bs[i]);
+      }
+    }
+  }
+
   @Override
   public void write(final byte[] b, final int off, final int len)
   {
@@ -203,9 +214,10 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
     count = position;
   }
 
-  public void clear()
+  public BytesOutputStream clear()
   {
     count = 0;
+    return this;
   }
 
   public byte[] unwrap()
@@ -284,6 +296,11 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   public BytesRef asRef()
   {
     return new BytesRef(buf, 0, count);
+  }
+
+  public BytesRef asRef(int offset)
+  {
+    return new BytesRef(buf, offset, count - offset);
   }
 
   public ByteBuffer asByteBuffer()

@@ -27,6 +27,11 @@ import java.util.Arrays;
 
 public class BytesRef implements BinaryRef
 {
+  public static BytesRef of(byte[] bytes)
+  {
+    return new BytesRef(bytes, 0, bytes.length);
+  }
+
   public final byte[] bytes;
   public final int offset;
   public final int length;

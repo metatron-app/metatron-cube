@@ -19,21 +19,28 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.HashCollector.ScanSupport;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.Scannable;
+import io.druid.segment.DimensionSelector.SingleValued;
+import io.druid.segment.DimensionSelector.WithRawAccess;
+import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.IndexedInts;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 
 public abstract class HashIterator<T extends HashCollector>
 {
@@ -51,7 +58,7 @@ public abstract class HashIterator<T extends HashCollector>
   protected static final byte COLUMN_SEPARATOR = (byte) 0x01;
   protected static final byte MULTIVALUE_SEPARATOR = (byte) 0x02;
 
-  protected static final BytesRef NULL_REF = new BytesRef(new byte[]{NULL_VALUE});
+  protected static final BytesRef NULL_REF = BytesRef.of(new byte[]{NULL_VALUE});
 
   protected final ValueMatcher predicate;
   protected final List<DimensionSelector> selectorList;
@@ -86,124 +93,151 @@ public abstract class HashIterator<T extends HashCollector>
   // class of collector
   protected abstract Class<T> collectorClass();
 
-  private Consumer<T> toConsumer(List<DimensionSelector> selectorList)
+  private Consumer<T> toConsumer(List<DimensionSelector> selectors)
   {
-    if (useScanning()) {
-      final Scannable selector = (Scannable) selectorList.get(0);
+    if (selectors.isEmpty()) {
+      return collector -> collector.collect(new BytesRef[] {NULL_REF}, NULL_REF);
+    } else if (useScanning()) {
+      final Scannable selector = (Scannable) selectors.get(0);
       return collector -> ((ScanSupport) collector).collect(selector);
     }
-    if (selectorList.isEmpty()) {
-      return collector -> collector.collect(new Object[0], NULL_REF);
-    } else if (byRow) {
-      return collector -> hashRow(collector, BUFFERS.get());
-    } else {
-      return collector -> hashValues(collector);
-    }
-  }
-
-  private void hashRow(HashCollector collector, BytesOutputStream buffer)
-  {
-    buffer.clear();
-    final Object[] values = new Object[selectorList.size()];
-    for (int i = 0; i < values.length; i++) {
-      final DimensionSelector selector = selectorList.get(i);
-      values[i] = toValue(selector, selector instanceof DimensionSelector.WithRawAccess, groupings == null);
-    }
-    if (groupings == null) {
-      // concat multi-value
-      collectConcat(values, collector, buffer);
-    } else {
-      // explode multi-value
-      collectExploded(values, groupings, collector, buffer);
-    }
-  }
-
-  private static Object toValue(final DimensionSelector selector, final boolean rawBytes, final boolean sort)
-  {
-    final IndexedInts row = selector.getRow();
-    // nothing to add to hasher if size == 0, only handle size == 1 and size != 0 cases.
-    final int length = row.size();
-    if (length == 1) {
-      return _toValue(selector, row.get(0), rawBytes);
-    }
-    if (length > 1) {
-      final byte[][] multi = new byte[length][];
-      for (int j = 0; j < multi.length; ++j) {
-        multi[j] = _toValue(selector, row.get(j), rawBytes);
+    final BytesOutputStream buffer = BUFFERS.get();
+    final BytesRef[] values = new BytesRef[selectors.size()];
+    if (Iterables.all(selectors, s -> s instanceof SingleValued)) {
+      if (selectors.size() == 1) {
+        Supplier<byte[]> supplier = toSingleValueSupplier(selectors.get(0));
+        return collector -> collector.collect(values, values[0] = BytesRef.of(supplier.get()));
+      } else if (groupings == null || groupings.length == 0) {
+        final List<Supplier<byte[]>> suppliers = GuavaUtils.transform(selectors, s -> toSingleValueSupplier(s));
+        return collector -> {
+          buffer.clear();
+          buffer.write(suppliers.get(0).get());
+          values[0] = buffer.asRef();
+          for (int i = 1; i < suppliers.size(); i++) {
+            final int prev = buffer.size();
+            buffer.write(COLUMN_SEPARATOR);
+            buffer.write(suppliers.get(i).get());
+            values[i] = buffer.asRef(prev + 1);
+          }
+          collector.collect(values, buffer.asRef());
+        };
       }
-      // Values need to be sorted to ensure consistent multi-value ordering across different segments
-      if (sort) {
-        Arrays.sort(multi, UTF8Bytes.COMPARATOR_NF);
-      }
-      return multi;
+      // todo: test case for this ?
     }
-    return null;
+    if (byRow) {
+      final List<Supplier<byte[]>> svs = GuavaUtils.transform(selectors, s -> toSingleValueSupplier(s));
+      final List<IntFunction<byte[]>> lookups = GuavaUtils.transform(selectors, s -> toLookupFunction(s));
+      final byte[][][] source = new byte[selectorList.size()][][];
+      final Supplier<byte[][][]> supplier = () -> {
+        for (int i = 0; i < source.length; i++) {
+          source[i] = _toValues(selectors.get(i).getRow(), svs.get(i), lookups.get(i), groupings == null);
+        }
+        return source;
+      };
+      if (groupings == null) {
+        return collector -> collectConcat(supplier.get(), values, collector, buffer.clear());
+      } else {
+        return collector -> collectExploded(supplier.get(), values, groupings, collector, buffer.clear());
+      }
+    }
+    return collector -> hashValues(collector);
   }
 
   @Nullable
-  private static byte[] _toValue(final DimensionSelector selector, final int id, final boolean rawBytes)
+  private static Supplier<byte[]> toSingleValueSupplier(DimensionSelector selector)
   {
-    if (rawBytes) {
-      return ((DimensionSelector.WithRawAccess) selector).getAsRaw(id);
-    } else {
-      return StringUtils.nullableToUtf8(Objects.toString(selector.lookupName(id), null));
+    if (selector instanceof SingleValued && selector instanceof ObjectColumnSelector) {
+      return ColumnSelectors.asPrimitiveSerializer((ObjectColumnSelector) selector);
     }
+    if (selector instanceof WithRawAccess) {
+      return () -> ((WithRawAccess) selector).getAsRaw(selector.getRow().get(0));
+    } else {
+      return () -> StringUtils.toUtf8WithNullToEmpty(selector.lookupName(selector.getRow().get(0)));
+    }
+  }
+
+  @Nullable
+  private static IntFunction<byte[]> toLookupFunction(DimensionSelector selector)
+  {
+    if (selector instanceof WithRawAccess) {
+      return x -> ((WithRawAccess) selector).getAsRaw(x);
+    } else {
+      return x -> StringUtils.toUtf8WithNullToEmpty(selector.lookupName(x));
+    }
+  }
+
+  private static byte[] lookup(DimensionSelector selector, int x)
+  {
+    if (selector instanceof WithRawAccess) {
+      return ((WithRawAccess) selector).getAsRaw(x);
+    } else {
+      return StringUtils.toUtf8WithNullToEmpty(selector.lookupName(x));
+    }
+  }
+
+  @Nullable
+  private static byte[][] _toValues(IndexedInts row, Supplier<byte[]> sv, IntFunction<byte[]> lookup, boolean sort)
+  {
+    final int length = row.size();
+    if (length == 1) {
+      return new byte[][]{sv.get()};
+    }
+    final byte[][] mvs = new byte[length][];
+    for (int i = 0; i < mvs.length; i++) {
+      mvs[i] = lookup.apply(row.get(i));
+    }
+    // Values need to be sorted to ensure consistent multi-value ordering across different segments
+    if (sort) {
+      Arrays.sort(mvs, UTF8Bytes.COMPARATOR_NF);
+    }
+    return mvs;
   }
 
   // concat multi-valued dimension
   private static void collectConcat(
-      final Object[] values,
-      final HashCollector collector,
-      final BytesOutputStream buffer
+      byte[][][] source,
+      BytesRef[] values,
+      HashCollector collector,
+      BytesOutputStream buffer
   )
   {
-    concat(values[0], buffer);
-    for (int i = 1; i < values.length; i++) {
-      buffer.writeByte(COLUMN_SEPARATOR);
-      concat(values[i], buffer);
+    buffer.clear();
+    buffer.write(source[0], MULTIVALUE_SEPARATOR);
+    values[0] = buffer.asRef();
+    for (int i = 1; i < source.length; i++) {
+      final int prev = buffer.size();
+      buffer.write(COLUMN_SEPARATOR);
+      buffer.write(source[i], MULTIVALUE_SEPARATOR);
+      values[i] = buffer.asRef(prev + 1);
     }
     collector.collect(values, buffer.asRef());
   }
 
-  private static void concat(final Object value, final BytesOutputStream buffer)
-  {
-    if (value == null) {
-      buffer.write(NULL_VALUE);
-    } else if (value instanceof byte[]) {
-      buffer.write((byte[]) value);
-    } else {
-      final byte[][] values = (byte[][]) value;
-      concat(values[0], buffer);
-      for (int i = 1; i < values.length; i++) {
-        buffer.writeByte(MULTIVALUE_SEPARATOR);
-        concat(values[i], buffer);
-      }
-    }
-  }
-
   // mimics group-by like population of multi-valued dimension
   private static void collectExploded(
-      final Object[] values,
+      final byte[][][] source,
+      final BytesRef[] values,
       final int[][] groupings,
       final HashCollector collector,
       final BytesOutputStream buffer
   )
   {
     if (groupings.length == 0) {
-      collectExploded(values, 0, collector, buffer);
+      collectExploded(source, values, 0, collector, buffer);
     } else {
       for (int[] grouping : groupings) {
-        final Object[] copy = new Object[values.length];
+        final byte[][][] copy = new byte[source.length][][];
         for (int index : grouping) {
-          copy[index] = values[index];
+          copy[index] = source[index];
         }
-        collectExploded(copy, 0, collector, buffer);
+        collectExploded(copy, values, 0, collector, buffer);
       }
     }
   }
 
   private static void collectExploded(
-      final Object[] values,
+      final byte[][][] source,
+      final BytesRef[] values,
       final int index,
       final HashCollector collector,
       final BytesOutputStream buffer
@@ -217,35 +251,33 @@ public abstract class HashIterator<T extends HashCollector>
       buffer.write(COLUMN_SEPARATOR);
     }
     final int mark = buffer.size();
-    final Object value = values[index];
-    if (value == null) {
+    if (source[index] == null) {
       buffer.write(NULL_VALUE);
-      collectExploded(values, index + 1, collector, buffer);
-    } else if (value instanceof byte[]) {
-      buffer.write((byte[]) value);
-      collectExploded(values, index + 1, collector, buffer);
+      values[index] = NULL_REF;
+      collectExploded(source, values, index + 1, collector, buffer);
+    } else if (source[index].length == 1) {
+      buffer.write(source[index][0]);
+      values[index] = BytesRef.of(source[index][0]);
+      collectExploded(source, values, index + 1, collector, buffer);
     } else {
-      final byte[][] array = (byte[][]) value;
-      for (byte[] element : array) {
+      for (byte[] element : source[index]) {
         buffer.write(element);
-        values[index] = element;
-        collectExploded(values, index + 1, collector, buffer);
+        values[index] = BytesRef.of(element);
+        collectExploded(source, values, index + 1, collector, buffer);
         buffer.position(mark);
       }
-      values[index] = value;
     }
     buffer.position(mark);
   }
 
   private void hashValues(final HashCollector collector)
   {
+    final BytesRef[] values = new BytesRef[1];
     for (final DimensionSelector selector : selectorList) {
-      final boolean rawAccess = selector instanceof DimensionSelector.WithRawAccess;
       final IndexedInts row = selector.getRow();
       final int size = row.size();
       for (int i = 0; i < size; i++) {
-        final byte[] value = _toValue(selector, row.get(i), rawAccess);
-        collector.collect(new Object[] {value}, value == null ? NULL_REF : new BytesRef(value));
+        collector.collect(values, values[0] = BytesRef.of(lookup(selector, row.get(i))));
       }
     }
   }

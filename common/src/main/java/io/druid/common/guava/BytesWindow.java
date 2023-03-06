@@ -28,7 +28,7 @@ import java.util.Arrays;
 public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
 {
   private byte[] buffer;
-  private int from;
+  private int offset;
   private int length;
 
   public BytesWindow set(byte[] buffer)
@@ -39,7 +39,7 @@ public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
   public BytesWindow set(byte[] buffer, int from, int length)
   {
     this.buffer = buffer;
-    this.from = from;
+    this.offset = from;
     this.length = length;
     return this;
   }
@@ -53,25 +53,25 @@ public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
   @Override
   public byte get(int index)
   {
-    return buffer[from + index];
+    return buffer[offset + index];
   }
 
   @Override
   public ByteBuffer toBuffer()
   {
-    return ByteBuffer.wrap(buffer, from, length);
+    return ByteBuffer.wrap(buffer, offset, length);
   }
 
   @Override
   public byte[] toBytes()
   {
-    return Arrays.copyOfRange(buffer, from, from + length);
+    return Arrays.copyOfRange(buffer, offset, offset + length);
   }
 
   @Override
   public String toUTF8()
   {
-    return StringUtils.toUTF8String(buffer, from, length);
+    return StringUtils.toUTF8String(buffer, offset, length);
   }
 
   @Override
@@ -82,7 +82,7 @@ public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
       return false;
     }
     for (int i = 0; i < length; i++) {
-      if (buffer[from + i] != o.buffer[o.from + i]) {
+      if (buffer[offset + i] != o.buffer[o.offset + i]) {
         return false;
       }
     }
@@ -92,8 +92,8 @@ public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
   @Override
   public int compareTo(final BytesWindow o)
   {
-    final int limit = from + Math.min(length, length);
-    for (int i = from, j = o.from; i < limit; i++, j++) {
+    final int limit = offset + Math.min(length, length);
+    for (int i = offset, j = o.offset; i < limit; i++, j++) {
       final int cmp = Integer.compare(buffer[i] & 0xff, o.buffer[j] & 0xff);
       if (cmp != 0) {
         return cmp;

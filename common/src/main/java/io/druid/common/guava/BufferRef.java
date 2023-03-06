@@ -20,25 +20,24 @@
 package io.druid.common.guava;
 
 import com.google.common.primitives.Ints;
-import io.druid.common.utils.StringUtils;
 
 import java.nio.ByteBuffer;
 
 public class BufferRef implements Comparable<BufferRef>, BinaryRef
 {
-  public static BufferRef of(ByteBuffer buffer, int from, int length)
+  public static BufferRef of(ByteBuffer buffer, int offset, int length)
   {
-    return new BufferRef(buffer, from, length);
+    return new BufferRef(buffer, offset, length);
   }
 
   private final ByteBuffer buffer;
-  private final int from;
+  private final int offset;
   private final int length;
 
-  private BufferRef(ByteBuffer buffer, int from, int length)
+  private BufferRef(ByteBuffer buffer, int offset, int length)
   {
     this.buffer = buffer;
-    this.from = from;
+    this.offset = offset;
     this.length = length;
   }
 
@@ -51,15 +50,15 @@ public class BufferRef implements Comparable<BufferRef>, BinaryRef
   @Override
   public byte get(int index)
   {
-    return buffer.get(from + index);
+    return buffer.get(offset + index);
   }
 
   @Override
   public ByteBuffer toBuffer()
   {
     return (ByteBuffer) buffer.asReadOnlyBuffer()
-                              .limit(from + length)
-                              .position(from);
+                              .limit(offset + length)
+                              .position(offset);
   }
 
   @Override
@@ -78,7 +77,7 @@ public class BufferRef implements Comparable<BufferRef>, BinaryRef
       return false;
     }
     for (int i = 0; i < length; i++) {
-      if (buffer.get(from + i) != o.buffer.get(o.from + i)) {
+      if (buffer.get(offset + i) != o.buffer.get(o.offset + i)) {
         return false;
       }
     }
@@ -88,8 +87,8 @@ public class BufferRef implements Comparable<BufferRef>, BinaryRef
   @Override
   public int compareTo(final BufferRef o)
   {
-    final int limit = from + Math.min(length, length);
-    for (int i = from, j = o.from; i < limit; i++, j++) {
+    final int limit = offset + Math.min(length, o.length);
+    for (int i = offset, j = o.offset; i < limit; i++, j++) {
       final int cmp = Integer.compare(buffer.get(i) & 0xff, o.buffer.get(j) & 0xff);
       if (cmp != 0) {
         return cmp;
@@ -104,7 +103,7 @@ public class BufferRef implements Comparable<BufferRef>, BinaryRef
     final int len2 = value.length;
     final int limit = Math.min(len1, len2);
     for (int i = 0; i < limit; i++) {
-      final int cmp = Integer.compare(buffer.get(from + i) & 0xff, value[i] & 0xff);
+      final int cmp = Integer.compare(buffer.get(offset + i) & 0xff, value[i] & 0xff);
       if (cmp != 0) {
         return cmp;
       }
@@ -118,14 +117,14 @@ public class BufferRef implements Comparable<BufferRef>, BinaryRef
   // see java.util.BitSet#get
   public boolean getBool(final int index)
   {
-    final int x = 8 * from + index;
+    final int x = 8 * offset + index;
     final long word = getIxWord(x);
     return word != 0 && (word & 1L << (x & BIT_INDEX_MASK)) != 0;
   }
 
   private long getIxWord(final int index)
   {
-    final int limit = length + from;
+    final int limit = length + offset;
     if (index >= limit * Byte.SIZE) {
       return 0L;
     }

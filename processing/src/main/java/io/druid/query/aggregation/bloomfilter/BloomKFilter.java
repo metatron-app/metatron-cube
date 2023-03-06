@@ -365,7 +365,7 @@ public class BloomKFilter implements HashCollector.ScanSupport
   }
 
   @Override
-  public void collect(Object[] values, BytesRef key)
+  public void collect(BytesRef[] values, BytesRef key)
   {
     addHash(Murmur3.hash64(key));
   }

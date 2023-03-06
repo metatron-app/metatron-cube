@@ -99,34 +99,21 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
       private final int limit = query.limitForCandidate();
 
       private final MutableInt size = new MutableInt();
-      private final java.util.function.Function<Integer, Map<ObjectArray, MutableInt>> map =
-          new java.util.function.Function<Integer, Map<ObjectArray, MutableInt>>()
-          {
-            @Override
-            public Map<ObjectArray, MutableInt> apply(Integer integer)
-            {
-              return Maps.<ObjectArray, MutableInt>newHashMap();
-            }
-          };
-      private final java.util.function.Function<ObjectArray, MutableInt> counter =
-          new java.util.function.Function<ObjectArray, MutableInt>()
-          {
-            @Override
-            public MutableInt apply(ObjectArray objectArray)
-            {
-              size.increment();
-              return new MutableInt();
-            }
-          };
+      private final java.util.function.Function<Integer, Map<ObjectArray, MutableInt>> map = x -> Maps.<ObjectArray, MutableInt>newHashMap();
+      private final java.util.function.Function<ObjectArray, MutableInt> counter = a -> {
+        size.increment();
+        return new MutableInt();
+      };
 
       @Override
+      @SuppressWarnings("unchecked")
       public Sequence<Object[]> apply(final Cursor cursor)
       {
         final TreeMap<Integer, Map<ObjectArray, MutableInt>> sortedMap = new TreeMap<>();
         final HashCollector collector = new HashCollector()
         {
           @Override
-          public void collect(Object[] values, BytesRef bytes)
+          public void collect(BytesRef[] values, BytesRef bytes)
           {
             final long hashCode = Murmur3.hash64(bytes);
             final int cardinality = sketch.getEstimatedCount(hashCode);
@@ -135,9 +122,9 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
             }
             final Object[] array = new Object[values.length + 1];
             for (int i = 0; i < values.length; i++) {
-              array[i + 1] = UTF8Bytes.of((byte[]) values[i]);
+              array[i + 1] = UTF8Bytes.of(values[i].toBytes());   // explicit copy
             }
-            final ObjectArray<Object> key = new ObjectArray.WithHash<>(array, (int) hashCode);
+            final ObjectArray<Object> key = ObjectArray.withHash(array, (int) hashCode);
             sortedMap.computeIfAbsent(cardinality, map).computeIfAbsent(key, counter).increment();
             if (size.intValue() > limit && cardinality > sortedMap.firstKey()) {
               size.subtract(sortedMap.pollFirstEntry().getValue().size());
@@ -149,14 +136,13 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
           selectors.add(cursor.makeDimensionSelector(dimension));
         }
         final int[][] groupings = query.getGroupings();
-        final HashAggregator<HashCollector> aggregator = new HashAggregator<HashCollector>(selectors, groupings, true)
+        final HashAggregator aggregator = new HashAggregator(selectors, groupings, true)
         {
           @Override
-          protected Class<HashCollector> collectorClass() {return HashCollector.class;}
+          protected Class collectorClass() {return collector.getClass();}
         };
-        while (!cursor.isDone()) {
+        for (;!cursor.isDone(); cursor.advance()) {
           aggregator.aggregate(collector);
-          cursor.advance();
         }
         final List<Object[]> result = Lists.newArrayList();
         for (Map<ObjectArray, MutableInt> map : sortedMap.values()) {

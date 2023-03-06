@@ -58,7 +58,7 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
   }
 
   @Override
-  public void collect(Object[] values, BytesRef key)
+  public void collect(BytesRef[] values, BytesRef key)
   {
     // We use the trick mentioned in "Less Hashing, Same Performance: Building a Better Bloom Filter"
     // by Kirsch et.al. From abstract 'only two hash functions are necessary to effectively

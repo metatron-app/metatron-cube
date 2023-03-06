@@ -24,9 +24,13 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.UOE;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -39,6 +43,9 @@ import java.util.Objects;
 public enum ValueType
 {
   BOOLEAN {
+    private final byte[] TRUE = new byte[]{0x01};
+    private final byte[] FALSE = new byte[]{0x00};
+
     @Override
     public String getName()
     {
@@ -67,6 +74,12 @@ public enum ValueType
     public int lengthOfBinary()
     {
       return Byte.SIZE;
+    }
+
+    @Override
+    public byte[] toBytes(Object v)
+    {
+      return ((Boolean) v).booleanValue() ? TRUE : FALSE;
     }
 
     @Override
@@ -111,6 +124,12 @@ public enum ValueType
     {
       return Float.SIZE;
     }
+
+    @Override
+    public byte[] toBytes(Object v)
+    {
+      return Ints.toByteArray(Float.floatToIntBits(((Number) v).floatValue()));
+    }
   },
   LONG {
     @Override
@@ -147,6 +166,12 @@ public enum ValueType
     public int lengthOfBinary()
     {
       return Long.SIZE;
+    }
+
+    @Override
+    public byte[] toBytes(Object v)
+    {
+      return Longs.toByteArray(((Number) v).longValue());
     }
   },
   DOUBLE {
@@ -185,6 +210,12 @@ public enum ValueType
     {
       return Double.SIZE;
     }
+
+    @Override
+    public byte[] toBytes(Object v)
+    {
+      return Longs.toByteArray(Double.doubleToLongBits(((Number) v).doubleValue()));
+    }
   },
   STRING {
     @Override
@@ -209,6 +240,12 @@ public enum ValueType
     public Comparable cast(Object value)
     {
       return Objects.toString(value, null);
+    }
+
+    @Override
+    public byte[] toBytes(Object v)
+    {
+      return v instanceof UTF8Bytes ? ((UTF8Bytes) v).asBytes() : StringUtils.toUtf8WithNullToEmpty((String) v);
     }
   },
   DATETIME {
@@ -297,6 +334,12 @@ public enum ValueType
   public int lengthOfBinary()
   {
     return -1;
+  }
+
+  // just for hashing
+  public byte[] toBytes(Object value)
+  {
+    throw new UOE("toBytes %s", this);
   }
 
   public boolean isPrimitive()
