@@ -19,7 +19,10 @@
 
 package io.druid.segment.filter;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import io.druid.common.guava.BinaryRef;
+import io.druid.data.UTF8Bytes;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.ColumnCapabilities;
 
@@ -29,9 +32,15 @@ public class PrefixFilter extends DimensionPredicateFilter
 {
   private final String prefix;
 
-  public PrefixFilter(String dimension, String prefix)
+  public static PrefixFilter of(String dimension, String prefix)
   {
-    super(dimension, s -> s != null && s.startsWith(prefix), null);
+    UTF8Bytes bytes = UTF8Bytes.of(prefix);
+    return new PrefixFilter(dimension, prefix, s -> s != null && s.startsWith(prefix), b -> b.startsWith(bytes));
+  }
+
+  private PrefixFilter(String dimension, String prefix, Predicate<String> predicate1, Predicate<BinaryRef> predicate2)
+  {
+    super(dimension, predicate1, predicate2, null);
     this.prefix = prefix;
   }
 
@@ -43,9 +52,9 @@ public class PrefixFilter extends DimensionPredicateFilter
     if (capabilities == null) {
       return BitmapHolder.exact(selector.createBoolean(Strings.isNullOrEmpty(prefix)));
     }
-    if (capabilities.hasBitmapIndexes()) {
+    if (capabilities.isDictionaryEncoded()) {
       return BitmapHolder.exact(
-          Filters.matchDictionary(dimension, context, new DictionaryMatcher.WithPrefix(prefix, predicate))
+          Filters.matchDictionary(dimension, context, new DictionaryMatcher.WithPrefix(prefix, predicate1))
       );
     }
     return null;

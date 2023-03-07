@@ -117,7 +117,7 @@ public class SelectorDimFilter extends SingleInput
       return new SelectorFilter(this, dimension, value);
     } else {
       final String valueOrNull = Strings.emptyToNull(value);
-      return new DimensionPredicateFilter(dimension, v -> Objects.equals(valueOrNull, v), extractionFn);
+      return new DimensionPredicateFilter(dimension, v -> Objects.equals(valueOrNull, v), null, extractionFn);
     }
   }
 

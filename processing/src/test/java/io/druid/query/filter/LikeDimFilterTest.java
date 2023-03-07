@@ -22,6 +22,8 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.BinaryRef;
+import io.druid.common.guava.BytesRef;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.extraction.SubstringDimExtractionFn;
 import io.druid.query.filter.LikeDimFilter.LikeMatcher;
@@ -78,193 +80,229 @@ public class LikeDimFilterTest
     LikeMatcher matcher = LikeMatcher.from("%", null);
     Assert.assertEquals(".*", matcher.regex());
     Assert.assertEquals("%", matcher.represent());
-    Predicate<String> predicate = matcher.asPredicate();
-    Assert.assertTrue(predicate.apply(""));
-    Assert.assertTrue(predicate.apply("D"));
-    Assert.assertTrue(predicate.apply("DU"));
+    Predicate<String> predicate1 = matcher.asPredicate();
+    Predicate<BinaryRef> predicate2 = matcher.asRawPredicate();
+    assertTrue(predicate1, predicate2, "");
+    assertTrue(predicate1, predicate2, "D");
+    assertTrue(predicate1, predicate2, "DU");
 
     matcher = LikeMatcher.from("_", null);
     Assert.assertEquals(".", matcher.regex());
     Assert.assertEquals("_", matcher.represent());
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply(""));
-    Assert.assertTrue(predicate.apply("D"));
-    Assert.assertFalse(predicate.apply("DU"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "");
+    assertTrue(predicate1, predicate2, "D");
+    assertFalse(predicate1, predicate2, "DU");
 
     matcher = LikeMatcher.from("__", null);
     Assert.assertEquals(".{2}", matcher.regex());
     Assert.assertEquals("_", matcher.represent());
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply(""));
-    Assert.assertFalse(predicate.apply("D"));
-    Assert.assertTrue(predicate.apply("DU"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "");
+    assertFalse(predicate1, predicate2, "D");
+    assertTrue(predicate1, predicate2, "DU");
 
     matcher = LikeMatcher.from("DUMMY", null);
     Assert.assertEquals("\\QDUMMY\\E", matcher.regex());
     Assert.assertEquals("L", matcher.represent());
-    predicate = matcher.asPredicate();
-    Assert.assertTrue(predicate.apply("DUMMY"));
-    Assert.assertFalse(predicate.apply("DUMMYx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertTrue(predicate1, predicate2, "DUMMY");
+    assertFalse(predicate1, predicate2, "DUMMYx");
 
     matcher = LikeMatcher.from("PROMO%", null);
     Assert.assertEquals("\\QPROMO\\E.*", matcher.regex());
     Assert.assertEquals("L%", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertTrue(predicate.apply("PROMO"));
-    Assert.assertTrue(predicate.apply("PROMOT"));
-    Assert.assertFalse(predicate.apply("PROM"));
-    Assert.assertTrue(predicate.apply("PROMOxx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertTrue(predicate1, predicate2, "PROMO");
+    assertTrue(predicate1, predicate2, "PROMOT");
+    assertFalse(predicate1, predicate2, "PROM");
+    assertTrue(predicate1, predicate2, "PROMOxx");
 
     matcher = LikeMatcher.from("PROMO_", null);
     Assert.assertEquals("\\QPROMO\\E.", matcher.regex());
     Assert.assertEquals("L_", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("PROMO"));
-    Assert.assertTrue(predicate.apply("PROMOT"));
-    Assert.assertFalse(predicate.apply("PROM"));
-    Assert.assertFalse(predicate.apply("PROMOxx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "PROMO");
+    assertTrue(predicate1, predicate2, "PROMOT");
+    assertFalse(predicate1, predicate2, "PROM");
+    assertFalse(predicate1, predicate2, "PROMOxx");
 
     matcher = LikeMatcher.from("PROMO__", null);
     Assert.assertEquals("\\QPROMO\\E.{2}", matcher.regex());
     Assert.assertEquals("L_", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("PROMO"));
-    Assert.assertFalse(predicate.apply("PROMOT"));
-    Assert.assertFalse(predicate.apply("PROM"));
-    Assert.assertTrue(predicate.apply("PROMOxx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "PROMO");
+    assertFalse(predicate1, predicate2, "PROMOT");
+    assertFalse(predicate1, predicate2, "PROM");
+    assertTrue(predicate1, predicate2, "PROMOxx");
 
     matcher = LikeMatcher.from("%ECONOMY BRUSHED", null);
     Assert.assertEquals(".*\\QECONOMY BRUSHED\\E", matcher.regex());
     Assert.assertEquals("%L", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertTrue(predicate.apply("ECONOMY BRUSHED"));
-    Assert.assertTrue(predicate.apply("xECONOMY BRUSHED"));
-    Assert.assertTrue(predicate.apply("xxECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHEDx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertTrue(predicate1, predicate2, "ECONOMY BRUSHED");
+    assertTrue(predicate1, predicate2, "xECONOMY BRUSHED");
+    assertTrue(predicate1, predicate2, "xxECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHEDx");
 
     matcher = LikeMatcher.from("_ECONOMY BRUSHED", null);
     Assert.assertEquals(".\\QECONOMY BRUSHED\\E", matcher.regex());
     Assert.assertEquals("_L", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHED"));
-    Assert.assertTrue(predicate.apply("xECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("xxECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHEDx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHED");
+    assertTrue(predicate1, predicate2, "xECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "xxECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHEDx");
 
     matcher = LikeMatcher.from("ECONOMY%BRUSHED", null);
     Assert.assertEquals("\\QECONOMY\\E.*\\QBRUSHED\\E", matcher.regex());
     Assert.assertEquals("L%L", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertTrue(predicate.apply("ECONOMYBRUSHED"));
-    Assert.assertTrue(predicate.apply("ECONOMY BRUSHED"));
-    Assert.assertTrue(predicate.apply("ECONOMY  BRUSHED"));
-    Assert.assertFalse(predicate.apply("xECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHEDx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertTrue(predicate1, predicate2, "ECONOMYBRUSHED");
+    assertTrue(predicate1, predicate2, "ECONOMY BRUSHED");
+    assertTrue(predicate1, predicate2, "ECONOMY  BRUSHED");
+    assertFalse(predicate1, predicate2, "xECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHEDx");
 
     matcher = LikeMatcher.from("ECONOMY_BRUSHED", null);
     Assert.assertEquals("\\QECONOMY\\E.\\QBRUSHED\\E", matcher.regex());
     Assert.assertEquals("L_L", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("ECONOMYBRUSHED"));
-    Assert.assertTrue(predicate.apply("ECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY  BRUSHED"));
-    Assert.assertFalse(predicate.apply("xECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHEDx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "ECONOMYBRUSHED");
+    assertTrue(predicate1, predicate2, "ECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY  BRUSHED");
+    assertFalse(predicate1, predicate2, "xECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHEDx");
 
     matcher = LikeMatcher.from("ECONOMY__BRUSHED", null);
     Assert.assertEquals("\\QECONOMY\\E.{2}\\QBRUSHED\\E", matcher.regex());
     Assert.assertEquals("L_L", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("ECONOMYBRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHED"));
-    Assert.assertTrue(predicate.apply("ECONOMY  BRUSHED"));
-    Assert.assertFalse(predicate.apply("xECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHEDx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "ECONOMYBRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHED");
+    assertTrue(predicate1, predicate2, "ECONOMY  BRUSHED");
+    assertFalse(predicate1, predicate2, "xECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHEDx");
 
     matcher = LikeMatcher.from("_ECONOMY%", null);
     Assert.assertEquals(".\\QECONOMY\\E.*", matcher.regex());
     Assert.assertEquals("_L%", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("ECONOMYBRUSHED"));
-    Assert.assertTrue(predicate.apply("xECONOMY"));
-    Assert.assertTrue(predicate.apply("xECONOMY "));
-    Assert.assertFalse(predicate.apply(" xECONOMY"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "ECONOMYBRUSHED");
+    assertTrue(predicate1, predicate2, "xECONOMY");
+    assertTrue(predicate1, predicate2, "xECONOMY ");
+    assertFalse(predicate1, predicate2, " xECONOMY");
 
     matcher = LikeMatcher.from("%ECONOMY_", null);
     Assert.assertEquals(".*\\QECONOMY\\E.", matcher.regex());
     Assert.assertEquals("%L_", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("ECONOMYBRUSHED"));
-    Assert.assertFalse(predicate.apply("xECONOMY"));
-    Assert.assertTrue(predicate.apply("xECONOMY "));
-    Assert.assertFalse(predicate.apply("xECONOMYx "));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "ECONOMYBRUSHED");
+    assertFalse(predicate1, predicate2, "xECONOMY");
+    assertTrue(predicate1, predicate2, "xECONOMY ");
+    assertFalse(predicate1, predicate2, "xECONOMYx ");
 
     matcher = LikeMatcher.from("_ECONOMY_", null);
     Assert.assertEquals(".\\QECONOMY\\E.", matcher.regex());
     Assert.assertEquals("_L_", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("ECONOMYBRUSHED"));
-    Assert.assertFalse(predicate.apply("xECONOMY"));
-    Assert.assertTrue(predicate.apply("xECONOMY "));
-    Assert.assertFalse(predicate.apply("xECONOMYx "));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "ECONOMYBRUSHED");
+    assertFalse(predicate1, predicate2, "xECONOMY");
+    assertTrue(predicate1, predicate2, "xECONOMY ");
+    assertFalse(predicate1, predicate2, "xECONOMYx ");
 
     matcher = LikeMatcher.from("%plum%", null);
     Assert.assertEquals(".*\\Qplum\\E.*", matcher.regex());
     Assert.assertEquals("%L%", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertTrue(predicate.apply("turquoise plum"));
-    Assert.assertTrue(predicate.apply("antique plum smoke"));
-    Assert.assertFalse(predicate.apply("turquoise PLUM"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertTrue(predicate1, predicate2, "turquoise plum");
+    assertTrue(predicate1, predicate2, "antique plum smoke");
+    assertFalse(predicate1, predicate2, "turquoise PLUM");
+    assertTrue(predicate1, predicate2, "plu plum");
 
     matcher = LikeMatcher.from("ECONOMY%XX%BRUSHED", null);
     Assert.assertEquals("\\QECONOMY\\E.*\\QXX\\E.*\\QBRUSHED\\E", matcher.regex());
     Assert.assertEquals("L%L%L", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSH"));
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMYXX BRUSHE"));
-    Assert.assertTrue(predicate.apply("ECONOMYXXBRUSHED"));
-    Assert.assertTrue(predicate.apply("ECONOMY XX BRUSHED"));
-    Assert.assertTrue(predicate.apply("ECONOMY  XXBRUSHED"));
-    Assert.assertTrue(predicate.apply("ECONOMYXX  BRUSHED"));
-    Assert.assertFalse(predicate.apply("xECONOMY XX BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY XX BRUSHEDx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSH");
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMYXX BRUSHE");
+    assertTrue(predicate1, predicate2, "ECONOMYXXBRUSHED");
+    assertTrue(predicate1, predicate2, "ECONOMY XX BRUSHED");
+    assertTrue(predicate1, predicate2, "ECONOMY  XXBRUSHED");
+    assertTrue(predicate1, predicate2, "ECONOMYXX  BRUSHED");
+    assertFalse(predicate1, predicate2, "xECONOMY XX BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY XX BRUSHEDx");
 
     matcher = LikeMatcher.from("ECONOMY_XX_BRUSHED", null);
     Assert.assertEquals("\\QECONOMY\\E.\\QXX\\E.\\QBRUSHED\\E", matcher.regex());
     Assert.assertEquals("L_L_L", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertFalse(predicate.apply("ECONOMY BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMYXXBRUSHED"));
-    Assert.assertTrue(predicate.apply("ECONOMY XX BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY  XXBRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMYXX  BRUSHED"));
-    Assert.assertFalse(predicate.apply("xECONOMY XX BRUSHED"));
-    Assert.assertFalse(predicate.apply("ECONOMY XX BRUSHEDx"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertFalse(predicate1, predicate2, "ECONOMY BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMYXXBRUSHED");
+    assertTrue(predicate1, predicate2, "ECONOMY XX BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY  XXBRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMYXX  BRUSHED");
+    assertFalse(predicate1, predicate2, "xECONOMY XX BRUSHED");
+    assertFalse(predicate1, predicate2, "ECONOMY XX BRUSHEDx");
 
     matcher = LikeMatcher.from("%나비스%한글%", null);
     Assert.assertEquals(".*\\Q나비스\\E.*\\Q한글\\E.*", matcher.regex());
     Assert.assertEquals("%L%L%", matcher.represent());
 
-    predicate = matcher.asPredicate();
-    Assert.assertTrue(predicate.apply("나비스한글"));
-    Assert.assertTrue(predicate.apply("나비스 한글"));
-    Assert.assertTrue(predicate.apply("뒵 나비스 한글 뵙"));
-    Assert.assertFalse(predicate.apply("나비스 한"));
+    predicate1 = matcher.asPredicate();
+    predicate2 = matcher.asRawPredicate();
+    assertTrue(predicate1, predicate2, "나비스한글");
+    assertTrue(predicate1, predicate2, "나비스 한글");
+    assertTrue(predicate1, predicate2, "뒵 나비스 한글 뵙");
+    assertFalse(predicate1, predicate2, "나비스 한");
+  }
+
+  private void assertTrue(Predicate<String> predicate1, Predicate<BinaryRef> predicate2, String value)
+  {
+    Assert.assertTrue(predicate1.apply(value));
+    if (predicate2 != null) {
+      Assert.assertTrue(predicate2.apply(BytesRef.of(value)));
+    }
+  }
+
+  private void assertFalse(Predicate<String> predicate1, Predicate<BinaryRef> predicate2, String value)
+  {
+    Assert.assertFalse(predicate1.apply(value));
+    if (predicate2 != null) {
+      Assert.assertFalse(predicate2.apply(BytesRef.of(value)));
+    }
   }
 
   @Test
@@ -275,10 +313,13 @@ public class LikeDimFilterTest
     Assert.assertEquals(".*\\Qunusual\\E.*\\Qaccounts\\E.*", matcher.regex());
     Assert.assertEquals("%L%L%", matcher.represent());
 
-    Predicate<String> predicate = matcher.asPredicate();
-    Assert.assertTrue(predicate.apply("unusualaccounts"));
-    Assert.assertTrue(predicate.apply("unusual accounts"));
-    Assert.assertTrue(predicate.apply("xx unusual accounts xx"));
-    Assert.assertFalse(predicate.apply("unusual account"));
+    Predicate<String> predicate1 = matcher.asPredicate();
+    Predicate<BinaryRef> predicate2 = matcher.asRawPredicate();
+    assertTrue(predicate1, predicate2, "unusualaccounts");
+    assertTrue(predicate1, predicate2, "unusual accounts");
+    assertTrue(predicate1, predicate2, "un unusualaccounts");
+    assertTrue(predicate1, predicate2, "un unusual ac accounts");
+    assertTrue(predicate1, predicate2, "xx unusual accounts xx");
+    assertFalse(predicate1, predicate2, "unusual account");
   }
 }

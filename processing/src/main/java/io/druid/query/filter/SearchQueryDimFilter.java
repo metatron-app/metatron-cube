@@ -90,7 +90,7 @@ public class SearchQueryDimFilter extends SingleInput
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new DimensionPredicateFilter(dimension, v -> query.accept(v), extractionFn);
+    return new DimensionPredicateFilter(dimension, v -> query.accept(v), null, extractionFn);
   }
 
   @Override

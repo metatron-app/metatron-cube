@@ -45,6 +45,7 @@ import io.druid.common.utils.IOUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.logger.Logger;
@@ -382,13 +383,13 @@ public class Filters
    */
   public static ImmutableBitmap matchPredicate(String dimension, Predicate<String> predicate, FilterContext context)
   {
-    return matchDictionary(dimension, context, v -> predicate.apply(v));
+    return matchDictionary(dimension, context, d -> predicate);
   }
 
   public static ImmutableBitmap matchDictionary(
       final String dimension,
       final FilterContext context,
-      final DictionaryMatcher<String> matcher
+      final DictionaryMatcher matcher
   )
   {
     final BitmapIndexSelector selector = context.indexSelector();
@@ -396,19 +397,27 @@ public class Filters
     // Missing dimension -> match all rows if the predicate matches null; match no rows otherwise
     final Column column = selector.getColumn(dimension);
     if (column == null) {
-      return selector.createBoolean(matcher.apply(null));
+      return selector.createBoolean(matcher.matcher(null).apply(null));
     }
     final BitmapFactory factory = selector.getBitmapFactory();
     final BitmapIndex bitmapIndex = column.getBitmapIndex();
     if (bitmapIndex == null) {
-      if (column.hasGenericColumn() && Scannable.BufferBacked.class.isAssignableFrom(column.getGenericColumnType())) {
+      if (column.hasGenericColumn() && Scannable.class.isAssignableFrom(column.getGenericColumnType())) {
         final GenericColumn generic = column.getGenericColumn();
         try {
-          final Scannable<String> scannable = (Scannable) generic;
           final MutableBitmap mutable = factory.makeEmptyMutableBitmap();
-          scannable.scan(
-              context.rowIterator(), (ix, v) -> {if (matcher.apply(v)) {mutable.add(ix);}}
-          );
+          if (matcher instanceof DictionaryMatcher.RawSupport && generic instanceof Scannable.BufferBacked) {
+            final BufferWindow window = new BufferWindow();
+            final Predicate<BinaryRef> predicate = ((DictionaryMatcher.RawSupport) matcher).rawMatcher(null);
+            final Scannable.BufferBacked scannable = (Scannable.BufferBacked) generic;
+            scannable.scan(
+                context.rowIterator(), (x, b, o, l) -> {if (predicate.apply(window.set(b, o, l))) {mutable.add(x);}}
+            );
+          } else {
+            final Predicate<String> predicate = matcher.matcher(null);
+            final Scannable<String> scannable = (Scannable) generic;
+            scannable.scan(context.rowIterator(), (ix, v) -> {if (predicate.apply(v)) {mutable.add(ix);}});
+          }
           return factory.makeImmutableBitmap(mutable);
         }
         finally {
@@ -436,9 +445,14 @@ public class Filters
         return factory.makeEmptyImmutableBitmap();
       }
       final IntList matched = new IntList();
-      dictionary.scan(
-          cursor, (ix, v) -> {if (matcher.apply(v)) {matched.add(ix);}}
-      );
+      if (matcher instanceof DictionaryMatcher.RawSupport && dictionary instanceof Scannable.BufferBacked) {
+        final BufferWindow window = new BufferWindow();
+        final Predicate<BinaryRef> predicate = ((DictionaryMatcher.RawSupport) matcher).rawMatcher(dictionary);
+        dictionary.scan(cursor, (x, b, o, l) -> {if (predicate.apply(window.set(b, o, l))) {matched.add(x);}});
+      } else {
+        final Predicate<String> predicate = matcher.matcher(dictionary);
+        dictionary.scan(cursor, (ix, v) -> {if (predicate.apply(v)) {matched.add(ix);}});
+      }
       final GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();
       return DimFilters.union(factory, matched.transform(x -> bitmaps.get(x)));
     } finally {

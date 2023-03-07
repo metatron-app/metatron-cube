@@ -30,8 +30,10 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Chars;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.BinaryRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.UTF8Bytes;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.BestEffort;
 import io.druid.query.filter.DimFilter.SingleInput;
@@ -250,6 +252,86 @@ public class LikeDimFilter extends SingleInput implements BestEffort
       };
     }
 
+    public Predicate<BinaryRef> asRawPredicate()
+    {
+      switch (represent()) {
+        case "%":
+          return Predicates.alwaysTrue();
+        case "_": {
+          final int c = ((Underbar) elements[0]).c;
+          return s -> s.length() == c;
+        }
+        case "L": {
+          final UTF8Bytes v = ((Literal) elements[0]).asBytes();
+          return s -> s.eq(v);
+        }
+        case "L%": {
+          final UTF8Bytes v = ((Literal) elements[0]).asBytes();
+          final int length = v.length();
+          return s -> s.length() >= length && s.startsWith(v);
+        }
+        case "L_": {
+          final UTF8Bytes v = ((Literal) elements[0]).asBytes();
+          final int length = v.length() + ((Underbar) elements[1]).c;
+          return s -> s.length() == length && s.startsWith(v);
+        }
+        case "%L": {
+          final UTF8Bytes v = ((Literal) elements[1]).asBytes();
+          final int length = v.length();
+          return s -> s.length() >= length && s.endsWith(v);
+        }
+        case "_L": {
+          final UTF8Bytes v = ((Literal) elements[1]).asBytes();
+          final int length = v.length() + ((Underbar) elements[0]).c;
+          return s -> s.length() == length && s.endsWith(v);
+        }
+        case "L%L": {
+          final UTF8Bytes v1 = ((Literal) elements[0]).asBytes();
+          final UTF8Bytes v2 = ((Literal) elements[2]).asBytes();
+          final int length = v1.length() + v2.length();
+          return s -> s.length() >= length && s.startsWith(v1) && s.endsWith(v2);
+        }
+        case "L_L": {
+          final UTF8Bytes v1 = ((Literal) elements[0]).asBytes();
+          final UTF8Bytes v2 = ((Literal) elements[2]).asBytes();
+          final int length = v1.length() + v2.length() + ((Underbar) elements[1]).c;
+          return s -> s.length() == length && s.startsWith(v1) && s.endsWith(v2);
+        }
+        case "%L%": {
+          final UTF8Bytes v = ((Literal) elements[1]).asBytes();
+          return s -> s.contains(v);
+        }
+        case "_L%": {
+          final UTF8Bytes v = ((Literal) elements[1]).asBytes();
+          final int c = ((Underbar) elements[0]).c;
+          final int length = v.length() + c;
+          return s -> s.length() >= length && s.startsWith(v, c);
+        }
+        case "%L_": {
+          final UTF8Bytes v = ((Literal) elements[1]).asBytes();
+          final int c = ((Underbar) elements[2]).c;
+          final int length = v.length() + c;
+          return s -> s.length() >= length && s.startsWith(v, s.length() - length);
+        }
+        case "_L_": {
+          final int c1 = ((Underbar) elements[0]).c;
+          final int c2 = ((Underbar) elements[2]).c;
+          final UTF8Bytes v = ((Literal) elements[1]).asBytes();
+          final int length = v.length() + c1 + c2;
+          return s -> s.length() == length && s.startsWith(v, c1);
+        }
+        case "%L%L%": {
+          // tpch13
+          final UTF8Bytes v1 = ((Literal) elements[1]).asBytes();
+          final UTF8Bytes v2 = ((Literal) elements[3]).asBytes();
+          final int length = v1.length() + v2.length();
+          return s -> s.length() >= length && s.indexOf(v2, s.indexOf(v1)) >= 0;
+        }
+      }
+      // todo
+      return null;
+    }
+
     // ternary?
     public String represent()
     {
@@ -319,6 +401,11 @@ public class LikeDimFilter extends SingleInput implements BestEffort
       public char represent()
       {
         return 'L';
+      }
+
+      private UTF8Bytes asBytes()
+      {
+        return UTF8Bytes.of(v);
       }
 
       private static class Seek extends Literal
@@ -462,18 +549,26 @@ public class LikeDimFilter extends SingleInput implements BestEffort
         case "L":
           return new SelectorFilter(this, dimension, matcher.prefix);
         case "L%":
-          return new PrefixFilter(dimension, matcher.prefix);
+          return PrefixFilter.of(dimension, matcher.prefix);
       }
     }
+    final Predicate<String> predicate1 = matcher.asPredicate();
+    final Predicate<BinaryRef> predicate2 = extractionFn == null ? matcher.asRawPredicate() : null;
     if (matcher.prefix == null) {
-      return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn);
+      return new DimensionPredicateFilter(dimension, predicate1, predicate2, extractionFn);
     }
-    return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn)
+    return new DimensionPredicateFilter(dimension, predicate1, predicate2, extractionFn)
     {
       @Override
-      protected DictionaryMatcher<String> toMatcher(Predicate<String> predicate)
+      protected DictionaryMatcher toMatcher(Predicate<String> predicate)
       {
-        return new DictionaryMatcher.WithPrefix(matcher.prefix, matcher.asPredicate());
+        return new DictionaryMatcher.WithPrefix(matcher.prefix, predicate);
+      }
+
+      @Override
+      protected DictionaryMatcher.RawSupport toRawMatcher(Predicate<String> predicate1, Predicate<BinaryRef> predicate2)
+      {
+        return new DictionaryMatcher.WithRawPrefix(matcher.prefix, predicate1, predicate2);
       }
     };
   }

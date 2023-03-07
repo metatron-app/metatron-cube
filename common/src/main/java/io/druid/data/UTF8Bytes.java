@@ -37,6 +37,11 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
     return of(value, 0, value.length);
   }
 
+  public static UTF8Bytes of(String value)
+  {
+    return of(StringUtils.toUtf8(value));
+  }
+
   public static UTF8Bytes read(ByteBuffer buffer, int offset, int length)
   {
     byte[] bytes = new byte[length];
@@ -81,6 +86,11 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
   public byte[] asBytes()
   {
     return offset == 0 && length == value.length ? value : Arrays.copyOfRange(value, offset, offset + length);
+  }
+
+  public byte get(int position)
+  {
+    return value[offset + position];
   }
 
   public void writeTo(BytesOutputStream output)

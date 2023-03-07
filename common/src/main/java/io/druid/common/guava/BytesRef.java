@@ -21,12 +21,18 @@ package io.druid.common.guava;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import io.druid.java.util.common.StringUtils;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class BytesRef implements BinaryRef
 {
+  public static BytesRef of(String value)
+  {
+    return of(StringUtils.toUtf8(value));
+  }
+
   public static BytesRef of(byte[] bytes)
   {
     return new BytesRef(bytes, 0, bytes.length);

@@ -101,9 +101,9 @@ public class PrefixDimFilter extends SingleInput
   public Filter toFilter(TypeResolver resolver)
   {
     if (extractionFn != null) {
-      return new DimensionPredicateFilter(dimension, v -> v != null && v.startsWith(prefix), extractionFn);
+      return new DimensionPredicateFilter(dimension, v -> v != null && v.startsWith(prefix), null, extractionFn);
     } else {
-      return new PrefixFilter(dimension, prefix);
+      return PrefixFilter.of(dimension, prefix);
     }
   }
 

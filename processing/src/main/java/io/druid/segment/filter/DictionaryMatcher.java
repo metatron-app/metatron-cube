@@ -21,20 +21,29 @@ package io.druid.segment.filter;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import io.druid.common.guava.BinaryRef;
+import io.druid.data.UTF8Bytes;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.data.Dictionary;
 import org.roaringbitmap.IntIterator;
 
-public interface DictionaryMatcher<T> extends Predicate<T>
+public interface DictionaryMatcher
 {
-  default IntIterator wrap(Dictionary<T> dictionary, IntIterator iterator) {return iterator;}
+  default IntIterator wrap(Dictionary<String> dictionary, IntIterator iterator) {return iterator;}
 
-  class WithPrefix implements DictionaryMatcher<String>
+  Predicate<String> matcher(Dictionary<String> dictionary);
+
+  interface RawSupport extends DictionaryMatcher
   {
-    private final String prefix;
-    private final Predicate<String> predicate;
+    Predicate<BinaryRef> rawMatcher(Dictionary<String> dictionary);
+  }
 
-    private boolean matched = true;
+  class WithPrefix implements DictionaryMatcher
+  {
+    final String prefix;
+    final Predicate<String> predicate;
+
+    boolean matched = true;
 
     public WithPrefix(String prefix, Predicate<String> predicate)
     {
@@ -45,7 +54,7 @@ public interface DictionaryMatcher<T> extends Predicate<T>
     @Override
     public IntIterator wrap(Dictionary<String> dictionary, IntIterator iterator)
     {
-      if (!dictionary.isSorted()) {
+      if (dictionary == null || !dictionary.isSorted()) {
         return iterator;
       }
       final int index = dictionary.indexOf(prefix);
@@ -66,9 +75,34 @@ public interface DictionaryMatcher<T> extends Predicate<T>
     }
 
     @Override
-    public boolean apply(String value)
+    public Predicate<String> matcher(Dictionary<String> dictionary)
     {
-      return matched && (matched &= value.startsWith(prefix)) && predicate.apply(value);
+      if (dictionary == null || !dictionary.isSorted()) {
+        return v -> v.startsWith(prefix) && predicate.apply(v);
+      }
+      return v -> matched && (matched &= v.startsWith(prefix)) && predicate.apply(v);
+    }
+  }
+
+  class WithRawPrefix extends WithPrefix implements RawSupport
+  {
+    private final UTF8Bytes prefix;
+    private final Predicate<BinaryRef> predicate2;
+
+    public WithRawPrefix(String prefix, Predicate<String> predicate1, Predicate<BinaryRef> predicate2)
+    {
+      super(prefix, predicate1);
+      this.prefix = UTF8Bytes.of(prefix);
+      this.predicate2 = Preconditions.checkNotNull(predicate2);
+    }
+
+    @Override
+    public Predicate<BinaryRef> rawMatcher(Dictionary<String> dictionary)
+    {
+      if (dictionary == null || !dictionary.isSorted()) {
+        return ref -> ref.startsWith(prefix) && predicate2.apply(ref);
+      }
+      return ref -> matched && (matched &= ref.startsWith(prefix)) && predicate2.apply(ref);
     }
   }
 }

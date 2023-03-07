@@ -109,7 +109,7 @@ public class RegexDimFilter extends SingleInput
     final Matcher matcher = patternSupplier.get().matcher("");
     final Predicate<String> predicate = match ? v -> v != null && matcher.reset(v).matches()
                                               : v -> v != null && matcher.reset(v).find();
-    return new DimensionPredicateFilter(dimension, predicate, extractionFn);
+    return new DimensionPredicateFilter(dimension, predicate, null, extractionFn);
   }
 
   @Override
