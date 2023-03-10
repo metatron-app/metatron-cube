@@ -296,8 +296,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     testQuery(
         "SELECT DISTINCT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA",
         new Object[]{"druid"},
-        new Object[]{"INFORMATION_SCHEMA"},
-        new Object[]{"sys"}
+        new Object[]{"sys"},
+        new Object[]{"INFORMATION_SCHEMA"}
     );
   }
 
@@ -957,8 +957,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .havingSpec(EXPR_HAVING("(a0 > 1)"))
             .outputColumns("_d0", "a0")
             .build(),
-        new Object[]{"", 3L},
-        new Object[]{"a", 2L}
+        new Object[]{"a", 2L},
+        new Object[]{"", 3L}
     );
   }
 
@@ -3035,9 +3035,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             )
             .outputColumns("_d0", "_a0", "_a1")
             .build(),
-        new Object[]{"", 3L, 3L},
+        new Object[]{"abc", 1L, 1L},
         new Object[]{"a", 2L, 1L},
-        new Object[]{"abc", 1L, 1L}
+        new Object[]{"", 3L, 3L}
     );
   }
 
@@ -3762,9 +3762,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .aggregators(CountAggregatorFactory.of("a0"))
             .outputColumns("d0", "a0")
             .build(),
-        new Object[]{"3", 1L},
+        new Object[]{"1", 1L},
         new Object[]{"2", 1L},
-        new Object[]{"1", 1L}
+        new Object[]{"3", 1L}
     );
   }
 
@@ -5637,8 +5637,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .aggregators(CountAggregatorFactory.of("a0"))
             .outputColumns("d0", "a0")
             .build(),
-        new Object[]{"a", 2L},
-        new Object[]{"abc", 1L}
+        new Object[]{"abc", 1L},
+        new Object[]{"a", 2L}
     );
     hook.verifyHooked(
         "rh86EemQ7lRMlIpaziKA8w==",
@@ -6317,14 +6317,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT placementish, SUM(index) FROM ("
         + "SELECT __time, placementish, index FROM \"mmapped-split\" limit 10000) GROUP BY placementish",
         new Object[]{"a", 12270.807106018066D},
-        new Object[]{"preferred", 503332.5071372986D},
         new Object[]{"b", 10279.01725769043D},
+        new Object[]{"t", 19394.10040664673D},
         new Object[]{"e", 12086.472755432129D},
         new Object[]{"h", 10348.278709411621D},
         new Object[]{"m", 217725.42022705078D},
         new Object[]{"n", 10362.731010437012D},
         new Object[]{"p", 210865.67966461182D},
-        new Object[]{"t", 19394.10040664673D}
+        new Object[]{"preferred", 503332.5071372986D}
     );
     hook.verifyHooked(
         "t3wFyhirTf2JD4PxhZd1pg==",
@@ -6343,14 +6343,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "GROUP BY A.placementish "
         + "LIMIT 10",
         new Object[]{"a", 1000.0D},
-        new Object[]{"preferred", 19000.0D},
         new Object[]{"b", 1000.0D},
+        new Object[]{"t", 2000.0D},
         new Object[]{"e", 1000.0D},
         new Object[]{"h", 1000.0D},
         new Object[]{"m", 11000.0D},
         new Object[]{"n", 1000.0D},
         new Object[]{"p", 1000.0D},
-        new Object[]{"t", 2000.0D}
+        new Object[]{"preferred", 19000.0D}
     );
     hook.verifyHooked(
         "0Mkk145g6lpwCR46F4Z4Qg==",

@@ -631,7 +631,7 @@ public class DruidBaseQuery implements DruidQuery
   @Nullable
   public TopNQuery toTopNQuery(Grouping grouping)
   {
-    if (grouping.getGranularity() != null && !Granularities.isAll(grouping.getGranularity())) {
+    if (!Granularities.isAll(grouping.getGranularity())) {
       return null;
     }
     // Must GROUP-BY on one column, ORDER BY zero or one column, limit less than maxTopNLimit, and no HAVING.

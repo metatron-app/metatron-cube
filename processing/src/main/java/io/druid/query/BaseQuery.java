@@ -609,7 +609,7 @@ public abstract class BaseQuery<T> implements Query<T>
   public static <T> Query<T> setUniversalTimestamp(Query<T> query)
   {
     final Number fudgeTimestamp = query.getContextValue(FUDGE_TIMESTAMP);
-    if (fudgeTimestamp == null && Granularities.ALL.equals(query.getGranularity())) {
+    if (fudgeTimestamp == null && Granularities.isAll(query.getGranularity())) {
       final List<Interval> intervals = query.getIntervals();
       if (!intervals.isEmpty()) {
         return query.withOverriddenContext(FUDGE_TIMESTAMP, intervals.get(0).getStartMillis());

@@ -380,7 +380,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
   @Override
   public Comparator<Row> getMergeOrdering(List<String> columns)
   {
-    return Granularities.ALL.equals(granularity) ? null : super.getMergeOrdering(columns);
+    return Granularities.isAll(granularity) ? null : super.getMergeOrdering(columns);
   }
 
   public HistogramQuery toHistogramQuery(DimensionSpec dimensionSpec, Comparator comparator)
@@ -453,7 +453,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
     return "TimeseriesQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            (querySegmentSpec == null || querySegmentSpec == QuerySegmentSpec.ETERNITY ? "" : ", querySegmentSpec=" + querySegmentSpec) +
-           (granularity == null || granularity.equals(Granularities.ALL) ? "" : granularity) +
+           (Granularities.isAll(granularity) ? "" : granularity) +
            (limitSpec == NoopLimitSpec.INSTANCE ? "" : ", limitSpec=" + limitSpec) +
            (filter == null ? "" : ", filter=" + filter) +
            (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +

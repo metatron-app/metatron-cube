@@ -35,6 +35,7 @@ import io.druid.common.IntTagged;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
@@ -369,10 +370,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     } else {
       return new Function<Row, Row>()
       {
-        private final Granularity granularity = getGranularity();
-
-        private long cachedTimestamp;
-        private DateTime cachedDatetime;
+        private final Function<Number, DateTime> timeFunc = JodaUtils.toDatetimeFunc(getGranularity());
 
         @Override
         public Row apply(Row input)
@@ -384,16 +382,8 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
               event.put(columns.get(i), values[i]);
             }
           }
-          final long timestamp = ((Number) values[timeIdx]).longValue();
-
-          final DateTime dateTime;
-          if (cachedDatetime != null && cachedTimestamp == timestamp) {
-            dateTime = cachedDatetime;
-          } else {
-            cachedTimestamp = timestamp;
-            dateTime = cachedDatetime = granularity.toDateTime(timestamp);
-          }
-          return new MapBasedRow(dateTime, event);
+          final DateTime timestamp = timeFunc.apply((Number) values[timeIdx]);
+          return new MapBasedRow(timestamp, event);
         }
       };
     }

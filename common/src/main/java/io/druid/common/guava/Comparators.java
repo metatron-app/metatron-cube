@@ -19,7 +19,11 @@
 
 package io.druid.common.guava;
 
+import com.google.common.base.Function;
+import com.google.common.primitives.Ints;
 import io.druid.data.ValueDesc;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.Comparator;
 import java.util.List;
@@ -227,5 +231,18 @@ public class Comparators
         return 0;
       }
     };
+  }
+
+  @SafeVarargs
+  public static <T, V> Comparator<T> explicit(Function<T, V> converter, V... values)
+  {
+    final Object2IntMap<V> ranks = new Object2IntOpenHashMap<V>();
+    for (int i = 0; i < values.length; i++) {
+      ranks.put(values[i], i);
+    }
+    return (l, r) -> Ints.compare(
+        ranks.getOrDefault(converter.apply(l), values.length),
+        ranks.getOrDefault(converter.apply(r), values.length)
+    );
   }
 }

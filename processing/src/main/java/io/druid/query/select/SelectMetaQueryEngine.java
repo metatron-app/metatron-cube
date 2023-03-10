@@ -72,8 +72,7 @@ public class SelectMetaQueryEngine
 
     // minor optimization.. todo: we can do this even with filters set
     if (filter == null && offset.startDelta() == 0 &&
-        Granularities.ALL.equals(granularity) &&
-        interval.contains(segment.getInterval())) {
+        Granularities.isAll(granularity) && interval.contains(segment.getInterval())) {
       int row = adapter.getNumRows();
       return Sequences.of(
           new Result<>(

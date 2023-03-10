@@ -33,6 +33,7 @@ import io.druid.collections.StupidPool;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
@@ -718,6 +719,8 @@ public class GroupByQueryEngine
 
     return new Function<Object[], Row>()
     {
+      private final Function<Number, DateTime> timeFunc = JodaUtils.toDatetimeFunc(granularity);
+
       @Override
       public Row apply(final Object[] input)
       {
@@ -727,8 +730,8 @@ public class GroupByQueryEngine
             theEvent.put(columnNames[i], input[i]);
           }
         }
-        DateTime time = timeIndex < 0 ? null : granularity.toDateTime(((Number) input[timeIndex]).longValue());
-        return new MapBasedRow(time, theEvent);
+        final DateTime timestamp = timeFunc.apply(timeIndex < 0 ? null : (Number) input[timeIndex]);
+        return new MapBasedRow(timestamp, theEvent);
       }
     };
   }

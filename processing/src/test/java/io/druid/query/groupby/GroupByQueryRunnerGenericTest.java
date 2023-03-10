@@ -3111,14 +3111,14 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     validate(
         query,
         array("__time", "alias", "rows", "idx", "uniq"),
-        array("2011-04-01", "automotive", 2L, 282L, 1.0002442201269182D),
-        array("2011-04-01", "business", 2L, 230L, 1.0002442201269182D),
-        array("2011-04-01", "entertainment", 2L, 324L, 1.0002442201269182D),
-        array("2011-04-01", "health", 2L, 233L, 1.0002442201269182D),
-        array("2011-04-01", "mezzanine", 6L, 5317L, 1.0002442201269182D),
         array("2011-04-01", "news", 2L, 235L, 1.0002442201269182D),
+        array("2011-04-01", "mezzanine", 6L, 5317L, 1.0002442201269182D),
         array("2011-04-01", "premium", 6L, 5405L, 1.0002442201269182D),
+        array("2011-04-01", "entertainment", 2L, 324L, 1.0002442201269182D),
+        array("2011-04-01", "business", 2L, 230L, 1.0002442201269182D),
         array("2011-04-01", "technology", 2L, 175L, 1.0002442201269182D),
+        array("2011-04-01", "automotive", 2L, 282L, 1.0002442201269182D),
+        array("2011-04-01", "health", 2L, 233L, 1.0002442201269182D),
         array("2011-04-01", "travel", 2L, 245L, 1.0002442201269182D)
     );
   }
@@ -6661,14 +6661,14 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         query,
         array("alias", "rows", "idx"),
         array("a", 2, 282),
-        array("preferred", 26, 12446),
         array("b", 2, 230),
+        array("t", 4, 420),
         array("e", 2, 324),
         array("h", 2, 233),
         array("m", 6, 5317),
         array("n", 2, 235),
         array("p", 6, 5405),
-        array("t", 4, 420)
+        array("preferred", 26, 12446)
     );
   }
 

@@ -623,7 +623,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
 
   private Query tryConvertToFrequency(QuerySegmentWalker segmentWalker)
   {
-    if (!Granularities.ALL.equals(granularity) || lateralView != null || havingSpec != null) {
+    if (!Granularities.isAll(granularity) || lateralView != null || havingSpec != null) {
       return null;
     }
     if (dimensions.isEmpty() || !postAggregatorSpecs.isEmpty()) {
@@ -700,7 +700,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     if (!limitSpec.hasLimit()) {
       return this;
     }
-    if (getGroupingSets() != null || getGranularity() != Granularities.ALL) {
+    if (getGroupingSets() != null || !Granularities.isAll(getGranularity())) {
       return this;
     }
     if (dimensions.size() != 1 || !GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) || lateralView != null) {
@@ -844,7 +844,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return "GroupByQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
-           (granularity == null || Granularities.isAll(granularity) ? "" : ", granularity=" + granularity) +
+           (Granularities.isAll(granularity) ? "" : ", granularity=" + granularity) +
            ", dimensions=" + dimensions +
            (filter == null ? "" : ", filter=" + filter) +
            (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +

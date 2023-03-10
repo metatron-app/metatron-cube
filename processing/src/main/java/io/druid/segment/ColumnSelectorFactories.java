@@ -35,6 +35,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.parsers.CloseableIterator;
@@ -144,11 +145,20 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static abstract class DelegatedCursor extends Delegated implements Cursor
+  public static abstract class DelegatedCursor<T> extends Delegated implements Cursor, Supplier<T>
   {
-    public DelegatedCursor(ColumnSelectorFactory delegate)
+    private final RowSupplier<T> supplier;
+
+    public DelegatedCursor(ColumnSelectorFactory delegate, RowSupplier<T> supplier)
     {
       super(delegate);
+      this.supplier = supplier;
+    }
+
+    @Override
+    public T get()
+    {
+      return supplier.get();
     }
 
     @Override
@@ -166,7 +176,7 @@ public class ColumnSelectorFactories
     @Override
     public long getRowTimestamp()
     {
-      throw new UnsupportedOperationException("getRowTime");
+      return supplier.timestamp().getMillis();
     }
 
     @Override
@@ -755,7 +765,7 @@ public class ColumnSelectorFactories
               return null;    // skip
             }
 
-            return new DelegatedCursor(factory)
+            return new DelegatedCursor<T>(factory, supplier)
             {
               private boolean done;
 
@@ -763,13 +773,7 @@ public class ColumnSelectorFactories
               public long getStartTime()
               {
                 final long timestamp = input.getStartMillis();
-                return granularity == null ? timestamp : granularity.bucketStart(timestamp);
-              }
-
-              @Override
-              public long getRowTimestamp()
-              {
-                return supplier.timestamp().getMillis();
+                return Granularities.isAll(granularity) ? timestamp : granularity.bucketStart(timestamp);
               }
 
               @Override

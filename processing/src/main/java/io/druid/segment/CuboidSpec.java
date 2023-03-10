@@ -114,8 +114,7 @@ public class CuboidSpec
 
   private boolean covers(Granularity queryGran)
   {
-    if (queryGran.equals(Granularities.ALL) ||
-        queryGran.equals(granularity.getDefaultGranularity())) {
+    if (Granularities.isAll(queryGran) || queryGran.equals(granularity.getDefaultGranularity())) {
       return true;
     }
     if (granularity == GranularityType.ALL) {

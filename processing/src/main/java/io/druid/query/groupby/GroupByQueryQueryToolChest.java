@@ -23,24 +23,31 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.inject.Inject;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
 import io.druid.query.BaseAggregationQueryToolChest;
+import io.druid.query.JoinQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
+import io.druid.query.RowSignature;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQueryEngine.KeyValue;
 import io.druid.query.groupby.GroupByQueryEngine.RowIterator;
 import io.druid.query.select.TableFunctionSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import org.joda.time.Interval;
@@ -149,6 +156,33 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
         boolean parallel = config.useParallelSort(query);
         sequence = Sequences.withBaggage(mergeIndex.toMergeStream(parallel, true), mergeIndex);
         return postAggregation(groupBy, Sequences.map(sequence, groupBy.compactToMap(sequence.columns())));
+      }
+
+      @Override
+      public Sequence<Row> runStreaming(Query<Row> query, Map<String, Object> responseContext)
+      {
+        GroupByQuery groupBy = (GroupByQuery) query;
+        QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+
+        Query subQuery = dataSource.getQuery();
+        RowSignature schema = dataSource.getSchema();
+        if (subQuery instanceof Query.ArrayOutputSupport && groupBy.getVirtualColumns().isEmpty() &&
+            Granularities.isAll(groupBy.getGranularity()) && DimensionSpecs.isAllDefault(groupBy.getDimensions())) {
+          Query.ArrayOutputSupport array = (Query.ArrayOutputSupport) subQuery;
+          Sequence<Object[]> sequence = QueryRunners.runArray(array, segmentWalker, responseContext);
+          String timeColumn = Row.TIME_COLUMN_NAME;
+          if (subQuery instanceof JoinQuery.JoinHolder) {
+            timeColumn = ((JoinQuery.JoinHolder) subQuery).getTimeColumnName();
+          }
+          Sequence<Cursor> cursors = ColumnSelectorFactories.toArrayCursors(sequence, schema, timeColumn, query);
+          int[] indices = GuavaUtils.indexOf(sequence.columns(), DimensionSpecs.toInputNames(groupBy.getDimensions()));
+          int[] mvs = schema.indexOf(t -> t.isDimension() || t.isMultiValued());
+          return postAggregation(groupBy, Sequences.map(
+              AggregateIndex.of(indices, mvs).aggregate(groupBy, cursors),
+              GroupByQueryEngine.arrayToRow(groupBy.withPostAggregatorSpecs(null), false)
+          ));
+        }
+        return super.runStreaming(query, responseContext);
       }
 
       @Override

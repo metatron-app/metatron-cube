@@ -583,7 +583,7 @@ public class QueryUtils
     final Granularity granularity = query1.getGranularity();
 
     List<Interval> intervals1 = query1.getIntervals();
-    if (granularity != null && granularity != Granularities.ALL) {
+    if (!Granularities.isAll(granularity)) {
       intervals1 = Lists.newArrayList(
           Iterables.transform(
               intervals1, new Function<Interval, Interval>()

@@ -481,8 +481,8 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
     expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", 9L, 1256.012825012207),
-        array("2011-04-01", "total_market", 1L, 1193.5562744140625),
-        array("2011-04-01", "upfront", 2L, 2194.0809326171875)
+        array("2011-04-01", "upfront", 2L, 2194.0809326171875),
+        array("2011-04-01", "total_market", 1L, 1193.5562744140625)
     );
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
 

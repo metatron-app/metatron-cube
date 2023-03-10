@@ -59,7 +59,7 @@ public class Granularities
 
   public static boolean isAll(Granularity granularity)
   {
-    return ALL.equals(granularity);
+    return granularity == null || ALL.equals(granularity);
   }
 
   private static final Map<Granularity, String> SERIALIZED = Maps.newConcurrentMap();

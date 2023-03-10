@@ -67,7 +67,7 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   protected Comparator<Row> getMergeOrdering(TimeseriesQuery timeseries)
   {
     final Granularity granularity = timeseries.getGranularity();
-    if (Granularities.ALL.equals(granularity)) {
+    if (Granularities.isAll(granularity)) {
       return null;  // accumulate all
     }
     return new Comparator<Row>()

@@ -29,6 +29,7 @@ import io.druid.java.util.common.Pair;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 /**
  */
@@ -130,5 +131,16 @@ public interface RowSignature extends TypeResolver
       map.put(pair.lhs, pair.rhs);
     }
     return map;
+  }
+
+  default boolean anyType(Predicate<ValueDesc> predicate)
+  {
+    return Iterables.any(getColumnTypes(), predicate);
+  }
+
+  default int[] indexOf(Predicate<ValueDesc> predicate)
+  {
+    List<ValueDesc> types = getColumnTypes();
+    return IntStream.range(0, size()).filter(x -> predicate.apply(types.get(x))).toArray();
   }
 }

@@ -31,6 +31,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedConciseBitmap;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Pair;
@@ -57,6 +58,7 @@ import org.roaringbitmap.IntIterator;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -134,6 +136,10 @@ public class DimFilters
   {
     return and(Arrays.asList(filters));
   }
+
+  public static final Comparator<DimFilter> ORDERING = Comparators.explicit(
+      v -> v.getClass(), SelectorDimFilter.class, InDimFilter.class, BoundDimFilter.class
+  );
 
   public static DimFilter and(List<DimFilter> filters)
   {

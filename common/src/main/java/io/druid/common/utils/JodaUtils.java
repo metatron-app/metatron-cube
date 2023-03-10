@@ -19,6 +19,7 @@
 
 package io.druid.common.utils;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -92,6 +93,29 @@ public class JodaUtils
       return comparator.compare(lhs, rhs);
     }
   };
+
+  public static Function<Number, DateTime> toDatetimeFunc(final Granularity granularity)
+  {
+    return new Function<Number, DateTime>()
+    {
+      private long prevTimestamp;
+      private DateTime prevDateTime;
+
+      @Override
+      public DateTime apply(Number input)
+      {
+        if (input == null) {
+          return null;
+        }
+        final long timestamp = input.longValue();
+        if (prevDateTime == null || prevTimestamp != timestamp) {
+          prevTimestamp = timestamp;
+          prevDateTime = granularity.toDateTime(timestamp);
+        }
+        return prevDateTime;
+      }
+    };
+  }
 
   public static Comparator<Interval> intervalsByStartThenEnd()
   {

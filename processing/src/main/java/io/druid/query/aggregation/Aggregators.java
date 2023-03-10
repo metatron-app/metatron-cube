@@ -33,6 +33,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 /**
  */
@@ -80,6 +81,11 @@ public class Aggregators
       values[i] = aggregators[i].aggregate(values[i]);
     }
     return values;
+  }
+
+  public static <T> BiFunction<T, Object[], Object[]> populator(Aggregator[] metrics)
+  {
+    return (key, prev) -> Aggregators.aggregate(prev == null ? new Object[metrics.length] : prev, metrics);
   }
 
   @SuppressWarnings("unchecked")

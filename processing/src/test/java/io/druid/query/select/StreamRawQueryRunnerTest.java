@@ -125,10 +125,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
       Collections.reverse(expected);
     }
 
-    List<Object[]> results = Sequences.toList(
-        query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Object[]>newArrayList()
-    );
+    List<Object[]> results = Sequences.toList(query.run(TestIndex.segmentWalker, CONTEXT));
     Assert.assertEquals(expected.size(), results.size());
     for (int i = 0; i < results.size(); i++) {
       Assert.assertArrayEquals(
@@ -168,10 +165,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
         array(time("2011-04-02"), "spot", "travel", 126.41136169433594, 126.41136d)
     );
     // descending is ignored when sortOn is assigned
-    results = Sequences.toList(
-        query.run(TestIndex.segmentWalker, CONTEXT),
-        Lists.<Object[]>newArrayList()
-    );
+    results = Sequences.toList(query.run(TestIndex.segmentWalker, CONTEXT));
     Assert.assertEquals(expected.size(), results.size());
     for (int i = 0; i < results.size(); i++) {
       Assert.assertArrayEquals(i + " th row", expected.get(i), results.get(i));
@@ -182,6 +176,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
                                        .dataSource(query)
                                        .addDimension("quality")
                                        .aggregators(new GenericSumAggregatorFactory("index", "index", null))
+                                       .addOrderByColumn("quality")
                                        .build();
 
     String[] columns = new String[]{"__time", "quality", "index"};
