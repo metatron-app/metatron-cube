@@ -122,7 +122,6 @@ public class BulkRow extends AbstractRow
 
       final BytesOutputStream scratch = SCRATCH.get();
       for (int i = 0; i < bulk.category.length; i++) {
-        nulls.clear();
         scratch.clear();
         switch (bulk.category[i]) {
           case 1:
@@ -195,6 +194,7 @@ public class BulkRow extends AbstractRow
     if (!nulls.isEmpty()) {
       scratch.writeBoolean(true);
       scratch.writeVarSizeBytes(nulls.toByteArray());
+      nulls.clear();
     } else {
       scratch.writeBoolean(false);
     }

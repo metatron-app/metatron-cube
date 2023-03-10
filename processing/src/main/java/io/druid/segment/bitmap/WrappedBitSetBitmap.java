@@ -18,6 +18,7 @@ package io.druid.segment.bitmap;
 
 import org.roaringbitmap.IntIterator;
 
+import java.util.Arrays;
 import java.util.BitSet;
 
 public class WrappedBitSetBitmap extends com.metamx.collections.bitmap.WrappedBitSetBitmap
@@ -39,43 +40,82 @@ public class WrappedBitSetBitmap extends com.metamx.collections.bitmap.WrappedBi
 
   public static IntIterator iterator(BitSet bitmap)
   {
-    return new SimpleIterator(bitmap);
+    return new BatchIterator(bitmap);
   }
 
-  private static class SimpleIterator implements IntIterator
+  private static class BatchIterator implements IntIterator
   {
-    private final BitSet bitmap;
-    private int next;
+    private static final int ADDRESS_BITS_PER_WORD = 6;
+    private static final int BITS_PER_WORD = 1 << ADDRESS_BITS_PER_WORD;
 
-    private SimpleIterator(BitSet bitmap)
+    private final long[] words;
+
+    private int u;
+    private final int[] batch;
+    private int index;
+    private int valid;
+
+    private BatchIterator(BitSet bitmap)
     {
-      this(bitmap, bitmap.nextSetBit(0));
+      words = bitmap.toLongArray();
+      batch = new int[BITS_PER_WORD];
+      advance(0);
     }
 
-    private SimpleIterator(BitSet bitmap, int next)
+    private BatchIterator(long[] words, int u, int[] batch, int index, int valid)
     {
-      this.bitmap = bitmap;
-      this.next = next;
+      this.words = Arrays.copyOf(words, words.length);
+      this.u = u;
+      this.batch = Arrays.copyOf(batch, batch.length);
+      this.index = index;
+      this.valid = valid;
+    }
+
+    private void advance(int wx)
+    {
+      index = valid = 0;
+      for (; wx < words.length; wx++) {
+        final long word = words[wx];
+        if (word == 0) {
+          continue;
+        }
+        int x = 0;
+        int bx = Long.numberOfTrailingZeros(word);
+        final int offset = wx * BITS_PER_WORD;
+        for (long v = (word >>> bx); v != 0; v >>>= 1, bx++) {
+          if ((v & 0x01) != 0) {
+            batch[x++] = offset + bx;
+          }
+        }
+        valid = x;
+        u = wx;
+        break;
+      }
     }
 
     @Override
     public boolean hasNext()
     {
-      return next >= 0;
+      return index < valid;
     }
 
     @Override
     public int next()
     {
-      final int ret = next;
-      next = bitmap.nextSetBit(next + 1);
-      return ret;
+      if (index < valid) {
+        final int next = batch[index++];
+        if (index == valid) {
+          advance(u + 1);
+        }
+        return next;
+      }
+      return -1;
     }
 
     @Override
     public IntIterator clone()
     {
-      return new SimpleIterator(bitmap, next);
+      return new BatchIterator(words, u, batch, index, valid);
     }
   }
 }

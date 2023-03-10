@@ -88,7 +88,7 @@ public class GeomCollectPointAggregatorFactory extends AggregatorFactory impleme
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(columnName);
-    return new Aggregator.Simple()
+    return new Aggregator()
     {
       private List<Point> collect(Geometry geometry, List<Point> collect)
       {

@@ -44,13 +44,13 @@ public interface Aggregator<T>
 
   default void clear(boolean close) {}
 
-  interface Simple<T> extends Aggregator<T>
+  // marker for finalizers (aka. get)
+  interface BinaryIdentical { }
+
+  interface Simple<T> extends Aggregator<T>, BinaryIdentical
   {
     @Override
-    default T get(T current)
-    {
-      return current;
-    }
+    default T get(T current) {return current;}
   }
 
   interface Estimable<T> extends Aggregator<T>
@@ -65,7 +65,7 @@ public interface Aggregator<T>
     boolean getLong(T current, MutableLong handover);
   }
 
-  interface FromMutableLong extends LongType<MutableLong>
+  interface FromMutableLong extends LongType<MutableLong>, BinaryIdentical
   {
     @Override
     default Long get(MutableLong current)
@@ -91,7 +91,7 @@ public interface Aggregator<T>
     boolean getFloat(T current, MutableFloat handover);
   }
 
-  interface FromMutableFloat extends FloatType<MutableFloat>
+  interface FromMutableFloat extends FloatType<MutableFloat>, BinaryIdentical
   {
     @Override
     default Float get(MutableFloat current)
@@ -117,7 +117,7 @@ public interface Aggregator<T>
     boolean getDouble(T current, MutableDouble handover);
   }
 
-  interface FromMutableDouble extends DoubleType<MutableDouble>
+  interface FromMutableDouble extends DoubleType<MutableDouble>, BinaryIdentical
   {
     @Override
     default Double get(MutableDouble current)

@@ -23,8 +23,11 @@ import io.druid.common.guava.DSuppliers;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.Aggregator.BinaryIdentical;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.ColumnSelectorFactories;
+
+import java.util.stream.IntStream;
 
 @SuppressWarnings("unchecked")
 public class StreamAggregationFn implements CombineFn.Identical<Row>
@@ -36,6 +39,7 @@ public class StreamAggregationFn implements CombineFn.Identical<Row>
 
   private final DSuppliers.HandOver<Object[]> handover = new DSuppliers.HandOver<>();
   private final Aggregator[] aggregators;
+  private final int[] finalizers;
   private final int ix;
 
   private StreamAggregationFn(BaseAggregationQuery query, RowResolver resolver)
@@ -43,6 +47,9 @@ public class StreamAggregationFn implements CombineFn.Identical<Row>
     this.aggregators = Aggregators.makeAggregators(
         query.getAggregatorSpecs(), new ColumnSelectorFactories.FromArraySupplier(handover, resolver), true
     );
+    this.finalizers = IntStream.range(0, aggregators.length)
+                               .filter(x -> !(aggregators[x] instanceof BinaryIdentical))
+                               .toArray();
     this.ix = query.getDimensions().size() + 1;
   }
 
@@ -76,10 +83,8 @@ public class StreamAggregationFn implements CombineFn.Identical<Row>
   public Row done(Row row)
   {
     final Object[] values = ((CompactRow) row).getValues();
-    int index = ix;
-    for (Aggregator aggregator : aggregators) {
-      values[index] = aggregator.get(values[index]);
-      index++;
+    for (int x : finalizers) {
+      values[ix + x] = aggregators[x].get(values[ix + x]);
     }
     return row;
   }
