@@ -26,7 +26,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
@@ -150,9 +149,8 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
   @Override
   public DimFilter decompress(Query parent)
   {
-    final BytesInputStream decompressed = new BytesInputStream(LZ4_DECOMP.decompress(values, destLen));
-    final List<String> values = decompressed.readVarSizeUTFs(valueLen);
-    return new InDimFilter(dimension, extractionFn, values, hash);
+    final byte[] decompressed = LZ4_DECOMP.decompress(values, destLen);
+    return new DecompressedInFilter(dimension, valueLen, decompressed, extractionFn, hash);
   }
 
   @Override

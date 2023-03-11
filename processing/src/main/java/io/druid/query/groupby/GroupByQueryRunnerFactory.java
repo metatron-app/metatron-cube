@@ -296,6 +296,9 @@ public class GroupByQueryRunnerFactory
 
     long start = System.currentTimeMillis();
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
+    if (query.getContextValue(Query.STREAMING_GBY_SCHEMA) != null) {
+      strategy = "evenSpaced";
+    }
     Object[] thresholds = Queries.makeColumnHistogramOn(
         resolver, segments, segmentWalker, query, dimensionSpec, numSplit, strategy, maxResults, cache(query)
     );

@@ -19,13 +19,14 @@
 
 package io.druid.common.guava;
 
+import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BytesOutputStream;
 
 import java.nio.ByteBuffer;
 
-public interface BinaryRef
+public interface BinaryRef extends Comparable<BinaryRef>
 {
   int length();
 
@@ -135,5 +136,20 @@ x:
       }
     }
     return -1;
+  }
+
+  @Override
+  default int compareTo(BinaryRef o)
+  {
+    int length1 = length();
+    int length2 = o.length();
+    final int limit = Math.min(length1, length2);
+    for (int i = 0, j = 0; i < limit; i++, j++) {
+      final int cmp = Integer.compare(get(i) & 0xff, o.get(j) & 0xff);
+      if (cmp != 0) {
+        return cmp;
+      }
+    }
+    return Ints.compare(length1, length2);
   }
 }

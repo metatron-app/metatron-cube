@@ -16,7 +16,7 @@
 
 package org.roaringbitmap.buffer;
 
-import io.druid.segment.bitmap.WrappedBitSetBitmap;
+import io.druid.segment.bitmap.BitSets;
 import org.roaringbitmap.BatchIterator;
 import org.roaringbitmap.IntIterator;
 
@@ -62,7 +62,7 @@ public class RoaringUtils
   {
     if (cardinality < MappeableArrayContainer.DEFAULT_MAX_SIZE) {
       final CharBuffer buffer = CharBuffer.allocate(cardinality);
-      final IntIterator iterator = WrappedBitSetBitmap.iterator(bitSet);
+      final IntIterator iterator = BitSets.iterator(bitSet);
       while (iterator.hasNext()) {
         buffer.put(lowbits(iterator.next()));
       }

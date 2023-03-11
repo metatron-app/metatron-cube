@@ -22,6 +22,8 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
+import io.druid.common.guava.BinaryRef;
+import io.druid.data.UTF8Bytes;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
@@ -65,6 +67,11 @@ public interface BitmapIndex
   default IntStream indexOf(List<String> values)
   {
     return getDictionary().indexOf(values);
+  }
+
+  default IntStream indexOfRaw(List<BinaryRef> values)
+  {
+    return getDictionary().indexOfRaw(values);
   }
 
   BitmapFactory getBitmapFactory();

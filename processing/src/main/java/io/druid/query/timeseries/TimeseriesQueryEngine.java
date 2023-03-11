@@ -33,6 +33,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.BaseQuery;
+import io.druid.query.Query;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;

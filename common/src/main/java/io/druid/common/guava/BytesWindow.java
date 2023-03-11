@@ -19,13 +19,12 @@
 
 package io.druid.common.guava;
 
-import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
+public class BytesWindow implements BinaryRef
 {
   private byte[] buffer;
   private int offset;
@@ -87,18 +86,5 @@ public class BytesWindow implements Comparable<BytesWindow>, BinaryRef
       }
     }
     return true;
-  }
-
-  @Override
-  public int compareTo(final BytesWindow o)
-  {
-    final int limit = offset + Math.min(length, length);
-    for (int i = offset, j = o.offset; i < limit; i++, j++) {
-      final int cmp = Integer.compare(buffer[i] & 0xff, o.buffer[j] & 0xff);
-      if (cmp != 0) {
-        return cmp;
-      }
-    }
-    return Ints.compare(length, length);
   }
 }

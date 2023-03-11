@@ -23,7 +23,7 @@ import com.google.common.primitives.Ints;
 
 import java.nio.ByteBuffer;
 
-public class BufferRef implements Comparable<BufferRef>, BinaryRef
+public class BufferRef implements BinaryRef
 {
   public static BufferRef of(ByteBuffer buffer, int offset, int length)
   {
@@ -82,19 +82,6 @@ public class BufferRef implements Comparable<BufferRef>, BinaryRef
       }
     }
     return true;
-  }
-
-  @Override
-  public int compareTo(final BufferRef o)
-  {
-    final int limit = offset + Math.min(length, o.length);
-    for (int i = offset, j = o.offset; i < limit; i++, j++) {
-      final int cmp = Integer.compare(buffer.get(i) & 0xff, o.buffer.get(j) & 0xff);
-      if (cmp != 0) {
-        return cmp;
-      }
-    }
-    return Ints.compare(length, length);
   }
 
   public int compareTo(final byte[] value)

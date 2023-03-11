@@ -19,15 +19,20 @@
 
 package io.druid.segment.filter;
 
+import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.collections.IntList;
+import io.druid.common.guava.BinaryRef;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -40,9 +45,11 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.bitmap.BitSets;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
 import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
 import it.unimi.dsi.fastutil.doubles.DoubleSet;
@@ -79,38 +86,94 @@ public class InFilter implements Filter
   @Override
   public BitmapHolder getBitmapIndex(final FilterContext context)
   {
-    if (extractionFn != null && Filters.isColumnWithoutBitmap(context, dimension)) {
-      return null;  // extractionFn requires bitmap index
-    }
     if (extractionFn == null) {
       return unionBitmaps(source, dimension, values, context);
-    } else {
-      return BitmapHolder.exact(Filters.matchPredicate(
-          dimension,
-          v -> values.contains(Strings.nullToEmpty(extractionFn.apply(v))),
-          context
-      ));
     }
+    ColumnCapabilities capabilities = context.getCapabilities(dimension);
+    if (capabilities != null && capabilities.isDictionaryEncoded()) {
+      Set<String> set = Sets.newHashSet(values);
+      return BitmapHolder.exact(
+          Filters.matchPredicate(dimension, v -> set.contains(Strings.nullToEmpty(extractionFn.apply(v))), context)
+      );
+    }
+    return null;  // extractionFn requires bitmap index
+  }
+
+  private static boolean containsNull(List<String> values)
+  {
+    return !values.isEmpty() && StringUtils.isNullOrEmpty(values.get(0));
+  }
+
+  public static BitmapHolder unionBitmaps(
+      DimFilter source, String dimension, List<String> values, FilterContext context
+  )
+  {
+    return unionBitmaps(source, dimension, Suppliers.ofInstance(values), containsNull(values), context);
+  }
+
+  public static BitmapHolder unionBitmaps(
+      DimFilter source, String dimension, Supplier<List<String>> values, boolean containsNull, FilterContext context
+  )
+  {
+    return unionBitmaps(
+        source, dimension, context, containsNull,
+        bitmap -> {
+          BitSet indices = new BitSet();
+          bitmap.indexOf(values.get()).forEach(indices::set);
+          return indices;
+        }
+    );
+  }
+
+  public static BitmapHolder unionBitmapsRaw(
+      DimFilter source, String dimension, Supplier<List<BinaryRef>> values, boolean containsNull, FilterContext context
+  )
+  {
+    return unionBitmaps(
+        source, dimension, context, containsNull, bitmap -> {
+          BitSet indices = new BitSet();
+          bitmap.indexOfRaw(values.get()).forEach(indices::set);
+          return indices;
+        }
+    );
   }
 
   // values reagarded to be sorted
-  public static BitmapHolder unionBitmaps(DimFilter source, String dimension, List<String> values, FilterContext context)
+  public static BitmapHolder unionBitmaps(
+      DimFilter source,
+      String dimension,
+      FilterContext context,
+      boolean containsNull,
+      Function<BitmapIndex, BitSet> collector
+  )
   {
     final BitmapIndexSelector selector = context.indexSelector();
     final Column column = selector.getColumn(dimension);
     if (column == null) {
-      return BitmapHolder.exact(selector.createBoolean(!values.isEmpty() && "".equals(values.get(0))));
+      return BitmapHolder.exact(selector.createBoolean(containsNull));
     }
     final BitmapIndex bitmap = column.getBitmapIndex();
     if (bitmap == null) {
       return null;
     }
-    IntList indices = new IntList();
-    bitmap.indexOf(values).forEach(indices::add);
+    BitSet indices = collector.apply(bitmap);
 
-    ImmutableBitmap union = DimFilters.union(selector.getBitmapFactory(), indices.transform(v -> bitmap.getBitmap(v)));
+    int matched = indices.cardinality();
+    int cardinality = bitmap.getCardinality();
+
+    ImmutableBitmap union;
+    if (matched == cardinality) {
+      union = RoaringBitmapFactory.from(0, context.numRows()); // happens more frequently than expected
+    } else if (matched > cardinality * 0.6f) {
+      BitSet flip = BitSets.flip(indices, 0, cardinality);
+      BitmapFactory factory = selector.getBitmapFactory();
+      ImmutableBitmap inverse = DimFilters.union(factory, BitSets.transfrom(flip, v -> bitmap.getBitmap(v)));
+      union = DimFilters.complement(factory, inverse, context.numRows());
+    } else {
+      union = DimFilters.union(selector.getBitmapFactory(), BitSets.transfrom(indices, v -> bitmap.getBitmap(v)));
+    }
     if (context.isRoot(source)) {
-      context.dictionaryRef(dimension, RoaringBitmapFactory.from(indices.array()));
+      context.dictionaryRef(dimension, RoaringBitmapFactory.from(indices));
     }
     return BitmapHolder.exact(union);
   }
@@ -119,7 +182,7 @@ public class InFilter implements Filter
   @SuppressWarnings("unchecked")
   public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
-    final boolean allowsNull = values.contains("");
+    final boolean allowsNull = containsNull(values);
     final ValueDesc type = factory.resolve(dimension);
     if (type == null) {
       // should handle extract fn

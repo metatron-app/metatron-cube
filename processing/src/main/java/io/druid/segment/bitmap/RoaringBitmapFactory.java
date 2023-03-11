@@ -194,7 +194,12 @@ public final class RoaringBitmapFactory implements BitmapFactory
     if (b.isEmpty()) {
       return from(0, length);
     }
-    return _complement(unwrapLazy(b), length);
+    if (b instanceof LazyImmutableBitmap) {
+      BitSet bitset = ((LazyImmutableBitmap)b).toBitSet();
+      bitset.flip(0, length);
+      return from(bitset);
+    }
+    return _complement(b, length);
   }
 
   private ImmutableBitmap _complement(ImmutableBitmap b, int length)
@@ -262,7 +267,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
 
   public static ImmutableBitmap toBitmap(final BitSet bitSet)
   {
-    return copyToBitmap(WrappedBitSetBitmap.iterator(bitSet));
+    return copyToBitmap(BitSets.iterator(bitSet));
   }
 
   private static BitSet union(final BitSet bitSet, final ImmutableBitmap bitmap)
@@ -401,15 +406,6 @@ public final class RoaringBitmapFactory implements BitmapFactory
     }
   }
 
-  private static ImmutableBitmap unwrapLazy(ImmutableBitmap bitmap)
-  {
-    if (bitmap instanceof LazyImmutableBitmap) {
-      return ((LazyImmutableBitmap) bitmap).materializer.get();
-    } else {
-      return bitmap;
-    }
-  }
-
   // inclusive ~ exclusive
   public static LazyImmutableBitmap from(int from, int to)
   {
@@ -507,7 +503,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
       @Override
       public IntIterator iterator()
       {
-        return WrappedBitSetBitmap.iterator(bitSet);
+        return BitSets.iterator(bitSet);
       }
 
       @Override

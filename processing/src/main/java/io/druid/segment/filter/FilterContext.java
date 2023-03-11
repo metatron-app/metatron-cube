@@ -32,6 +32,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.segment.Cursor;
 import io.druid.segment.QueryableIndex;
+import io.druid.segment.column.ColumnCapabilities;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
@@ -102,6 +103,11 @@ public class FilterContext implements Closeable
   public BitmapIndexSelector indexSelector()
   {
     return selector;
+  }
+
+  public ColumnCapabilities getCapabilities(String dimension)
+  {
+    return selector.getCapabilities(dimension);
   }
 
   public BitmapFactory bitmapFactory()

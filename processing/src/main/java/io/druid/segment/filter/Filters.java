@@ -45,7 +45,6 @@ import io.druid.common.utils.IOUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
-import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.logger.Logger;
@@ -77,6 +76,7 @@ import io.druid.segment.DelegatedDimensionSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.bitmap.BitSets;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
@@ -938,8 +938,8 @@ public class Filters
             final IntIterator it1 = encoded[1].getSingleValueRows();
             final long[] words = makeWords(numRows);
             for (int i = 0; i < words.length; i++) {
-              final int offset = i << ADDRESS_BITS_PER_WORD;
-              final int limit = Math.min(numRows - offset, BITS_PER_WORD);
+              final int offset = i << BitSets.ADDRESS_BITS_PER_WORD;
+              final int limit = Math.min(numRows - offset, BitSets.BITS_PER_WORD);
               long v = 0;
               for (int x = 0; x < limit; x++) {
                 if (op.compare(indices[it0.next()], it1.next())) {
@@ -984,10 +984,6 @@ public class Filters
     };
   }
 
-  // from BitSet
-  private static final int ADDRESS_BITS_PER_WORD = 6;
-  private static final int BITS_PER_WORD = 1 << ADDRESS_BITS_PER_WORD;
-
   private static long[] makeWords(int numRows)
   {
     return new long[wordIndex(numRows - 1) + 1];
@@ -995,7 +991,7 @@ public class Filters
 
   private static int wordIndex(int bitIndex)
   {
-    return bitIndex >> ADDRESS_BITS_PER_WORD;
+    return bitIndex >> BitSets.ADDRESS_BITS_PER_WORD;
   }
 
   @SuppressWarnings("unchecked")
@@ -1117,12 +1113,6 @@ public class Filters
   public static Filter convertToCNF(Filter current)
   {
     return Expressions.convertToCNF(current, FACTORY);
-  }
-
-  public static boolean isColumnWithoutBitmap(FilterContext context, String dimension)
-  {
-    ColumnCapabilities capabilities = context.selector.getCapabilities(dimension);
-    return capabilities != null && !capabilities.hasBitmapIndexes();
   }
 
   public static IntPredicate toMatcher(ImmutableBitmap bitmapIndex, boolean descending)

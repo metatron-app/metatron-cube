@@ -29,11 +29,31 @@ import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import java.util.function.IntFunction;
 
 // values should be >= 0 and sorted (all for handling bitmap iterator)
 public final class IntIterators
 {
+  public static <T> Iterator<T> transfrom(IntIterator iterator, IntFunction<T> function)
+  {
+    return new Iterator<T>()
+    {
+      @Override
+      public boolean hasNext()
+      {
+        return iterator.hasNext();
+      }
+
+      @Override
+      public T next()
+      {
+        return function.apply(iterator.next());
+      }
+    };
+  }
+
   public static abstract class Abstract implements IntIterator
   {
     @Override

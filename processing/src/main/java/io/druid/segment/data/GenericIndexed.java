@@ -34,6 +34,7 @@ import io.druid.data.VLongUtils;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.Tools;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -68,6 +69,8 @@ import java.util.stream.StreamSupport;
  */
 public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Serializer
 {
+  private static final Logger LOG = new Logger(GenericIndexed.class);
+
   public static <T> Indexed<T> asSingleThreaded(Indexed<T> indexed)
   {
     return indexed instanceof GenericIndexed ? ((GenericIndexed<T>) indexed).asSingleThreaded() : indexed;
@@ -491,6 +494,118 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         protected int search(int vi, int start, int end, boolean binary)
         {
           return bufferIndexed._rawIndexOf(window.set(bytes.get(vi - vs)), start, end, binary);
+        }
+      };
+    }
+    return new Searcher<T>(vs, ve, ds, de)
+    {
+      @Override
+      protected int search(int vi, int start, int end, boolean binary)
+      {
+        return bufferIndexed._indexOf(values.get(vi), start, end, binary);
+      }
+    };
+  }
+
+  @Override
+  public IntStream indexOfRaw(List<BinaryRef> values)
+  {
+    if (values.size() < TRIVIAL || size < TRIVIAL) {
+      return Dictionary.super.indexOfRaw(values);
+    }
+    if (!isSorted()) {
+      throw new UnsupportedOperationException("Reverse lookup not allowed.");
+    }
+    int ds = 0;
+    int de = size;
+    int vs = 0;
+    int ve = values.size();
+
+    final IntList prefix = new IntList(2);
+
+    BinaryRef d = getAsRef(ds);
+    BinaryRef v = values.get(vs);
+    if (v.length() == 0) {
+      if (d.length() == 0) {
+        prefix.add(ds);
+        d = getAsRef(++ds);
+      }
+      v = values.get(++vs);
+    } else if (d.length() == 0) {
+      d = getAsRef(++ds);
+    }
+    int compare = v.compareTo(d);
+    if (compare == 0) {
+      prefix.add(ds);
+      ds++;
+      vs++;
+    } else if (compare < 0) {
+      vs = Collections.binarySearch(values, d);
+      if (vs < 0) {
+        vs = -vs - 1;
+      }
+    } else {
+      ds = indexOf(v, ds + 1, de, true);
+      if (ds < 0) {
+        ds = -ds - 1;
+      } else {
+        prefix.add(ds);
+        ds++;
+        vs++;
+      }
+    }
+    if (vs >= ve || ds >= de) {
+      return prefix.stream();
+    }
+
+    final IntList postfix = new IntList(1);
+
+    int di = de - 1;
+    int vi = ve - 1;
+
+    d = getAsRef(di);
+    v = values.get(vi);
+    compare = v.compareTo(d);
+    if (compare == 0) {
+      postfix.add(di);
+      de--;
+      ve--;
+    } else if (compare > 0) {
+      vi = Collections.binarySearch(values, d);
+      ve = vi < 0 ? -vi - 1 : vi + 1;
+    } else {
+      di = indexOf(v, ds, de - 1, true);
+      if (di < 0) {
+        de = -di - 1;
+      } else {
+        postfix.add(di);
+        de = di;
+        ve--;
+      }
+    }
+    if (vs >= ve || ds >= de) {
+      return IntStream.concat(prefix.stream(), postfix.stream());
+    }
+
+    IntStream stream = IntStream.range(vs, ve).map(searchOpRaw(values, vs, ve, ds, de)).filter(x -> x >= 0);
+    if (!prefix.isEmpty()) {
+      stream = IntStream.concat(prefix.stream(), stream);
+    }
+    if (!postfix.isEmpty()) {
+      stream = IntStream.concat(stream, postfix.stream());
+    }
+    return stream;
+  }
+
+  private IntUnaryOperator searchOpRaw(List<BinaryRef> values, int vs, int ve, int ds, int de)
+  {
+    if (theStrategy instanceof ObjectStrategy.RawComparable) {
+      return new Searcher<byte[]>(vs, ve, ds, de)
+      {
+        @Override
+        protected int search(int vi, int start, int end, boolean binary)
+        {
+          return bufferIndexed._rawIndexOf(values.get(vi), start, end, binary);
         }
       };
     }

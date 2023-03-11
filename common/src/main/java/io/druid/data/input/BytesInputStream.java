@@ -20,6 +20,8 @@
 package io.druid.data.input;
 
 import com.google.common.io.ByteArrayDataInput;
+import io.druid.common.guava.BinaryRef;
+import io.druid.common.guava.BytesRef;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.VLongUtils;
 import io.druid.java.util.common.StringUtils;
@@ -212,6 +214,17 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
     for (int i = 0; i < valueLength; i++) {
       final int length = readUnsignedVarInt();
       values[i] = StringUtils.fromUtf8(bytes, pos, length);
+      pos += length;
+    }
+    return Arrays.asList(values);
+  }
+
+  public List<BinaryRef> readVarSizeRaw(int valueLength)
+  {
+    final BinaryRef[] values = new BinaryRef[valueLength];
+    for (int i = 0; i < valueLength; i++) {
+      final int length = readUnsignedVarInt();
+      values[i] = new BytesRef(bytes, pos, length);
       pos += length;
     }
     return Arrays.asList(values);
