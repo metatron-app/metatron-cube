@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 public final class BytesOutputStream extends OutputStream implements ByteArrayDataOutput
@@ -57,6 +58,21 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
     if (minCapacity > buf.length) {
       buf = Arrays.copyOf(buf, Math.max(minCapacity, buf.length << 1));
     }
+  }
+
+  public int available()
+  {
+    return buf.length - count;
+  }
+
+  public int limit()
+  {
+    return buf.length;
+  }
+
+  public int position()
+  {
+    return count;
   }
 
   public int size()
@@ -252,6 +268,13 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   {
     writeUnsignedVarInt(ref.length);
     write(ref.bytes, ref.offset, ref.length);
+  }
+
+  public void writeVarSizeUTFs(List<String> values)
+  {
+    for (String value : values) {
+      writeVarSizeBytes(StringUtils.toUtf8WithNullToEmpty(value));
+    }
   }
 
   public void writeVarInt(int v)

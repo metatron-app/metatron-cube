@@ -386,7 +386,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   private static final int TRIVIAL = 8;
-  private static final double LOG2 = Math.log(2);
 
   @Override
   @SuppressWarnings("unchecked")
@@ -483,28 +482,16 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   private IntUnaryOperator searchOp(List<T> values, int vs, int ve, int ds, int de)
   {
+    SearchOp searchOp;
     if (theStrategy instanceof ObjectStrategy.RawComparable) {
-      return new Searcher<byte[]>(vs, ve, ds, de)
-      {
-        private final BytesWindow window = new BytesWindow();
-        private final List<byte[]> bytes = values.subList(vs, ve).stream().map(v -> bufferIndexed.strategy.toBytes(v))
-                                                 .collect(Collectors.toList());
-
-        @Override
-        protected int search(int vi, int start, int end, boolean binary)
-        {
-          return bufferIndexed._rawIndexOf(window.set(bytes.get(vi - vs)), start, end, binary);
-        }
-      };
+      final BytesWindow window = new BytesWindow();
+      final List<byte[]> bytes = values.subList(vs, ve).stream().map(v -> bufferIndexed.strategy.toBytes(v))
+                                       .collect(Collectors.toList());
+      searchOp = (vi, s, e, b) -> bufferIndexed._rawIndexOf(window.set(bytes.get(vi - vs)), s, e, b);
+    } else {
+      searchOp = (vi, s, e, b) -> bufferIndexed._indexOf(values.get(vi), s, e, b);
     }
-    return new Searcher<T>(vs, ve, ds, de)
-    {
-      @Override
-      protected int search(int vi, int start, int end, boolean binary)
-      {
-        return bufferIndexed._indexOf(values.get(vi), start, end, binary);
-      }
-    };
+    return new Searcher<T>(vs, ve, ds, de, searchOp);
   }
 
   @Override
@@ -599,37 +586,37 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   private IntUnaryOperator searchOpRaw(List<BinaryRef> values, int vs, int ve, int ds, int de)
   {
+    SearchOp searchOp;
     if (theStrategy instanceof ObjectStrategy.RawComparable) {
-      return new Searcher<byte[]>(vs, ve, ds, de)
-      {
-        @Override
-        protected int search(int vi, int start, int end, boolean binary)
-        {
-          return bufferIndexed._rawIndexOf(values.get(vi), start, end, binary);
-        }
-      };
+      searchOp = (vi, s, e, b) -> bufferIndexed._rawIndexOf(values.get(vi), s, e, b);
+    } else {
+      searchOp = (vi, s, e, b) -> bufferIndexed._indexOf(values.get(vi), s, e, b);
     }
-    return new Searcher<T>(vs, ve, ds, de)
-    {
-      @Override
-      protected int search(int vi, int start, int end, boolean binary)
-      {
-        return bufferIndexed._indexOf(values.get(vi), start, end, binary);
-      }
-    };
+    return new Searcher<T>(vs, ve, ds, de, searchOp);
   }
 
-  private static abstract class Searcher<T> implements IntUnaryOperator
+  private static interface SearchOp
   {
+    int search(int vi, int start, int end, boolean binary);
+  }
+
+  private static final class Searcher<T> implements IntUnaryOperator
+  {
+    private static final int CHECK_INTERVAL = 100;
+    private static final double LOG2 = Math.log(2);
+    private static final double LINEAR_PREFERENCE = 1.3;
+
     private final int vs;
     private final int ve;
     private final int de;
+    private final SearchOp searchOp;
 
     private int ds;
     private boolean binary;
 
-    private Searcher(int vs, int ve, int ds, int de)
+    private Searcher(int vs, int ve, int ds, int de, SearchOp searchOp)
     {
+      this.searchOp = searchOp;
       this.vs = vs;
       this.ve = ve;
       this.ds = ds;
@@ -639,14 +626,21 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     @Override
     public int applyAsInt(final int vi)
     {
-      final int di = ds < 0 ? -ds - 1 : ds;
-      if (vi % 100 == 0 && di < de) {
-        binary = (de - di) * LOG2 > (ve - vi) * Math.log(de - di + 1);
+      final int di = ds;
+      if (vi % CHECK_INTERVAL == vs && di < de) {
+        final double search = de - di;
+        final double remain = ve - vi;
+        binary = search * LOG2 > remain * Math.log(search) * LINEAR_PREFERENCE;
       }
-      return ds = search(vi, di, de, vi == vs || binary);
+      final int ix = searchOp.search(vi, di, de, vi == vs || binary);
+      ds = next(ix);
+      return ix;
     }
 
-    protected abstract int search(int vi, int start, int end, boolean binary);
+    private static int next(int ix)
+    {
+      return ix < 0 ? -ix - 1 : ix + 1;   // +1 for deduped
+    }
   }
 
   @Override

@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.BytesInputStream;
 import io.druid.query.extraction.ExtractionFn;
@@ -73,8 +74,8 @@ public class DecompressedInFilter implements LogProvider
     this.extractionFn = extractionFn;
     this.hash = hash;
     this.containsNull = new BytesInputStream(values).readUnsignedVarInt() == 0;
-    this.bytes = DSuppliers.memoize(() -> new BytesInputStream(values).readVarSizeRaw(valueLen));
-    this.strings = DSuppliers.memoize(() -> new BytesInputStream(values).readVarSizeUTFs(valueLen));
+    this.bytes = DSuppliers.memoize(() -> CompressedInFilter.decode(values, valueLen));
+    this.strings = DSuppliers.memoize(() -> GuavaUtils.transform(bytes.get(), v -> v.toUTF8()));
   }
 
   @JsonProperty

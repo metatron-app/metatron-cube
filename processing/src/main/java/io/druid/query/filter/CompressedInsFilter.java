@@ -26,9 +26,9 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.BytesRef;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import net.jpountz.lz4.LZ4Compressor;
@@ -46,7 +46,7 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   private static final LZ4Compressor LZ4_COMP = LZ4Factory.fastestInstance().fastCompressor();
   private static final LZ4FastDecompressor LZ4_DECOMP = LZ4Factory.fastestInstance().fastDecompressor();
 
-  private static final int TRIVIAL_SIZE = 2048;
+  private static final int TRIVIAL_SIZE = 1024;
 
   public static DimFilter build(InDimsFilter filter)
   {
@@ -60,16 +60,18 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
     final BytesOutputStream output = new BytesOutputStream(8192);
     for (int i = 0; i < destLens.length; i++) {
       output.clear();
-      for (String value : values.get(i)) {
-        output.writeVarSizeBytes(StringUtils.toUtf8WithNullToEmpty(value));
+      if (i == 0) {
+        CompressedInFilter.encode(values.get(i), output);
+      } else {
+        output.writeVarSizeUTFs(values.get(i));
       }
       final BytesRef ref = output.asRef();
       final byte[] compressing = new byte[LZ4_COMP.maxCompressedLength(ref.length)];
       final int compressed = LZ4_COMP.compress(ref.bytes, 0, ref.length, compressing, 0);
       final int reduction = 100 * (ref.length - compressed) / ref.length;
       LOG.debug(
-          "-- compressed ins filter %s, %,d bytes into %,d bytes (%d%% reduction, %d msec)",
-          filter.getDimensions(), ref.length, compressed, reduction, System.currentTimeMillis() - start
+          "-- compressed ins filter %s[%d], %,d bytes into %,d bytes (%d%% reduction, %d msec)",
+          filter.getDimensions(), i, ref.length, compressed, reduction, System.currentTimeMillis() - start
       );
       destLens[i] = ref.length;
       bytes[i] = Arrays.copyOf(compressing, compressed);
@@ -135,8 +137,12 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   {
     final List<List<String>> list = Lists.newArrayListWithCapacity(destLens.length);
     for (int i = 0; i < destLens.length; i++) {
-      BytesInputStream decompressed = new BytesInputStream(LZ4_DECOMP.decompress(values[i], destLens[i]));
-      list.add(decompressed.readVarSizeUTFs(valueLen));
+      final byte[] decompressed = LZ4_DECOMP.decompress(values[i], destLens[i]);
+      if (i == 0) {
+        list.add(CompressedInFilter.decode(decompressed, valueLen, b -> StringUtils.fromUtf8(b), String.class));
+      } else {
+        list.add(new BytesInputStream(decompressed).readVarSizeUTFs(valueLen));
+      }
     }
     return new InDimsFilter(dimensions, list, hash);
   }

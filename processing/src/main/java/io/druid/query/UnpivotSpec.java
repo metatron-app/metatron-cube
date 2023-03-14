@@ -140,7 +140,7 @@ public class UnpivotSpec implements LateralViewSpec, Function<Map<String, Object
     for (int i = 0; i < retainer.length; i++) {
       retainer[i] = event.get(retains.get(i));
     }
-    final Map<StringArray, Map<String, Object>> exploded = Maps.newLinkedHashMap();
+    final Map<StringArray, Map<String, Object>> exploded = Maps.newTreeMap();
     for (Map.Entry<String, Object> entry : event.entrySet()) {
       if (excludeSet != null && excludeSet.contains(entry.getKey())) {
         continue;

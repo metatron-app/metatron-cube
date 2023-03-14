@@ -48,6 +48,7 @@ import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
@@ -534,24 +535,22 @@ public class ColumnSelectors
     return () -> type.toBytes(selector.get());
   }
 
-  private static final int THRESHOLD = 2097152;
+  private static final int THRESHOLD = 4194304;
 
   public static ObjectColumnSelector asRawAccess(WithRawAccess selector, ImmutableBitmap ref, int rowCount)
   {
     Dictionary dictionary = selector.getDictionary();
-    int dictionaryCache = ref == null ? dictionary.size() : ref.size();
-    long estimation = dictionary.getSerializedSize() * dictionaryCache / dictionary.size();
-    if (rowCount > 0 && rowCount > dictionaryCache >> 1 && estimation < THRESHOLD) {
+    int sizeOfCache = ref == null ? dictionary.size() : ref.size();
+    long estimation = dictionary.getSerializedSize() * sizeOfCache / dictionary.size();
+    if (estimation < THRESHOLD) {
       IntIterator iterator = ref == null ? null : ref.iterator();
-      if (dictionary.size() > dictionaryCache << 2) {
-        Int2ObjectOpenHashMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>(dictionaryCache);
+      if (dictionary.size() > sizeOfCache << 2) {
+        Int2ObjectMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>(sizeOfCache);
         if (dictionary instanceof GenericIndexed) {
           GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
           indexed.scan(iterator, (ix, buffer, offset, length) -> map.put(ix, UTF8Bytes.read(buffer, offset, length)));
         } else {
-          dictionary.scan(
-              iterator, (ix, buffer, offset, length) -> map.put(ix, UTF8Bytes.read(buffer.duplicate(), offset, length))
-          );
+          dictionary.scan(iterator, (ix, buffer, offset, length) -> map.put(ix, UTF8Bytes.read(buffer.duplicate(), offset, length)));
         }
         return ObjectColumnSelector.string(() -> map.get(selector.getRow().get(0)));
       } else {
@@ -560,9 +559,7 @@ public class ColumnSelectors
           GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
           indexed.scan(iterator, (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer, offset, length));
         } else {
-          dictionary.scan(
-              iterator, (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer.duplicate(), offset, length)
-          );
+          dictionary.scan(iterator, (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer.duplicate(), offset, length));
         }
         return ObjectColumnSelector.string(() -> cached[selector.getRow().get(0)]);
       }

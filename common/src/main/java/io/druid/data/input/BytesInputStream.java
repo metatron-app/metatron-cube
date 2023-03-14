@@ -24,6 +24,7 @@ import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.BytesRef;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.VLongUtils;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.StringUtils;
 
 import java.io.InputStream;
@@ -58,6 +59,16 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
     System.arraycopy(bytes, pos, b, off, read);
     pos += read;
     return read;
+  }
+
+  public void readAssert(byte[] b, int off, int len)
+  {
+    final int read = Math.min(len, bytes.length - pos);
+    if (read != len) {
+      throw new IAE("invalid index [%d + %d, %d]", pos, len, bytes.length);
+    }
+    System.arraycopy(bytes, pos, b, off, read);
+    pos += read;
   }
 
   @Override
@@ -223,9 +234,7 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
   {
     final BinaryRef[] values = new BinaryRef[valueLength];
     for (int i = 0; i < valueLength; i++) {
-      final int length = readUnsignedVarInt();
-      values[i] = new BytesRef(bytes, pos, length);
-      pos += length;
+      values[i] = readVarSizeRef();
     }
     return Arrays.asList(values);
   }
@@ -235,6 +244,14 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
     final byte[] bytes = new byte[readUnsignedVarInt()];
     readFully(bytes);
     return bytes;
+  }
+
+  public BytesRef readVarSizeRef()
+  {
+    final int length = readUnsignedVarInt();
+    BytesRef ref = new BytesRef(bytes, pos, length);
+    pos += length;
+    return ref;
   }
 
   public UTF8Bytes viewVarSizeUTF()

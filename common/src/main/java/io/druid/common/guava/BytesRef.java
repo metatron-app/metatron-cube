@@ -35,7 +35,12 @@ public class BytesRef implements BinaryRef
 
   public static BytesRef of(byte[] bytes)
   {
-    return new BytesRef(bytes, 0, bytes.length);
+    return of(bytes, 0, bytes.length);
+  }
+
+  public static BytesRef of(byte[] bytes, int offset, int length)
+  {
+    return new BytesRef(bytes, offset, length);
   }
 
   public final byte[] bytes;
