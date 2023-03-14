@@ -527,7 +527,7 @@ public class EvalTest
   {
     testQuarter("2018-03-05T08:09:24.432+0000", "yyyy-qq'('MMM')T'HH:mm:ss", "ko", "2018-01(3월)T08:09:24");
     testQuarter("2018-03-05T08:09:24.432+0000", "yyyy-qqq'('MMMM')T'HH:mm:ss", "ja", "2018-Q1(3月)T08:09:24");
-    testQuarter("2018-03-05T08:09:24.432+0000", "yyyy-qqqq'('MMM')T'HH:mm:ss", "de", "2018-Q01(Mär)T08:09:24");
+    testQuarter("2018-03-05T08:09:24.432+0000", "yyyy-qqqq'('MMMM')T'HH:mm:ss", "de", "2018-Q01(März)T08:09:24");
   }
 
   private void testQuarter(String time, String format, String locale, String expected)
