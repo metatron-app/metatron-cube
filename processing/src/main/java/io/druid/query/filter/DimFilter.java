@@ -380,4 +380,10 @@ public interface DimFilter extends Expression, Cacheable
 
     DimFilter merge(OP op, DimFilter other);
   }
+
+  // for forced filter (in broker side)
+  interface Discardable
+  {
+    boolean discard(DimFilter filter);
+  }
 }

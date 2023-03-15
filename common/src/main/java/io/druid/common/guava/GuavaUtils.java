@@ -676,7 +676,7 @@ public class GuavaUtils
     return first == null ? second : second == null ? null : Predicates.and(first, second);
   }
 
-  private static Function<Object[], Object[]> mapper(final int[] indices)
+  public static Function<Object[], Object[]> mapper(final int[] indices)
   {
     return new Function<Object[], Object[]>()
     {

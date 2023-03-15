@@ -46,12 +46,10 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   private static final LZ4Compressor LZ4_COMP = LZ4Factory.fastestInstance().fastCompressor();
   private static final LZ4FastDecompressor LZ4_DECOMP = LZ4Factory.fastestInstance().fastDecompressor();
 
-  private static final int TRIVIAL_SIZE = 1024;
-
   public static DimFilter build(InDimsFilter filter)
   {
     final List<List<String>> values = filter.getValues();
-    if (values.get(0).size() < TRIVIAL_SIZE) {
+    if (values.get(0).size() < CompressedInFilter.TRIVIAL_SIZE) {
       return filter;
     }
     final long start = System.currentTimeMillis();

@@ -45,6 +45,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ViewDataSource;
 import io.druid.query.filter.DimFilter.Compressed;
 import io.druid.query.filter.DimFilter.Compressible;
+import io.druid.query.filter.DimFilter.Discardable;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
@@ -163,7 +164,9 @@ public class DimFilters
 
   public static <T> Query.FilterSupport<T> and(Query.FilterSupport<T> query, DimFilter filter)
   {
-    return query.withFilter(and(query.getFilter(), filter));
+    return query.withFilter(
+        and(DimFilters.rewrite(query.getFilter(), f -> discard(f, filter) ? null : f), filter)
+    );
   }
 
   public static DimFilter or(DimFilter... filters)
@@ -374,6 +377,11 @@ public class DimFilters
   public static Expressions.Rewriter<DimFilter> compressor(final Query query)
   {
     return filter -> filter instanceof Compressible ? ((Compressible) filter).compress(query) : filter;
+  }
+
+  public static boolean discard(DimFilter target, DimFilter other)
+  {
+    return target instanceof Discardable && ((Discardable) target).discard(other);
   }
 
   public static boolean hasAnyLucene(final DimFilter filter)

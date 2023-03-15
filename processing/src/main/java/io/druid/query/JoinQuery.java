@@ -58,8 +58,11 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.BloomDimFilter.Factory;
+import io.druid.query.filter.CompressedInFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilter.FilterFactory;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.SemiJoinFactory;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -612,9 +615,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           if (outputColumns != null) {
             List<Object[]> values = Sequences.toList(QueryRunners.runArray((ArrayOutputSupport) query0, segmentWalker));
             query = MaterializedQuery.of(left, Sequences.simple(outputColumns, values), query.getContext());
-            DimFilter filter = SemiJoinFactory.from(
-                rightJoinColumns, Iterables.transform(values, GuavaUtils.mapper(outputColumns, leftJoinColumns))
-            );
+            DimFilter filter = new ForcedFilter(rightJoinColumns, values, GuavaUtils.indexOf(outputColumns, leftJoinColumns));
             LOG.debug("-- .. with forced filter %s to %s (R)", filter, rightAlias);
             rightEstimated[0] = Math.max(1, rightEstimated[0] >>> 2);
             queries.set(i, query);
@@ -628,9 +629,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           if (outputColumns != null) {
             List<Object[]> values = Sequences.toList(QueryRunners.runArray((ArrayOutputSupport) query1, segmentWalker));
             query = MaterializedQuery.of(right, Sequences.simple(outputColumns, values), query.getContext());
-            DimFilter filter = SemiJoinFactory.from(
-                leftJoinColumns, Iterables.transform(values, GuavaUtils.mapper(outputColumns, rightJoinColumns))
-            );
+            DimFilter filter = new ForcedFilter(leftJoinColumns, values, GuavaUtils.indexOf(outputColumns, rightJoinColumns));
             LOG.debug("-- .. with forced filter %s to %s (L)", filter, leftAlias);
             leftEstimated[0] = Math.max(1, leftEstimated[0] >>> 2);
             queries.set(i, DimFilters.and((FilterSupport) query0, filter));
@@ -777,7 +776,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
   private static DimFilter removeFactory(DimFilter filter)
   {
-    return filter == null ? null : DimFilters.rewrite(filter, f -> f instanceof DimFilter.FilterFactory ? null : f);
+    return filter == null ? null : DimFilters.rewrite(filter, f -> f instanceof FilterFactory ? null : f);
   }
 
   private static DimFilter removeTrivials(DimFilter filter, List<String> joinColumns)
@@ -1204,6 +1203,41 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
              "queries=" + getQueries() +
              (timeColumnName == null ? "" : ", timeColumnName=" + timeColumnName) +
              (getLimit() > 0 ? ", limit=" + getLimit() : "") +
+             '}';
+    }
+  }
+
+  private static class ForcedFilter extends FilterFactory implements DimFilter.Rewriting, DimFilter.Discardable
+  {
+    private final List<String> fieldNames;
+    private final List<Object[]> values;
+    private final int[] indices;
+
+    private ForcedFilter(List<String> fieldNames, List<Object[]> values, int[] indices)
+    {
+      this.fieldNames = fieldNames;
+      this.values = values;
+      this.indices = indices;
+    }
+
+    @Override
+    public DimFilter rewrite(QuerySegmentWalker walker, Query parent)
+    {
+      return SemiJoinFactory.from(fieldNames, Iterables.transform(values, GuavaUtils.mapper(indices)));
+    }
+
+    @Override
+    public boolean discard(DimFilter filter)
+    {
+      return values.size() > CompressedInFilter.TRIVIAL_SIZE;
+    }
+
+    @Override
+    public String toString()
+    {
+      return "ForcedFilter{" +
+             "fieldNames=" + fieldNames +
+             ", valuesLen=" + values.size() +
              '}';
     }
   }
