@@ -727,7 +727,7 @@ public class JoinProcessor
     if (value == null || value instanceof List) {
       return ((List<Object[]>) value);
     } else {
-      return Arrays.<Object[]>asList((Object[]) value);
+      return GuavaUtils.wrap((Object[]) value);
     }
   }
 
@@ -738,7 +738,7 @@ public class JoinProcessor
     List<Object[]> rightRows = right.materialize();
     return JoinResult.none(GuavaUtils.withResource(product(leftRows, rightRows, false), () ->
         LOG.debug("<< CROSS (%s + %s), resulting %d rows (%s+%s)",
-                 left, right, leftRows.size() * rightRows.size(), left.columns, right.columns
+                  left, right, leftRows.size() * rightRows.size(), left.columns, right.columns
         )));
   }
 

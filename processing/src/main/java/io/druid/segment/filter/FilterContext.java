@@ -130,6 +130,11 @@ public class FilterContext implements Closeable
     baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(factory, baseBitmap, newBaseBitmap);
   }
 
+  public float selectivity()
+  {
+    return baseBitmap == null ? 1f : numRows() / (float)baseBitmap.size();
+  }
+
   public Filter getMatcher()
   {
     return matcher;

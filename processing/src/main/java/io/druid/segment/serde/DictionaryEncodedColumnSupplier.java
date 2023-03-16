@@ -21,7 +21,7 @@ package io.druid.segment.serde;
 
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.column.SimpleDictionaryEncodedColumn;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
@@ -80,13 +80,13 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   @Override
   public Class<? extends DictionaryEncodedColumn> provides()
   {
-    return SimpleDictionaryEncodedColumn.class;
+    return DictionaryEncodedColumn.class;
   }
 
   @Override
   public DictionaryEncodedColumn get()
   {
-    return new SimpleDictionaryEncodedColumn(
+    return new DictionaryEncodedColumn(
         singleValuedColumn != null ? singleValuedColumn.get() : null,
         multiValuedColumn != null ? multiValuedColumn.get() : null,
         dictionary != null ? dictionary.get() : null

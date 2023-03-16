@@ -1126,4 +1126,10 @@ public class GuavaUtils
     x[a] = x[b];
     x[b] = t;
   }
+
+  // currently, only works for iterator
+  public static <T> List<T> wrap(T value)
+  {
+    return new ListWrap<>(value);
+  }
 }

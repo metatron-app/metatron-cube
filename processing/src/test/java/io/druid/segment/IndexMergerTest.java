@@ -39,7 +39,7 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.SimpleDictionaryEncodedColumn;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
@@ -784,7 +784,7 @@ public class IndexMergerTest
     }
 
     Object encodedColumn = index.getColumn("dim2").getDictionaryEncoding();
-    Field field = SimpleDictionaryEncodedColumn.class.getDeclaredField("column");
+    Field field = DictionaryEncodedColumn.class.getDeclaredField("column");
     field.setAccessible(true);
 
     Object obj = field.get(encodedColumn);

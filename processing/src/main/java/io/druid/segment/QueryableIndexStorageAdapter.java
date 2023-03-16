@@ -53,6 +53,7 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.DictionaryEncodedColumn.RowSuppler;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IntScanner;
 import io.druid.segment.data.Dictionary;
@@ -72,15 +73,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.IntFunction;
-import java.util.function.IntUnaryOperator;
 
 /**
  */
 public class QueryableIndexStorageAdapter implements StorageAdapter
 {
   private static final Logger LOG = new Logger(QueryableIndexStorageAdapter.class);
-
-  private static final int ID_CACHE_SIZE = 64;
 
   private final QueryableIndex index;
   private final DataSegment segment;
@@ -565,8 +563,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       } else {
                         // using an anonymous class is faster than creating a class that stores a copy of the value
-                        final IntUnaryOperator supplier = column.asSupplier(ID_CACHE_SIZE);
-                        final IndexedInts row = IndexedInts.from(() -> supplier.applyAsInt(offset()));
+                        final RowSuppler supplier = DictionaryEncodedColumn.rowSupplier(column, context.selectivity());
+                        final IndexedInts row = IndexedInts.from(() -> supplier.row(offset()));
                         if (extractionFn != null) {
                           return new DimensionSelector()
                           {
@@ -769,14 +767,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
 
                       if (holder.hasDictionaryEncodedColumn()) {
-                        final DictionaryEncodedColumn columnVals = holder.getDictionaryEncoding();
-                        if (columnVals.hasMultipleValues()) {
+                        final DictionaryEncodedColumn column = holder.getDictionaryEncoding();
+                        if (column.hasMultipleValues()) {
                           selector = new ObjectColumnSelector.WithBaggage<Object>()
                           {
                             @Override
                             public void close() throws IOException
                             {
-                              columnVals.close();
+                              column.close();
                             }
 
                             @Override
@@ -788,16 +786,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Object get()
                             {
-                              final IndexedInts multiValueRow = columnVals.getMultiValueRow(offset());
+                              final IndexedInts multiValueRow = column.getMultiValueRow(offset());
                               final int length = multiValueRow.size();
                               if (length == 0) {
                                 return null;
                               } else if (length == 1) {
-                                return columnVals.lookupName(multiValueRow.get(0));
+                                return column.lookupName(multiValueRow.get(0));
                               } else {
                                 final String[] strings = new String[length];
                                 for (int i = 0; i < length; i++) {
-                                  strings[i] = columnVals.lookupName(multiValueRow.get(i));
+                                  strings[i] = column.lookupName(multiValueRow.get(i));
                                 }
                                 return Arrays.asList(strings);
                               }
@@ -806,13 +804,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         } else {
                           selector = new ObjectColumnSelector.WithRawAccess<String>()
                           {
-                            private final IntUnaryOperator supplier = columnVals.asSupplier(ID_CACHE_SIZE);
-                            private final Dictionary<String> dictionary = columnVals.dictionary();
+                            private final Dictionary<String> dictionary = column.dictionary();
+                            private final RowSuppler row = DictionaryEncodedColumn.rowSupplier(column, context.selectivity());
 
                             @Override
                             public void close() throws IOException
                             {
-                              columnVals.close();
+                              column.close();
                             }
 
                             @Override
@@ -824,19 +822,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public String get()
                             {
-                              return dictionary.get(supplier.applyAsInt(offset()));
+                              return dictionary.get(row.row(offset()));
                             }
 
                             @Override
                             public byte[] getAsRaw()
                             {
-                              return dictionary.getAsRaw(supplier.applyAsInt(offset()));
+                              return dictionary.getAsRaw(row.row(offset()));
                             }
 
                             @Override
                             public BufferRef getAsRef()
                             {
-                              return dictionary.getAsRef(supplier.applyAsInt(offset()));
+                              return dictionary.getAsRef(row.row(offset()));
                             }
 
                             @Override

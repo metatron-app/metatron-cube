@@ -140,4 +140,17 @@ public interface IndexedInts extends IntIterable, Closeable
   }
 
   default void close() throws IOException {}
+
+  interface Shared
+  {
+    IndexedInts asSingleThreaded(int cache);
+  }
+
+  static IndexedInts prepare(IndexedInts source, int cache)
+  {
+    if (source instanceof Shared) {
+      return ((Shared) source).asSingleThreaded(cache);
+    }
+    return source;
+  }
 }

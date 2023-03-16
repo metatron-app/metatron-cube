@@ -23,7 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
-import it.unimi.dsi.fastutil.ints.Int2IntFunction;
+import io.druid.segment.data.IndexedInts.Shared;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -33,7 +33,7 @@ import java.util.List;
 
 /**
  */
-public class VSizedInt implements IndexedInts, Comparable<VSizedInt>
+public class VSizedInt implements IndexedInts, Comparable<VSizedInt>, Shared
 {
   public static final byte VERSION = 0x0;
 
@@ -115,7 +115,7 @@ public class VSizedInt implements IndexedInts, Comparable<VSizedInt>
   private final ByteBuffer buffer;
   private final int position;
   private final int numBytes;
-  private final Int2IntFunction reader;
+  private final RowReader reader;
 
   private final int size;
 
@@ -128,7 +128,12 @@ public class VSizedInt implements IndexedInts, Comparable<VSizedInt>
     this.size = (buffer.remaining() - (4 - numBytes)) / numBytes;
   }
 
-  private static Int2IntFunction makeReader(ByteBuffer buffer, int numBytes)
+  private static interface RowReader
+  {
+    int read(int index);
+  }
+
+  private static RowReader makeReader(ByteBuffer buffer, int numBytes)
   {
     switch (numBytes) {
       case 1:
@@ -143,6 +148,50 @@ public class VSizedInt implements IndexedInts, Comparable<VSizedInt>
                x -> le(buffer.get(x), buffer.get(x + 1), buffer.get(x + 2));
       case 4:
         return x -> buffer.getInt(x);
+      default:
+        throw new ISE("Invalid vint length " + numBytes);
+    }
+  }
+
+  @Override
+  public IndexedInts asSingleThreaded(int cache)
+  {
+    if (numBytes == Integer.BYTES) {
+      return this;
+    }
+    final ByteBuffer dedicated = buffer.asReadOnlyBuffer();
+    return new VSizedInt(dedicated, numBytes)
+    {
+      private final byte[] temp = new byte[cache * numBytes];
+      private final RowReader reader = fromBuffer(dedicated.order(), temp, numBytes);
+
+      @Override
+      public int get(int index, int[] convey)
+      {
+        final int limit = Math.min(size() - index, convey.length);
+        dedicated.position(position + index * numBytes);
+        dedicated.get(temp, 0, limit * numBytes).position(position);
+        for (int i = 0; i < limit; i++) {
+          convey[i] = reader.read(i * numBytes);
+        }
+        return limit;
+      }
+    };
+  }
+
+  private static RowReader fromBuffer(ByteOrder order, byte[] buffer, int numBytes)
+  {
+    switch (numBytes) {
+      case 1:
+        return x -> buffer[x] & 0xff;
+      case 2:
+        return order == ByteOrder.BIG_ENDIAN ?
+               x -> be(buffer[x], buffer[x + 1]) :
+               x -> le(buffer[x], buffer[x + 1]);
+      case 3:
+        return order == ByteOrder.BIG_ENDIAN ?
+               x -> be(buffer[x], buffer[x + 1], buffer[x + 2]) :
+               x -> le(buffer[x], buffer[x + 1], buffer[x + 2]);
       default:
         throw new ISE("Invalid vint length " + numBytes);
     }
@@ -177,7 +226,7 @@ public class VSizedInt implements IndexedInts, Comparable<VSizedInt>
   @Override
   public int get(int index)
   {
-    return reader.get(position + (index * numBytes));
+    return reader.read(position + (index * numBytes));
   }
 
   public byte[] getBytesNoPadding()
