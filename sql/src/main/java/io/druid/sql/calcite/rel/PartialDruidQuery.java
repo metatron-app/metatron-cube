@@ -752,7 +752,8 @@ public class PartialDruidQuery
 
   private static final double WINDOW_MULTIPLIER = 3.0;
   private static final double DIST_SORT_MULTIPLIER = 1.2;
-  private static final double SORT_MULTIPLIER = 2.5;
+  public static final double SORT_MULTIPLIER = 2.5;
+  public static final double JOIN_MULTIPLIER = 4;
 
   public RelOptCost cost(DruidTable table, RelOptCostFactory factory)
   {
@@ -770,7 +771,7 @@ public class PartialDruidQuery
     if (scanFilter != null) {
       RexNode condition = scanFilter.getCondition();
       cost += estimate * Utils.rexEvalCost(condition);
-      estimate *= Utils.estimateFilteredRow(condition);
+      estimate *= Utils.selectivity(condition);
     }
 
     if (scanProject != null) {
@@ -784,9 +785,8 @@ public class PartialDruidQuery
     if (aggregate != null) {
       int groupings = aggregate.getGroupSets().size();
       int cardinality = aggregate.getGroupSet().cardinality();
-      List<AggregateCall> calls = aggregate.getAggCallList();
-      cost += estimate * Math.pow(1.2, cardinality + Utils.aggregationCost(calls)) * groupings;
-      estimate *= cardinality == 0 ? 0.01 : Math.min(1, Math.pow(1.4, cardinality) - 1) * groupings;
+      cost += estimate * Utils.aggregationCost(cardinality, aggregate.getAggCallList()) * groupings;
+      estimate *= Utils.aggregationRow(cardinality) * groupings;
       numColumns += cardinality;
     }
 
@@ -800,7 +800,7 @@ public class PartialDruidQuery
     if (aggregateFilter != null) {
       RexNode condition = aggregateFilter.getCondition();
       cost += estimate * Utils.rexEvalCost(condition);
-      estimate *= Utils.estimateFilteredRow(condition);
+      estimate *= Utils.selectivity(condition);
     }
 
     if (window != null) {

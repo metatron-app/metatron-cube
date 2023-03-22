@@ -1120,6 +1120,12 @@ public class GuavaUtils
     };
   }
 
+  public static void swap(final Object[] x)
+  {
+    Preconditions.checkArgument(x.length == 2);
+    swap(x, 0, 1);
+  }
+
   public static void swap(final Object[] x, final int a, final int b)
   {
     final Object t = x[a];

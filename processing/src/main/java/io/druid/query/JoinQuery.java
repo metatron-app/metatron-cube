@@ -62,7 +62,6 @@ import io.druid.query.filter.CompressedInFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilter.FilterFactory;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.SemiJoinFactory;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;

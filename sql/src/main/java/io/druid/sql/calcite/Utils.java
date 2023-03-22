@@ -45,6 +45,7 @@ import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -68,12 +69,16 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+
+import static org.apache.calcite.sql.SqlExplainLevel.ALL_ATTRIBUTES;
 
 public class Utils
 {
@@ -368,20 +373,31 @@ public class Utils
     return Ints.toArray(indices);
   }
 
-  public static double estimateFilteredRow(RexNode condition)
+  public static double joinCost(double rc1, double rc2)
+  {
+    double cost = Math.sqrt(Math.pow(Math.max(rc1, rc2), 2) + Math.pow(Math.min(rc1, rc2), 2));
+    if (rc1 > rc2) {
+      cost *= 0.999; // for deterministic plan
+    }
+    return cost;
+  }
+
+  public static double selectivity(RexNode condition)
   {
     final double estimate;
     switch (condition.getKind()) {
       case AND:
         return ((RexCall) condition).getOperands().stream()
-                                    .mapToDouble(op -> estimateFilteredRow(op)).min().orElse(1);
+                                    .mapToDouble(op -> selectivity(op)).min().orElse(1);
       case OR:
         return Math.max(1, ((RexCall) condition).getOperands().stream()
-                                                .mapToDouble(op -> estimateFilteredRow(op)).sum());
+                                                .mapToDouble(op -> selectivity(op)).sum());
       case NOT:
-        return 1 - estimateFilteredRow(((RexCall) condition).getOperands().get(0));
+        return 1 - selectivity(((RexCall) condition).getOperands().get(0));
       case BETWEEN:
         return 0.3;
+      case LIKE:
+        return 0.6;
       case GREATER_THAN:
       case GREATER_THAN_OR_EQUAL:
       case LESS_THAN:
@@ -422,6 +438,19 @@ public class Utils
       default:
         return EXPR_PER_COLUMN;
     }
+  }
+
+  private static final double TIMESERIES = 0.01;
+  private static final double GROUP_BY_FACTOR = 1.4;
+
+  public static double aggregationRow(int cardinality)
+  {
+    return cardinality == 0 ? TIMESERIES : Math.min(1, Math.pow(GROUP_BY_FACTOR, cardinality) - 1);
+  }
+
+  public static double aggregationCost(int cardinality, List<AggregateCall> aggregations)
+  {
+    return Math.pow(1.2, cardinality + Utils.aggregationCost(aggregations));
   }
 
   public static double aggregationCost(List<AggregateCall> aggregations)
@@ -558,5 +587,12 @@ public class Utils
   public static <T extends RelNode> T apply(T relNode, RexShuttle shuttle)
   {
     return relNode == null || shuttle == null ? relNode : (T) relNode.accept(shuttle);
+  }
+
+  public static String print(RelNode rel)
+  {
+    StringWriter sb = new StringWriter();
+    rel.explain(new RelWriterImpl(new PrintWriter(sb), ALL_ATTRIBUTES, true));
+    return sb.toString();
   }
 }

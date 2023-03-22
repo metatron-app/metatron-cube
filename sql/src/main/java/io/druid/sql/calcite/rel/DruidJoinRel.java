@@ -312,8 +312,6 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
                 .itemIf("outputColumns", StringUtils.join(outputColumns, ", "), outputColumns != null);
   }
 
-  private static final double JOIN_MULTIPLIER = 4.0;
-
   private static final double BLOOM_FILTER_REDUCTION = 0.7;
   private static final double HASH_JOIN_REDUCTION = 0.2;
 
@@ -372,7 +370,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
         }
       }
     }
-    double cost = (crossJoin ? lc * rc : lc + rc) * JOIN_MULTIPLIER;
+    double cost = (crossJoin ? lc * rc : lc + rc) * PartialDruidQuery.JOIN_MULTIPLIER;
     if (lc > rc) {
       cost *= 0.999; // for deterministic plan
     }

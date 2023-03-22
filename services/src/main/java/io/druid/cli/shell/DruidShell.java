@@ -96,6 +96,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  */
@@ -501,6 +503,7 @@ public class DruidShell extends CommonShell.WithUtils
         return;
       }
       if (line.equals("sql")) {
+        Matcher matcher = Pattern.compile("@\\((.*)\\)").matcher("");
         Map<String, String> properties = Maps.newHashMap();
         inSQL.set(true);
         while (true) {
@@ -565,7 +568,19 @@ public class DruidShell extends CommonShell.WithUtils
               break;
             }
             String sqlString = SQL.substring(0, SQL.length() - 1);
-            runSQLAndDump(brokerURLs, writer, sqlString, properties);
+            Matcher m = matcher.reset(sqlString);
+            StringBuffer sb = new StringBuffer();
+            while (m.find()) {
+              StringBuilder contents = new StringBuilder();
+              try (BufferedReader location = new BufferedReader(new FileReader(m.group(1)))) {
+                for (String s; (s = location.readLine()) != null;) {
+                  contents.append(s);
+                }
+              }
+              m.appendReplacement(sb, contents.toString());
+            }
+            m.appendTail(sb);
+            runSQLAndDump(brokerURLs, writer, sb.toString(), properties);
             builder.setLength(0);
           }
         }

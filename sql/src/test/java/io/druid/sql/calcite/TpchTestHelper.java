@@ -29,14 +29,14 @@ public class TpchTestHelper extends CalciteQueryTestHelper
 
   static {
     walker = TestHelper.newWalker().addTpchIndex().withQueryHook(hook);
-    walker.populate("lineitem");  // 30201
-    walker.populate("orders");    // 7500
-    walker.populate("partsupp");  // 4000
-    walker.populate("customer");  // 750
-    walker.populate("part");      // 1000
-    walker.populate("supplier");  // 50
-    walker.populate("nation");    // 25
-    walker.populate("region");    // 5
+    walker.populate("lineitem");  // 30201  // 6000000
+    walker.populate("orders");    //  7500  // 1500000
+    walker.populate("partsupp");  //  4000  //  800000
+    walker.populate("part");      //  1000  //  200000
+    walker.populate("customer");  //   750  //  150000
+    walker.populate("supplier");  //    50  //   10000
+    walker.populate("nation");    //    25  //      25
+    walker.populate("region");    //     5  //       5
   }
 
   @Override
