@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.annotations.VisibleForTesting;
 import io.druid.data.ValueType;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
@@ -37,14 +39,14 @@ public class ColumnAnalysis
 
   public static ColumnAnalysis error(String reason)
   {
-    return new ColumnAnalysis("STRING", null, false, -1, -1, -1, null, null, ERROR_PREFIX + reason);
+    return new ColumnAnalysis("STRING", null, false, -1, null, -1, null, null, ERROR_PREFIX + reason);
   }
 
   private final String type;
   private final Map<String, String> descriptor;
   private final boolean hasMultipleValues;
   private final long serializedSize;
-  private final int cardinality;
+  private final long[] cardinality;
   private final int nullCount;
   private final Comparable minValue;
   private final Comparable maxValue;
@@ -58,7 +60,7 @@ public class ColumnAnalysis
       @JsonProperty("descriptor") Map<String, String> descriptor,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
       @JsonProperty("serializedSize") long serializedSize,
-      @JsonProperty("cardinality") int cardinality,
+      @JsonProperty("cardinality") long[] cardinality,
       @JsonProperty("nullCount") int nullCount,
       @JsonProperty("minValue") Comparable minValue,
       @JsonProperty("maxValue") Comparable maxValue,
@@ -81,13 +83,27 @@ public class ColumnAnalysis
       String type,
       boolean hasMultipleValues,
       long serializedSize,
-      int cardinality,
+      long[] cardinality,
       Comparable minValue,
       Comparable maxValue,
       String errorMessage
   )
   {
     this(type, null, hasMultipleValues, serializedSize, cardinality, -1, minValue, maxValue, errorMessage);
+  }
+
+  @VisibleForTesting
+  public ColumnAnalysis(
+      String type,
+      boolean hasMultipleValues,
+      long serializedSize,
+      long cardinality,
+      Comparable minValue,
+      Comparable maxValue,
+      String errorMessage
+  )
+  {
+    this(type, null, hasMultipleValues, serializedSize, cardinality < 0 ? null : new long[]{cardinality, cardinality}, -1, minValue, maxValue, errorMessage);
   }
 
   @JsonProperty
@@ -116,7 +132,7 @@ public class ColumnAnalysis
   }
 
   @JsonProperty
-  public int getCardinality()
+  public long[] getCardinality()
   {
     return cardinality;
   }
@@ -206,12 +222,20 @@ public class ColumnAnalysis
         mergedDescriptor,
         hasMultipleValues || rhs.isHasMultipleValues(),
         serializedSize < 0 || rhs.serializedSize < 0 ? -1 : serializedSize + rhs.serializedSize,
-        cardinality < 0 || rhs.cardinality < 0 ? -1 : Math.max(cardinality, rhs.cardinality),
+        mergeCardinality(cardinality, rhs.cardinality),
         nullCount < 0 || rhs.nullCount < 0 ? -1 : nullCount +  rhs.nullCount,
         choose(minValue, rhs.minValue, false),
         choose(maxValue, rhs.maxValue, true),
         null
     );
+  }
+
+  public static long[] mergeCardinality(long[] c1, long[] c2)
+  {
+    if (c1 != null && c2 != null) {
+      return new long[]{Math.max(c1[0], c2[0]), c1[1] + c2[1]};
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")
@@ -246,7 +270,7 @@ public class ColumnAnalysis
            (descriptor == null ? "" : ", descriptor=" + descriptor) +
            ", hasMultipleValues=" + hasMultipleValues +
            ", serializedSize=" + serializedSize +
-           ", cardinality=" + cardinality +
+           (cardinality == null ? "" : ", cardinality=" + Arrays.toString(cardinality)) +
            ", minValue=" + minValue +
            ", maxValue=" + maxValue +
            ", nullCount=" + nullCount +
@@ -268,7 +292,7 @@ public class ColumnAnalysis
            serializedSize == that.serializedSize &&
            Objects.equals(type, that.type) &&
            Objects.equals(descriptor, that.descriptor) &&
-           Objects.equals(cardinality, that.cardinality) &&
+           Arrays.equals(cardinality, that.cardinality) &&
            Objects.equals(nullCount, that.nullCount) &&
            Objects.equals(minValue, that.minValue) &&
            Objects.equals(maxValue, that.maxValue) &&
@@ -283,7 +307,7 @@ public class ColumnAnalysis
         descriptor,
         hasMultipleValues,
         serializedSize,
-        cardinality,
+        Arrays.hashCode(cardinality),
         nullCount,
         minValue,
         maxValue,

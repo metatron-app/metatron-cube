@@ -80,9 +80,9 @@ public class SegmentAnalyzerTest
 
       Assert.assertEquals(dimension, ValueDesc.DIM_STRING.typeName(), columnAnalysis.getType());
       if (analyses == null) {
-        Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
+        Assert.assertNotNull(dimension, columnAnalysis.getCardinality());
       } else {
-        Assert.assertTrue(dimension, columnAnalysis.getCardinality() < 0);
+        Assert.assertNull(dimension, columnAnalysis.getCardinality());
         Assert.assertTrue(dimension, columnAnalysis.getSerializedSize() < 0);
       }
     }
@@ -96,11 +96,11 @@ public class SegmentAnalyzerTest
           columnAnalysis.getType()
       );
       if (analyses == null) {
-        Assert.assertTrue(metric, columnAnalysis.getSerializedSize() == 0);
+        Assert.assertEquals(metric, 0, columnAnalysis.getSerializedSize());
       } else {
         Assert.assertTrue(metric, columnAnalysis.getSerializedSize() < 0);
       }
-      Assert.assertTrue(metric, columnAnalysis.getCardinality() < 0);
+      Assert.assertNull(metric, columnAnalysis.getCardinality());
     }
   }
 
@@ -137,14 +137,14 @@ public class SegmentAnalyzerTest
         Assert.assertEquals(dimension, ValueDesc.DIM_STRING.typeName(), columnAnalysis.getType());
         if (analyses == null) {
           Assert.assertTrue(dimension, columnAnalysis.getSerializedSize() >= 0);
-          Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
+          Assert.assertNotNull(dimension, columnAnalysis.getCardinality());
         } else {
           Assert.assertTrue(dimension, columnAnalysis.getSerializedSize() < 0);
         }
         if (analyses == null || analyses.contains(SegmentMetadataQuery.AnalysisType.CARDINALITY)) {
-          Assert.assertTrue(dimension, columnAnalysis.getCardinality() >= 0);
+          Assert.assertNotNull(dimension, columnAnalysis.getCardinality());
         } else {
-          Assert.assertTrue(dimension, columnAnalysis.getCardinality() < 0);
+          Assert.assertNull(dimension, columnAnalysis.getCardinality());
         }
       }
     }
@@ -162,7 +162,7 @@ public class SegmentAnalyzerTest
       } else {
         Assert.assertTrue(metric, columnAnalysis.getSerializedSize() < 0);
       }
-      Assert.assertTrue(metric, columnAnalysis.getCardinality() < 0);
+      Assert.assertNull(metric, columnAnalysis.getCardinality());
     }
   }
 

@@ -77,7 +77,7 @@ public class SegmentMetadataQueryQueryToolChestTest
                 ValueType.STRING.getName(),
                 true,
                 10881,
-                1,
+                new long[]{1, 1},
                 "preferred",
                 "preferred",
                 null

@@ -66,6 +66,7 @@ import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.util.ImmutableBitSet;
 
 import java.util.Arrays;
 import java.util.List;
@@ -85,6 +86,7 @@ public class DruidTable implements TranslatableTable
   private RowSignature signature;
   private Statistic statistic;
   private Map<String, Map<String, String>> descriptors;
+  private Map<String, long[]> cardinalities;
   private Set<String> tenants;
 
   public DruidTable(TableDataSource dataSource, QuerySegmentWalker segmentWalker, String tenantColumn)
@@ -154,11 +156,33 @@ public class DruidTable implements TranslatableTable
     return statistic;
   }
 
+  public long[] cardinalityRange(String dimension)
+  {
+    if (cardinalities == null) {
+      updateAll();
+    }
+    return cardinalities == null ? null : cardinalities.get(dimension);
+  }
+
+  public long[] cardinalityRange(ImmutableBitSet groupKey)
+  {
+    RowSignature signature = getRowSignature();
+    long[] cardinality = Arrays.stream(groupKey.toArray())
+                               .mapToObj(x -> cardinalities.get(signature.columnName(x))).filter(Objects::nonNull)
+                               .reduce(ColumnAnalysis::mergeCardinality).orElse(null);
+    if (cardinality != null) {
+      cardinality[0] = (long) Math.min(cardinality[0], statistic.getRowCount());
+      cardinality[1] = (long) Math.min(cardinality[1], statistic.getRowCount());
+    }
+    return cardinality;
+  }
+
   private synchronized void updateAll()
   {
     long start = System.currentTimeMillis();
     Holder update = build(dataSource.getName(), QuerySegmentSpec.ETERNITY, segmentWalker);
     this.signature = update.signature;
+    this.cardinalities = update.cardinalities;
     this.descriptors = update.descriptors;
     this.statistic = Statistics.of(update.rowCount, ImmutableList.of());
     LOG.info("Refreshed schema of [%s].. %,d msec", dataSource.getName(), System.currentTimeMillis() - start);
@@ -180,12 +204,14 @@ public class DruidTable implements TranslatableTable
   private static class Holder
   {
     private final RowSignature signature;
+    private final Map<String, long[]> cardinalities;
     private final Map<String, Map<String, String>> descriptors;
     private final long rowCount;
 
-    private Holder(RowSignature signature, Map<String, Map<String, String>> descriptors, long rowCount)
+    private Holder(RowSignature signature, Map<String, long[]> cardinalities, Map<String, Map<String, String>> descriptors, long rowCount)
     {
       this.signature = signature;
+      this.cardinalities = cardinalities;
       this.descriptors = descriptors;
       this.rowCount = rowCount;
     }
@@ -193,23 +219,32 @@ public class DruidTable implements TranslatableTable
 
   private static Holder build(String dataSource, QuerySegmentSpec segmentSpec, QuerySegmentWalker segmentWalker)
   {
-    SegmentMetadataQuery query = SegmentMetadataQuery.of(dataSource, segmentSpec, AnalysisType.INTERVAL);
+    SegmentMetadataQuery query = SegmentMetadataQuery.of(dataSource, segmentSpec, AnalysisType.INTERVAL, AnalysisType.CARDINALITY);
     Sequence<SegmentAnalysis> sequence = QueryRunners.run(query.withId(UUID.randomUUID().toString()), segmentWalker);
 
     long rowNum = 0;
     Set<String> columns = Sets.newHashSet();
     RowSignature.Builder builder = RowSignature.builder();
+    Map<String, long[]> cardinalities = Maps.newHashMap();
     Map<String, Map<String, String>> descriptors = Maps.newHashMap();
     for (SegmentAnalysis schema : Lists.reverse(Sequences.toList(sequence))) {
       for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
-        if (columns.add(entry.getKey())) {
-          builder.add(entry.getKey(), ValueDesc.of(entry.getValue().getType()));
-          descriptors.put(entry.getKey(), entry.getValue().getDescriptor());
+        String column = entry.getKey();
+        ColumnAnalysis analysis = entry.getValue();
+        if (columns.add(column)) {
+          builder.add(column, ValueDesc.of(analysis.getType()));
+          descriptors.put(column, analysis.getDescriptor());
+        }
+        long[] cardinality = analysis.getCardinality();
+        if (cardinality != null) {
+          cardinalities.compute(
+              column, (c, p) -> p == null ? cardinality : ColumnAnalysis.mergeCardinality(p, cardinality)
+          );
         }
       }
       rowNum += schema.getNumRows();
     }
-    return new Holder(builder.sort().build(), descriptors, rowNum);
+    return new Holder(builder.sort().build(), cardinalities, descriptors, rowNum);
   }
 
   @SuppressWarnings("unchecked")

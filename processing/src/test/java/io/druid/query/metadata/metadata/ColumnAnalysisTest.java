@@ -42,7 +42,7 @@ public class ColumnAnalysisTest
     assertSerDe(analysis1);
     assertSerDe(analysis2);
 
-    final ColumnAnalysis expected = new ColumnAnalysis("STRING", true, 4L, 4, "aAA", "Zzz", null);
+    final ColumnAnalysis expected = new ColumnAnalysis("STRING", true, 4L, new long[] {4, 6}, "aAA", "Zzz", null);
 
     ColumnAnalysis fold1 = analysis1.fold(analysis2);
     ColumnAnalysis fold2 = analysis2.fold(analysis1);
@@ -90,7 +90,7 @@ public class ColumnAnalysisTest
     assertSerDe(analysis1);
     assertSerDe(analysis2);
 
-    final ColumnAnalysis expected = new ColumnAnalysis("LONG", false, 4L, 4, 100L, 400L, null);
+    final ColumnAnalysis expected = new ColumnAnalysis("LONG", false, 4L, new long[]{4, 6}, 100L, 400L, null);
 
     ColumnAnalysis fold1 = analysis1.fold(analysis2);
     ColumnAnalysis fold2 = analysis2.fold(analysis1);

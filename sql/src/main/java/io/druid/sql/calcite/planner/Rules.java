@@ -39,6 +39,7 @@ import io.druid.sql.calcite.rule.DruidValuesRule;
 import io.druid.sql.calcite.rule.PreFilteringRule;
 import io.druid.sql.calcite.rule.ProjectAggregatePruneUnusedCallRule;
 import io.druid.sql.calcite.rule.SortCollapseRule;
+import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.interpreter.Bindables;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptLattice;
@@ -46,6 +47,7 @@ import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepMatchOrder;
@@ -119,6 +121,7 @@ import org.apache.calcite.tools.Program;
 import org.apache.calcite.tools.Programs;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.BuiltInMethod;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NumberUtil;
 
 import java.io.PrintWriter;
@@ -276,9 +279,9 @@ public class Rules
       Program program = Programs.sequence(
           hepProgram(HepMatchOrder.BOTTOM_UP, JoinToMultiJoinRule.INSTANCE), hepProgram(LoptOptimizeJoinRule.INSTANCE)
       );
-      programs.add((planner, rel, traits, materializations, lattices) ->
+      programs.add(withDruidMeta((planner, rel, traits, materializations, lattices) ->
         RelOptUtil.countJoins(rel) > 1 ? program.run(planner, rel, traits, materializations, lattices) : rel
-      );
+      ));
     }
     programs.add(hepProgram(
         ProjectMergeRule.INSTANCE, FilterMergeRule.INSTANCE,
@@ -324,8 +327,14 @@ public class Rules
   private static Program withDruidMeta(Program program)
   {
     return (planner, rel, traits, materializations, lattices) -> {
-      RelMetadataQuery.THREAD_PROVIDERS.set(JaninoRelMetadataProvider.of(DRUID_META_PROVIDER));
-      return program.run(planner, rel, traits, materializations, lattices);
+      JaninoRelMetadataProvider prev = RelMetadataQuery.THREAD_PROVIDERS.get();
+      try {
+        RelMetadataQuery.THREAD_PROVIDERS.set(JaninoRelMetadataProvider.of(DRUID_META_PROVIDER));
+        return program.run(planner, rel, traits, materializations, lattices);
+      }
+      finally {
+        RelMetadataQuery.THREAD_PROVIDERS.set(prev);
+      }
     };
   }
 
@@ -445,7 +454,8 @@ public class Rules
   // later..
   public static final RelMetadataProvider DRUID_META_PROVIDER = ChainedRelMetadataProvider.of(
       ImmutableList.of(
-          DruidCostModel.SOURCE, DruidRelMdSelectivity.SOURCE, DruidRelMdRowCount.SOURCE, DefaultRelMetadataProvider.INSTANCE
+          DruidCostModel.SOURCE, DruidRelMdSelectivity.SOURCE, DruidRelMdRowCount.SOURCE, DruidRelMdDistinctRowCount.SOURCE,
+          DefaultRelMetadataProvider.INSTANCE
       )
   );
 
@@ -492,8 +502,17 @@ public class Rules
 
     public RelOptCost getNonCumulativeCost(Join rel, RelMetadataQuery mq)
     {
-      double rc1 = Math.max(mq.getRowCount(rel.getLeft()), 1);
-      double rc2 = Math.max(mq.getRowCount(rel.getRight()), 1);
+      RelNode left = rel.getLeft();
+      RelNode right = rel.getRight();
+      double rc1 = Math.max(mq.getRowCount(left), 1);
+      double rc2 = Math.max(mq.getRowCount(right), 1);
+//      ImmutableBitSet leftKeys = rel.analyzeCondition().leftSet();
+//      ImmutableBitSet rightKeys = rel.analyzeCondition().rightSet();
+//      double drc1 = mq.getDistinctRowCount(left, leftKeys, null);
+//      double drc2 = mq.getDistinctRowCount(right, rightKeys, null);
+//      System.out.printf("%s%s : %f/%f + %s%s : %f/%f\n",
+//                        Utils.alias(left), Utils.columnNames(left, leftKeys), drc1, rc1,
+//                        Utils.alias(right), Utils.columnNames(right, rightKeys), drc2, rc2);
       return DruidCost.FACTORY.makeCost(0, Utils.joinCost(rc1, rc2), 0);
     }
 
@@ -522,6 +541,33 @@ public class Rules
     public Double getSelectivity(Filter rel, RelMetadataQuery mq, RexNode predicate)
     {
       return Utils.selectivity(rel.getCondition());
+    }
+  }
+
+  public static class DruidRelMdDistinctRowCount implements MetadataHandler<BuiltInMetadata.DistinctRowCount>
+  {
+    public static final RelMetadataProvider SOURCE =
+        ReflectiveRelMetadataProvider.reflectiveSource(
+            BuiltInMethod.DISTINCT_ROW_COUNT.method, new DruidRelMdDistinctRowCount());
+
+    @Override
+    public MetadataDef<BuiltInMetadata.DistinctRowCount> getDef() {
+      return BuiltInMetadata.DistinctRowCount.DEF;
+    }
+
+    public Double getDistinctRowCount(RelNode rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate)
+    {
+      RelOptTable optTable = rel.getTable();
+      if (optTable != null) {
+        DruidTable table = optTable.unwrap(DruidTable.class);
+        if (table != null) {
+          long[] cardinalities = table.cardinalityRange(groupKey);
+          if (cardinalities != null) {
+            return (double) cardinalities[1];
+          }
+        }
+      }
+      return null;
     }
   }
 

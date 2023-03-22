@@ -168,7 +168,7 @@ public class SegmentMetadataQueryTest
                 ValueType.LONG.getName(),
                 false,
                 mmap1 ? 1081 : 0,
-                -1,
+                null,
                 1294790400000L,
                 1302825600000L,
                 null
@@ -178,7 +178,7 @@ public class SegmentMetadataQueryTest
                 ValueType.DOUBLE.getName(),
                 false,
                 mmap1 ? 6653 : 0,
-                -1,
+                null,
                 59.02102279663086D,
                 1870.06103515625D,
                 null
@@ -188,7 +188,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 false,
                 mmap1 ? 501 : 0,
-                1,
+                new long[]{1, 1},
                 "preferred",
                 "preferred",
                 null
@@ -210,7 +210,7 @@ public class SegmentMetadataQueryTest
                 ValueType.LONG.getName(),
                 false,
                 mmap2 ? 1081 : 0,
-                -1,
+                null,
                 1294790400000L,
                 1302825600000L,
                 null
@@ -220,7 +220,7 @@ public class SegmentMetadataQueryTest
                 ValueType.DOUBLE.getName(),
                 false,
                 mmap2 ? 6653 : 0,
-                -1,
+                null,
                 59.02102279663086D,
                 1870.06103515625D,
                 null
@@ -230,7 +230,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 false,
                 mmap2 ? 501 : 0,
-                1,
+                new long[]{1, 1},
                 "preferred",
                 "preferred",
                 null
@@ -280,7 +280,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "partial_null_column",
             new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(), null, false, mmap1 ? 2956 : 0, 2, 1023, "", "value", null
+                ValueDesc.DIM_STRING.typeName(), null, false, mmap1 ? 2956 : 0, new long[]{2, 2}, 1023, "", "value", null
             )
         ),
         mmap1 ? 63801 : 0,
@@ -314,9 +314,9 @@ public class SegmentMetadataQueryTest
         ImmutableList.of(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
         ImmutableMap.of(
             "numeric-expr",
-            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, null, false, 0, -1, -1, 60.02102279663086D, 1871.06103515625D, null),
+            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, null, false, 0, null, -1, 60.02102279663086D, 1871.06103515625D, null),
             "string-expr",
-            new ColumnAnalysis(ValueDesc.STRING_TYPE, null, false, 0, -1, -1, "spot|automotive", "upfront|premium", null)
+            new ColumnAnalysis(ValueDesc.STRING_TYPE, null, false, 0, null, -1, "spot|automotive", "upfront|premium", null)
         ),
         mmap1 ? 63801 : 0,
         1209,
@@ -343,7 +343,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
-                -1,
+                null,
                 null,
                 null,
                 null
@@ -353,7 +353,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 true,
                 -1,
-                -1,
+                null,
                 null,
                 null,
                 null
@@ -418,7 +418,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
-                1,
+                new long[]{1, 2},
                 null,
                 null,
                 null
@@ -428,7 +428,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 true,
                 -1,
-                9,
+                new long[]{9, 18},
                 null,
                 null,
                 null
@@ -495,7 +495,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
-                1,
+                new long[]{1, 2},
                 null,
                 null,
                 null
@@ -505,7 +505,7 @@ public class SegmentMetadataQueryTest
                 "hyperUnique",
                 false,
                 -1,
-                -1,
+                null,
                 null,
                 null,
                 null
@@ -560,7 +560,7 @@ public class SegmentMetadataQueryTest
         ValueDesc.DIM_STRING.typeName(),
         false,
         (mmap1 ? 501 : 0) + (mmap2 ? 501 : 0),
-        1,
+        new long[]{1, 2},
         "preferred",
         "preferred",
         null
@@ -575,7 +575,7 @@ public class SegmentMetadataQueryTest
         ValueDesc.DIM_STRING.typeName(),
         false,
         (mmap1 ? 3010 : 0) + (mmap2 ? 3010 : 0),
-        3,
+        new long[]{3, 6},
         "spot",
         "upfront",
         null
@@ -590,7 +590,7 @@ public class SegmentMetadataQueryTest
         ValueDesc.DIM_STRING.typeName(),
         false,
         (mmap1 ? 3227 : 0) + (mmap2 ? 3227 : 0),
-        9,
+        new long[]{9, 18},
         "automotive",
         "travel",
         null
@@ -612,7 +612,7 @@ public class SegmentMetadataQueryTest
                 ValueType.LONG.getName(),
                 false,
                 (mmap1 ? 1081 : 0) + (mmap2 ? 1081 : 0),
-                -1,
+                null,
                 1294790400000L,
                 1302825600000L,
                 null
@@ -622,7 +622,7 @@ public class SegmentMetadataQueryTest
                 ValueType.DOUBLE.getName(),
                 false,
                 (mmap1 ? 6653 : 0) + (mmap2 ? 6653 : 0),
-                -1,
+                null,
                 59.02102279663086D,
                 1870.06103515625D,
                 null
@@ -676,7 +676,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
-                -1,
+                null,
                 null,
                 null,
                 null
@@ -737,7 +737,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
-                -1,
+                null,
                 null,
                 null,
                 null
@@ -795,7 +795,7 @@ public class SegmentMetadataQueryTest
                 ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
-                -1,
+                null,
                 null,
                 null,
                 null

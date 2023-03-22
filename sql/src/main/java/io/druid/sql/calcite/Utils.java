@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.filter.LikeDimFilter.LikeMatcher;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidTypeSystem;
@@ -39,15 +40,18 @@ import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
@@ -77,6 +81,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.calcite.sql.SqlExplainLevel.ALL_ATTRIBUTES;
 
@@ -594,5 +599,26 @@ public class Utils
     StringWriter sb = new StringWriter();
     rel.explain(new RelWriterImpl(new PrintWriter(sb), ALL_ATTRIBUTES, true));
     return sb.toString();
+  }
+
+  public static String alias(RelNode rel)
+  {
+    if (rel instanceof HepRelVertex) {
+      rel = ((HepRelVertex) rel).getCurrentRel();
+    }
+    RelOptTable table = rel.getTable();
+    if (table != null) {
+      return GuavaUtils.lastOf(table.getQualifiedName());
+    }
+    if (rel instanceof BiRel) {
+      return String.format("[%s + %s]", alias(((BiRel) rel).getLeft()), alias(((BiRel) rel).getRight()));
+    }
+    return alias(rel.getInput(0));
+  }
+
+  public static List<String> columnNames(RelNode rel, ImmutableBitSet bits)
+  {
+    List<RelDataTypeField> fields = rel.getRowType().getFieldList();
+    return Arrays.stream(bits.toArray()).mapToObj(x -> fields.get(x).getName()).collect(Collectors.toList());
   }
 }
