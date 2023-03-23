@@ -220,6 +220,8 @@ public class JoinProcessor
     final JoinAlias rightAlias;
     final int limit;
 
+    final long start = System.currentTimeMillis();
+
     protected JoinIterator(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias, int limit)
     {
       this.type = type;
@@ -245,13 +247,14 @@ public class JoinProcessor
     public void close() throws IOException
     {
       LOG.debug(
-          "<< %s (%s + %s), resulting %d rows (%s+%s)",
+          "<< %s (%s + %s), resulting %d rows (%s+%s) : (%,d msec)",
           type,
           leftAlias,
           rightAlias,
           count,
           leftAlias.columns,
-          rightAlias.columns
+          rightAlias.columns,
+          System.currentTimeMillis() - start
       );
       leftAlias.close();
       rightAlias.close();

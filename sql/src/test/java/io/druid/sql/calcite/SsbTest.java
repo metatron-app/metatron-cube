@@ -155,6 +155,16 @@ public class SsbTest extends SsbTestHelper
       + "      DruidQueryRel(table=[druid.ssb_part], scanFilter=[=($1, 'MFGR#12')], scanProject=[$0, $6])\n"
       + "    DruidQueryRel(table=[druid.ssb_date], scanProject=[$13, $16])\n";
 
+  public static final String SSB2_1_PLAN_JR2 =
+      "DruidOuterQueryRel(group=[{0, 1}], EXPR$0=[SUM($2)], aggregateProject=[$2, $0, $1], sort=[$1:ASC, $2:ASC])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[1], outputColumns=[3, 2, 0])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2, 3])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2, 3, 4])\n"
+      + "        DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$8, $10, $13, $16])\n"
+      + "        DruidQueryRel(table=[druid.ssb_part], scanFilter=[=($1, 'MFGR#12')], scanProject=[$0, $6])\n"
+      + "      DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($5, 'AMERICA')], scanProject=[$6])\n"
+      + "    DruidQueryRel(table=[druid.ssb_date], scanProject=[$13, $16])\n";
+
   public static final Object[][] SSB2_1_RESULT = {
       {2420990D, "1992", "MFGR#1211"},
       {7034664D, "1992", "MFGR#129"}
@@ -251,6 +261,16 @@ public class SsbTest extends SsbTestHelper
       + "        DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$8, $10, $13, $16])\n"
       + "        DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($5, 'AMERICA')], scanProject=[$6])\n"
       + "      DruidQueryRel(table=[druid.ssb_date], scanProject=[$13, $16])\n";
+
+  public static final String SSB2_2_PLAN_JR2 =
+      "DruidOuterQueryRel(group=[{0, 1}], EXPR$0=[SUM($2)], aggregateProject=[$2, $0, $1], sort=[$1:ASC, $2:ASC])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[1], outputColumns=[3, 2, 0])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2, 3])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2, 3, 4])\n"
+      + "        DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$8, $10, $13, $16])\n"
+      + "        DruidQueryRel(table=[druid.ssb_part], scanFilter=[AND(>=($0, 'MFGR#2221'), <=($0, 'MFGR#2228'))], scanProject=[$0, $6])\n"
+      + "      DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($5, 'AMERICA')], scanProject=[$6])\n"
+      + "    DruidQueryRel(table=[druid.ssb_date], scanProject=[$13, $16])\n";
 
   public static final Object[] SSB2_2_RESULT = {
       2781578.0, "1992", "MFGR#2223"
@@ -350,6 +370,16 @@ public class SsbTest extends SsbTestHelper
       + "      DruidQueryRel(table=[druid.ssb_customer], scanFilter=[=($7, 'AMERICA')], scanProject=[$2, $5])\n"
       + "    DruidQueryRel(table=[druid.ssb_date], scanFilter=[AND(>=($13, 1992), <=($13, 1997))], scanProject=[$13, $16])\n";
 
+  public static final String SSB3_1_PLAN_JR2 =
+      "DruidOuterQueryRel(group=[{0, 1, 2}], revenue=[SUM($3)], sort=[$2:ASC, $3:DESC])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[1], outputColumns=[2, 3, 4, 0])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[1], outputColumns=[0, 2, 3, 4])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1, 2, 3, 5])\n"
+      + "        DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$1, $10, $13, $16])\n"
+      + "        DruidQueryRel(table=[druid.ssb_customer], scanFilter=[=($7, 'AMERICA')], scanProject=[$2, $5])\n"
+      + "      DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($5, 'AMERICA')], scanProject=[$3, $6])\n"
+      + "    DruidQueryRel(table=[druid.ssb_date], scanFilter=[AND(>=($13, 1992), <=($13, 1997))], scanProject=[$13, $16])\n";
+
   public static final Object[][] SSB3_1_RESULT = {
       {"CANADA", "UNITED STATES", "1992", 2.9221324E7},
       {"BRAZIL", "UNITED STATES", "1992", 1.0390371E7},
@@ -442,6 +472,16 @@ public class SsbTest extends SsbTestHelper
       + "        DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$1, $10, $13, $16])\n"
       + "        DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($3, 'MOROCCO')], scanProject=[$1, $6])\n"
       + "      DruidQueryRel(table=[druid.ssb_customer], scanFilter=[=($5, 'MOROCCO')], scanProject=[$1, $2])\n"
+      + "    DruidQueryRel(table=[druid.ssb_date], scanFilter=[AND(>=($13, 1992), <=($13, 1997))], scanProject=[$13, $16])\n";
+
+  public static final String SSB3_2_PLAN_JR2 =
+      "DruidOuterQueryRel(group=[{0, 1, 2}], revenue=[SUM($3)], sort=[$2:ASC, $3:DESC])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[1], outputColumns=[2, 3, 4, 0])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[1], outputColumns=[0, 2, 3, 4])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2, 3, 4])\n"
+      + "        DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$1, $10, $13, $16])\n"
+      + "        DruidQueryRel(table=[druid.ssb_customer], scanFilter=[=($5, 'MOROCCO')], scanProject=[$1, $2])\n"
+      + "      DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($3, 'MOROCCO')], scanProject=[$1, $6])\n"
       + "    DruidQueryRel(table=[druid.ssb_date], scanFilter=[AND(>=($13, 1992), <=($13, 1997))], scanProject=[$13, $16])\n";
 
   public static final Object[][] SSB3_2_RESULT = {
@@ -537,6 +577,18 @@ public class SsbTest extends SsbTestHelper
       + "          DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$1, $8, $10, $13, $14, $16])\n"
       + "          DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($5, 'AMERICA')], scanProject=[$6])\n"
       + "        DruidQueryRel(table=[druid.ssb_customer], scanFilter=[=($7, 'AMERICA')], scanProject=[$2, $5])\n"
+      + "      DruidQueryRel(table=[druid.ssb_date], scanProject=[$13, $16])\n";
+
+  public static final String SSB4_1_PLAN_JR2 =
+      "DruidOuterQueryRel(scanProject=[$0, $1, -($2, $3)], group=[{0, 1}], profit=[SUM($2)], sort=[$0:ASC, $1:ASC])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[5, 4, 2, 3])\n"
+      + "    DruidQueryRel(table=[druid.ssb_part], scanFilter=[OR(=($4, 'MFGR#1'), =($4, 'MFGR#2'))], scanProject=[$6])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[1], outputColumns=[0, 1, 2, 4, 5])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1, 3, 4, 5])\n"
+      + "        DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1, 2, 3, 4, 5, 7])\n"
+      + "          DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$1, $8, $10, $13, $14, $16])\n"
+      + "          DruidQueryRel(table=[druid.ssb_customer], scanFilter=[=($7, 'AMERICA')], scanProject=[$2, $5])\n"
+      + "        DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($5, 'AMERICA')], scanProject=[$6])\n"
       + "      DruidQueryRel(table=[druid.ssb_date], scanProject=[$13, $16])\n";
 
   public static final Object[][] SSB4_1_RESULT = {
@@ -656,6 +708,18 @@ public class SsbTest extends SsbTestHelper
       + "          DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$1, $8, $10, $13, $14, $16])\n"
       + "          DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($5, 'AMERICA')], scanProject=[$3, $6])\n"
       + "        DruidQueryRel(table=[druid.ssb_customer], scanFilter=[=($7, 'AMERICA')], scanProject=[$2])\n"
+      + "      DruidQueryRel(table=[druid.ssb_date], scanFilter=[OR(=($13, 1992), =($13, 1993))], scanProject=[$13, $16])\n";
+
+  public static final String SSB4_2_PLAN_JR2 =
+      "DruidOuterQueryRel(scanProject=[$0, $1, $2, -($3, $4)], group=[{0, 1, 2}], profit=[SUM($3)], sort=[$0:ASC, $1:ASC, $2:ASC])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[6, 5, 0, 3, 4])\n"
+      + "    DruidQueryRel(table=[druid.ssb_part], scanFilter=[OR(=($4, 'MFGR#1'), =($4, 'MFGR#2'))], scanProject=[$1, $6])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[1], outputColumns=[0, 1, 2, 4, 5])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1], outputColumns=[0, 1, 3, 4, 5])\n"
+      + "        DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1, 2, 3, 4, 5])\n"
+      + "          DruidQueryRel(table=[druid.ssb_lineorder], scanProject=[$1, $8, $10, $13, $14, $16])\n"
+      + "          DruidQueryRel(table=[druid.ssb_customer], scanFilter=[=($7, 'AMERICA')], scanProject=[$2])\n"
+      + "        DruidQueryRel(table=[druid.ssb_supplier], scanFilter=[=($5, 'AMERICA')], scanProject=[$3, $6])\n"
       + "      DruidQueryRel(table=[druid.ssb_date], scanFilter=[OR(=($13, 1992), =($13, 1993))], scanProject=[$13, $16])\n";
 
   public static final Object[][] SSB4_2_RESULT = {

@@ -63,132 +63,156 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch1() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH1, TpchTest.TPCH1_PLAN, TpchTest.TPCH1_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH1, TpchTest.TPCH1_PLAN, TpchTest.TPCH1_RESULT);
   }
 
   @Test
   public void tpch2() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH2, TpchTest.TPCH2_EXPLAIN_JR, TpchTest.TPCH2_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH2, TpchTest.TPCH2_EXPLAIN_JR, TpchTest.TPCH2_RESULT);
   }
 
   @Test
   public void tpch3() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH3, TpchTest.TPCH3_EXPLAIN_JR, TpchTest.TPCH3_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH3, TpchTest.TPCH3_EXPLAIN_JR, TpchTest.TPCH3_RESULT);
   }
 
   @Test
   public void tpch4() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH4, TpchTest.TPCH4_EXPLAIN, TpchTest.TPCH4_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH4, TpchTest.TPCH4_EXPLAIN, TpchTest.TPCH4_RESULT);
   }
 
   @Test
   public void tpch5() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH5, TpchTest.TPCH5_EXPLAIN_JR, TpchTest.TPCH5_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH5, TpchTest.TPCH5_EXPLAIN_JR, TpchTest.TPCH5_RESULT);
+  }
+
+  @Test
+  public void tpch5S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH5, TpchTest.TPCH5_EXPLAIN_JR2, TpchTest.TPCH5_RESULT);
   }
 
   @Test
   public void tpch6() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH6, TpchTest.TPCH6_EXPLAIN, TpchTest.TPCH6_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH6, TpchTest.TPCH6_EXPLAIN, TpchTest.TPCH6_RESULT);
   }
 
   @Test
   public void tpch7() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH7, TpchTest.TPCH7_EXPLAIN_JR, TpchTest.TPCH7_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH7, TpchTest.TPCH7_EXPLAIN_JR, TpchTest.TPCH7_RESULT);
   }
 
   @Test
   public void tpch8() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH8, TpchTest.TPCH8_EXPLAIN_JR, TpchTest.TPCH8_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH8, TpchTest.TPCH8_EXPLAIN_JR, TpchTest.TPCH8_RESULT);
+  }
+
+  @Test
+  public void tpch8S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH8, TpchTest.TPCH8_EXPLAIN_JR2, TpchTest.TPCH8_RESULT);
   }
 
   @Test
   public void tpch9() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH9, TpchTest.TPCH9_EXPLAIN_JR, TpchTest.TPCH9_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH9, TpchTest.TPCH9_EXPLAIN_JR, TpchTest.TPCH9_RESULT);
   }
 
   @Test
   public void tpch10() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH10, TpchTest.TPCH10_EXPLAIN_JR, TpchTest.TPCH10_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH10, TpchTest.TPCH10_EXPLAIN_JR, TpchTest.TPCH10_RESULT);
+  }
+
+  @Test
+  public void tpch10S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH10, TpchTest.TPCH10_EXPLAIN_JR2, TpchTest.TPCH10_RESULT);
   }
 
   @Test
   public void tpch11() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH11, TpchTest.TPCH11_EXPLAIN_JR, TpchTest.TPCH11_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH11, TpchTest.TPCH11_EXPLAIN_JR, TpchTest.TPCH11_RESULT);
   }
 
   @Test
   public void tpch12() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH12, TpchTest.TPCH12_EXPLAIN, TpchTest.TPCH12_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH12, TpchTest.TPCH12_EXPLAIN, TpchTest.TPCH12_RESULT);
   }
 
   @Test
   public void tpch13() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH13, TpchTest.TPCH13_EXPLAIN, TpchTest.TPCH13_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH13, TpchTest.TPCH13_EXPLAIN, TpchTest.TPCH13_RESULT);
   }
 
   @Test
   public void tpch14() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH14, TpchTest.TPCH14_EXPLAIN, TpchTest.TPCH14_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH14, TpchTest.TPCH14_EXPLAIN, TpchTest.TPCH14_RESULT);
   }
 
   @Test
   public void tpch15() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH15, TpchTest.TPCH15_EXPLAIN_JR, TpchTest.TPCH15_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH15, TpchTest.TPCH15_EXPLAIN_JR, TpchTest.TPCH15_RESULT);
   }
 
   @Test
   public void tpch16() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR);
+  }
+
+  @Test
+  public void tpch16S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR2);
   }
 
   @Test
   public void tpch17() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH17, TpchTest.TPCH17_EXPLAIN_JR, TpchTest.TPCH17_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH17, TpchTest.TPCH17_EXPLAIN_JR, TpchTest.TPCH17_RESULT);
   }
 
   @Test
   public void tpch18() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH18, TpchTest.TPCH18_EXPLAIN_JR, TpchTest.TPCH18_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH18, TpchTest.TPCH18_EXPLAIN_JR, TpchTest.TPCH18_RESULT);
   }
 
   @Test
   public void tpch19() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH19, TpchTest.TPCH19_EXPLAIN);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH19, TpchTest.TPCH19_EXPLAIN);
   }
 
   @Test
   public void tpch20() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH20, TpchTest.TPCH20_EXPLAIN_JR, TpchTest.TPCH20_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH20, TpchTest.TPCH20_EXPLAIN_JR, TpchTest.TPCH20_RESULT);
   }
 
   @Test
   public void tpch21() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH21, TpchTest.TPCH21_EXPLAIN_JR, TpchTest.TPCH21_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH21, TpchTest.TPCH21_EXPLAIN_JR, TpchTest.TPCH21_RESULT);
   }
 
   @Test
   public void tpch22() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, TpchTest.TPCH22, TpchTest.TPCH22_EXPLAIN_JR, TpchTest.TPCH22_RESULT);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH22, TpchTest.TPCH22_EXPLAIN_JR, TpchTest.TPCH22_RESULT);
   }
 }

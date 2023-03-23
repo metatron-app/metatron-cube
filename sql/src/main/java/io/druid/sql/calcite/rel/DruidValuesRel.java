@@ -23,6 +23,7 @@ import io.druid.query.CombinedDataSource;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.TableDataSource;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -33,7 +34,6 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.Set;
 
@@ -57,7 +57,7 @@ public class DruidValuesRel extends DruidRel
         source,
         leaf,
         values,
-        StringUtils.join(source.getTable().getQualifiedName(), '.'),
+        Utils.qualifiedTableName(source.getTable()),
         queryMaker
     );
   }
@@ -70,7 +70,7 @@ public class DruidValuesRel extends DruidRel
         source,
         source,
         values,
-        source instanceof LogicalTableScan ? StringUtils.join(source.getTable().getQualifiedName(), '.') : null,
+        Utils.qualifiedTableName(source.getTable()),
         queryMaker
     );
   }

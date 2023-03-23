@@ -36,6 +36,11 @@ public interface TypeResolver
     return Optional.fromNullable(resolve(column)).or(defaultType);
   }
 
+  default boolean isNumeric(String column)
+  {
+    return resolve(column, ValueDesc.UNKNOWN).isNumeric();
+  }
+
   interface Resolvable
   {
     ValueDesc resolve(TypeResolver bindings);

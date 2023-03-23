@@ -431,7 +431,7 @@ public class JoinElement
         IntTagged<Object2IntSortedMap<?>> mapping = SemiJoinFactory.toMap(
             dimensions.size(), Sequences.toIterator(sampling.run(segmentWalker, null))
         );
-        estimated[0] = estimateBySample(mapping, selectivity[0]);
+        estimated[0] = Math.min(selectivity[0], estimateBySample(mapping, selectivity[0]));
 //        estimated = Queries.estimateCardinality(groupBy.withHavingSpec(null), segmentWalker);
         if (selectivity[0] > 0 && selectivity[1] > 0) {
           estimated[1] = estimated[0] * selectivity[1] / selectivity[0];

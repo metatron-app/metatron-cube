@@ -142,10 +142,22 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     public boolean isRequireTimeCondition() { return true;}
   };
 
-  protected static final PlannerConfig PLANNER_JOIN_REORDERING = new PlannerConfig()
+  protected static final PlannerConfig JOIN_REORDERING = new PlannerConfig()
   {
     @Override
     public boolean isUseJoinReordering() { return true;}
+  };
+
+  protected static final PlannerConfig JOIN_REORDERING_WITH_SELECTIVITY = new PlannerConfig()
+  {
+    @Override
+    public boolean isUseJoinReordering() { return true;}
+
+    @Override
+    public boolean isEstimateSelectivity()
+    {
+      return true;
+    }
   };
 
   protected static final List<Object> NO_PARAM = Collections.emptyList();

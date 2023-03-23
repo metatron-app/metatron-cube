@@ -19,26 +19,27 @@
 
 package io.druid.sql.calcite.filtration;
 
+import io.druid.data.TypeResolver;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.SimpleExtraction;
-import io.druid.sql.calcite.table.RowSignature;
 
 import java.util.Objects;
 
 public class ConvertBoundsToSelectors extends BottomUpTransform
 {
-  private final RowSignature sourceRowSignature;
-
-  private ConvertBoundsToSelectors(final RowSignature sourceRowSignature)
+  public static ConvertBoundsToSelectors create(TypeResolver resolver)
   {
-    this.sourceRowSignature = sourceRowSignature;
+    return new ConvertBoundsToSelectors(resolver);
   }
 
-  public static ConvertBoundsToSelectors create(final RowSignature sourceRowSignature)
+  private final TypeResolver resolver;
+
+  private ConvertBoundsToSelectors(TypeResolver resolver)
   {
-    return new ConvertBoundsToSelectors(sourceRowSignature);
+    this.resolver = resolver;
   }
 
   @Override
@@ -46,8 +47,8 @@ public class ConvertBoundsToSelectors extends BottomUpTransform
   {
     if (filter instanceof BoundDimFilter) {
       final BoundDimFilter bound = (BoundDimFilter) filter;
-      final String comporatorType = sourceRowSignature.naturalStringComparator(
-          SimpleExtraction.of(bound.getDimension(), bound.getExtractionFn())
+      final String comporatorType = Utils.comparatorFor(
+          resolver, SimpleExtraction.of(bound.getDimension(), bound.getExtractionFn())
       );
       if (bound.isEquals() && Objects.equals(comporatorType, bound.getComparatorType())) {
         return new SelectorDimFilter(

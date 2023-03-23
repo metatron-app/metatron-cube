@@ -20,13 +20,14 @@
 package io.druid.sql.calcite.filtration;
 
 import com.google.common.collect.Lists;
+import io.druid.data.TypeResolver;
 import io.druid.java.util.common.ISE;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.SimpleExtraction;
-import io.druid.sql.calcite.table.RowSignature;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,16 +36,16 @@ import java.util.Map;
 
 public class ConvertSelectorsToIns extends BottomUpTransform
 {
-  private final RowSignature sourceRowSignature;
-
-  private ConvertSelectorsToIns(final RowSignature sourceRowSignature)
+  public static ConvertSelectorsToIns create(TypeResolver resolver)
   {
-    this.sourceRowSignature = sourceRowSignature;
+    return new ConvertSelectorsToIns(resolver);
   }
 
-  public static ConvertSelectorsToIns create(final RowSignature sourceRowSignature)
+  private final TypeResolver resolver;
+
+  private ConvertSelectorsToIns(TypeResolver resolver)
   {
-    return new ConvertSelectorsToIns(sourceRowSignature);
+    this.resolver = resolver;
   }
 
   @Override
@@ -62,9 +63,7 @@ public class ConvertSelectorsToIns extends BottomUpTransform
           final SelectorDimFilter selector = (SelectorDimFilter) child;
           final BoundRefKey boundRefKey = BoundRefKey.from(
               selector,
-              sourceRowSignature.naturalStringComparator(
-                  SimpleExtraction.of(selector.getDimension(), selector.getExtractionFn())
-              )
+              Utils.comparatorFor(resolver, SimpleExtraction.of(selector.getDimension(), selector.getExtractionFn()))
           );
           List<SelectorDimFilter> filterList = selectors.get(boundRefKey);
           if (filterList == null) {

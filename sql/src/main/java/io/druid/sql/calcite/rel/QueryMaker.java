@@ -22,6 +22,7 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -46,10 +47,13 @@ import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.server.QueryLifecycleFactory;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
@@ -72,6 +76,7 @@ public class QueryMaker
   private final QueryLifecycleFactory lifecycleFactory;
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
+  private final Map<String, Map<RexNode, Double>> cardinalities = Maps.newHashMap();
 
   public QueryMaker(
       final QueryLifecycleFactory lifecycleFactory,
@@ -370,5 +375,11 @@ public class QueryMaker
     catch (Exception e) {
       return Objects.toString(value, null);
     }
+  }
+
+  public double cardinality(RelNode rel, RexNode predicate, java.util.function.Function<RexNode, Double> populator)
+  {
+    return cardinalities.computeIfAbsent(Utils.tableName(rel.getTable()), k -> Maps.newHashMap())
+                        .computeIfAbsent(predicate, populator);
   }
 }

@@ -28,7 +28,13 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
+import io.druid.query.Queries;
+import io.druid.query.TableDataSource;
 import io.druid.query.filter.LikeDimFilter.LikeMatcher;
+import io.druid.query.ordering.StringComparators;
+import io.druid.sql.calcite.expression.SimpleExtraction;
+import io.druid.sql.calcite.filtration.Filtration;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidTypeSystem;
 import io.druid.sql.calcite.planner.PlannerContext;
@@ -72,6 +78,7 @@ import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
+import org.apache.commons.lang.StringUtils;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -387,8 +394,22 @@ public class Utils
     return cost;
   }
 
+  public static long[] estimateSelectivity(String table, Filtration filtration, QueryMaker context)
+  {
+    return Queries.estimateSelectivity(
+        TableDataSource.of(table),
+        filtration.getQuerySegmentSpec(),
+        filtration.getDimFilter(),
+        context.getPlannerContext().getQueryContext(),
+        context.getSegmentWalker()
+    );
+  }
+
   public static double selectivity(RexNode condition)
   {
+    if (condition == null || condition.isAlwaysTrue()) {
+      return 1.0D;
+    }
     final double estimate;
     switch (condition.getKind()) {
       case AND:
@@ -473,7 +494,8 @@ public class Utils
       case "any":
         return 0.01;
       case "count":
-        return aggregation.getArgList().isEmpty() ? 0.02 : 0.06;
+        return aggregation.getArgList().isEmpty() ? 0.01 :
+               aggregation.isDistinct() ? 0.5 : 0.06;
       case "min":
       case "max":
       case "sum":
@@ -606,9 +628,9 @@ public class Utils
     if (rel instanceof HepRelVertex) {
       rel = ((HepRelVertex) rel).getCurrentRel();
     }
-    RelOptTable table = rel.getTable();
-    if (table != null) {
-      return GuavaUtils.lastOf(table.getQualifiedName());
+    String tableName = tableName(rel.getTable());
+    if (tableName != null) {
+      return tableName;
     }
     if (rel instanceof BiRel) {
       return String.format("[%s + %s]", alias(((BiRel) rel).getLeft()), alias(((BiRel) rel).getRight()));
@@ -616,9 +638,27 @@ public class Utils
     return alias(rel.getInput(0));
   }
 
+  public static String tableName(RelOptTable table)
+  {
+    return table == null ? null : GuavaUtils.lastOf(table.getQualifiedName());
+  }
+
+  public static String qualifiedTableName(RelOptTable table)
+  {
+    return table == null ? null : StringUtils.join(table.getQualifiedName(), '.');
+  }
+
   public static List<String> columnNames(RelNode rel, ImmutableBitSet bits)
   {
     List<RelDataTypeField> fields = rel.getRowType().getFieldList();
     return Arrays.stream(bits.toArray()).mapToObj(x -> fields.get(x).getName()).collect(Collectors.toList());
+  }
+
+  public static String comparatorFor(TypeResolver resolver, SimpleExtraction extraction)
+  {
+    if (extraction.getExtractionFn() == null && resolver.isNumeric(extraction.getColumn())) {
+      return StringComparators.NUMERIC_NAME;
+    }
+    return null;
   }
 }

@@ -21,6 +21,7 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
 import io.druid.query.DataSource;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -33,7 +34,6 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.commons.lang.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.util.Set;
@@ -154,7 +154,7 @@ public class DruidQueryRel extends DruidRel
   @Override
   public RelWriter explainTerms(RelWriter pw)
   {
-    return partialQuery.explainTerms(pw.item("table", StringUtils.join(table.getQualifiedName(), '.')));
+    return partialQuery.explainTerms(pw.item("table", Utils.qualifiedTableName(table)));
   }
 
   @Override

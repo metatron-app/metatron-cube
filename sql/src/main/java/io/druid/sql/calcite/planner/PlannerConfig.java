@@ -60,6 +60,9 @@ public class PlannerConfig
   @JsonProperty
   private DateTimeZone sqlTimeZone = DateTimeZone.UTC;
 
+  @JsonProperty
+  private boolean estimateSelectivity = false;
+
   public int getMaxTopNLimit()
   {
     return maxTopNLimit;
@@ -105,6 +108,11 @@ public class PlannerConfig
     return sqlTimeZone;
   }
 
+  public boolean isEstimateSelectivity()
+  {
+    return estimateSelectivity;
+  }
+
   public PlannerConfig withOverrides(final Map<String, Object> context)
   {
     if (context == null || context.isEmpty()) {
@@ -129,6 +137,7 @@ public class PlannerConfig
     newConfig.dumpPlan = getContextBoolean(context, CTX_KEY_DUMP_PLAN, isDumpPlan());
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
+    newConfig.estimateSelectivity = isEstimateSelectivity();
     return newConfig;
   }
 
@@ -168,7 +177,8 @@ public class PlannerConfig
            useJoinReordering == that.useJoinReordering &&
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
-           Objects.equals(sqlTimeZone, that.sqlTimeZone);
+           Objects.equals(sqlTimeZone, that.sqlTimeZone) &&
+           estimateSelectivity == that.estimateSelectivity;
   }
 
   @Override
@@ -183,7 +193,8 @@ public class PlannerConfig
         useJoinReordering,
         requireTimeCondition,
         dumpPlan,
-        sqlTimeZone
+        sqlTimeZone,
+        estimateSelectivity
     );
   }
 
@@ -200,6 +211,7 @@ public class PlannerConfig
            ", requireTimeCondition=" + requireTimeCondition +
            ", dumpPlan=" + dumpPlan +
            ", sqlTimeZone=" + sqlTimeZone +
+           ", estimateSelectivity=" + estimateSelectivity +
            '}';
   }
 }

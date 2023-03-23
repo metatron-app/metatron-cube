@@ -67,7 +67,7 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   public void ssb1_1() throws Exception
   {
     testQuery(
-        PLANNER_JOIN_REORDERING,
+        JOIN_REORDERING,
         "SELECT sum(LO_EXTENDEDPRICE*LO_DISCOUNT) as revenue"
         + " FROM ssb_lineorder, ssb_date"
         + " WHERE ssb_lineorder.__time = ssb_date.__time AND"
@@ -94,7 +94,7 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void ssb2_1() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, SSB2_1, SSB2_1_PLAN_JR, SSB2_1_RESULT);
+    testQuery(JOIN_REORDERING, SSB2_1, SSB2_1_PLAN_JR, SSB2_1_RESULT);
 
     hook.verifyHooked(
         "0u8MCr/mIvDOL4Nu9tXDhQ==",
@@ -107,9 +107,24 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   }
 
   @Test
+  public void ssb2_1S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB2_1, SSB2_1_PLAN_JR2, SSB2_1_RESULT);
+
+    hook.verifyHooked(
+        "Lgkrt0itPoGxZUPTJlRRjA==",
+        "StreamQuery{dataSource='ssb_part', filter=P_CATEGORY=='MFGR#12', columns=[P_BRAND1, P_PARTKEY]}",
+        "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY]}",
+        "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time]}",
+        "GroupByQuery{dataSource='StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_PARTKEY', values=[135, 144, 235, 283, 296, 327, 419, 474, 502, 542, ..22 more]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]}), columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_PARTKEY], rightAlias=ssb_part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_BRAND1:dimension.string, P_PARTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_part+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='P_BRAND1', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[a0, d0, d1]}",
+        "StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_PARTKEY', values=[135, 144, 235, 283, 296, 327, 419, 474, 502, 542, ..22 more]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]}), columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_PARTKEY], rightAlias=ssb_part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_BRAND1:dimension.string, P_PARTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_part+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}"
+    );
+  }
+
+  @Test
   public void ssb2_2() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, SSB2_2, SSB2_2_PLAN_JR, SSB2_2_RESULT);
+    testQuery(JOIN_REORDERING, SSB2_2, SSB2_2_PLAN_JR, SSB2_2_RESULT);
 
     hook.verifyHooked(
         "YgC9mLoUtp5W9tRL6zVnow==",
@@ -122,9 +137,24 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   }
 
   @Test
+  public void ssb2_2S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB2_2, SSB2_2_PLAN_JR2, SSB2_2_RESULT);
+
+    hook.verifyHooked(
+        "1j7/g+Xx/widkhNPHWx2Dg==",
+        "StreamQuery{dataSource='ssb_part', filter=BoundDimFilter{MFGR#2221 <= P_BRAND1 <= MFGR#2228}, columns=[P_BRAND1, P_PARTKEY]}",
+        "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY]}",
+        "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time]}",
+        "GroupByQuery{dataSource='StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_PARTKEY', values=[170, 200, 27, 536, 573, 752, 818, 852]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]}), columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_PARTKEY], rightAlias=ssb_part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_BRAND1:dimension.string, P_PARTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_part+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='P_BRAND1', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[a0, d0, d1]}",
+        "StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_PARTKEY', values=[170, 200, 27, 536, 573, 752, 818, 852]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]}), columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_PARTKEY], rightAlias=ssb_part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_BRAND1:dimension.string, P_PARTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_part+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}"
+    );
+  }
+
+  @Test
   public void ssb3_1() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, SSB3_1, SSB3_1_PLAN_JR, SSB3_1_RESULT);
+    testQuery(JOIN_REORDERING, SSB3_1, SSB3_1_PLAN_JR, SSB3_1_RESULT);
 
     hook.verifyHooked(
         "RCqNDpEaiGqOvZz6pokjPQ==",
@@ -137,9 +167,24 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   }
 
   @Test
+  public void ssb3_1S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB3_1, SSB3_1_PLAN_JR2, SSB3_1_RESULT);
+
+    hook.verifyHooked(
+        "FicutIwDPP7FvMS5OCvqaQ==",
+        "StreamQuery{dataSource='ssb_customer', filter=C_REGION=='AMERICA', columns=[C_CUSTKEY, C_NATION]}",
+        "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_NATION, S_SUPPKEY]}",
+        "StreamQuery{dataSource='ssb_date', filter=BoundDimFilter{1992 <= D_YEAR <= 1997}, columns=[D_YEAR, __time]}",
+        "GroupByQuery{dataSource='StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_CUSTKEY', values=[101, 106, 117, 121, 122, 13, 133, 14, 141, 144, ..21 more]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]} && BloomFilter{fieldNames=[__time], groupingSets=Noop}), columns=[LO_CUSTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_CUSTKEY], rightAlias=ssb_customer, rightJoinColumns=[C_CUSTKEY]}, hashLeft=false, hashSignature={C_CUSTKEY:dimension.string, C_NATION:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_NATION:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}', dimensions=[DefaultDimensionSpec{dimension='C_NATION', outputName='d0'}, DefaultDimensionSpec{dimension='S_NATION', outputName='d1'}, DefaultDimensionSpec{dimension='D_YEAR', outputName='d2'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d2', direction=ascending}, OrderByColumnSpec{dimension='a0', direction=descending}], limit=-1}, outputColumns=[d0, d1, d2, a0]}",
+        "StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_CUSTKEY', values=[101, 106, 117, 121, 122, 13, 133, 14, 141, 144, ..21 more]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]} && BloomFilter{fieldNames=[__time], groupingSets=Noop}), columns=[LO_CUSTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_CUSTKEY], rightAlias=ssb_customer, rightJoinColumns=[C_CUSTKEY]}, hashLeft=false, hashSignature={C_CUSTKEY:dimension.string, C_NATION:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_NATION:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}"
+    );
+  }
+
+  @Test
   public void ssb3_2() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, SSB3_2, SSB3_2_PLAN_JR, SSB3_2_RESULT);
+    testQuery(JOIN_REORDERING, SSB3_2, SSB3_2_PLAN_JR, SSB3_2_RESULT);
 
     hook.verifyHooked(
         "ZnHvO2BgS0W1o0gHG2vW5w==",
@@ -152,9 +197,24 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   }
 
   @Test
+  public void ssb3_2S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB3_2, SSB3_2_PLAN_JR2, SSB3_2_RESULT);
+
+    hook.verifyHooked(
+        "QV47vLQHY5n5aYMIeTLZ/A==",
+        "StreamQuery{dataSource='ssb_customer', filter=C_NATION=='MOROCCO', columns=[C_CITY, C_CUSTKEY]}",
+        "StreamQuery{dataSource='ssb_supplier', filter=S_NATION=='MOROCCO', columns=[S_CITY, S_SUPPKEY]}",
+        "StreamQuery{dataSource='ssb_date', filter=BoundDimFilter{1992 <= D_YEAR <= 1997}, columns=[D_YEAR, __time]}",
+        "GroupByQuery{dataSource='StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_CUSTKEY', values=[1, 107, 32, 34, 53, 79, 95, 99]} && BloomFilter{fieldNames=[LO_SUPPKEY], groupingSets=Noop} && BloomFilter{fieldNames=[__time], groupingSets=Noop}), columns=[LO_CUSTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_CUSTKEY], rightAlias=ssb_customer, rightJoinColumns=[C_CUSTKEY]}, hashLeft=false, hashSignature={C_CITY:dimension.string, C_CUSTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_CITY:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}', dimensions=[DefaultDimensionSpec{dimension='C_CITY', outputName='d0'}, DefaultDimensionSpec{dimension='S_CITY', outputName='d1'}, DefaultDimensionSpec{dimension='D_YEAR', outputName='d2'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d2', direction=ascending}, OrderByColumnSpec{dimension='a0', direction=descending}], limit=-1}, outputColumns=[d0, d1, d2, a0]}",
+        "StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_CUSTKEY', values=[1, 107, 32, 34, 53, 79, 95, 99]} && BloomFilter{fieldNames=[LO_SUPPKEY], groupingSets=Noop} && BloomFilter{fieldNames=[__time], groupingSets=Noop}), columns=[LO_CUSTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_CUSTKEY], rightAlias=ssb_customer, rightJoinColumns=[C_CUSTKEY]}, hashLeft=false, hashSignature={C_CITY:dimension.string, C_CUSTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_CITY:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}"
+    );
+  }
+
+  @Test
   public void ssb4_1() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, SSB4_1, SSB4_1_PLAN_JR, SSB4_1_RESULT);
+    testQuery(JOIN_REORDERING, SSB4_1, SSB4_1_PLAN_JR, SSB4_1_RESULT);
 
     hook.verifyHooked(
         "56kuSZeAIfW0RyiUhkwF+Q==",
@@ -168,9 +228,25 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   }
 
   @Test
+  public void ssb4_1S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB4_1, SSB4_1_PLAN_JR2, SSB4_1_RESULT);
+
+    hook.verifyHooked(
+        "qgdc/TDZ+NxuQQq8d+ZPcg==",
+        "StreamQuery{dataSource='ssb_customer', filter=C_REGION=='AMERICA', columns=[C_CUSTKEY, C_NATION]}",
+        "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY]}",
+        "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time]}",
+        "StreamQuery{dataSource='ssb_part', filter=InDimFilter{dimension='P_MFGR', values=[MFGR#1, MFGR#2]}, columns=[P_PARTKEY]}",
+        "GroupByQuery{dataSource='StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_CUSTKEY', values=[101, 106, 117, 121, 122, 13, 133, 14, 141, 144, ..21 more]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]} && InDimFilter{dimension='LO_PARTKEY', values=[1, 10, 1000, 105, 115, 119, 120, 123, 126, 128, ..368 more]}), columns=[LO_CUSTKEY, LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, LO_SUPPLYCOST, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_CUSTKEY], rightAlias=ssb_customer, rightJoinColumns=[C_CUSTKEY]}, hashLeft=false, hashSignature={C_CUSTKEY:dimension.string, C_NATION:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='C_NATION', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(LO_REVENUE - LO_SUPPLYCOST)', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[d0, d1, a0]}",
+        "StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_CUSTKEY', values=[101, 106, 117, 121, 122, 13, 133, 14, 141, 144, ..21 more]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]} && InDimFilter{dimension='LO_PARTKEY', values=[1, 10, 1000, 105, 115, 119, 120, 123, 126, 128, ..368 more]}), columns=[LO_CUSTKEY, LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, LO_SUPPLYCOST, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_CUSTKEY], rightAlias=ssb_customer, rightJoinColumns=[C_CUSTKEY]}, hashLeft=false, hashSignature={C_CUSTKEY:dimension.string, C_NATION:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}"
+    );
+  }
+
+  @Test
   public void ssb4_2() throws Exception
   {
-    testQuery(PLANNER_JOIN_REORDERING, SSB4_2, SSB4_2_PLAN_JR, SSB4_2_RESULT);
+    testQuery(JOIN_REORDERING, SSB4_2, SSB4_2_PLAN_JR, SSB4_2_RESULT);
 
     hook.verifyHooked(
         "dtv2weD4bn0tqrTljdQwmg==",
@@ -180,6 +256,22 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
         "StreamQuery{dataSource='ssb_part', filter=InDimFilter{dimension='P_MFGR', values=[MFGR#1, MFGR#2]}, columns=[P_CATEGORY, P_PARTKEY], $hash=true}",
         "GroupByQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[ssb_part]}, StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]} && InDimFilter{dimension='LO_CUSTKEY', values=[101, 106, 117, 121, 122, 13, 133, 14, 141, 144, ..21 more]} && BloomFilter{fieldNames=[__time], groupingSets=Noop} && InDimFilter{dimension='LO_PARTKEY', values=[1, 10, 1000, 105, 115, 119, 120, 123, 126, 128, ..368 more]}), columns=[LO_CUSTKEY, LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, LO_SUPPLYCOST, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_NATION:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_supplier+ssb_customer, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='S_NATION', outputName='d1'}, DefaultDimensionSpec{dimension='P_CATEGORY', outputName='d2'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(LO_REVENUE - LO_SUPPLYCOST)', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=-1}, outputColumns=[d0, d1, d2, a0]}",
         "StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]} && InDimFilter{dimension='LO_CUSTKEY', values=[101, 106, 117, 121, 122, 13, 133, 14, 141, 144, ..21 more]} && BloomFilter{fieldNames=[__time], groupingSets=Noop} && InDimFilter{dimension='LO_PARTKEY', values=[1, 10, 1000, 105, 115, 119, 120, 123, 126, 128, ..368 more]}), columns=[LO_CUSTKEY, LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, LO_SUPPLYCOST, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_NATION:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_supplier+ssb_customer, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}"
+    );
+  }
+
+  @Test
+  public void ssb4_2S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB4_2, SSB4_2_PLAN_JR2, SSB4_2_RESULT);
+
+    hook.verifyHooked(
+        "hVIkZot7XUor6QwloRWrfg==",
+        "StreamQuery{dataSource='ssb_customer', filter=C_REGION=='AMERICA', columns=[C_CUSTKEY]}",
+        "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_NATION, S_SUPPKEY]}",
+        "StreamQuery{dataSource='ssb_date', filter=InDimFilter{dimension='D_YEAR', values=[1992, 1993]}, columns=[D_YEAR, __time]}",
+        "StreamQuery{dataSource='ssb_part', filter=InDimFilter{dimension='P_MFGR', values=[MFGR#1, MFGR#2]}, columns=[P_CATEGORY, P_PARTKEY], $hash=true}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[ssb_part]}, StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_CUSTKEY', values=[101, 106, 117, 121, 122, 13, 133, 14, 141, 144, ..21 more]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]} && BloomFilter{fieldNames=[__time], groupingSets=Noop} && InDimFilter{dimension='LO_PARTKEY', values=[1, 10, 1000, 105, 115, 119, 120, 123, 126, 128, ..368 more]}), columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, LO_SUPPLYCOST, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_NATION:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='S_NATION', outputName='d1'}, DefaultDimensionSpec{dimension='P_CATEGORY', outputName='d2'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(LO_REVENUE - LO_SUPPLYCOST)', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=-1}, outputColumns=[d0, d1, d2, a0]}",
+        "StreamQuery{dataSource='ssb_lineorder', filter=(InDimFilter{dimension='LO_CUSTKEY', values=[101, 106, 117, 121, 122, 13, 133, 14, 141, 144, ..21 more]} && InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]} && BloomFilter{fieldNames=[__time], groupingSets=Noop} && InDimFilter{dimension='LO_PARTKEY', values=[1, 10, 1000, 105, 115, 119, 120, 123, 126, 128, ..368 more]}), columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, LO_SUPPLYCOST, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_NATION:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_customer+ssb_supplier, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}]}"
     );
   }
 

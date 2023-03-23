@@ -21,6 +21,7 @@ package io.druid.sql.calcite.filtration;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import io.druid.data.TypeResolver;
 import io.druid.java.util.common.ISE;
 import io.druid.common.Intervals;
 import io.druid.query.filter.DimFilter;
@@ -103,15 +104,15 @@ public class Filtration
    *
    * @return equivalent Filtration
    */
-  public Filtration optimize(final RowSignature sourceRowSignature)
+  public Filtration optimize(final TypeResolver resolver)
   {
     return transform(
         this,
         ImmutableList.of(
             CombineAndSimplifyBounds.instance(),
             MoveTimeFiltersToIntervals.instance(),
-            ConvertBoundsToSelectors.create(sourceRowSignature),
-            ConvertSelectorsToIns.create(sourceRowSignature),
+            ConvertBoundsToSelectors.create(resolver),
+            ConvertSelectorsToIns.create(resolver),
             MoveMarkerFiltersToIntervals.instance(),
             ValidateNoMarkerFiltersRemain.instance()
         )

@@ -29,9 +29,6 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
-import io.druid.query.ordering.StringComparator;
-import io.druid.query.ordering.StringComparators;
-import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -39,7 +36,6 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableIntList;
 
-import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -152,27 +148,6 @@ public class RowSignature extends io.druid.query.RowSignature
   public static Builder builderFrom(RowSignature signature)
   {
     return new Builder(signature);
-  }
-
-  /**
-   * Return the "natural" {@link StringComparator} for an extraction from this row signature. This will be a
-   * lexicographic comparator for String types and a numeric comparator for Number types.
-   *
-   * @param simpleExtraction extraction from this kind of row
-   *
-   * @return natural comparator
-   */
-  public String naturalStringComparator(final SimpleExtraction simpleExtraction)
-  {
-    Preconditions.checkNotNull(simpleExtraction, "simpleExtraction");
-    if (simpleExtraction.getExtractionFn() != null) {
-      return null;
-    }
-    ValueDesc resolved = resolve(simpleExtraction.getColumn(), ValueDesc.STRING);
-    if (resolved.isNumeric()) {
-      return StringComparators.NUMERIC_NAME;
-    }
-    return null;
   }
 
   /**
