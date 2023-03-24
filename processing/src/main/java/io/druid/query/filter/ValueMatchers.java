@@ -78,4 +78,11 @@ public class ValueMatchers
       }
     };
   }
+
+  public static ValueMatcher not(ValueMatcher matcher)
+  {
+    return matcher == ValueMatcher.TRUE ? ValueMatcher.FALSE :
+           matcher == ValueMatcher.FALSE ? ValueMatcher.TRUE :
+           () -> !matcher.matches();
+  }
 }

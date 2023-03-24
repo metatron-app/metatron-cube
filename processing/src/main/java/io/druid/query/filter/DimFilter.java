@@ -74,6 +74,7 @@ import java.util.regex.Pattern;
     @JsonSubTypes.Type(name = "bloom", value = BloomDimFilter.class),
     @JsonSubTypes.Type(name = "bloom.factory", value = BloomDimFilter.Factory.class),
     @JsonSubTypes.Type(name = "prefix", value = PrefixDimFilter.class),
+    @JsonSubTypes.Type(name = "isNull", value = IsNullDimFilter.class),
     @JsonSubTypes.Type(name = "in.compressed", value = CompressedInFilter.class),
     @JsonSubTypes.Type(name = "ins.compressed", value = CompressedInsFilter.class),
 })

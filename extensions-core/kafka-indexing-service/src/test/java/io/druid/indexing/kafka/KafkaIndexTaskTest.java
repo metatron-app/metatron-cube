@@ -1926,7 +1926,7 @@ public class KafkaIndexTaskTest
     );
     IndexIO indexIO = new TestUtils().getTestIndexIO();
     QueryableIndex index = indexIO.loadIndex(outputLocation);
-    DictionaryEncodedColumn theColumn = index.getColumn(column).getDictionaryEncoding();
+    DictionaryEncodedColumn theColumn = index.getColumn(column).getDictionaryEncoded();
     List<String> values = Lists.newArrayList();
     for (int i = 0; i < theColumn.length(); i++) {
       int id = theColumn.getSingleValueRow(i);
@@ -1968,7 +1968,7 @@ public class KafkaIndexTaskTest
     );
     IndexIO indexIO = new TestUtils().getTestIndexIO();
     QueryableIndex index = indexIO.loadIndex(outputLocation);
-    DictionaryEncodedColumn dim1 = index.getColumn("dim1").getDictionaryEncoding();
+    DictionaryEncodedColumn dim1 = index.getColumn("dim1").getDictionaryEncoded();
     List<String> values = Lists.newArrayList();
     for (int i = 0; i < dim1.length(); i++) {
       int id = dim1.getSingleValueRow(i);

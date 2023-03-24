@@ -64,6 +64,7 @@ import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.DictionaryEncodedColumn.RowSuppler;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.filter.BitmapHolder;
@@ -185,15 +186,16 @@ public class BloomDimFilter implements LogProvider, BestEffort
           }
           return null;
         }
-        final DictionaryEncodedColumn encoded = column.getDictionaryEncoding();
+        final DictionaryEncodedColumn encoded = column.getDictionaryEncoded();
         try {
-          final int cardinality = context.dictionaryRange(dimension, encoded.dictionary().size());
+          final int cardinality = context.dictionaryRange(dimension, encoded.cardinality());
           final IntIterator iterator;
           if (encoded.hasMultipleValues() || context.notFiltered() || cardinality < context.targetNumRows()) {
             iterator = context.dictionaryIterator(dimension);
           } else {
             final IntSet set = new IntOpenHashSet();
-            encoded.scan(context.rowIterator(), (x, v) -> set.add(v.applyAsInt(x)));
+            final RowSuppler supplier = DictionaryEncodedColumn.rowSupplier(encoded, context.selectivity());
+            encoded.scan(context.rowIterator(), (x, v) -> set.add(supplier.row(x)));
             iterator = IntIterators.from(IntList.of(set.toIntArray()).sort());
           }
           if (iterator != null && !iterator.hasNext()) {

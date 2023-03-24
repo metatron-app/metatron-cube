@@ -177,7 +177,7 @@ class SimpleColumn implements Column
   }
 
   @Override
-  public DictionaryEncodedColumn getDictionaryEncoding()
+  public DictionaryEncodedColumn getDictionaryEncoded()
   {
     return dictionaryEncodedColumn == null ? null : dictionaryEncodedColumn.get();
   }

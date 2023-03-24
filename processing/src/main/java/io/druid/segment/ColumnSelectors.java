@@ -762,6 +762,8 @@ public class ColumnSelectors
     if (column instanceof GenericColumn.LongType) {
       return new LongColumnSelector.Scannable()
       {
+        private final LongCache cache = new LongCache();
+
         @Override
         public void close() throws IOException
         {
@@ -777,13 +779,30 @@ public class ColumnSelectors
         @Override
         public Long get()
         {
-          return column.getLong(offset.getOffset());
+          final int current = offset.getOffset();
+          if (current == cache.ix) {
+            return cache.get();
+          }
+          final Long value = column.getLong(cache.ix = current);
+          cache.valid = value != null;
+          if (cache.valid) {
+            cache.cached = value;
+          }
+          return value;
         }
 
         @Override
         public boolean getLong(MutableLong handover)
         {
-          return column.getLong(offset.getOffset(), handover);
+          final int current = offset.getOffset();
+          if (current == cache.ix) {
+            return cache.get(handover);
+          }
+          cache.valid = column.getLong(cache.ix = current, handover);
+          if (cache.valid) {
+            cache.cached = handover.longValue();
+          }
+          return cache.valid;
         }
       };
     }
@@ -809,6 +828,27 @@ public class ColumnSelectors
     };
   }
 
+  private static class LongCache
+  {
+    private int ix = -1;
+    private long cached;
+    private boolean valid;
+
+    public Long get()
+    {
+      return valid ? cached : null;
+    }
+
+    public boolean get(MutableLong handover)
+    {
+      if (valid) {
+        handover.setValue(cached);
+        return true;
+      }
+      return false;
+    }
+  }
+
   public static DoubleColumnSelector asDouble(GenericColumn column, Offset offset)
   {
     if (column == null) {
@@ -817,6 +857,8 @@ public class ColumnSelectors
     if (column instanceof GenericColumn.DoubleType) {
       return new DoubleColumnSelector.Scannable()
       {
+        private final DoubleCache cache = new DoubleCache();
+
         @Override
         public void close() throws IOException
         {
@@ -832,13 +874,30 @@ public class ColumnSelectors
         @Override
         public Double get()
         {
-          return column.getDouble(offset.getOffset());
+          final int current = offset.getOffset();
+          if (current == cache.ix) {
+            return cache.get();
+          }
+          final Double value = column.getDouble(cache.ix = current);
+          cache.valid = value != null;
+          if (cache.valid) {
+            cache.cached = value;
+          }
+          return value;
         }
 
         @Override
         public boolean getDouble(MutableDouble handover)
         {
-          return column.getDouble(offset.getOffset(), handover);
+          final int current = offset.getOffset();
+          if (current == cache.ix) {
+            return cache.get(handover);
+          }
+          cache.valid = column.getDouble(cache.ix = current, handover);
+          if (cache.valid) {
+            cache.cached = handover.doubleValue();
+          }
+          return cache.valid;
         }
       };
     }
@@ -864,6 +923,26 @@ public class ColumnSelectors
     };
   }
 
+  private static class DoubleCache
+  {
+    private int ix = -1;
+    private double cached;
+    private boolean valid;
+
+    public Double get()
+    {
+      return valid ? cached : null;
+    }
+
+    public boolean get(MutableDouble handover)
+    {
+      if (valid) {
+        handover.setValue(cached);
+        return true;
+      }
+      return false;
+    }
+  }
 
   public static FloatColumnSelector asFloat(GenericColumn column, Offset offset)
   {
@@ -873,6 +952,8 @@ public class ColumnSelectors
     if (column instanceof GenericColumn.FloatType) {
       return new FloatColumnSelector.Scannable()
       {
+        private final FloatCache cache = new FloatCache();
+
         @Override
         public void close() throws IOException
         {
@@ -888,13 +969,30 @@ public class ColumnSelectors
         @Override
         public Float get()
         {
-          return column.getFloat(offset.getOffset());
+          final int current = offset.getOffset();
+          if (current == cache.ix) {
+            return cache.get();
+          }
+          final Float value = column.getFloat(cache.ix = current);
+          cache.valid = value != null;
+          if (cache.valid) {
+            cache.cached = value;
+          }
+          return value;
         }
 
         @Override
         public boolean getFloat(MutableFloat handover)
         {
-          return column.getFloat(offset.getOffset(), handover);
+          final int current = offset.getOffset();
+          if (current == cache.ix) {
+            return cache.get(handover);
+          }
+          cache.valid = column.getFloat(cache.ix = current, handover);
+          if (cache.valid) {
+            cache.cached = handover.floatValue();
+          }
+          return cache.valid;
         }
       };
     }
@@ -918,6 +1016,27 @@ public class ColumnSelectors
         return column.getFloat(offset.getOffset(), handover);
       }
     };
+  }
+
+  private static class FloatCache
+  {
+    private int ix = -1;
+    private float cached;
+    private boolean valid;
+
+    public Float get()
+    {
+      return valid ? cached : null;
+    }
+
+    public boolean get(MutableFloat handover)
+    {
+      if (valid) {
+        handover.setValue(cached);
+        return true;
+      }
+      return false;
+    }
   }
 
   public static ObjectColumnSelector asString(GenericColumn column, Offset offset)

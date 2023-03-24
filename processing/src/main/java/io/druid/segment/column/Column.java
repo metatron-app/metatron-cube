@@ -59,7 +59,7 @@ public interface Column
   boolean hasComplexColumn();
 
   Dictionary<String> getDictionary();
-  DictionaryEncodedColumn getDictionaryEncoding();
+  DictionaryEncodedColumn getDictionaryEncoded();
   RunLengthColumn getRunLengthColumn();
   GenericColumn getGenericColumn();
   ComplexColumn getComplexColumn();

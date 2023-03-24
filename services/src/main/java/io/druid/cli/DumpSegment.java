@@ -362,12 +362,12 @@ public class DumpSegment extends GuiceRunnable
   {
     final ObjectColumnSelector selector;
 
-    if (column.getDictionaryEncoding() != null) {
+    if (column.getDictionaryEncoded() != null) {
       // Special case for dimensions -> always wrap multi-value in arrays
       final DimensionSelector dimensionSelector = columnSelectorFactory.makeDimensionSelector(
           new DefaultDimensionSpec(columnName, columnName)
       );
-      if (column.getDictionaryEncoding().hasMultipleValues()) {
+      if (column.getDictionaryEncoded().hasMultipleValues()) {
         return new ObjectColumnSelector<List>()
         {
           @Override

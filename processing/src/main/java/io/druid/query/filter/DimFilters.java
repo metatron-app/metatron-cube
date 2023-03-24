@@ -66,6 +66,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static io.druid.query.filter.DimFilterCacheKey.OTHER_PREFIX;
+
 /**
  */
 public class DimFilters
@@ -92,6 +94,11 @@ public class DimFilters
       return new NotDimFilter(expression);
     }
   };
+
+  public static DimFilter isNull(String dimension)
+  {
+    return new IsNullDimFilter(dimension);
+  }
 
   public static SelectorDimFilter dimEquals(String dimension, String value)
   {
@@ -425,7 +432,7 @@ public class DimFilters
     @Override
     public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return builder.append(new byte[]{0x7f, 0x00});
+      return builder.append(new byte[]{OTHER_PREFIX, 0x00});
     }
 
     @Override
@@ -457,7 +464,7 @@ public class DimFilters
     @Override
     public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return builder.append(new byte[]{0x7f, 0x01});
+      return builder.append(new byte[]{OTHER_PREFIX, 0x01});
     }
 
     @Override

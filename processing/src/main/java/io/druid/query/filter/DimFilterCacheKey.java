@@ -24,10 +24,10 @@ package io.druid.query.filter;
 public interface DimFilterCacheKey
 {
   byte NOOP_CACHE_ID = -0x4;
-  byte SELECTOR_CACHE_ID = 0x0;
   byte AND_CACHE_ID = 0x1;
   byte OR_CACHE_ID = 0x2;
   byte NOT_CACHE_ID = 0x3;
+  byte SELECTOR_CACHE_ID = 0x0;
   byte EXTRACTION_CACHE_ID = 0x4;
   byte REGEX_CACHE_ID = 0x5;
   byte SEARCH_QUERY_TYPE_ID = 0x6;
@@ -36,17 +36,22 @@ public interface DimFilterCacheKey
   byte IN_CACHE_ID = 0x9;
   byte BOUND_CACHE_ID = 0xA;
   byte MATH_EXPR_CACHE_ID = 0xB;
+
+  byte INS_CACHE_ID = 0x14;
+  byte LIKE_CACHE_ID = 0x11;
+  byte BLOOM_CACHE_ID = 0x12;
+  byte PREFIX_CACHE_ID = 0x16;
+  byte IS_NULL_CACHE_ID = 0x18;
+
   byte LUCENE_QUERY_CACHE_ID = 0xC;
   byte LUCENE_POINT_CACHE_ID = 0xD;
   byte LUCENE_NEAREST_CACHE_ID = 0xE;
   byte LUCENE_GEOJSON_CACHE_ID = 0xF;
   byte LUCENE_SPATIAL_CACHE_ID = 0x10;
-  byte LIKE_CACHE_ID = 0x11;
-  byte BLOOM_CACHE_ID = 0x12;
   byte LUCENE_WITHIN_CACHE_ID = 0x13;
-  byte INS_CACHE_ID = 0x14;
-  byte BOUND_ROWID_CACHE_ID = 0x15;
-  byte PREFIX_CACHE_ID = 0x16;
 
+  byte BOUND_ROWID_CACHE_ID = 0x15;
   byte H3_DISTANCE_CACHE_ID = 0x17;
+
+  byte OTHER_PREFIX = 0x7f;
 }

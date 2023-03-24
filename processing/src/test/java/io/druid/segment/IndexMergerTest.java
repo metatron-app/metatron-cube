@@ -783,7 +783,7 @@ public class IndexMergerTest
       return;
     }
 
-    Object encodedColumn = index.getColumn("dim2").getDictionaryEncoding();
+    Object encodedColumn = index.getColumn("dim2").getDictionaryEncoded();
     Field field = DictionaryEncodedColumn.class.getDeclaredField("column");
     field.setAccessible(true);
 

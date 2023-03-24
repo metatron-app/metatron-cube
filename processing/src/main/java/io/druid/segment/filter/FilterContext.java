@@ -132,7 +132,7 @@ public class FilterContext implements Closeable
 
   public float selectivity()
   {
-    return baseBitmap == null ? 1f : numRows() / (float)baseBitmap.size();
+    return baseBitmap == null ? 1f : numRows() / (float) baseBitmap.size();
   }
 
   public Filter getMatcher()

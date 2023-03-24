@@ -133,7 +133,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   {
     Column column = index.getColumn(dimension);
     if (column != null && column.getCapabilities().isDictionaryEncoded()) {
-      return column.getDictionaryEncoding().getCardinality();
+      return column.getDictionary().size();
     }
     return -1;
   }
@@ -449,7 +449,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
                       DictionaryEncodedColumn cachedColumn = dictionaryColumnCache.get(dimension);
                       if (cachedColumn == null) {
-                        cachedColumn = columnDesc.getDictionaryEncoding();
+                        cachedColumn = columnDesc.getDictionaryEncoded();
                         if (cachedColumn != null) {
                           dictionaryColumnCache.put(dimension, cachedColumn);
                         }
@@ -767,7 +767,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
 
                       if (holder.hasDictionaryEncodedColumn()) {
-                        final DictionaryEncodedColumn column = holder.getDictionaryEncoding();
+                        final DictionaryEncodedColumn column = holder.getDictionaryEncoded();
                         if (column.hasMultipleValues()) {
                           selector = new ObjectColumnSelector.WithBaggage<Object>()
                           {

@@ -97,7 +97,7 @@ public final class DictionaryEncodedColumn implements Closeable
     return dictionary.indexOf(name);
   }
 
-  public int getCardinality()
+  public int cardinality()
   {
     return dictionary.size();
   }

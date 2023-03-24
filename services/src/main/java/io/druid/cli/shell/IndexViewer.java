@@ -475,7 +475,7 @@ public class IndexViewer extends CommonShell.WithUtils
       }
 
       if (capabilities.isDictionaryEncoded()) {
-        DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
+        DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoded();
         Dictionary<String> dictionary = dictionaryEncoded.dictionary();
         long dictionarySize = cuboidSpec == null ? dictionary.getSerializedSize() : 0;
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);

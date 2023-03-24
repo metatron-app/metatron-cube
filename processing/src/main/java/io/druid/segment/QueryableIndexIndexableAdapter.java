@@ -70,7 +70,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
 
       if (col == null) {
         log.warn("Column[%s] didn't exist", dim);
-      } else if (col.getDictionaryEncoding() != null) {
+      } else if (col.getDictionaryEncoded() != null) {
         availableDimensions.add(dim);
       } else {
         log.info("No dictionary on dimension[%s]", dim);
@@ -144,7 +144,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
           {
             this.dictionaryEncodedColumns = FluentIterable
                 .from(getDimensionNames())
-                .transform(dimName -> input.getColumn(dimName).getDictionaryEncoding())
+                .transform(dimName -> input.getColumn(dimName).getDictionaryEncoded())
                 .toArray(DictionaryEncodedColumn.class);
 
             final Indexed<String> availableMetrics = getMetricNames();

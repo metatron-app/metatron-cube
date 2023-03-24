@@ -427,7 +427,7 @@ public class Filters
       return null;
     }
     // Apply predicate to all dimension values and union the matching bitmaps
-    final DictionaryEncodedColumn encoded = column.getDictionaryEncoding();
+    final DictionaryEncodedColumn encoded = column.getDictionaryEncoded();
     try {
       final Dictionary<String> dictionary = encoded.dictionary();
       final int cardinality = context.dictionaryRange(dimension, dictionary.size());
@@ -914,7 +914,7 @@ public class Filters
 
         BitmapIndex[] bitmaps = new BitmapIndex[]{column1.getBitmapIndex(), column2.getBitmapIndex()};
         DictionaryEncodedColumn[] encoded = new DictionaryEncodedColumn[]{
-            column1.getDictionaryEncoding(), column2.getDictionaryEncoding()
+            column1.getDictionaryEncoded(), column2.getDictionaryEncoded()
         };
 
         if (bitmaps[0].getCardinality() > bitmaps[1].getCardinality()) {
