@@ -82,8 +82,8 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
       GenericIndexed<ResourceHolder<ByteBuffer>> compressed = GenericIndexed.read(buffer, strategy);
       builder.setType(ValueDesc.STRING)
              .setHasMultipleValues(false)
-             .setGenericColumn(new CompressedGenericColumnPartSupplier(
-                 compression, compressMeta, mapping, compressed, this)
+             .setGenericColumn(
+                 new CompressedGenericColumnPartSupplier(compression, compressMeta, mapping, compressed, this)
              );
     } else {
       throw new IAE("Unknown version[%s]", versionFromBuffer);

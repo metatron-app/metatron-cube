@@ -241,7 +241,7 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
   {
     public V2(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy, boolean sorted)
     {
-      super(ioPeon, filenameBase, strategy, true);
+      super(ioPeon, filenameBase, strategy, sorted);
     }
 
     @Override
