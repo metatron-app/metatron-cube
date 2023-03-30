@@ -21,10 +21,9 @@ package io.druid.query.metadata;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.CacheStrategy;
 import io.druid.query.TableDataSource;
@@ -41,6 +40,7 @@ import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Map;
 
 public class SegmentMetadataQueryQueryToolChestTest
@@ -68,13 +68,13 @@ public class SegmentMetadataQueryQueryToolChestTest
 
     SegmentAnalysis result = new SegmentAnalysis(
         "testSegment",
-        ImmutableList.of(
+        Arrays.asList(
             new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")
         ),
-        ImmutableMap.of(
-            "placement",
+        Arrays.asList("placement"),
+        Arrays.asList(
             new ColumnAnalysis(
-                ValueType.STRING.getName(),
+                ValueDesc.STRING_TYPE,
                 true,
                 10881,
                 new long[]{1, 1},
@@ -107,7 +107,8 @@ public class SegmentMetadataQueryQueryToolChestTest
     final SegmentAnalysis analysis1 = new SegmentAnalysis(
         "id",
         null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
+        Arrays.asList(),
+        Arrays.asList(),
         0,
         0,
         ImmutableMap.of(
@@ -119,7 +120,8 @@ public class SegmentMetadataQueryQueryToolChestTest
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
         "id",
         null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
+        Arrays.asList(),
+        Arrays.asList(),
         0,
         0,
         ImmutableMap.of(
@@ -153,7 +155,8 @@ public class SegmentMetadataQueryQueryToolChestTest
     final SegmentAnalysis analysis1 = new SegmentAnalysis(
         "id",
         null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
+        Arrays.asList(),
+        Arrays.asList(),
         0,
         0,
         null,
@@ -162,7 +165,8 @@ public class SegmentMetadataQueryQueryToolChestTest
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
         "id",
         null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
+        Arrays.asList(),
+        Arrays.asList(),
         0,
         0,
         ImmutableMap.of(
@@ -188,7 +192,8 @@ public class SegmentMetadataQueryQueryToolChestTest
     final SegmentAnalysis analysis1 = new SegmentAnalysis(
         "id",
         null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
+        Arrays.asList(),
+        Arrays.asList(),
         0,
         0,
         null,
@@ -197,7 +202,8 @@ public class SegmentMetadataQueryQueryToolChestTest
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
         "id",
         null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
+        Arrays.asList(),
+        Arrays.asList(),
         0,
         0,
         null,
@@ -214,7 +220,8 @@ public class SegmentMetadataQueryQueryToolChestTest
     final SegmentAnalysis analysis1 = new SegmentAnalysis(
         "id",
         null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
+        Arrays.asList(),
+        Arrays.asList(),
         0,
         0,
         ImmutableMap.of(
@@ -226,7 +233,8 @@ public class SegmentMetadataQueryQueryToolChestTest
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
         "id",
         null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
+        Arrays.asList(),
+        Arrays.asList(),
         0,
         0,
         ImmutableMap.of(
@@ -258,65 +266,19 @@ public class SegmentMetadataQueryQueryToolChestTest
   public void testMergeRollup()
   {
     final SegmentAnalysis analysis1 = new SegmentAnalysis(
-        "id",
-        null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
-        0,
-        0,
-        null,
-        null
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, null, null
     );
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
-        "id",
-        null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
-        0,
-        0,
-        0,
-        -1L,
-        null,
-        null,
-        null,
-        false
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, false
     );
     final SegmentAnalysis analysis3 = new SegmentAnalysis(
-        "id",
-        null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
-        0,
-        0,
-        0,
-        -1L,
-        null,
-        null,
-        null,
-        false
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, false
     );
     final SegmentAnalysis analysis4 = new SegmentAnalysis(
-        "id",
-        null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
-        0,
-        0,
-        0,
-        -1L,
-        null,
-        null,
-        null,
-        true
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, true
     );
     final SegmentAnalysis analysis5 = new SegmentAnalysis(
-        "id",
-        null,
-        Maps.<String, ColumnAnalysis>newHashMap(),
-        0,
-        0,
-        0,
-        -1L,
-        null,
-        null,
-        null,
-        true
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, true
     );
 
     Assert.assertNull(mergeStrict(analysis1, analysis2).isRollup());

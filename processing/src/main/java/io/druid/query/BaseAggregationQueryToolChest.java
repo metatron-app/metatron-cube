@@ -39,6 +39,7 @@ import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
@@ -167,18 +168,6 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       );
     }
     return super.deserializeSequence(query, sequence);
-  }
-
-  @Override
-  public Sequence serializeSequence(Query<Row> query, Sequence<Row> sequence, QuerySegmentWalker segmentWalker)
-  {
-    // see CCC.prepareQuery()
-    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return BulkSequence.fromRow(
-          sequence, Queries.relaySchema(query, segmentWalker), ((BaseAggregationQuery) query).getSimpleLimit()
-      );
-    }
-    return super.serializeSequence(query, sequence, segmentWalker);
   }
 
   @Override

@@ -20,6 +20,7 @@
 package io.druid.query.groupby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -772,6 +773,12 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return DimensionSpecs.isAllDefault(dimensions) && groupingSets == null;
   }
 
+  @JsonIgnore
+  public int sortedIndex(List<String> columns)
+  {
+    return dimensions.isEmpty() || !Granularities.isAll(granularity) ? -1 : columns.indexOf(dimensions.get(0).getOutputName());
+  }
+
   public int[][] getGroupings()
   {
     return groupingSets == null
@@ -1015,7 +1022,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         .granularity(query.getGranularity())
         .virtualColumns(query.getVirtualColumns())
         .aggregators(cardinality)
-        .setContext(query.getContext())
+        .setContext(BaseQuery.copyContextForMeta(query.getContext()))
         .addContext(FINALIZE, true)
         .addContext(POST_PROCESSING, new PostProcessingOperator.ReturnsRow<Row>()
         {

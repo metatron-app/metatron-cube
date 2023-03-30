@@ -827,15 +827,7 @@ public class TestHelper
       for (String columnName : columnNames) {
         final Object ev = e.getRaw(columnName);
         final Object rv = r.getRaw(columnName);
-        if (ev instanceof Float && rv instanceof Double || ev instanceof Double && rv instanceof Float) {
-          Assert.assertEquals(((Number) ev).doubleValue(), ((Number) rv).doubleValue(), 0.0001);
-        } else if (ev instanceof Long && rv instanceof Integer || ev instanceof Integer && rv instanceof Long) {
-          Assert.assertEquals(((Number) ev).longValue(), ((Number) rv).longValue());
-        } else if (ev instanceof String && rv instanceof UTF8Bytes || ev instanceof UTF8Bytes && rv instanceof String) {
-          Assert.assertEquals(Objects.toString(ev, null), Objects.toString(rv, null));
-        } else {
-          Assert.assertEquals(i + " th " + columnName, ev, rv);
-        }
+        validate(String.format("%d th %s", i, columnName), ev, rv);
       }
       if (ensureColumnNames) {
         Assert.assertEquals(e.getColumns().size(), r.getColumns().size());
@@ -847,6 +839,47 @@ public class TestHelper
     }
     if (expected.size() < result.size()) {
       Assert.fail("need less");
+    }
+  }
+
+  public static void validate(List<Object[]> expected, List<Object[]> result)
+  {
+    int max1 = Math.min(expected.size(), result.size());
+    for (int i = 0; i < max1; i++) {
+      Object[] e = expected.get(i);
+      Object[] r = result.get(i);
+      TestHelper.validate(String.valueOf(i), Arrays.asList(e), Arrays.asList(r));
+    }
+    if (expected.size() > result.size()) {
+      Assert.fail("need more");
+    }
+    if (expected.size() < result.size()) {
+      Assert.fail("need less");
+    }
+  }
+
+  public static void validate(String message, Object ev, Object rv)
+  {
+    if (ev instanceof Float && rv instanceof Double || ev instanceof Double && rv instanceof Float) {
+      Assert.assertEquals(message, ((Number) ev).doubleValue(), ((Number) rv).doubleValue(), 0.0001);
+    } else if (ev instanceof Long && rv instanceof Integer || ev instanceof Integer && rv instanceof Long) {
+      Assert.assertEquals(message, ((Number) ev).longValue(), ((Number) rv).longValue());
+    } else if (ev instanceof String && rv instanceof UTF8Bytes || ev instanceof UTF8Bytes && rv instanceof String) {
+      Assert.assertEquals(message, Objects.toString(ev, null), Objects.toString(rv, null));
+    } else if (ev instanceof List && rv instanceof List) {
+      List evl = (List) ev;
+      List rvl = (List) rv;
+      for (int i = 0; i < Math.min(evl.size(), rvl.size()); i++) {
+        validate(String.format("%s[%d]", message, i), evl.get(i), evl.get(i));
+      }
+      if (evl.size() > rvl.size()) {
+        Assert.fail(message + " need more");
+      }
+      if (evl.size() < rvl.size()) {
+        Assert.fail(message + " need less");
+      }
+    } else {
+      Assert.assertEquals(message, ev, rv);
     }
   }
 

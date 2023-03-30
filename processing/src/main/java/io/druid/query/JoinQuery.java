@@ -79,7 +79,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("join")
-public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQuery<Object[]>
+public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQuery<Object[]>, Query.SchemaHolder
 {
   public static final String HASHING = "$hash";
   public static final String SORTING = "$sort";
@@ -258,7 +258,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
   }
 
   @JsonIgnore
-  public RowSignature getSchema()
+  public RowSignature schema()
   {
     return schema;
   }
@@ -442,7 +442,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           RowSignature signature = Queries.relaySchema(query0, segmentWalker);
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query0, segmentWalker));
           LOG.debug("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
-          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
+          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature));
           if (values.size() < forcedFilterTinyThreshold << 1 && rightEstimated[0] >= forcedFilterHugeThreshold &&
               DataSources.isDataLocalFilterable(query1, rightJoinColumns)) {
             Iterator<Object[]> iterator = Iterators.transform(
@@ -475,7 +475,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           RowSignature signature = Queries.relaySchema(query1, segmentWalker);
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query1, segmentWalker));
           LOG.debug("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
-          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
+          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature));
           if (values.size() < forcedFilterTinyThreshold << 1 && leftEstimated[0] >= forcedFilterHugeThreshold &&
               DataSources.isDataLocalFilterable(query0, leftJoinColumns)) {
             Iterator<Object[]> iterator = Iterators.transform(
@@ -909,7 +909,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
   }
 
   public static class JoinHolder extends UnionAllQuery<Object[]>
-      implements ArrayOutputSupport<Object[]>, SchemaProvider, LastProjectionSupport<Object[]>
+      implements ArrayOutputSupport<Object[]>, LastProjectionSupport<Object[]>
   {
     private final String alias;   // just for debug
     private final List<String> outputAlias;
@@ -1104,26 +1104,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     @SuppressWarnings("unchecked")
     public Sequence<Object[]> array(Sequence sequence)
     {
-      if (isArrayOutput()) {
-        return sequence;
-      }
-      final List<String> columns = sequence.columns();
-      return Sequences.map(
-          sequence, new Function<Map<String, Object>, Object[]>()
-          {
-            private final String[] columnNames = columns.toArray(new String[0]);
-
-            @Override
-            public Object[] apply(Map<String, Object> input)
-            {
-              final Object[] array = new Object[columnNames.length];
-              for (int i = 0; i < columnNames.length; i++) {
-                array[i] = input.get(columnNames[i]);
-              }
-              return array;
-            }
-          }
-      );
+      return isArrayOutput() ? sequence : Sequences.map(sequence, Rows.mapToArray(sequence.columns()));
     }
 
     @Override
@@ -1187,12 +1168,6 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       } else {
         return Sequences.map(sequence, Rows.mapToRow(timeColumnName));
       }
-    }
-
-    @Override
-    public RowSignature schema(QuerySegmentWalker segmentWalker)
-    {
-      return schema.get();
     }
 
     @Override

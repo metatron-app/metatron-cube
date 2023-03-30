@@ -80,7 +80,7 @@ public class MemcachedCache implements Cache
     @Override
     public long hash(String k)
     {
-      return Murmur3.hash64(StringUtils.nullableToUtf8(k));
+      return Murmur3.hash64(StringUtils.toUtf8WithNullToEmpty(k));
     }
   };
 

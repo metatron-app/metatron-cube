@@ -30,6 +30,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BinaryRef;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.FrontCoding;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.BytesInputStream;
 import io.druid.query.extraction.ExtractionFn;
@@ -74,7 +75,7 @@ public class DecompressedInFilter implements LogProvider
     this.extractionFn = extractionFn;
     this.hash = hash;
     this.containsNull = new BytesInputStream(values).readUnsignedVarInt() == 0;
-    this.bytes = DSuppliers.memoize(() -> CompressedInFilter.decode(values, valueLen));
+    this.bytes = DSuppliers.memoize(() -> FrontCoding.decode(values, valueLen));
     this.strings = DSuppliers.memoize(() -> GuavaUtils.transform(bytes.get(), v -> v.toUTF8()));
   }
 

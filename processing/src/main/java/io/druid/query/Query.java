@@ -345,6 +345,11 @@ public interface Query<T> extends QueryContextKeys
     Query<T> forLog();
   }
 
+  interface SchemaHolder
+  {
+    RowSignature schema();
+  }
+
   // schema for sub-query handling
   interface SchemaProvider
   {

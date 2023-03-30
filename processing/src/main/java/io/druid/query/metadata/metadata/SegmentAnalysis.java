@@ -20,21 +20,35 @@
 package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.common.BooleanFunction;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.Intervals;
+import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class SegmentAnalysis implements Comparable<SegmentAnalysis>
 {
+  public static final SegmentAnalysis EMPTY = new SegmentAnalysis(Intervals.ONLY_ETERNITY)
+  {
+    @Override
+    public RowSignature asSignature(BooleanFunction<ValueDesc> converter) {return RowSignature.EMPTY;}
+  };
+
   private final String id;
   private final List<Interval> interval;
-  private final Map<String, ColumnAnalysis> columns;
+  private final List<String> columnNames;
+  private final List<ColumnAnalysis> columnAnalyses;
   private final long serializedSize;
   private final long numRows;
   private final long ingestedNumRows;
@@ -48,7 +62,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   public SegmentAnalysis(
       @JsonProperty("id") String id,
       @JsonProperty("intervals") List<Interval> interval,
-      @JsonProperty("columns") Map<String, ColumnAnalysis> columns,
+      @JsonProperty("columnNames") List<String> columnNames,
+      @JsonProperty("columnAnalyses") List<ColumnAnalysis> columnAnalyses,
       @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("numRows") long numRows,
       @JsonProperty("ingestedNumRows") long ingestedNumRows,
@@ -61,7 +76,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   {
     this.id = id;
     this.interval = interval;
-    this.columns = columns;
+    this.columnNames = columnNames;
+    this.columnAnalyses = columnAnalyses;
     this.serializedSize = serializedSize;
     this.numRows = numRows;
     this.ingestedNumRows = ingestedNumRows;
@@ -75,19 +91,20 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   public SegmentAnalysis(
       String id,
       List<Interval> interval,
-      Map<String, ColumnAnalysis> columns,
+      List<String> columnNames,
+      List<ColumnAnalysis> columnAnalyses,
       long serializedSize,
       long numRows,
       Map<String, AggregatorFactory> aggregators,
       Granularity queryGranularity
   )
   {
-    this(id, interval, columns, serializedSize, numRows, -1L, -1L, aggregators, queryGranularity, null, null);
+    this(id, interval, columnNames, columnAnalyses, serializedSize, numRows, -1L, -1L, aggregators, queryGranularity, null, null);
   }
 
   public SegmentAnalysis(List<Interval> interval)
   {
-    this("merged", interval, null, -1, -1, null, null);
+    this("merged", interval, null, null, -1, -1, null, null);
   }
 
   @JsonProperty
@@ -103,9 +120,21 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   }
 
   @JsonProperty
+  public List<String> getColumnNames()
+  {
+    return columnNames;
+  }
+
+  @JsonProperty
+  public List<ColumnAnalysis> getColumnAnalyses()
+  {
+    return columnAnalyses;
+  }
+
+  @JsonIgnore
   public Map<String, ColumnAnalysis> getColumns()
   {
-    return columns;
+    return GuavaUtils.zipAsMap(columnNames, columnAnalyses);
   }
 
   @JsonProperty
@@ -165,7 +194,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     return new SegmentAnalysis(
         id,
         interval,
-        columns,
+        columnNames,
+        columnAnalyses,
         serializedSize,
         numRows,
         ingestedNumRows,
@@ -177,13 +207,22 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     );
   }
 
+  public RowSignature asSignature(BooleanFunction<ValueDesc> converter)
+  {
+    return RowSignature.of(
+        columnNames,
+        columnAnalyses.stream().map(c -> c.toValueDesc(converter)).collect(Collectors.toList())
+    );
+  }
+
   @Override
   public String toString()
   {
     return "SegmentAnalysis{" +
            "id='" + id + '\'' +
            ", interval=" + interval +
-           ", columns=" + columns +
+           ", columnNames=" + columnNames +
+           ", columnAnalyses=" + columnAnalyses +
            ", serializedSize=" + serializedSize +
            ", numRows=" + numRows +
            ", ingestedNumRows=" + ingestedNumRows +
@@ -215,7 +254,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            lastAccessTime == that.lastAccessTime &&
            Objects.equals(id, that.id) &&
            Objects.equals(interval, that.interval) &&
-           Objects.equals(columns, that.columns) &&
+           Objects.equals(columnNames, that.columnNames) &&
+           Objects.equals(columnAnalyses, that.columnAnalyses) &&
            Objects.equals(aggregators, that.aggregators) &&
            Objects.equals(queryGranularity, that.queryGranularity) &&
            Objects.equals(segmentGranularity, that.segmentGranularity);
@@ -231,7 +271,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     return Objects.hash(
         id,
         interval,
-        columns,
+        columnNames,
+        columnAnalyses,
         serializedSize,
         numRows,
         lastAccessTime,

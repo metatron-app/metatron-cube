@@ -100,16 +100,29 @@ public class QueryRunners
     };
   }
 
-  public static <T> QueryRunner<T> runWithLocalized(final QueryRunner<T> runner)
+  public static <T> QueryRunner<T> runWithLocalized(final QueryRunner<T> runner, QuerySegmentWalker segmentWalker)
   {
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        return runner.run(query.toLocalQuery(), responseContext);
-      }
-    };
+    return runWith(query -> prepareQuery(query, segmentWalker.getConfig(), false), runner);
+  }
+
+  public static <T> Query<T> prepareQuery(Query<T> query, QueryConfig config, boolean populateCache)
+  {
+    Map<String, Object> override = Maps.newHashMap();
+    if (config.useCustomSerdeForDateTime(query)) {
+      override.put(Query.DATETIME_CUSTOM_SERDE, true);
+    }
+    if (config.useBulkRow(query)) {
+      override.put(Query.USE_BULK_ROW, true);
+    }
+    if (populateCache) {
+      // prevent down-stream nodes from caching results as well if we are populating the cache
+      override.put(Query.POPULATE_CACHE, false);
+      override.put(Query.BY_SEGMENT, true);
+    }
+    if (!override.isEmpty()) {
+      query = query.withOverriddenContext(override);
+    }
+    return QueryUtils.compress(query.toLocalQuery());
   }
 
   public static <T> QueryRunner<T> runWith(final Query<T> query, final QueryRunner<T> runner)
@@ -120,6 +133,18 @@ public class QueryRunners
       public Sequence<T> run(Query<T> dummy, Map<String, Object> responseContext)
       {
         return runner.run(query, responseContext);
+      }
+    };
+  }
+
+  public static <T> QueryRunner<T> runWith(final Function<Query<T>, Query<T>> converter, final QueryRunner<T> runner)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return runner.run(converter.apply(query), responseContext);
       }
     };
   }

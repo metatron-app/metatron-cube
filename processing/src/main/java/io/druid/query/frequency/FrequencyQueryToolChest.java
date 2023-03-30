@@ -23,13 +23,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.Rows;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
@@ -171,27 +171,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[]>
       final String timestampColumn
   )
   {
-    return new Function<Sequence<Object[]>, Sequence<Map<String, Object>>>()
-    {
-      private final List<String> columnNames = query.estimatedOutputColumns();
-
-      @Override
-      public Sequence<Map<String, Object>> apply(Sequence<Object[]> sequence)
-      {
-        return Sequences.map(sequence, new Function<Object[], Map<String, Object>>()
-        {
-          @Override
-          public Map<String, Object> apply(Object[] input)
-          {
-            final Map<String, Object> converted = Maps.newLinkedHashMap();
-            for (int i = 0; i < columnNames.size(); i++) {
-              converted.put(columnNames.get(i), input[i]);
-            }
-            return converted;
-          }
-        });
-      }
-    };
+    return sequence -> Sequences.map(sequence, Rows.arrayToMap(query.estimatedOutputColumns()));
   }
 
   @Override

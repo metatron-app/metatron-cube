@@ -361,7 +361,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       }
     }
 
-    final Query<T> localized = prepareQuery(query, populateCache);
+    final Query<T> localized = QueryRunners.prepareQuery(query, queryConfig, populateCache);
     final List<String> columns = localized.estimatedOutputColumns();
     final Comparator<T> mergeOrdering = query.getMergeOrdering(columns);    // should use ordering of query in broker
 
@@ -524,26 +524,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         );
       }
     };
-  }
-
-  private Query<T> prepareQuery(Query<T> query, boolean populateCache)
-  {
-    Map<String, Object> override = Maps.newHashMap();
-    if (queryConfig.useCustomSerdeForDateTime(query)) {
-      override.put(Query.DATETIME_CUSTOM_SERDE, true);
-    }
-    if (queryConfig.useBulkRow(query)) {
-      override.put(Query.USE_BULK_ROW, true);
-    }
-    if (populateCache) {
-      // prevent down-stream nodes from caching results as well if we are populating the cache
-      override.put(Query.POPULATE_CACHE, false);
-      override.put(Query.BY_SEGMENT, true);
-    }
-    if (!override.isEmpty()) {
-      query = query.withOverriddenContext(override);
-    }
-    return QueryUtils.compress(query.toLocalQuery());
   }
 
   private List<DruidServer> getManagementTargets(Query<T> query) throws Exception

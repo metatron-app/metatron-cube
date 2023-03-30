@@ -27,12 +27,14 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.data.input.BulkSequence;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
 import io.druid.query.BaseAggregationQueryToolChest;
 import io.druid.query.JoinQuery;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
@@ -95,6 +97,18 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   protected byte queryCode()
   {
     return GROUPBY_QUERY;
+  }
+
+  @Override
+  public Sequence serializeSequence(Query<Row> query, Sequence<Row> sequence, QuerySegmentWalker segmentWalker)
+  {
+    // see CCC.prepareQuery()
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      GroupByQuery groupBy = (GroupByQuery) query;
+      RowSignature schema = Queries.relaySchema(query, segmentWalker);
+      return BulkSequence.fromRow(sequence, schema, groupBy.getSimpleLimit(), groupBy.sortedIndex(schema.getColumnNames()));
+    }
+    return super.serializeSequence(query, sequence, segmentWalker);
   }
 
   @Override

@@ -22,6 +22,7 @@ package io.druid.data;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
 import com.google.common.primitives.UnsignedLongs;
+import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.Comparators;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
@@ -86,6 +87,11 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
   public byte[] asBytes()
   {
     return offset == 0 && length == value.length ? value : Arrays.copyOfRange(value, offset, offset + length);
+  }
+
+  public BytesRef asRef()
+  {
+    return BytesRef.of(value, offset, length);
   }
 
   public byte get(int position)

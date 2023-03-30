@@ -232,7 +232,7 @@ public class DruidTable implements TranslatableTable
         String column = entry.getKey();
         ColumnAnalysis analysis = entry.getValue();
         if (columns.add(column)) {
-          builder.add(column, ValueDesc.of(analysis.getType()));
+          builder.add(column, analysis.toValueDesc(null));   // todo
           descriptors.put(column, analysis.getDescriptor());
         }
         long[] cardinality = analysis.getCardinality();

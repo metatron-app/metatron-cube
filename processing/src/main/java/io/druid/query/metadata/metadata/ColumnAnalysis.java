@@ -20,11 +20,14 @@
 package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
+import io.druid.common.BooleanFunction;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 
 import java.util.Arrays;
@@ -44,7 +47,7 @@ public class ColumnAnalysis
 
   private final String type;
   private final Map<String, String> descriptor;
-  private final boolean hasMultipleValues;
+  private final Boolean hasMultipleValues;
   private final long serializedSize;
   private final long[] cardinality;
   private final int nullCount;
@@ -58,7 +61,7 @@ public class ColumnAnalysis
   public ColumnAnalysis(
       @JsonProperty("type") String type,
       @JsonProperty("descriptor") Map<String, String> descriptor,
-      @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
+      @JsonProperty("hasMultipleValues") Boolean hasMultipleValues,
       @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("cardinality") long[] cardinality,
       @JsonProperty("nullCount") int nullCount,
@@ -81,7 +84,7 @@ public class ColumnAnalysis
 
   public ColumnAnalysis(
       String type,
-      boolean hasMultipleValues,
+      Boolean hasMultipleValues,
       long serializedSize,
       long[] cardinality,
       Comparable minValue,
@@ -120,7 +123,7 @@ public class ColumnAnalysis
   }
 
   @JsonProperty
-  public boolean isHasMultipleValues()
+  public Boolean isHasMultipleValues()
   {
     return hasMultipleValues;
   }
@@ -220,7 +223,7 @@ public class ColumnAnalysis
     return new ColumnAnalysis(
         type,
         mergedDescriptor,
-        hasMultipleValues || rhs.isHasMultipleValues(),
+        hasMultipleValues == null || rhs.hasMultipleValues == null ? null : hasMultipleValues || rhs.hasMultipleValues,
         serializedSize < 0 || rhs.serializedSize < 0 ? -1 : serializedSize + rhs.serializedSize,
         mergeCardinality(cardinality, rhs.cardinality),
         nullCount < 0 || rhs.nullCount < 0 ? -1 : nullCount +  rhs.nullCount,
@@ -262,6 +265,16 @@ public class ColumnAnalysis
     return (max ? compare : -compare) > 0 ? obj1 : obj2;
   }
 
+  @JsonIgnore
+  public ValueDesc toValueDesc(BooleanFunction<ValueDesc> converter)
+  {
+    ValueDesc desc = ValueDesc.of(type);
+    if (converter != null && desc.isDimension()) {
+      desc = converter.apply(hasMultipleValues);
+    }
+    return desc;
+  }
+
   @Override
   public String toString()
   {
@@ -288,7 +301,7 @@ public class ColumnAnalysis
       return false;
     }
     ColumnAnalysis that = (ColumnAnalysis) o;
-    return hasMultipleValues == that.hasMultipleValues &&
+    return Objects.equals(hasMultipleValues, that.hasMultipleValues) &&
            serializedSize == that.serializedSize &&
            Objects.equals(type, that.type) &&
            Objects.equals(descriptor, that.descriptor) &&

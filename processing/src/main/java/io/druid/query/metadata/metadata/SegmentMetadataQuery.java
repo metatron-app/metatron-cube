@@ -32,6 +32,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.DataSources;
 import io.druid.query.Query;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -49,6 +50,12 @@ import java.util.Set;
 @JsonTypeName("segmentMetadata")
 public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements Query.VCSupport<SegmentAnalysis>
 {
+  public static SegmentMetadataQuery of(Query<?> query, AnalysisType... analysisTypes)
+  {
+    return of(DataSources.unwrapView(query.getDataSource()), query.getQuerySegmentSpec(), analysisTypes)
+        .withOverriddenContext(BaseQuery.copyContextForMeta(query.getContext(), Query.DISABLE_LOG, true));
+  }
+
   public static SegmentMetadataQuery of(String dataSource, AnalysisType... analysisTypes)
   {
     return of(dataSource, QuerySegmentSpec.ETERNITY, analysisTypes);
@@ -56,18 +63,12 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
 
   public static SegmentMetadataQuery of(String dataSource, QuerySegmentSpec spec, AnalysisType... analysisTypes)
   {
-    return new SegmentMetadataQuery(
-        TableDataSource.of(dataSource),
-        spec,
-        null,
-        null,
-        null,
-        null,
-        of(analysisTypes),
-        null,
-        null,
-        null
-    );
+    return of(TableDataSource.of(dataSource), spec, analysisTypes);
+  }
+
+  public static SegmentMetadataQuery of(DataSource dataSource, QuerySegmentSpec spec, AnalysisType... analysisTypes)
+  {
+    return new SegmentMetadataQuery(dataSource, spec, null, null, null, null, of(analysisTypes), null, null, null);
   }
 
   public static EnumSet<AnalysisType> of(AnalysisType... analysisTypes)
@@ -149,13 +150,13 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.toInclude = toInclude;
     this.columns = columns;
-    this.merge = merge == null ? false : merge;
-    this.analysisTypes = (analysisTypes == null) ? DEFAULT_ANALYSIS_TYPES : analysisTypes;
+    this.merge = merge != null && merge;
+    this.analysisTypes = analysisTypes == null ? DEFAULT_ANALYSIS_TYPES : analysisTypes;
     Preconditions.checkArgument(
         dataSource instanceof TableDataSource,
         "SegmentMetadataQuery only supports table datasource"
     );
-    this.lenientAggregatorMerge = lenientAggregatorMerge == null ? false : lenientAggregatorMerge;
+    this.lenientAggregatorMerge = lenientAggregatorMerge != null && lenientAggregatorMerge;
   }
 
   @Override
@@ -360,6 +361,22 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         columns,
         merge,
         added,
+        usingDefaultInterval,
+        lenientAggregatorMerge,
+        getContext()
+    );
+  }
+
+  public SegmentMetadataQuery withMerge(boolean merge)
+  {
+    return new SegmentMetadataQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        virtualColumns,
+        toInclude,
+        columns,
+        merge,
+        analysisTypes,
         usingDefaultInterval,
         lenientAggregatorMerge,
         getContext()

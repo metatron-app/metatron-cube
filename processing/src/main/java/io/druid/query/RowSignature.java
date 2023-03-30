@@ -32,6 +32,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import org.apache.commons.lang.StringUtils;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,6 +47,8 @@ import java.util.Set;
 })
 public class RowSignature implements io.druid.data.RowSignature
 {
+  public static final RowSignature EMPTY = of(Arrays.asList(), Arrays.asList());
+
   // this is needed to be implemented by all post processors, but let's do it step by step
   public static interface Evolving
   {
@@ -229,7 +232,7 @@ public class RowSignature implements io.druid.data.RowSignature
     return candidates;
   }
 
-  // for streaming sub query.. we don't have index
+  // for streaming sub query.. we don't have any index
   public RowSignature replaceDimensionToMV()
   {
     List<ValueDesc> replaced = Lists.newArrayList(getColumnTypes());
@@ -268,11 +271,6 @@ public class RowSignature implements io.druid.data.RowSignature
         GuavaUtils.concat(getColumnNames(), names),
         GuavaUtils.concat(getColumnTypes(), types)
     );
-  }
-
-  public RowSignature relay(Query<?> query, boolean finalzed)
-  {
-    return Queries.relay(this, query, finalzed);
   }
 
   public RowSignature merge(RowSignature other)

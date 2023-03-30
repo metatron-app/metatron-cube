@@ -57,6 +57,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -149,6 +150,8 @@ public abstract class IncrementalIndex implements Closeable
     this.columnCapabilities = Maps.newHashMap();
     this.dimensionDescs = Maps.newLinkedHashMap();
     this.dimValues = Collections.synchronizedList(Lists.<DimDim>newArrayList());
+
+    columnCapabilities.put(Column.TIME_COLUMN_NAME, ColumnCapabilities.of(ValueType.LONG));
 
     DimensionsSpec dimensionsSpec = indexSchema.getDimensionsSpec();
 

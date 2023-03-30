@@ -24,19 +24,16 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import io.druid.common.DateTimes;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
@@ -55,7 +52,6 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
-import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.List;
@@ -228,6 +224,12 @@ public class StreamQuery extends BaseQuery<Object[]>
   public int getSimpleLimit()
   {
     return limitSpec.isSimpleLimiter() ? limitSpec.getLimit() : -1;
+  }
+
+  @JsonIgnore
+  public int sortedIndex(List<String> columns)
+  {
+    return orderingSpecs.isEmpty() ? -1 : columns.indexOf(orderingSpecs.get(0).getDimension());
   }
 
   @Override
@@ -651,38 +653,13 @@ public class StreamQuery extends BaseQuery<Object[]>
 
   public Sequence<Map<String, Object>> asMap(Sequence<Object[]> sequence)
   {
-    return Sequences.map(sequence, new Function<Object[], Map<String, Object>>()
-    {
-      private final List<String> columnNames = sequence.columns();
-
-      @Override
-      public Map<String, Object> apply(Object[] input)
-      {
-        final Map<String, Object> converted = Maps.newLinkedHashMap();
-        for (int i = 0; i < columnNames.size(); i++) {
-          converted.put(columnNames.get(i), input[i]);
-        }
-        return converted;
-      }
-    });
+    return Sequences.map(sequence, Rows.arrayToMap(sequence.columns()));
   }
 
   @Override
   public Sequence<Row> asRow(Sequence<Object[]> sequence)
   {
-    return Sequences.map(asMap(sequence), new Function<Map<String, Object>, Row>()
-    {
-      @Override
-      public Row apply(Map<String, Object> input)
-      {
-        final Object time = input.get(Row.TIME_COLUMN_NAME);
-        return new MapBasedRow(
-            time instanceof DateTime ? (DateTime) time :
-            time instanceof Number ? DateTimes.utc(((Number) time).longValue()) :
-            null, input
-        );
-      }
-    });
+    return Sequences.map(asMap(sequence), Rows.mapToRow(Row.TIME_COLUMN_NAME));
   }
 
   @Override

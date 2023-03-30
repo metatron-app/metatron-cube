@@ -25,10 +25,10 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.query.DataSource;
 import io.druid.query.DummyQuery;
 import io.druid.query.Query;
-import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.sql.calcite.table.RowSignature;
@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TypedDummyQuery extends DummyQuery<Object[]>
-    implements Query.ArrayOutput, Query.RowOutputSupport<Object[]>, Query.MapOutputSupport<Object[]>, Query.SchemaProvider
+    implements Query.ArrayOutput, Query.RowOutputSupport<Object[]>, Query.MapOutputSupport<Object[]>, Query.SchemaHolder
 {
   public static final TypedDummyQuery DUMMY = of(null, RowSignature.EMPTY, Arrays.<Object[]>asList());
 
@@ -141,24 +141,11 @@ public class TypedDummyQuery extends DummyQuery<Object[]>
   @Override
   public Sequence<Map<String, Object>> asMap(Sequence<Object[]> sequence)
   {
-    return Sequences.map(sequence, new Function<Object[], Map<String, Object>>()
-    {
-      final List<String> columnNames = signature.getColumnNames();
-
-      @Override
-      public Map<String, Object> apply(Object[] input)
-      {
-        final Map<String, Object> converted = Maps.newLinkedHashMap();
-        for (int i = 0; i < columnNames.size(); i++) {
-          converted.put(columnNames.get(i), input[i]);
-        }
-        return converted;
-      }
-    });
+    return Sequences.map(sequence, Rows.arrayToMap(signature.getColumnNames()));
   }
 
   @Override
-  public io.druid.query.RowSignature schema(QuerySegmentWalker segmentWalker)
+  public io.druid.query.RowSignature schema()
   {
     return signature;
   }

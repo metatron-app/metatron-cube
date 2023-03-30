@@ -24,9 +24,9 @@ import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.Granularities;
@@ -57,7 +57,7 @@ import java.util.Map;
 
 public class SegmentAnalyzer
 {
-  public static Map<String, ColumnAnalysis> analyze(Segment segment, SegmentMetadataQuery query)
+  public static List<Pair<String, ColumnAnalysis>> analyze(Segment segment, SegmentMetadataQuery query)
   {
     Preconditions.checkNotNull(segment, "segment");
     final EnumSet<AnalysisType> analysisTypes = query.getAnalysisTypes();
@@ -84,7 +84,7 @@ public class SegmentAnalyzer
       columns = query.getColumns();
     }
 
-    final Map<String, ColumnAnalysis> analysisMap = Maps.newTreeMap();
+    final List<Pair<String, ColumnAnalysis>> analysisMap = Lists.newArrayList();
     for (String columnName : columns) {
       ValueDesc valueDesc = resolver.resolve(columnName);
       if (valueDesc == null) {
@@ -98,7 +98,7 @@ public class SegmentAnalyzer
       } else {
         analysis = analyzeSimpleColumn(column, columnName, valueDesc, resolver, adapter, analysisTypes);
       }
-      analysisMap.put(columnName, analysis);
+      analysisMap.add(Pair.of(columnName, analysis));
     }
     return analysisMap;
   }
@@ -200,7 +200,7 @@ public class SegmentAnalyzer
     return new ColumnAnalysis(
         valueDesc.typeName(),
         columnMeta == null ? null : columnMeta.getDescs(),
-        columnMeta != null && columnMeta.isHasMultipleValues(),
+        columnMeta == null ? null : columnMeta.isHasMultipleValues(),
         serializedSize,
         null,
         nullCount,
@@ -220,7 +220,7 @@ public class SegmentAnalyzer
   )
   {
     Preconditions.checkArgument(ValueDesc.isDimension(valueDesc));
-    final ValueType valueType = valueDesc.subElement().type();
+    final ValueType valueType = valueDesc.subElement(ValueDesc.STRING).type();
 
     final boolean analyzingMinMax = analysisTypes.contains(AnalysisType.MINMAX);
     final boolean analyzingNullCount = analysisTypes.contains(AnalysisType.NULL_COUNT);
@@ -324,7 +324,7 @@ public class SegmentAnalyzer
     return new ColumnAnalysis(
         valueDesc.typeName(),
         columnMeta == null ? null : columnMeta.getDescs(),
-        columnMeta != null && columnMeta.isHasMultipleValues(),
+        columnMeta == null ? null : columnMeta.isHasMultipleValues(),
         serializedSize,
         cardinality < 0 ? null : new long[] {cardinality, cardinality},
         nullCount,

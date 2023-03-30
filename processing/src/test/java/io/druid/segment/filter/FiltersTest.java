@@ -44,7 +44,7 @@ public class FiltersTest
   private final ValueDesc dimensionType = ValueDesc.DIM_STRING;
   private final RowResolver resolver = new RowResolver(
       ImmutableMap.<String, ValueDesc>of("market", dimensionType, "quality", dimensionType),
-      VirtualColumns.empty()
+      VirtualColumns.EMPTY
   );
 
   @Test

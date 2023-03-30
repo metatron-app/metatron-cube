@@ -120,6 +120,13 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
     count += len;
   }
 
+  public void write(final BytesRef b, final int off, final int len)
+  {
+    ensureCapacity(count + len);
+    System.arraycopy(b.bytes, b.offset + off, buf, count, len);
+    count += len;
+  }
+
   @Override
   public void writeBoolean(final boolean v)
   {

@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
+import io.druid.common.DateTimes;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.Sequences;
@@ -142,32 +143,42 @@ public class Rows extends io.druid.data.Rows
     };
   }
 
-  public static Function<Map<String, Object>, Object[]> mapToArray(final String[] columnNames)
+  public static Function<Map<String, Object>, Object[]> mapToArray(List<String> columnNames)
   {
-    return new Function<Map<String, Object>, Object[]>()
-    {
-      @Override
-      public Object[] apply(Map<String, Object> row)
-      {
-        final Object[] array = new Object[columnNames.length];
-        for (int i = 0; i < columnNames.length; i++) {
-          array[i] = row.get(columnNames[i]);
-        }
-        return array;
+    final String[] columns = columnNames.toArray(new String[0]);
+    return map -> {
+      final Object[] array = new Object[columns.length];
+      for (int i = 0; i < columns.length; i++) {
+        array[i] = map.get(columns[i]);
       }
+      return array;
     };
   }
 
   public static Function<Map<String, Object>, Row> mapToRow(final String timestampColumn)
   {
-    return new Function<Map<String, Object>, Row>()
-    {
-      @Override
-      public Row apply(Map<String, Object> input)
-      {
-        final Object timestamp = timestampColumn == null ? null : input.get(timestampColumn);
-        return new MapBasedRow(timestamp == null ? null : new DateTime(timestamp), input);
+    if (timestampColumn == null) {
+      return map -> new MapBasedRow(null, map);
+    }
+    return map -> {
+      final Object timestamp = map.get(timestampColumn);
+      return new MapBasedRow(
+          timestamp instanceof DateTime ? (DateTime) timestamp :
+          timestamp instanceof Number ? DateTimes.utc(((Number) timestamp).longValue()) :
+          null, map
+      );
+    };
+  }
+
+  public static Function<Object[], Map<String, Object>> arrayToMap(List<String> columnNames)
+  {
+    final String[] columns = columnNames.toArray(new String[0]);
+    return array -> {
+      final Map<String, Object> map = Maps.newLinkedHashMap();
+      for (int i = 0; i < columns.length; i++) {
+        map.put(columns[i], array[i]);
       }
+      return map;
     };
   }
 

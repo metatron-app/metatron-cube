@@ -28,6 +28,8 @@ import java.util.Arrays;
 
 public class BytesRef implements BinaryRef
 {
+  public static BytesRef EMPTY = of(StringUtils.EMPTY_BYTES);
+
   public static BytesRef of(String value)
   {
     return of(StringUtils.toUtf8(value));

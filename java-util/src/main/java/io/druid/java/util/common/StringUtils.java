@@ -51,16 +51,9 @@ public class StringUtils
 
   public static final byte[] EMPTY_BYTES = new byte[0];
 
-  @Nullable
-  public static byte[] nullableToUtf8(@Nullable final String string)
+  public static String toUTF8String(byte[] bytes)
   {
-    try {
-      return string == null ? null : string.getBytes(UTF8_STRING);
-    }
-    catch (UnsupportedEncodingException e) {
-      // Should never happen
-      throw Throwables.propagate(e);
-    }
+    return toUTF8String(bytes, 0, bytes.length);
   }
 
   public static String toUTF8String(byte[] bytes, int offset, int length)

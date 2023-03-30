@@ -23,9 +23,11 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.data.Pair;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
 import io.druid.java.util.common.logger.Logger;
@@ -70,7 +72,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
       {
         SegmentMetadataQuery query = (SegmentMetadataQuery) inQ;
 
-        final Map<String, ColumnAnalysis> analyzedColumns = SegmentAnalyzer.analyze(segment, query);
+        final List<Pair<String, ColumnAnalysis>> analyzedColumns = SegmentAnalyzer.analyze(segment, query);
 
         final StorageAdapter adapter = segment.asStorageAdapter(false);
         final long numRows = adapter.getNumRows();
@@ -120,12 +122,15 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
           }
         }
 
+        List<String> columnNames = GuavaUtils.transform(analyzedColumns, p -> p.lhs);
+        List<ColumnAnalysis> columnAnalyses = GuavaUtils.transform(analyzedColumns, p -> p.rhs);
         return Sequences.simple(
             Arrays.asList(
                 new SegmentAnalysis(
                     segment.getIdentifier(),
                     retIntervals,
-                    analyzedColumns,
+                    columnNames,
+                    columnAnalyses,
                     totalSerializedSize,
                     numRows,
                     ingestedNumRows,

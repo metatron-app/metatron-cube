@@ -21,13 +21,11 @@ package io.druid.query.metadata;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
@@ -56,20 +54,11 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class SegmentMetadataQueryQueryToolChest
     extends QueryToolChest.CacheSupport<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery>
 {
   private static final TypeReference<SegmentAnalysis> TYPE_REFERENCE = new TypeReference<SegmentAnalysis>() {};
-  private static final Function<SegmentAnalysis, SegmentAnalysis> MERGE_TRANSFORM_FN = new Function<SegmentAnalysis, SegmentAnalysis>()
-  {
-    @Override
-    public SegmentAnalysis apply(SegmentAnalysis analysis)
-    {
-      return finalizeAnalysis(analysis);
-    }
-  };
 
   private final SegmentMetadataQueryConfig config;
   private final GenericQueryMetricsFactory metricsFactory;
@@ -105,7 +94,7 @@ public class SegmentMetadataQueryQueryToolChest
                 makeOrdering(query),
                 createMergeFn(query)
             ),
-            MERGE_TRANSFORM_FN
+            SegmentMetadataQueryQueryToolChest::finalizeAnalysis
         );
       }
 
@@ -214,19 +203,25 @@ public class SegmentMetadataQueryQueryToolChest
       newIntervals.addAll(arg2.getIntervals());
     }
 
-    final Map<String, ColumnAnalysis> leftColumns = arg1.getColumns();
-    final Map<String, ColumnAnalysis> rightColumns = arg2.getColumns();
-    Map<String, ColumnAnalysis> columns = Maps.newTreeMap();
+    List<String> columnNames1 = arg1.getColumnNames();
+    List<String> columnNames2 = arg2.getColumnNames();
 
-    Set<String> rightColumnNames = Sets.newHashSet(rightColumns.keySet());
-    for (Map.Entry<String, ColumnAnalysis> entry : leftColumns.entrySet()) {
-      final String columnName = entry.getKey();
-      columns.put(columnName, entry.getValue().fold(rightColumns.get(columnName)));
-      rightColumnNames.remove(columnName);
-    }
+    List<ColumnAnalysis> columnAnalyses1 = arg1.getColumnAnalyses();
+    List<ColumnAnalysis> columnAnalyses2 = arg2.getColumnAnalyses();
 
-    for (String columnName : rightColumnNames) {
-      columns.put(columnName, rightColumns.get(columnName));
+    List<String> columnNames = Lists.newArrayList(columnNames1);
+    List<ColumnAnalysis> columnAnalyses = Lists.newArrayList(columnAnalyses1);
+
+    for (int i = 0; i < columnNames2.size(); i++) {
+      String columnName = columnNames2.get(i);
+      ColumnAnalysis analysis = columnAnalyses2.get(i);
+      int ix = columnNames1.indexOf(columnName);
+      if (ix < 0) {
+        columnNames.add(columnName);
+        columnAnalyses.add(analysis);
+      } else {
+        columnAnalyses.set(ix, columnAnalyses.get(ix).fold(analysis));
+      }
     }
 
     final Map<String, AggregatorFactory> aggregators = Maps.newHashMap();
@@ -306,7 +301,8 @@ public class SegmentMetadataQueryQueryToolChest
     return new SegmentAnalysis(
         mergedId,
         newIntervals,
-        columns,
+        columnNames,
+        columnAnalyses,
         sumIfPositives(arg1.getSerializedSize(), arg2.getSerializedSize()),
         sumIfPositives(arg1.getNumRows(), arg2.getNumRows()),
         sumIfPositives(arg1.getIngestedNumRows(), arg2.getIngestedNumRows()),
@@ -328,7 +324,8 @@ public class SegmentMetadataQueryQueryToolChest
     return new SegmentAnalysis(
         analysis.getId(),
         JodaUtils.condenseIntervals(intervals),
-        analysis.getColumns(),
+        analysis.getColumnNames(),
+        analysis.getColumnAnalyses(),
         analysis.getSerializedSize(),
         analysis.getNumRows(),
         analysis.getIngestedNumRows(),

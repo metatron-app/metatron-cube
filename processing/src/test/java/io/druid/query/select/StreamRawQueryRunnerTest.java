@@ -32,6 +32,7 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -126,13 +127,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
     }
 
     List<Object[]> results = Sequences.toList(query.run(TestIndex.segmentWalker, CONTEXT));
-    Assert.assertEquals(expected.size(), results.size());
-    for (int i = 0; i < results.size(); i++) {
-      Assert.assertArrayEquals(
-          i + " th row.. "+ Arrays.toString(expected.get(i)) + " vs " + Arrays.toString(results.get(i)),
-          expected.get(i), results.get(i)
-      );
-    }
+    TestHelper.validate(expected, results);
 
     query = builder.streaming(Arrays.asList("quality", "market", "__time"));
 
@@ -166,10 +161,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
     );
     // descending is ignored when sortOn is assigned
     results = Sequences.toList(query.run(TestIndex.segmentWalker, CONTEXT));
-    Assert.assertEquals(expected.size(), results.size());
-    for (int i = 0; i < results.size(); i++) {
-      Assert.assertArrayEquals(i + " th row", expected.get(i), results.get(i));
-    }
+    TestHelper.validate(expected, results);
 
     // group-by on stream
     GroupByQuery groupBy = GroupByQuery.builder()

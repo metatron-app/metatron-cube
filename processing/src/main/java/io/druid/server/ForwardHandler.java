@@ -46,7 +46,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
-import io.druid.query.QueryUtils;
 import io.druid.query.QueryVisitor;
 import io.druid.query.StorageHandler;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -145,15 +144,9 @@ public class ForwardHandler implements ForwardConstants
           final String[] inputColumns = Formatters.parseStrings(context.get(COLUMNS));
           final String schema = Objects.toString(context.get(TYPE_STRING), null);
           final Sequence<Map<String, Object>> sequence = asMap(removeForwardContext(query), context, responseContext);
-          final Supplier<String> typeString = Suppliers.memoize(new Supplier<String>()
-          {
-            @Override
-            public String get()
-            {
-              return schema != null ? schema :
-                     QueryUtils.retrieveSchema(query, segmentWalker).relay(query, true).asTypeString();
-            }
-          });
+          final Supplier<String> typeString = Suppliers.memoize(
+              () -> schema != null ? schema : Queries.relaySchema(query, segmentWalker, true).asTypeString()
+          );
           return wrapForwardResult(
               query,
               context,
@@ -190,6 +183,7 @@ public class ForwardHandler implements ForwardConstants
     return Queries.iterate(query, new QueryVisitor()
     {
       @Override
+      @SuppressWarnings("unchecked")
       public Query out(Query input)
       {
         if (input.getContextValue(Query.FORWARD_URL) != null) {

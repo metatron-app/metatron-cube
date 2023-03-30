@@ -54,33 +54,32 @@ import java.util.concurrent.Callable;
 
 /**
  */
-public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQuery<T>
+public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQuery<T>, Query.SchemaHolder
 {
   private static final Logger LOG = new Logger(UnionAllQuery.class);
 
-  public static UnionAllQuery union(List<Query> queries)
+  public static UnionAllQuery<?> union(List<Query> queries)
   {
     return union(queries, -1, -1, null);
   }
 
-  public static UnionAllQuery union(List<Query> queries, int limit)
+  public static UnionAllQuery<?> union(List<Query> queries, int limit)
   {
     return union(queries, limit, -1, null);
   }
 
-  public static UnionAllQuery union(List<Query> queries, int limit, Map<String, Object> context)
+  public static UnionAllQuery<?> union(List<Query> queries, int limit, Map<String, Object> context)
   {
     return union(queries, limit, -1, context);
   }
 
   @SuppressWarnings("unchecked")
-  public static UnionAllQuery union(List<Query> queries, int limit, int parallelism, Map<String, Object> context)
+  public static UnionAllQuery<?> union(List<Query> queries, int limit, int parallelism, Map<String, Object> context)
   {
     return new UnionAllQuery(null, queries, false, limit, parallelism, context != null ? context : Maps.newHashMap());
   }
 
-  @SuppressWarnings("unchecked")
-  public static UnionAllQuery union(
+  public static UnionAllQuery<?> union(
       List<Query> queries,
       Query.SchemaProvider provider,
       QuerySegmentWalker segmentWalker
@@ -144,7 +143,8 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     this.parallelism = parallelism;
   }
 
-  public RowSignature getSchema()
+  @Override
+  public RowSignature schema()
   {
     return schema == null ? null : schema.get();
   }
@@ -277,7 +277,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   @SuppressWarnings("unchecked")
   public Sequence<Row> asRow(Sequence sequence)
   {
-    RowSignature schema = getSchema();
+    RowSignature schema = schema();
     if (schema == null) {
       return Sequences.map(sequence, GuavaUtils.<Object, Row>caster());
     }

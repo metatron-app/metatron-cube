@@ -31,6 +31,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -137,6 +138,17 @@ public interface Function
       ValueDesc returns = args.get(0).returns();
       if (!type.equals(returns)) {
         throw new IAE(INVALID_TYPE, 0, name, type, returns);
+      }
+    }
+
+    public void exactOne(List<Expr> args, Set<ValueDesc> types)
+    {
+      if (args.size() != 1) {
+        throw new IAE(EXACT_ONE_PARAM, name);
+      }
+      ValueDesc returns = args.get(0).returns();
+      if (!types.contains(returns)) {
+        throw new IAE(INVALID_TYPE, 0, name, types, returns);
       }
     }
 

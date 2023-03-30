@@ -298,4 +298,10 @@ public class DataSources
     final List<String> names = dataSource.getNames();
     return names.size() == 1 ? names.get(0) : names.toString();
   }
+
+  public static DataSource unwrapView(DataSource dataSource)
+  {
+    return dataSource instanceof ViewDataSource
+           ? TableDataSource.of(((ViewDataSource) dataSource).getName()) : dataSource;
+  }
 }

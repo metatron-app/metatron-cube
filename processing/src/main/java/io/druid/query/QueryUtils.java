@@ -54,6 +54,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
+import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.query.ordering.Direction;
@@ -477,6 +478,13 @@ public class QueryUtils
     return query.resolveQuery(resolver, false);   // already expanded
   }
 
+  private static Supplier<RowResolver> asResolverSupplier(Query<?> query, QuerySegmentWalker segmentWalker)
+  {
+    return Suppliers.memoize(
+        () -> RowResolver.of(analyzeSegments(query, segmentWalker).asSignature(null), BaseQuery.getVirtualColumns(query))
+    );
+  }
+
   private static <T> Query<T> retainViewColumns(Query<T> query, List<String> view)
   {
     if (query instanceof Query.ColumnsSupport) {
@@ -552,29 +560,12 @@ public class QueryUtils
     return mapping;
   }
 
-  private static Supplier<RowResolver> asResolverSupplier(final Query query, final QuerySegmentWalker segmentWalker)
+  public static SegmentAnalysis analyzeSegments(Query<?> query, QuerySegmentWalker walker)
   {
-    return Suppliers.memoize(() -> {
-      return RowResolver.of(retrieveSchema(query, segmentWalker), BaseQuery.getVirtualColumns(query));
-    });
-  }
-
-  public static RowSignature retrieveSchema(Query<?> query, QuerySegmentWalker segmentWalker)
-  {
-    DataSource dataSource = query.getDataSource();
-    if (dataSource instanceof QueryDataSource) {
-      RowSignature schema = ((QueryDataSource) dataSource).getSchema();
-      return Preconditions.checkNotNull(
-          schema, "schema of subquery %s is null", ((QueryDataSource) dataSource).getQuery()
-      );
-    }
-    if (dataSource instanceof ViewDataSource) {
-      dataSource = TableDataSource.of(((ViewDataSource) dataSource).getName());
-    }
-    SchemaQuery schemaQuery = SchemaQuery.of(Iterables.getOnlyElement(dataSource.getNames()), query)
-                                         .withOverriddenContext(BaseQuery.copyContextForMeta(query));
-
-    return Sequences.only(QueryRunners.run(schemaQuery, segmentWalker), Schema.EMPTY);
+    Preconditions.checkArgument(query.getDataSource() instanceof TableDataSource);
+    return Sequences.only(
+        QueryRunners.run(SegmentMetadataQuery.of(query).withMerge(true), walker), SegmentAnalysis.EMPTY
+    );
   }
 
   // nasty..

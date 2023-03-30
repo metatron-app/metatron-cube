@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -50,6 +51,8 @@ import java.util.Set;
  */
 public class VirtualColumns implements Iterable<VirtualColumn>
 {
+  public static VirtualColumns EMPTY = new VirtualColumns(ImmutableMap.of());
+
   public static void assertDimensionIndexed(RowResolver resolver, DimensionSpec dimension)
   {
     ValueDesc type = dimension.resolve(Suppliers.ofInstance(resolver));
@@ -75,11 +78,6 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       return vcNames;
     }
     return ImmutableSet.of();
-  }
-
-  public static VirtualColumns empty()
-  {
-    return new VirtualColumns(Maps.<String, VirtualColumn>newHashMap());
   }
 
   public static Map<String, VirtualColumn> asMap(List<VirtualColumn> virtualColumns)

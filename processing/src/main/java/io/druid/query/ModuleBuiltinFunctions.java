@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -306,7 +307,7 @@ public class ModuleBuiltinFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      exactOne(args, ValueDesc.STRING);
+      exactOne(args, ImmutableSet.of(ValueDesc.STRING, ValueDesc.MV_STRING));
       return new Function()
       {
         private final Map<Object, Object> map = new LinkedHashMap<>();

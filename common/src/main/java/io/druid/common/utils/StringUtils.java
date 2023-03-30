@@ -25,6 +25,8 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.BinaryRef;
+import io.druid.common.guava.BytesRef;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueType;
 import io.druid.data.input.BytesOutputStream;
 
@@ -419,6 +421,17 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
   {
     Splitter splitter = Splitter.on(separator).trimResults();
     return Lists.newArrayList(splitter.split(value));
+  }
+
+  public static BytesRef stringAsRef(Object value)
+  {
+    if (value == null) {
+      return BytesRef.EMPTY;
+    } else if (value instanceof UTF8Bytes) {
+      return ((UTF8Bytes) value).asRef();
+    } else {
+      return BytesRef.of(Objects.toString(value));
+    }
   }
 
   private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();

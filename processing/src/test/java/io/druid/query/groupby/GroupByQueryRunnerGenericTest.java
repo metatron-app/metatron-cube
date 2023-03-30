@@ -252,7 +252,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         if (columnNames[j].equals(Row.TIME_COLUMN_NAME)) {
           Assert.assertEquals(new DateTime(objects[i][j]).getMillis(), array.get(i)[j]);
         } else {
-          Assert.assertEquals(objects[i][j], array.get(i)[j]);
+          TestHelper.validate(String.format("[%d][%d]", i, j), objects[i][j], array.get(i)[j]);
         }
       }
     }

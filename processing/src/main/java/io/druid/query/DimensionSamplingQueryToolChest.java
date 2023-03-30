@@ -79,7 +79,7 @@ public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[]>
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return BulkSequence.fromArray(sequence, Queries.relaySchema(query, segmentWalker), -1);
+      return BulkSequence.fromArray(sequence, Queries.relaySchema(query, segmentWalker));
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }

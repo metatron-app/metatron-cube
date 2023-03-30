@@ -749,10 +749,10 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        query = QueryUtils.decompress(QueryUtils.compress(query));
+        query = QueryUtils.decompress(query);
         return QueryUtils.mergeSort(query, Arrays.asList(
-            toLocalQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
-            toLocalQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
+            toDataQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
+            toDataQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
         ));
       }
     };
@@ -760,22 +760,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return runner;
     }
 
-    // todo: mimic serialize & deserialize
-    final QueryRunner<T> serde = new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        QueryToolChest<T> toolChest = factory.getToolchest();
-        Function manipulatorFn = toolChest.makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing());
-        if (BaseQuery.isBySegment(query)) {
-          manipulatorFn = BySegmentResultValue.applyAll(manipulatorFn);
-        }
-        return Sequences.map(runner.run(query, responseContext), manipulatorFn);
-      }
-    };
     return FluentQueryRunnerBuilder.create(factory.getToolchest(), runner)
-                                   .runWithLocalized()
+                                   .runWithLocalized(this)
                                    .applyPreMergeDecoration()
                                    .applyMergeResults()
                                    .applyPostMergeDecoration()
@@ -786,15 +772,10 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                                    .build();
   }
 
-  private <T> QueryRunner<T> toLocalQueryRunner(Query<T> query, Iterable<Pair<SegmentDescriptor, Segment>> segments)
+  private <T> QueryRunner<T> toDataQueryRunner(Query<T> query, Iterable<Pair<SegmentDescriptor, Segment>> segments)
   {
     final QueryRunnerFactory<T> factory = conglomerate.findFactory(query);
     final QueryToolChest<T> toolChest = factory.getToolchest();
-
-    QueryRunnerFactory.Splitable<T> splitable = null;
-    if (factory instanceof QueryRunnerFactory.Splitable) {
-      splitable = (QueryRunnerFactory.Splitable<T>) factory;
-    }
 
     List<Segment> targets = Lists.newArrayList();
     List<SegmentDescriptor> descriptors = Lists.newArrayList();
@@ -827,21 +808,18 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       @Override
       public QueryRunner<T> apply(Iterable<Segment> segments)
       {
-        Iterable<QueryRunner<T>> runners = Iterables.transform(segments, new Function<Segment, QueryRunner<T>>()
-        {
-          @Override
-          public QueryRunner<T> apply(final Segment segment)
-          {
-            return new SpecificSegmentQueryRunner<T>(
+        Iterable<QueryRunner<T>> runners = Iterables.transform(
+            segments,
+            segment -> new SpecificSegmentQueryRunner<T>(
                 new BySegmentQueryRunner<T>(
-                    toolChest, segment.getIdentifier(),
+                    toolChest,
+                    segment.getIdentifier(),
                     segment.getInterval().getStart(),
                     factory.createRunner(segment, optimizer)
                 ),
                 segment.asSpec()
-            );
-          }
-        });
+            )
+        );
         return QueryRunners.finalizeAndPostProcessing(
             toolChest.mergeResults(
                 factory.mergeRunners(resolved, executor, runners, optimizer)
@@ -852,13 +830,18 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       }
     };
 
+    QueryRunnerFactory.Splitable<T> splitable = null;
+    if (factory instanceof QueryRunnerFactory.Splitable) {
+      splitable = (QueryRunnerFactory.Splitable<T>) factory;
+    }
+
     if (splitable != null) {
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         QueryRunner<T> concat = QueryRunners.concat(Iterables.concat(
             missingSegments, Iterables.transform(splits, function)
         ));
-        return serde(resolved, concat, this, toolChest);
+        return serde(concat, this, toolChest);
       }
     }
 
@@ -866,39 +849,33 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     if (splitable != null) {
       List<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (splits != null) {
-        return serde(resolved, QueryRunners.concat(runner, splits), this, toolChest);
+        return serde(QueryRunners.concat(runner, splits), this, toolChest);
       }
     }
-    return serde(resolved, runner, this, toolChest);
+    return serde(runner, this, toolChest);
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner<T> serde(
-      Query<T> resolved,
-      QueryRunner<T> runner,
-      QuerySegmentWalker segmentWalker,
-      QueryToolChest<T> toolChest
-  )
+  private <T> QueryRunner<T> serde(QueryRunner<T> runner, QuerySegmentWalker segmentWalker, QueryToolChest<T> toolChest)
   {
-    return (dummy, response) -> {
-      ObjectMapper mapper = segmentWalker.getMapper();
-      BytesOutputStream output = new BytesOutputStream();
-      Sequence<T> sequence = runner.run(resolved, response);
+    return (query, response) -> {
+      Sequence<T> sequence = runner.run(query, response);
       try {
-        Yielder yielder = Yielders.each(toolChest.serializeSequence(resolved, sequence, segmentWalker));
+        BytesOutputStream output = new BytesOutputStream();
+        Yielder yielder = Yielders.each(toolChest.serializeSequence(query, sequence, segmentWalker));
         mapper.writer().writeValue(output, yielder);
 
-        JavaType typeReference = toolChest.getResultTypeReference(resolved, mapper.getTypeFactory());
+        JavaType typeReference = toolChest.getResultTypeReference(query, mapper.getTypeFactory());
         JsonParserIterator iterator = new JsonParserIterator(
             mapper, typeReference, "test", "historical", () -> new BytesInputStream(output.toByteArray())
         );
-        if (!BaseQuery.isBySegment(resolved)) {
-          return toolChest.deserializeSequence(resolved, Sequences.once(sequence.columns(), iterator));
+        if (!BaseQuery.isBySegment(query)) {
+          return toolChest.deserializeSequence(query, Sequences.once(sequence.columns(), iterator));
         }
         return (Sequence) Sequences.map(
             Sequences.once(sequence.columns(), iterator),
             BySegmentResultValue.applyAll(
-                toolChest.makePreComputeManipulatorFn(resolved, MetricManipulatorFns.deserializing())
+                toolChest.makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing())
             )
         );
       }

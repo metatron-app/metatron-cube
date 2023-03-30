@@ -449,22 +449,4 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     return Arrays.asList(values);
   }
 
-  public static void validate(
-      List<Object[]> expected,
-      List<Object[]> result
-  )
-  {
-    int max1 = Math.min(expected.size(), result.size());
-    for (int i = 0; i < max1; i++) {
-      Object[] e = expected.get(i);
-      Object[] r = result.get(i);
-      Assert.assertArrayEquals(e, r);
-    }
-    if (expected.size() > result.size()) {
-      Assert.fail("need more results");
-    }
-    if (expected.size() < result.size()) {
-      Assert.fail("need less results");
-    }
-  }
 }

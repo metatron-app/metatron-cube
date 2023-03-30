@@ -421,15 +421,11 @@ public class DruidPlanner implements Closeable, ForwardConstants
     final FileLoadSpec resolved = resolve(source, queryMaker.getSegmentWalker());
     final LoadQuery query = LoadQuery.of(resolved);
     final Sequence<Object[]> sequence = Sequences.map(
-        QueryRunners.run(query, queryMaker.getSegmentWalker()),
-        Rows.mapToArray(resultType.getFieldNames().toArray(new String[0]))
+        QueryRunners.run(query, queryMaker.getSegmentWalker()), Rows.mapToArray(resultType.getFieldNames())
     );
 
     return new PlannerResult(
-        params -> sequence,
-        resultType,
-        null,
-        ImmutableSet.of(resolved.getSchema().getDataSource())
+        params -> sequence, resultType, null, ImmutableSet.of(resolved.getSchema().getDataSource())
     );
   }
 

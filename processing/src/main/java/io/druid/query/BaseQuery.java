@@ -371,6 +371,11 @@ public abstract class BaseQuery<T> implements Query<T>
     return makeQueryRunner(walker).run(this, assertContext(responseContext));
   }
 
+  private Map<String, Object> assertContext(Map<String, Object> context)
+  {
+    return context == null ? Maps.<String, Object>newHashMap() : context;
+  }
+
   @Override
   public QueryRunner<T> makeQueryRunner(QuerySegmentWalker walker)
   {
@@ -380,11 +385,6 @@ public abstract class BaseQuery<T> implements Query<T>
       runner = ((ForwardingSegmentWalker) walker).handle(this, runner);
     }
     return runner;
-  }
-
-  public Map<String, Object> assertContext(Map<String, Object> context)
-  {
-    return context == null ? Maps.<String, Object>newHashMap() : context;
   }
 
   @Override
@@ -560,7 +560,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static Map<String, Object> contextRemover(String... keys)
   {
-    Map<String, Object> remover = Maps.newHashMap();
+    Map<String, Object> remover = Maps.newHashMapWithExpectedSize(keys.length);
     for (String key : keys) {
       remover.put(key, null);
     }
@@ -574,7 +574,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   protected Map<String, Object> computeOverriddenContext(String key, Object value)
   {
-    return overrideContextWith(getContext(), ImmutableMap.of(key, value));
+    return overrideContextWith(getContext(), value == null ? contextRemover(key) : ImmutableMap.of(key, value));
   }
 
   protected static Map<String, Object> overrideContextWith(Map<String, Object> context, Map<String, Object> overrides)

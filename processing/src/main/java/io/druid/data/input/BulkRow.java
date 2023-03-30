@@ -34,7 +34,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.FrontCoding;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.logger.Logger;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
@@ -46,6 +49,8 @@ import java.util.Iterator;
 
 public class BulkRow extends AbstractRow
 {
+  private static final Logger LOG = new Logger(BulkRow.class);
+
   private static final LZ4Compressor LZ4_COMP = LZ4Factory.fastestInstance().fastCompressor();
   private static final LZ4FastDecompressor LZ4_DECOMP = LZ4Factory.fastestInstance().fastDecompressor();
 
@@ -100,6 +105,7 @@ public class BulkRow extends AbstractRow
         throws IOException
     {
       typeSer.writeTypePrefixForObject(bulk, jgen);   // see mixin in AggregatorsModule
+      jgen.writeObjectField("s", bulk.sorted);
       jgen.writeFieldName("v");
       serialize(bulk, jgen, provider);
       typeSer.writeTypeSuffixForObject(bulk, jgen);
@@ -208,7 +214,14 @@ public class BulkRow extends AbstractRow
     public BulkRow deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
     {
       Preconditions.checkArgument(jp.getCurrentToken() == JsonToken.FIELD_NAME);
+      Preconditions.checkArgument("s".equals(jp.getText()));
+      Preconditions.checkArgument(jp.nextToken() == JsonToken.VALUE_NUMBER_INT);
+      final int sorted = jp.getIntValue();
+
+      Preconditions.checkArgument(jp.nextToken() == JsonToken.FIELD_NAME);
+      Preconditions.checkArgument("v".equals(jp.getText()));
       jp.nextToken();
+
       final BytesInputStream input = new BytesInputStream(jp.getBinaryValue());
       final JsonFactory factory = Preconditions.checkNotNull(jp.getCodec()).getFactory();
 
@@ -299,19 +312,21 @@ public class BulkRow extends AbstractRow
         }
       }
       jp.nextToken();
-      return new BulkRow(count, category, values);
+      return new BulkRow(count, category, values, sorted);
     }
   };
 
   private final int count;
   private final int[] category;
   private final Object[] values;
+  private final int sorted;
 
-  public BulkRow(int count, int[] category, Object[] values)
+  public BulkRow(int count, int[] category, Object[] values, int sorted)
   {
     this.category = category;
     this.count = count;
     this.values = values;
+    this.sorted = sorted;
   }
 
   public int count()
@@ -335,11 +350,17 @@ public class BulkRow extends AbstractRow
     for (int i = 0; i < values.length; i++) {
       if (category[i] == 5) {
         final BytesInputStream source = (BytesInputStream) values[i];
-        final Object[] strings = new Object[count];
-        for (int x = 0; x < strings.length; x++) {
-          strings[x] = stringAsRaw ? source.viewVarSizeUTF() : source.readVarSizeUTF();
+        if (i == sorted) {
+          values[i] = FrontCoding.decode(
+              source, count, b -> stringAsRaw ? b : StringUtils.toUTF8String(b), Object.class
+          );
+        } else {
+          final Object[] strings = new Object[count];
+          for (int x = 0; x < strings.length; x++) {
+            strings[x] = stringAsRaw ? source.viewVarSizeUTF() : source.readVarSizeUTF();
+          }
+          values[i] = strings;
         }
-        values[i] = strings;
       }
     }
     return new Iterator<Object[]>()

@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.FrontCoding;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.StringUtils;
@@ -59,7 +60,7 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
     for (int i = 0; i < destLens.length; i++) {
       output.clear();
       if (i == 0) {
-        CompressedInFilter.encode(values.get(i), output);
+        FrontCoding.encode(values.get(i), output);
       } else {
         output.writeVarSizeUTFs(values.get(i));
       }
@@ -137,7 +138,7 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
     for (int i = 0; i < destLens.length; i++) {
       final byte[] decompressed = LZ4_DECOMP.decompress(values[i], destLens[i]);
       if (i == 0) {
-        list.add(CompressedInFilter.decode(decompressed, valueLen, b -> StringUtils.fromUtf8(b), String.class));
+        list.add(FrontCoding.decode(decompressed, valueLen, b -> StringUtils.fromUtf8(b), String.class));
       } else {
         list.add(new BytesInputStream(decompressed).readVarSizeUTFs(valueLen));
       }

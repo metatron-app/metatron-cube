@@ -46,6 +46,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.Query.SchemaHolder;
 import io.druid.query.Query.SchemaProvider;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -58,6 +59,7 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
@@ -127,37 +129,55 @@ public class Queries
     }
   }
 
-  // best effort.. implement SchemaProvider if not enough
   public static RowSignature relaySchema(Query query, QuerySegmentWalker segmentWalker)
   {
+    return relaySchema(query, segmentWalker, false);
+  }
+
+  // best effort.. implement SchemaProvider if not enough
+  public static RowSignature relaySchema(Query query, QuerySegmentWalker segmentWalker, boolean finalize)
+  {
+    DataSource dataSource = query.getDataSource();
+    if (dataSource instanceof QueryDataSource) {
+      RowSignature source = sourceSchema((QueryDataSource) dataSource, segmentWalker);
+      return estimateOutputSignature(source, query, finalize);
+    }
     RowSignature schema = null;
-    if (query.getDataSource() instanceof QueryDataSource) {
-      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
-      schema = relaySchema(dataSource.getQuery(), segmentWalker).relay(query, false);
+    if (query instanceof SchemaHolder) {
+      schema = ((SchemaHolder) query).schema();
     }
     if (schema == null && query instanceof SchemaProvider) {
       schema = ((SchemaProvider) query).schema(segmentWalker);
     }
-    if (schema == null && query instanceof UnionAllQuery) {
-      schema = ((UnionAllQuery) query).getSchema();
-    }
     if (schema == null) {
-      Query disabled = query.withOverriddenContext(Query.DISABLE_LOG, true);
-      schema = QueryUtils.retrieveSchema(disabled, segmentWalker).relay(query, false);
+      RowSignature source = sourceSchema(query, segmentWalker);
+      schema = estimateOutputSignature(source, query, finalize);
     }
-    LOG.debug(
-        "%s resolved schema : %s%s",
-        query.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
-    );
+    LOG.debug("%s resolved schema : %s%s", dataSource.getNames(), schema.getColumnNames(), schema.getColumnTypes());
     return schema;
   }
 
+  private static RowSignature sourceSchema(QueryDataSource dataSource, QuerySegmentWalker segmentWalker)
+  {
+    return dataSource.getSchema() != null ? dataSource.getSchema() : relaySchema(dataSource.getQuery(), segmentWalker);
+  }
+
+  private static RowSignature sourceSchema(Query<?> query, QuerySegmentWalker segmentWalker)
+  {
+    SegmentAnalysis analysis = QueryUtils.analyzeSegments(query, segmentWalker);
+    if (query instanceof Query.AggregationsSupport) {
+      return analysis.asSignature(mv -> ValueDesc.STRING);
+    }
+    return analysis.asSignature(mv -> mv ? ValueDesc.MV_STRING : ValueDesc.STRING);
+  }
+
+  // todo : remove this
   public static RowSignature bestEffortOf(Query<?> query, boolean finalzed)
   {
     return bestEffortOf(null, query, finalzed);
   }
 
-  // best effort signature just before the final decoration (limit, output, lateral view) and post processing
+  // best effort signature just before the final decoration (limit, output, lateral view) and post-processing
   private static RowSignature bestEffortOf(RowSignature source, Query<?> query, boolean finalzed)
   {
     List<String> newColumnNames = Lists.newArrayList();
@@ -209,9 +229,9 @@ public class Queries
     return resolving;
   }
 
-  public static RowSignature relay(RowSignature source, Query<?> query, boolean finalzed)
+  private static RowSignature estimateOutputSignature(RowSignature source, Query<?> query, boolean finalzed)
   {
-    source = Queries.bestEffortOf(source, query, finalzed);
+    source = bestEffortOf(source, query, finalzed);
     Object localProc = query.getContextValue(Query.LOCAL_POST_PROCESSING);
     if (localProc instanceof RowSignature.Evolving) {
       source = ((RowSignature.Evolving) localProc).evolve(source);
@@ -381,8 +401,8 @@ public class Queries
     if (dataSource instanceof QueryDataSource) {
       QueryDataSource querySource = (QueryDataSource) dataSource;
       Query source = querySource.getQuery();
-      if (querySource.getSchema() == null && source instanceof JoinQuery) {
-        querySource.setSchema(((JoinQuery) source).getSchema());    // todo: generalize this
+      if (querySource.getSchema() == null && source instanceof SchemaHolder) {
+        querySource.setSchema(((SchemaHolder) source).schema());
       }
       Query converted = iterate(source, visitor);
       return source == converted ? dataSource : QueryDataSource.of(converted, querySource.getSchema());

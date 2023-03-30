@@ -41,7 +41,7 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   protected final boolean prefixAlias;
   protected final boolean asMap;
   protected final List<String> outputAlias;
-  protected final List<String> outputColumns;
+  protected final List<String> outputColumns;   // this can be empty (count(*), for example)
 
   public CommonJoinProcessor(
       JoinQueryConfig config,

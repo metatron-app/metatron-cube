@@ -37,6 +37,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
+import io.druid.query.RowSignature;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -110,11 +111,12 @@ public class StreamQueryToolChest extends QueryToolChest<Object[]>
   public Sequence serializeSequence(Query<Object[]> query, Sequence<Object[]> sequence, QuerySegmentWalker segmentWalker)
   {
     // see CCC.prepareQuery()
-    StreamQuery stream = (StreamQuery) query;
-    if (stream.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return BulkSequence.fromArray(sequence, Queries.relaySchema(stream, segmentWalker), stream.getSimpleLimit());
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      StreamQuery stream = (StreamQuery) query;
+      RowSignature schema = Queries.relaySchema(stream, segmentWalker);
+      return BulkSequence.fromArray(sequence, schema, stream.getSimpleLimit(), stream.sortedIndex(schema.getColumnNames()));
     }
-    return super.serializeSequence(stream, sequence, segmentWalker);
+    return super.serializeSequence(query, sequence, segmentWalker);
   }
 
   @Override

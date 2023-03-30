@@ -123,7 +123,7 @@ public class SegmentMetadataQueryTest
   @Parameterized.Parameters(name = "mmap1 = {0}, mmap2 = {1}, rollup1 = {2}, rollup2 = {3}, differentIds = {4}")
   public static Collection<Object[]> constructorFeeder()
   {
-    return ImmutableList.of(
+    return Arrays.asList(
         new Object[]{true, true, true, true, false},
         new Object[]{true, false, true, false, false},
         new Object[]{false, true, true, false, false},
@@ -159,13 +159,13 @@ public class SegmentMetadataQueryTest
 
     expectedSegmentAnalysis1 = new SegmentAnalysis(
         id1,
-        ImmutableList.of(
+        Arrays.asList(
             new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")
         ),
-        ImmutableMap.of(
-            "__time",
+        Arrays.asList("__time", "placement", "index"),
+        Arrays.asList(
             new ColumnAnalysis(
-                ValueType.LONG.getName(),
+                ValueDesc.LONG_TYPE,
                 false,
                 mmap1 ? 1081 : 0,
                 null,
@@ -173,24 +173,22 @@ public class SegmentMetadataQueryTest
                 1302825600000L,
                 null
             ),
-            "index",
             new ColumnAnalysis(
-                ValueType.DOUBLE.getName(),
-                false,
-                mmap1 ? 6653 : 0,
-                null,
-                59.02102279663086D,
-                1870.06103515625D,
-                null
-            ),
-            "placement",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
+                ValueDesc.STRING_DIMENSION_TYPE,
                 false,
                 mmap1 ? 501 : 0,
                 new long[]{1, 1},
                 "preferred",
                 "preferred",
+                null
+            ),
+            new ColumnAnalysis(
+                ValueDesc.DOUBLE_TYPE,
+                false,
+                mmap1 ? 6653 : 0,
+                null,
+                59.02102279663086D,
+                1870.06103515625D,
                 null
             )
         ),
@@ -201,13 +199,13 @@ public class SegmentMetadataQueryTest
     );
     expectedSegmentAnalysis2 = new SegmentAnalysis(
         id2,
-        ImmutableList.of(
+        Arrays.asList(
             new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")
         ),
-        ImmutableMap.of(
-            "__time",
+        Arrays.asList("__time", "index", "placement"),
+        Arrays.asList(
             new ColumnAnalysis(
-                ValueType.LONG.getName(),
+                ValueDesc.LONG_TYPE,
                 false,
                 mmap2 ? 1081 : 0,
                 null,
@@ -215,27 +213,25 @@ public class SegmentMetadataQueryTest
                 1302825600000L,
                 null
             ),
-            "index",
             new ColumnAnalysis(
-                ValueType.DOUBLE.getName(),
-                false,
-                mmap2 ? 6653 : 0,
-                null,
-                59.02102279663086D,
-                1870.06103515625D,
-                null
-            ),
-            "placement",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
+                ValueDesc.STRING_DIMENSION_TYPE,
                 false,
                 mmap2 ? 501 : 0,
                 new long[]{1, 1},
                 "preferred",
                 "preferred",
                 null
+            ),
+            new ColumnAnalysis(
+                ValueDesc.DOUBLE_TYPE,
+                false,
+                mmap2 ? 6653 : 0,
+                null,
+                59.02102279663086D,
+                1870.06103515625D,
+                null
             )
-        // null_column will be included only for incremental index, which makes a little bigger result than expected
+            // null_column will be included only for incremental index, which makes a little bigger result than expected
         ),
         mmap2 ? 63801 : 0,
         1209,
@@ -276,11 +272,11 @@ public class SegmentMetadataQueryTest
 
     SegmentAnalysis expected = new SegmentAnalysis(
         expectedSegmentAnalysis1.getId(),
-        ImmutableList.of(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
-        ImmutableMap.of(
-            "partial_null_column",
+        Arrays.asList(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
+        Arrays.asList("partial_null_column"),
+        Arrays.asList(
             new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(), null, false, mmap1 ? 2956 : 0, new long[]{2, 2}, 1023, "", "value", null
+                ValueDesc.STRING_DIMENSION_TYPE, null, false, mmap1 ? 2956 : 0, new long[]{2, 2}, 1023, "", "value", null
             )
         ),
         mmap1 ? 63801 : 0,
@@ -311,12 +307,11 @@ public class SegmentMetadataQueryTest
 
     SegmentAnalysis expected = new SegmentAnalysis(
         expectedSegmentAnalysis1.getId(),
-        ImmutableList.of(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
-        ImmutableMap.of(
-            "numeric-expr",
-            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, null, false, 0, null, -1, 60.02102279663086D, 1871.06103515625D, null),
-            "string-expr",
-            new ColumnAnalysis(ValueDesc.STRING_TYPE, null, false, 0, null, -1, "spot|automotive", "upfront|premium", null)
+        Arrays.asList(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
+        Arrays.asList("numeric-expr", "string-expr"),
+        Arrays.asList(
+            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, null, null, 0, null, -1, 60.02102279663086D, 1871.06103515625D, null),
+            new ColumnAnalysis(ValueDesc.STRING_TYPE, null, null, 0, null, -1, "spot|automotive", "upfront|premium", null)
         ),
         mmap1 ? 63801 : 0,
         1209,
@@ -337,27 +332,10 @@ public class SegmentMetadataQueryTest
     SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
         differentIds ? "merged" : "testSegment",
         null,
-        ImmutableMap.of(
-            "placement",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
-                false,
-                -1,
-                null,
-                null,
-                null,
-                null
-            ),
-            "placementish",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
-                true,
-                -1,
-                null,
-                null,
-                null,
-                null
-            )
+        Arrays.asList("placement", "placementish"),
+        Arrays.asList(
+            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, false, -1, null, null, null, null),
+            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, true, -1, null, null, null, null)
         ),
         (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
@@ -399,7 +377,7 @@ public class SegmentMetadataQueryTest
     );
 
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(mergedSegmentAnalysis),
+        Arrays.asList(mergedSegmentAnalysis),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata merging query"
     );
@@ -412,27 +390,10 @@ public class SegmentMetadataQueryTest
     SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
         differentIds ? "merged" : "testSegment",
         null,
-        ImmutableMap.of(
-            "placement",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
-                false,
-                -1,
-                new long[]{1, 2},
-                null,
-                null,
-                null
-            ),
-            "placementish",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
-                true,
-                -1,
-                new long[]{9, 18},
-                null,
-                null,
-                null
-            )
+        Arrays.asList("placement", "placementish"),
+        Arrays.asList(
+            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, false, -1, new long[]{1, 2}, null, null, null),
+            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, true, -1, new long[]{9, 18}, null, null, null)
         ),
         (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
@@ -468,7 +429,7 @@ public class SegmentMetadataQueryTest
     );
 
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(mergedSegmentAnalysis),
+        Arrays.asList(mergedSegmentAnalysis),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata merging query"
     );
@@ -476,7 +437,7 @@ public class SegmentMetadataQueryTest
     mergedSegmentAnalysis = mergedSegmentAnalysis.withIngestedNumRows(1209 * 2);
     query = query.withMoreAnalysis(SegmentMetadataQuery.AnalysisType.INGESTED_NUMROW);
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(mergedSegmentAnalysis),
+        Arrays.asList(mergedSegmentAnalysis),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata merging query"
     );
@@ -489,27 +450,10 @@ public class SegmentMetadataQueryTest
     SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
         differentIds ? "merged" : "testSegment",
         null,
-        ImmutableMap.of(
-            "placement",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
-                false,
-                -1,
-                new long[]{1, 2},
-                null,
-                null,
-                null
-            ),
-            "quality_uniques",
-            new ColumnAnalysis(
-                "hyperUnique",
-                false,
-                -1,
-                null,
-                null,
-                null,
-                null
-            )
+        Arrays.asList("placement", "quality_uniques"),
+        Arrays.asList(
+            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, false, -1, new long[]{1, 2}, null, null, null),
+            new ColumnAnalysis("hyperUnique", false, -1, null, null, null, null)
         ),
         (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
@@ -546,7 +490,7 @@ public class SegmentMetadataQueryTest
     );
 
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(mergedSegmentAnalysis),
+        Arrays.asList(mergedSegmentAnalysis),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata merging query"
     );
@@ -557,7 +501,7 @@ public class SegmentMetadataQueryTest
   public void testSegmentMetadataQueryWithDefaultAnalysisMerge()
   {
     ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueDesc.DIM_STRING.typeName(),
+        ValueDesc.STRING_DIMENSION_TYPE,
         false,
         (mmap1 ? 501 : 0) + (mmap2 ? 501 : 0),
         new long[]{1, 2},
@@ -572,7 +516,7 @@ public class SegmentMetadataQueryTest
   public void testSegmentMetadataQueryWithDefaultAnalysisMerge2()
   {
     ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueDesc.DIM_STRING.typeName(),
+        ValueDesc.STRING_DIMENSION_TYPE,
         false,
         (mmap1 ? 3010 : 0) + (mmap2 ? 3010 : 0),
         new long[]{3, 6},
@@ -587,7 +531,7 @@ public class SegmentMetadataQueryTest
   public void testSegmentMetadataQueryWithDefaultAnalysisMerge3()
   {
     ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueDesc.DIM_STRING.typeName(),
+        ValueDesc.STRING_DIMENSION_TYPE,
         false,
         (mmap1 ? 3227 : 0) + (mmap2 ? 3227 : 0),
         new long[]{9, 18},
@@ -605,11 +549,11 @@ public class SegmentMetadataQueryTest
   {
     SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
         differentIds ? "merged" : "testSegment",
-        ImmutableList.of(expectedSegmentAnalysis1.getIntervals().get(0)),
-        ImmutableMap.of(
-            "__time",
+        Arrays.asList(expectedSegmentAnalysis1.getIntervals().get(0)),
+        Arrays.asList("__time", column, "index"),
+        Arrays.asList(
             new ColumnAnalysis(
-                ValueType.LONG.getName(),
+                ValueDesc.LONG_TYPE,
                 false,
                 (mmap1 ? 1081 : 0) + (mmap2 ? 1081 : 0),
                 null,
@@ -617,18 +561,16 @@ public class SegmentMetadataQueryTest
                 1302825600000L,
                 null
             ),
-            "index",
+            analysis,
             new ColumnAnalysis(
-                ValueType.DOUBLE.getName(),
+                ValueDesc.DOUBLE_TYPE,
                 false,
                 (mmap1 ? 6653 : 0) + (mmap2 ? 6653 : 0),
                 null,
                 59.02102279663086D,
                 1870.06103515625D,
                 null
-            ),
-            column,
-            analysis
+            )
         ),
         expectedSegmentAnalysis1.getSerializedSize() + expectedSegmentAnalysis2.getSerializedSize(),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
@@ -657,7 +599,7 @@ public class SegmentMetadataQueryTest
     );
 
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(mergedSegmentAnalysis),
+        Arrays.asList(mergedSegmentAnalysis),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata merging query"
     );
@@ -670,17 +612,9 @@ public class SegmentMetadataQueryTest
     SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
         differentIds ? "merged" : "testSegment",
         null,
-        ImmutableMap.of(
-            "placement",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
-                false,
-                -1,
-                null,
-                null,
-                null,
-                null
-            )
+        Arrays.asList("placement"),
+        Arrays.asList(
+            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, false, -1, null, null, null, null)
         ),
         (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
@@ -714,7 +648,7 @@ public class SegmentMetadataQueryTest
     );
 
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(mergedSegmentAnalysis),
+        Arrays.asList(mergedSegmentAnalysis),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata merging query"
     );
@@ -731,17 +665,9 @@ public class SegmentMetadataQueryTest
     SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
         differentIds ? "merged" : "testSegment",
         null,
-        ImmutableMap.of(
-            "placement",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
-                false,
-                -1,
-                null,
-                null,
-                null,
-                null
-            )
+        Arrays.asList("placement"),
+        Arrays.asList(
+            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, false, -1, null, null, null, null)
         ),
         (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
@@ -775,7 +701,7 @@ public class SegmentMetadataQueryTest
     );
 
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(mergedSegmentAnalysis),
+        Arrays.asList(mergedSegmentAnalysis),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata merging query"
     );
@@ -789,17 +715,9 @@ public class SegmentMetadataQueryTest
     SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
         differentIds ? "merged" : "testSegment",
         null,
-        ImmutableMap.of(
-            "placement",
-            new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(),
-                false,
-                -1,
-                null,
-                null,
-                null,
-                null
-            )
+        Arrays.asList("placement"),
+        Arrays.asList(
+            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, false, -1, null, null, null, null)
         ),
         (mmap1 ? 63801 : 0) + (mmap2 ? 63801 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
@@ -833,7 +751,7 @@ public class SegmentMetadataQueryTest
     );
 
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(mergedSegmentAnalysis),
+        Arrays.asList(mergedSegmentAnalysis),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata merging query"
     );
@@ -874,7 +792,7 @@ public class SegmentMetadataQueryTest
     );
 
     TestHelper.assertExpectedObjects(
-        ImmutableList.of(bySegmentResult, bySegmentResult),
+        Arrays.asList(bySegmentResult, bySegmentResult),
         QueryRunners.run(query, myRunner),
         "failed SegmentMetadata bySegment query"
     );
