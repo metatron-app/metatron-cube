@@ -21,8 +21,8 @@ package io.druid.query.groupby.having;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.RowSignature;
 
 /**
  * A "having" spec that always evaluates to false
@@ -30,7 +30,7 @@ import io.druid.data.input.Row;
 public class NeverHavingSpec implements HavingSpec
 {
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver)
+  public Predicate<Row> toEvaluator(RowSignature signature)
   {
     return Predicates.alwaysFalse();
   }

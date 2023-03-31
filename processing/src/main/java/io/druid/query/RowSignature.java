@@ -321,4 +321,46 @@ public class RowSignature implements io.druid.data.RowSignature
     }
     return aliased;
   }
+
+  public static class Builder
+  {
+    private final List<String> columnNames;
+    private final List<ValueDesc> columnTypes;
+
+    public Builder()
+    {
+      this.columnNames = Lists.newArrayList();
+      this.columnTypes = Lists.newArrayList();
+    }
+
+    public Builder(RowSignature source)
+    {
+      this.columnNames = Lists.newArrayList(source.columnNames);
+      this.columnTypes = Lists.newArrayList(source.columnTypes);
+    }
+
+    public Builder override(String columnName, ValueDesc columnType)
+    {
+      final int index = columnNames.indexOf(columnName);
+      if (index < 0) {
+        columnNames.add(columnName);
+        columnTypes.add(columnType);
+      } else {
+        columnTypes.set(index, columnType);
+      }
+      return this;
+    }
+
+    public Builder append(String columnName, ValueDesc columnType)
+    {
+      columnNames.add(columnName);
+      columnTypes.add(columnType);
+      return this;
+    }
+
+    public RowSignature build()
+    {
+      return of(columnNames, columnTypes);
+    }
+  }
 }

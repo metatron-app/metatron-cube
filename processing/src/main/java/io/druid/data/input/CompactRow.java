@@ -54,6 +54,11 @@ public class CompactRow extends AbstractRow
     return values;
   }
 
+  public Object valueAt(int index)
+  {
+    return values[index];
+  }
+
   @Override
   public long getTimestampFromEpoch()
   {

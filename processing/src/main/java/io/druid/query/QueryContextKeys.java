@@ -100,6 +100,9 @@ public interface QueryContextKeys
   String ALL_METRICS_FOR_EMPTY = "allMetricsForEmpty";
   String DATETIME_STRING_SERDE = "dateTimeStringSerde";   // use string always
 
+  // response key
+  String RESPONSE_HAVING_EVALUATED = "havingEvaulated";
+
   List<String> FOR_META = Arrays.asList(
       QUERYID,
       PRIORITY,

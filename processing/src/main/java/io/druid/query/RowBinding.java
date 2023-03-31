@@ -69,6 +69,11 @@ public class RowBinding implements Expr.TypedBinding
     if (Column.TIME_COLUMN_NAME.equals(name)) {
       return row.getTimestampFromEpoch();
     }
+    return getValue(row, name);
+  }
+
+  protected Object getValue(Row row, String name)
+  {
     final Object value = row.getRaw(name);
     if (StringUtils.isNullOrEmpty(value)) {
       return null;

@@ -25,11 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
@@ -114,23 +112,14 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
   @Override
   public RowSignature evolve(RowSignature schema)
   {
-    if (GuavaUtils.isNullOrEmpty(postAggregations)) {
+    if (schema == null || GuavaUtils.isNullOrEmpty(postAggregations)) {
       return schema;
     }
-    List<String> columnNames = Lists.newArrayList(schema.getColumnNames());
-    List<ValueDesc> columnTypes = Lists.newArrayList(schema.getColumnTypes());
+    RowSignature.Builder builder = new RowSignature.Builder(schema);
     for (PostAggregator postAggregator : postAggregations) {
-      String outputName = postAggregator.getName();
-      ValueDesc valueDesc = postAggregator.resolve(schema);
-      int index = columnNames.indexOf(outputName);
-      if (index >= 0) {
-        columnTypes.set(index, valueDesc);
-      } else {
-        columnNames.add(outputName);
-        columnTypes.add(valueDesc);
-      }
+      builder.override(postAggregator.getName(), postAggregator.resolve(schema));
     }
-    return RowSignature.of(columnNames, columnTypes);
+    return builder.build();
   }
 
   @Override

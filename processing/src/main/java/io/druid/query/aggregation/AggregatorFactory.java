@@ -33,9 +33,12 @@ import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.RowSignature;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.segment.ColumnSelectorFactory;
@@ -170,6 +173,11 @@ public abstract class AggregatorFactory implements Cacheable
   public ValueDesc getInputType()
   {
     return getOutputType();
+  }
+
+  public ValueDesc getOutputType(boolean finalized)
+  {
+    return finalized ? finalizedType() : getOutputType();
   }
 
   public abstract ValueDesc getOutputType();

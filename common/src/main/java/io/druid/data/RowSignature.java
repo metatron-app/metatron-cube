@@ -24,6 +24,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.Pair;
 
@@ -54,6 +55,11 @@ public interface RowSignature extends TypeResolver
   default ValueDesc columnType(int index)
   {
     return index < 0 ? null : getColumnTypes().get(index);
+  }
+
+  default ValueDesc columnType(String name)
+  {
+    return columnType(getColumnNames().indexOf(name));
   }
 
   default Iterable<Pair<String, ValueDesc>> columnAndTypes()
@@ -87,6 +93,15 @@ public interface RowSignature extends TypeResolver
   default Iterable<Pair<String, ValueDesc>> columnAndTypes(Iterable<String> columns)
   {
     return Iterables.transform(columns, c -> Pair.of(c, resolve(c)));
+  }
+
+  default Map<String, IntTagged<ValueDesc>> columnToIndexAndType()
+  {
+    Map<String, IntTagged<ValueDesc>> mapping = Maps.newHashMap();
+    for (int i = 0; i < size(); i++) {
+      mapping.put(columnName(i), IntTagged.of(i, columnType(i)));
+    }
+    return mapping;
   }
 
   default List<String> getDimensionNames()

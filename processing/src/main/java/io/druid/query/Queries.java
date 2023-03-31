@@ -129,6 +129,26 @@ public class Queries
     }
   }
 
+  // compact row
+  public static RowSignature postMergeSignature(BaseAggregationQuery aggregation, boolean finalize)
+  {
+    RowSignature.Builder builder = new RowSignature.Builder();
+    builder.append(Row.TIME_COLUMN_NAME, ValueDesc.LONG);
+    aggregation.getDimensions().forEach(d -> builder.append(d.getOutputName(), ValueDesc.STRING));
+    aggregation.getAggregatorSpecs().forEach(f -> builder.append(f.getName(), f.getOutputType(finalize)));
+    return builder.build();
+  }
+
+  // map-based row
+  public static RowSignature postAggregatorSignature(BaseAggregationQuery aggregation, boolean finalize)
+  {
+    RowSignature.Builder builder = new RowSignature.Builder();
+    builder.append(Row.TIME_COLUMN_NAME, ValueDesc.DATETIME);
+    aggregation.getDimensions().forEach(d -> builder.append(d.getOutputName(), ValueDesc.STRING));
+    aggregation.getAggregatorSpecs().forEach(f -> builder.append(f.getName(), f.getOutputType(finalize)));
+    return builder.build();
+  }
+
   public static RowSignature relaySchema(Query query, QuerySegmentWalker segmentWalker)
   {
     return relaySchema(query, segmentWalker, false);

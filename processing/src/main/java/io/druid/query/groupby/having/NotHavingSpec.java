@@ -23,8 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.RowSignature;
 
 /**
  * The logical "not" operator for the "having" clause.
@@ -46,9 +46,9 @@ public class NotHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver)
+  public Predicate<Row> toEvaluator(RowSignature signature)
   {
-    return Predicates.not(havingSpec.toEvaluator(resolver));
+    return Predicates.not(havingSpec.toEvaluator(signature));
   }
 
   @Override

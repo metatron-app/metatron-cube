@@ -22,8 +22,8 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Predicate;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.RowSignature;
 
 /**
  * A "having" clause that filters aggregated/dimension value. This is similar to SQL's "having"
@@ -55,7 +55,12 @@ public interface HavingSpec
    * Evaluates if a given row satisfies the having spec.
    *
    * @return return evaluator
-   * @param resolver
+   * @param signature
    */
-  Predicate<Row> toEvaluator(TypeResolver resolver);
+  Predicate<Row> toEvaluator(RowSignature signature);
+
+  interface PostMergeSupport extends HavingSpec
+  {
+    Predicate<Row> toCompactEvaluator(RowSignature signature);
+  }
 }

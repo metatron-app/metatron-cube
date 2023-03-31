@@ -23,16 +23,25 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import io.druid.data.TypeResolver;
+import io.druid.common.IntTagged;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.RowBinding;
+import io.druid.query.RowSignature;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
+ *
  */
-public class ExpressionHavingSpec implements HavingSpec
+public class ExpressionHavingSpec implements HavingSpec.PostMergeSupport
 {
   private final String expression;
 
@@ -51,10 +60,10 @@ public class ExpressionHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver)
+  public Predicate<Row> toEvaluator(RowSignature signature)
   {
-    RowBinding binding = new RowBinding(resolver);
-    Expr expr = binding.optimize(Parser.parse(expression, resolver));
+    RowBinding binding = new RowBinding(signature);
+    Expr expr = binding.optimize(Parser.parse(expression, signature));
     return input -> Evals.evalBoolean(expr, binding.reset(input));
   }
 
@@ -78,6 +87,36 @@ public class ExpressionHavingSpec implements HavingSpec
   }
 
   @Override
+  public Predicate<Row> toCompactEvaluator(RowSignature signature)
+  {
+    Expr parsed = Parser.parse(expression, signature);
+    List<String> bindings = Parser.findRequiredBindings(parsed);
+    if (!GuavaUtils.containsAll(signature.getColumnNames(), bindings)) {
+      return null;
+    }
+    RowBinding binding = new RowBinding(signature)
+    {
+      private final Mapping mapping = new Mapping(signature.columnToIndexAndType(), bindings);
+
+      @Override
+      protected Object getValue(Row row, String name)
+      {
+        IntTagged<ValueDesc> index = mapping.get(name);
+        if (index == null) {
+          return null;
+        }
+        Object value = ((CompactRow) row).valueAt(index.tag);
+        if (value instanceof String && index.value.isPrimitiveNumeric()) {
+          return index.value.type().castIfPossible(value);
+        }
+        return value;
+      }
+    };
+    Expr expr = binding.optimize(parsed);
+    return input -> Evals.evalBoolean(expr, binding.reset(input));
+  }
+
+  @Override
   public int hashCode()
   {
     return expression.hashCode();
@@ -89,5 +128,22 @@ public class ExpressionHavingSpec implements HavingSpec
     return "ExpressionHavingSpec{" +
            "expression='" + expression + '\'' +
            '}';
+  }
+
+  private static class Mapping
+  {
+    private final List<String> keys;
+    private final List<IntTagged<ValueDesc>> values;
+
+    private Mapping(Map<String, IntTagged<ValueDesc>> mapping, List<String> keys)
+    {
+      this.keys = keys;
+      this.values = keys.stream().map(mapping::get).collect(Collectors.toList());
+    }
+
+    private IntTagged<ValueDesc> get(String name)
+    {
+      return values.get(keys.indexOf(name));
+    }
   }
 }

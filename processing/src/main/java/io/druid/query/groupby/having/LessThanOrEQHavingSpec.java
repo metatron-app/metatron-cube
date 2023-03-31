@@ -21,8 +21,8 @@ package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.RowSignature;
 
 /**
  */
@@ -37,7 +37,7 @@ public class LessThanOrEQHavingSpec extends CompareHavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver)
+  public Predicate<Row> toEvaluator(RowSignature signature)
   {
     return new Predicate<Row>()
     {
