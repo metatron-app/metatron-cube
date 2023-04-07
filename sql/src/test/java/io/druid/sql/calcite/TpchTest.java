@@ -639,7 +639,7 @@ public class TpchTest extends TpchTestHelper
   public static final String TPCH6_EXPLAIN =
       "DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1993-01-01'), <($11, '1994-01-01'), >=($2, 0.05:DECIMAL(4, 2)), <=($2, 0.07:DECIMAL(4, 2)), <($8, 25))], scanProject=[*($3, $2)], REVENUE=[SUM($0)])\n";
 
-  public static final Object[][] TPCH6_RESULT = {{419743.2357189747}};
+  public static final Object[][] TPCH6_RESULT = {{635343.2898368868}};
 
   @Test
   public void tpch6() throws Exception

@@ -173,8 +173,8 @@ public class ThetaSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
         TableDataSource.of(dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         DimFilters.and(
-            BoundDimFilter.between("market", "spot", "upfront"),
-            BoundDimFilter.between("quality", "health", "premium")
+            BoundDimFilter.range("market", "spot", "upfront"),
+            BoundDimFilter.range("quality", "health", "premium")
         ),
         null,
         DefaultDimensionSpec.toSpec("market", "quality"), null,

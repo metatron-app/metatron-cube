@@ -502,6 +502,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     try {
       Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), rows.size());
     } catch (AssertionError f) {
+      TestHelper.printToExpected(results.rhs);
       failed(f);
     }
 

@@ -393,4 +393,22 @@ public class TpchTestMore extends CalciteQueryTestHelper
         expected3
     );
   }
+
+  @Test
+  public void test4203() throws Exception
+  {
+    Object[][] expected = {
+        {0.06F, 17L}, {0.05F, 23L}, {0.07F, 22L}, {0.07F, 4L}, {0.07F, 8L}, {0.06F, 2L}, {0.05F, 24L},
+        {0.07F, 6L}, {0.07F, 11L}, {0.06F, 19L}, {0.05F, 1L}, {0.07F, 13L}, {0.06F, 5L}, {0.05F, 18L}, {0.07F, 17L}
+    };
+    testQuery(
+        "SELECT L_DISCOUNT, L_QUANTITY FROM lineitem"
+        + " WHERE"
+        + "    L_SHIPDATE >= '1993-01-01' AND"
+        + "    L_SHIPDATE < '1993-01-10' AND"
+        + "    L_DISCOUNT BETWEEN 0.06 - 0.01 and 0.06 + 0.01 AND"
+        + "    L_QUANTITY < 25",
+        expected
+    );
+  }
 }

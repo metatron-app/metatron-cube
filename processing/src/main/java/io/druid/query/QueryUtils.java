@@ -243,8 +243,8 @@ public class QueryUtils
                    BoundDimFilter.gte(column, thresholds[i]);
         } else if (i < thresholds.length - 1) {
           filter = direction == Direction.ASCENDING ?
-                   BoundDimFilter.between(column, thresholds[i - 1], thresholds[i]) :
-                   BoundDimFilter.between(column, thresholds[i], thresholds[i - 1]);
+                   BoundDimFilter.range(column, thresholds[i - 1], thresholds[i]) :
+                   BoundDimFilter.range(column, thresholds[i], thresholds[i - 1]);
         } else {
           filter = direction == Direction.ASCENDING ?
                    BoundDimFilter.gte(column, thresholds[i - 1]) :

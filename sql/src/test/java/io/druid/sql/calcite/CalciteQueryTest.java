@@ -2571,29 +2571,20 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testCountStarWithTimeOrDimFilter() throws Exception
   {
     testQuery(
-        "SELECT COUNT(*) FROM druid.foo "
-        + "WHERE dim2 <> 'a' "
-        + "or __time BETWEEN TIMESTAMP '2000-01-01 00:00:00' AND TIMESTAMP '2000-12-31 23:59:59.999'",
-        Druids.newTimeseriesQueryBuilder()
-              .dataSource(CalciteTests.DATASOURCE1)
-              .filters(
-                  OR(
-                      NOT(SELECTOR("dim2", "a")),
-                      BOUND(
-                          "__time",
-                          String.valueOf(T("2000-01-01")),
-                          String.valueOf(T("2000-12-31T23:59:59.999")),
-                          false,
-                          false,
-                          null,
-                          StringComparators.NUMERIC_NAME
-                      )
-                  )
-              )
-              .aggregators(CountAggregatorFactory.of("a0"))
-              .outputColumns("a0")
-              .build(),
-        new Object[]{5L}
+        "SELECT dim2, __time FROM druid.foo "
+        + "WHERE dim2 <> 'a' or __time BETWEEN TIMESTAMP '2000-01-01 00:00:00' AND TIMESTAMP '2000-12-31 23:59:59.999'",
+        new Object[][] {
+            {"a", 946684800000L},
+            {"", 946771200000L},
+            {"", 946857600000L},
+            {"abc", 978393600000L},
+            {"", 978480000000L}
+        }
+    );
+
+    hook.verifyHooked(
+        "hRLUYNsPbJpFr6BmQZkl2g==",
+        "StreamQuery{dataSource='foo', filter=(!(dim2=='a') || BoundDimFilter{946684800000 <= __time <= 978307199999(numeric)}), columns=[dim2, __time]}"
     );
   }
 

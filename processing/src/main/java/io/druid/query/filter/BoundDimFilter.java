@@ -48,6 +48,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.ToIntFunction;
 
 public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedIDSupport
 {
@@ -113,14 +114,16 @@ public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedI
     );
   }
 
-  public static BoundDimFilter between(String dimension, Object lower, Object upper)
+  // <= && <
+  public static BoundDimFilter range(String dimension, Object lower, Object upper)
   {
     return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, true, null, null);
   }
 
-  public static BoundDimFilter betweenStrict(String dimension, Object lower, Object upper)
+  // <= && <=
+  public static BoundDimFilter between(String dimension, Object lower, Object upper)
   {
-    return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, false, null, null);
+    return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), true, true, null, null);
   }
 
   public static BoundDimFilter gt(String dimension, Object lower)
@@ -375,8 +378,10 @@ public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedI
     final Object lower = numeric ? Rows.parseDecimal(lowerValue) : type.cast(lowerValue);
     final Object upper = numeric ? Rows.parseDecimal(upperValue) : type.cast(upperValue);
 
-    final Comparator comparator = numeric ? numericComparator(type) : getComparator();
-    final Predicate predicate = toPredicate(lower, lowerStrict, upper, upperStrict, comparator);
+    final ToIntFunction lc = numeric ? lower((BigDecimal) lower, type, lowerStrict) : comparator(lower, comparatorType);
+    final ToIntFunction rc = numeric ? upper((BigDecimal) upper, type, upperStrict) : comparator(upper, comparatorType);
+
+    final Predicate predicate = toPredicate(lc, lowerStrict, rc, upperStrict);
     if (numeric) {
       return v -> v != null && predicate.apply(v);
     }
@@ -398,49 +403,87 @@ public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedI
     };
   }
 
-  private static Comparator numericComparator(final ValueDesc type)
+  private static ToIntFunction lower(final BigDecimal constant, final ValueDesc type, final boolean strict)
   {
-    if (type.isDecimal()) {
-      return (constant, v) -> ((BigDecimal) constant).compareTo((BigDecimal) v);
+    if (constant == null) {
+      return null;
+    } else if (type.isDecimal()) {
+      return v -> constant.compareTo((BigDecimal) v);
     } else if (type.isString()) {
-      return (constant, v) -> ((BigDecimal) constant).compareTo(Rows.parseDecimal(String.valueOf(v)));
+      return v -> constant.compareTo(Rows.parseDecimal(String.valueOf(v)));
     } else if (type.isLong()) {
-      return (constant, v) -> ((BigDecimal) constant).compareTo(BigDecimal.valueOf(((Number) v).longValue()));
-    } else {
-      return (constant, v) -> ((BigDecimal) constant).compareTo(BigDecimal.valueOf(((Number) v).doubleValue()));
+      if (strict || constant.equals(BigDecimal.valueOf(constant.longValue()))) {
+        final long lv = constant.longValue();
+        return v -> Long.compare(lv, ((Number) v).longValue());
+      }
+    } else if (type.isFloat()) {
+      final float fv = constant.floatValue();
+      return v -> Float.compare(fv, ((Number) v).floatValue());
     }
+    final double dv = constant.doubleValue();
+    return v -> Double.compare(dv, ((Number) v).doubleValue());
+  }
+
+  private static ToIntFunction upper(final BigDecimal constant, final ValueDesc type, final boolean strict)
+  {
+    if (constant == null) {
+      return null;
+    } else if (type.isDecimal()) {
+      return v -> constant.compareTo((BigDecimal) v);
+    } else if (type.isString()) {
+      return v -> constant.compareTo(Rows.parseDecimal(String.valueOf(v)));
+    } else if (type.isLong()) {
+      if (strict || constant.equals(BigDecimal.valueOf(constant.longValue()))) {
+        final long lv = (long) Math.ceil(constant.doubleValue());
+        return v -> Long.compare(lv, ((Number) v).longValue());
+      }
+    } else if (type.isFloat()) {
+      final float fv = constant.floatValue();
+      return v -> Float.compare(fv, ((Number) v).floatValue());
+    }
+    final double dv = constant.doubleValue();
+    return v -> Double.compare(dv, ((Number) v).doubleValue());
+  }
+
+  @SuppressWarnings("unchecked")
+  private static ToIntFunction comparator(final Object constant, final String comparatorType)
+  {
+    if (constant != null) {
+      Comparator comparator = StringComparators.createGeneric(comparatorType, GuavaUtils.nullFirstNatural());
+      return v -> comparator.compare(constant, v);
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")
   private static Predicate toPredicate(
-      final Object lower,
+      final ToIntFunction lower,
       final boolean lowerStrict,
-      final Object upper,
-      final boolean upperStrict,
-      final Comparator comparator
+      final ToIntFunction upper,
+      final boolean upperStrict
   )
   {
     if (lower != null && upper != null) {
       if (lowerStrict && upperStrict) {
-        return v -> comparator.compare(lower, v) < 0 && comparator.compare(upper, v) > 0;
+        return v -> lower.applyAsInt(v) < 0 && upper.applyAsInt(v) > 0;
       } else if (lowerStrict) {
-        return v -> comparator.compare(lower, v) < 0 && comparator.compare(upper, v) >= 0;
+        return v -> lower.applyAsInt(v) < 0 && upper.applyAsInt(v) >= 0;
       } else if (upperStrict) {
-        return v -> comparator.compare(lower, v) <= 0 && comparator.compare(upper, v) > 0;
+        return v -> lower.applyAsInt(v) <= 0 && upper.applyAsInt(v) > 0;
       } else {
-        return v -> comparator.compare(lower, v) <= 0 && comparator.compare(upper, v) >= 0;
+        return v -> lower.applyAsInt(v) <= 0 && upper.applyAsInt(v) >= 0;
       }
     } else if (lower != null) {
       if (lowerStrict) {
-        return v -> comparator.compare(lower, v) < 0;
+        return v -> lower.applyAsInt(v) < 0;
       } else {
-        return v -> comparator.compare(lower, v) <= 0;
+        return v -> lower.applyAsInt(v) <= 0;
       }
     } else if (upper != null) {
       if (upperStrict) {
-        return v -> comparator.compare(upper, v) > 0;
+        return v -> upper.applyAsInt(v) > 0;
       } else {
-        return v -> comparator.compare(upper, v) >= 0;
+        return v -> upper.applyAsInt(v) >= 0;
       }
     }
     return v -> false;
