@@ -42,7 +42,6 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.mutable.MutableInt;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
@@ -666,121 +665,32 @@ public class GuavaUtils
     }));
   }
 
-  public static Function<Object[], Object[]> mapper(List<String> source, List<String> target)
-  {
-    return target == null || source.equals(target) ? Functions.identity() : mapper(indexOf(source, target));
-  }
-
   public static <T> Predicate<T> and(Predicate<T> first, Predicate<T> second)
   {
     return first == null ? second : second == null ? null : Predicates.and(first, second);
   }
 
+  public static Function<Object[], Object[]> mapper(List<String> source, List<String> target)
+  {
+    return target == null || source.equals(target) ? Functions.identity() : mapper(indexOf(source, target));
+  }
+
   public static Function<Object[], Object[]> mapper(final int[] indices)
   {
-    return new Function<Object[], Object[]>()
-    {
-      @Override
-      public Object[] apply(final Object[] input)
-      {
-        final Object[] output = new Object[indices.length];
-        for (int i = 0; i < indices.length; i++) {
-          if (indices[i] >= 0) {
-            output[i] = input[indices[i]];
-          }
+    return input -> {
+      final Object[] output = new Object[indices.length];
+      for (int i = 0; i < indices.length; i++) {
+        if (indices[i] >= 0) {
+          output[i] = input[indices[i]];
         }
-        return output;
       }
+      return output;
     };
   }
 
   public static boolean startsWith(List<String> target, List<String> starts)
   {
     return starts.isEmpty() || target.size() >= starts.size() && target.subList(0, starts.size()).equals(starts);
-  }
-
-  public static interface CloseablePeekingIterator<T> extends PeekingIterator<T>, Closeable {
-  }
-
-  public static <T> PeekingIterator<T> peekingIterator(final Iterator<? extends T> iterator)
-  {
-    final PeekingIterator<T> peekingIterator = Iterators.peekingIterator(iterator);
-    if (iterator instanceof Closeable) {
-      return new CloseablePeekingIterator<T>()
-      {
-        @Override
-        public void close() throws IOException
-        {
-          ((Closeable) iterator).close();
-        }
-
-        @Override
-        public T peek()
-        {
-          return peekingIterator.peek();
-        }
-
-        @Override
-        public T next()
-        {
-          return peekingIterator.next();
-        }
-
-        @Override
-        public void remove()
-        {
-          peekingIterator.remove();
-        }
-
-        @Override
-        public boolean hasNext()
-        {
-          return peekingIterator.hasNext();
-        }
-      };
-    }
-    return peekingIterator;
-  }
-
-  public static <T> PeekingIterator<T> peekingIterator(final Iterator<? extends T> iterator, final MutableInt counter)
-  {
-    final PeekingIterator<T> peekingIterator = Iterators.peekingIterator(iterator);
-    if (iterator instanceof Closeable) {
-      return new CloseablePeekingIterator<T>()
-      {
-        @Override
-        public void close() throws IOException
-        {
-          ((Closeable) iterator).close();
-        }
-
-        @Override
-        public T peek()
-        {
-          return peekingIterator.peek();
-        }
-
-        @Override
-        public T next()
-        {
-          counter.increment();
-          return peekingIterator.next();
-        }
-
-        @Override
-        public void remove()
-        {
-          peekingIterator.remove();
-        }
-
-        @Override
-        public boolean hasNext()
-        {
-          return peekingIterator.hasNext();
-        }
-      };
-    }
-    return peekingIterator;
   }
 
   @SafeVarargs
@@ -1062,9 +972,6 @@ public class GuavaUtils
             sb.append('\n');
             break;
           case WAITING:
-            sb.append("\t-  waiting on ").append(thread.getLockInfo());
-            sb.append('\n');
-            break;
           case TIMED_WAITING:
             sb.append("\t-  waiting on ").append(thread.getLockInfo());
             sb.append('\n');
@@ -1137,5 +1044,44 @@ public class GuavaUtils
   public static <T> List<T> wrap(T value)
   {
     return new ListWrap<>(value);
+  }
+
+  public static class DelegatedPeekingIterator<T> implements PeekingIterator<T>, Closeable
+  {
+    protected final PeekingIterator<T> delegated;
+
+    public DelegatedPeekingIterator(PeekingIterator<T> delegated) {this.delegated = delegated;}
+
+    @Override
+    public T peek()
+    {
+      return delegated.peek();
+    }
+
+    @Override
+    public boolean hasNext()
+    {
+      return delegated.hasNext();
+    }
+
+    @Override
+    public T next()
+    {
+      return delegated.next();
+    }
+
+    @Override
+    public void remove()
+    {
+      delegated.remove();
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      if (delegated instanceof Closeable) {
+        ((Closeable) delegated).close();
+      }
+    }
   }
 }

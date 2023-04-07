@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.ISE;
+import io.druid.query.JoinQuery.JoinHolder;
 import io.druid.query.Query.FilterSupport;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -72,21 +73,27 @@ public class DataSources
 
   public static boolean isFilterSupport(DataSource dataSource)
   {
-    return dataSource instanceof ViewDataSource ||
-           dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getQuery() instanceof FilterSupport;
+    return dataSource instanceof ViewDataSource || isFromQuery(dataSource, q -> q instanceof FilterSupport);
+  }
+
+  public static boolean isFromQuery(DataSource dataSource, Predicate<Query> predicate)
+  {
+    return dataSource instanceof QueryDataSource && predicate.apply(((QueryDataSource) dataSource).getQuery());
   }
 
   public static DataSource applyFilterAndProjection(
       DataSource dataSource,
       DimFilter filter,
+      float selectivity,
       List<String> projection,
-      boolean localize
+      boolean localize,
+      QuerySegmentWalker segmentWalker
   )
   {
-    return applyProjection(applyFilter(dataSource, filter), projection, localize);
+    return applyProjection(applyFilter(dataSource, filter, selectivity, segmentWalker), projection, localize);
   }
 
-  public static DataSource applyFilter(DataSource dataSource, DimFilter filter)
+  public static DataSource applyFilter(DataSource dataSource, DimFilter filter, float selectivity, QuerySegmentWalker segmentWalker)
   {
     if (dataSource instanceof ViewDataSource) {
       final ViewDataSource view = (ViewDataSource) dataSource;
@@ -95,7 +102,7 @@ public class DataSources
     if (dataSource instanceof QueryDataSource) {
       final Query query = ((QueryDataSource) dataSource).getQuery();
       final RowSignature schema = ((QueryDataSource) dataSource).getSchema();
-      final Query applied = applyFilter(query, filter);
+      final Query applied = applyFilter(query, filter, selectivity, segmentWalker);
       if (applied != null) {
         return QueryDataSource.of(applied, schema);
       }
@@ -232,8 +239,8 @@ public class DataSources
       if (invariant != null && invariant.containsAll(columns) && predicate.apply(query)) {
         return DefaultDimensionSpec.toSpec(columns);
       }
-    } else if (query instanceof JoinQuery.JoinHolder) {
-      JoinQuery.JoinHolder holder = (JoinQuery.JoinHolder) query;
+    } else if (query instanceof JoinHolder) {
+      JoinHolder holder = (JoinHolder) query;
       for (Query<?> nested : holder.getQueries()) {
         List<DimensionSpec> filterable = findFilterableOn(nested, columns, predicate);
         if (filterable != null) {
@@ -244,36 +251,42 @@ public class DataSources
     return null;
   }
 
-  public static Query applyFilter(Query<?> query, DimFilter filter)
+  public static Query applyFilter(Query<?> query, DimFilter filter, float selectivity, QuerySegmentWalker segmentWalker)
   {
-    return applyFilter(query, filter, Filters.getDependents(filter));
+    return applyFilter(query, filter, selectivity, Filters.getDependents(filter), segmentWalker);
   }
 
-  public static Query applyFilter(Query<?> query, DimFilter filter, Collection<String> dependents)
+  public static Query applyFilter(
+      Query<?> query,
+      DimFilter filter,
+      float selectivity,
+      Collection<String> dependents,
+      QuerySegmentWalker segmentWalker
+  )
   {
     if (query instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport<?> aggregations = (Query.AggregationsSupport) query;
       List<DimensionSpec> dimensions = aggregations.getDimensions();
       if (DimensionSpecs.isAllDefault(dimensions) && DimensionSpecs.toOutputNames(dimensions).containsAll(dependents)) {
-        return DimFilters.and(aggregations, filter);
+        return Estimations.mergeSelectivity(DimFilters.and(aggregations, filter), selectivity);
       }
     } else if (query instanceof Query.ColumnsSupport) {
       Query.ColumnsSupport<?> columns = (Query.ColumnsSupport<?>) query;
       List<String> invariant = columns.getColumns();
       if (invariant != null && invariant.containsAll(dependents)) {
-        return DimFilters.and(columns, filter);
+        return Estimations.mergeSelectivity(DimFilters.and(columns, filter), selectivity);
       }
-    } else if (query instanceof JoinQuery.JoinHolder) {
-      JoinQuery.JoinHolder holder = (JoinQuery.JoinHolder) query;
-      List<Query> queries = Lists.newArrayList(holder.getQueries());
+    } else if (query instanceof JoinHolder) {
+      JoinHolder holder = (JoinHolder) query;
+      List<Query<Object[]>> queries = holder.getQueries();
       for (int i = 0; i < queries.size(); i++) {
-        Query<?> nested = queries.get(i);
-        Query applied = applyFilter(nested, filter, dependents);
+        Query applied = applyFilter(queries.get(i), filter, selectivity, dependents, segmentWalker);
         if (applied != null) {
-          queries.set(i, applied);
+          List<Query> rewritten = Lists.newArrayList(holder.getQueries());
+          rewritten.set(i, applied);
+          return holder.withQueries(JoinQuery.changeHashing(holder.getElements(), rewritten, i, segmentWalker));
         }
       }
-      return holder.withQueries(queries);
     }
     return null;
   }

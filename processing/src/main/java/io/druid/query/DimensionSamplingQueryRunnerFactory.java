@@ -115,7 +115,7 @@ public class DimensionSamplingQueryRunnerFactory extends QueryRunnerFactory.Abst
 
   private static class Sampler implements Accumulator<Sampler, Cursor>
   {
-    private final Random r = new Random();
+    private final Random r = new Random(0);   // makes TPCH test fuzzy
     private final List<DimensionSpec> dimensions;
 
     private int index;

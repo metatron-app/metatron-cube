@@ -396,7 +396,7 @@ public class Utils
 
   public static long[] estimateSelectivity(String table, Filtration filtration, QueryMaker context)
   {
-    return Queries.estimateSelectivity(
+    return Queries.filterSelectivity(
         TableDataSource.of(table),
         filtration.getQuerySegmentSpec(),
         filtration.getDimFilter(),

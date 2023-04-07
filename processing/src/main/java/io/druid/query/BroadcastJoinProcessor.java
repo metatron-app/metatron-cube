@@ -144,7 +144,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
       public Sequence run(Query query, Map response)
       {
         Preconditions.checkArgument(query instanceof Query.ArrayOutputSupport, "?? %s", query);
-        Query.ArrayOutputSupport arrayQuery = (Query.ArrayOutputSupport) query;   // currently stream query only
+        Query.ArrayOutputSupport arrayQuery = (Query.ArrayOutputSupport) query;   // currently, stream query only
 
         List<String> leftAlias = Arrays.asList(element.getLeftAlias());
         List<String> rightAlias = Arrays.asList(element.getRightAlias());

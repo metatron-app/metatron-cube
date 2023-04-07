@@ -34,6 +34,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -175,9 +176,8 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected static final String MASKED = "<<<<<<MASK>>>>>>";
 
-  public static final Map<String, Object> REMOVER = GuavaUtils.mutableMap(
-      "queryId", null, "groupby.sort.on.time", null, "sqlCurrentTimestamp", null, "#fudgeTimestamp", null,
-      "#localSplitStrategy", null
+  public static final Map<String, Object> REMOVER = BaseQuery.contextRemover(
+      "queryId", "groupby.sort.on.time", "sqlCurrentTimestamp", "#fudgeTimestamp", "#localSplitStrategy"
   );
 
   @Rule
@@ -712,6 +712,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     private final List<Query> hooked = Lists.newArrayList();
 
     @Override
+    @SuppressWarnings("unchecked")
     public void accept(Query<?> query)
     {
       if (!SKIP.contains(query.getType()) && !query.getContextBoolean("$skip", false)) {

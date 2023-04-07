@@ -406,7 +406,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
           Arrays.asList(BloomFilterAggregatorFactory.of("$bloom", bloomSource.getColumns(), expectedCardinality))
       );
       BloomKFilter filter = (BloomKFilter) Sequences.only(QueryRunners.run(query, walker)).getRaw("$bloom");
-      LOG.debug("-- bloom filter generated for [%s:%d]", BaseQuery.getAlias(parent), expectedCardinality);
+      LOG.debug("-- bloom filter generated for [%s:%d]", parent.alias(), expectedCardinality);
       return new BloomDimFilter(fieldNames, fields, groupingSets, filter.serialize());
     }
 

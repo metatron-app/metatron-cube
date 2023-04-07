@@ -80,6 +80,7 @@ import io.druid.segment.DimensionSpecVirtualColumn;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
@@ -445,18 +446,18 @@ public class Queries
     } else if (query instanceof GroupByQuery) {
       return estimateCardinality((GroupByQuery) query, segmentWalker);
     } else if (query instanceof StreamQuery) {
-      return estimateSelectivity(query, segmentWalker);
+      return filterSelectivity(query, segmentWalker);
     } else {
       return new long[] {UNKNOWN, UNKNOWN};
     }
   }
 
-  public static long[] estimateSelectivity(Query query, QuerySegmentWalker segmentWalker)
+  public static long[] filterSelectivity(Query query, QuerySegmentWalker segmentWalker)
   {
     return Sequences.only(FilterMetaQuery.of(query).run(segmentWalker, null), new long[] {0, 0});
   }
 
-  public static long[] estimateSelectivity(
+  public static long[] filterSelectivity(
       DataSource dataSource,
       QuerySegmentSpec segmentSpec,
       DimFilter filter,
@@ -464,7 +465,19 @@ public class Queries
       QuerySegmentWalker segmentWalker
   )
   {
-    FilterMetaQuery query = FilterMetaQuery.of(dataSource, segmentSpec, filter, context);
+    return filterSelectivity(dataSource, segmentSpec, null, filter, context, segmentWalker);
+  }
+
+  public static long[] filterSelectivity(
+      DataSource dataSource,
+      QuerySegmentSpec segmentSpec,
+      List<VirtualColumn> virtualColumns,
+      DimFilter filter,
+      Map<String, Object> context,
+      QuerySegmentWalker segmentWalker
+  )
+  {
+    FilterMetaQuery query = new FilterMetaQuery(dataSource, segmentSpec, virtualColumns, filter, context);
     return Sequences.only(query.run(segmentWalker, null), new long[] {0, 0});
   }
 

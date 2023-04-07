@@ -20,10 +20,12 @@
 package io.druid.jackson;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import io.druid.query.QueryException;
 
 import java.util.Map;
 
@@ -39,5 +41,15 @@ public class ObjectMappers
   public static <T> ObjectMapper withDeserializer(ObjectMapper mapper, Class<T> clazz, JsonDeserializer<T> deserializer)
   {
     return mapper.copy().registerModule(new SimpleModule().addDeserializer(clazz, deserializer));
+  }
+
+  public static byte[] writeBytes(ObjectMapper objectMapper, Object value)
+  {
+    try {
+      return objectMapper.writeValueAsBytes(value);
+    }
+    catch (JsonProcessingException e) {
+      throw QueryException.wrapIfNeeded(e);
+    }
   }
 }

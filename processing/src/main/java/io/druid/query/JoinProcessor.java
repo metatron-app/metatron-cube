@@ -522,7 +522,7 @@ public class JoinProcessor
       this.joinColumns = joinColumns;
       this.collations = Suppliers.ofInstance(Arrays.asList(OrderByColumnSpec.ascending(joinColumns)));
       this.indices = indices;
-      this.rows = GuavaUtils.peekingIterator(rows.iterator(), counter);
+      this.rows = peek(rows.iterator(), counter);
       this.hashed = null;
       this.estimatedNumRows = rows.size();
       LOG.debug("-- %s = sorted (%s:%s)(numRows=%d)", alias, joinColumns, columns, rows.size());
@@ -543,7 +543,7 @@ public class JoinProcessor
       this.joinColumns = joinColumns;
       this.collations = collations == null ? NO_COLLATION : collations;
       this.indices = indices;
-      this.rows = GuavaUtils.peekingIterator(rows, counter);
+      this.rows = peek(rows, counter);
       this.hashed = null;
       this.estimatedNumRows = estimatedNumRows;
       LOG.debug("-- %s = stream (%s:%s)(estimated=%d)", alias, joinColumns, columns, estimatedNumRows);
@@ -563,9 +563,8 @@ public class JoinProcessor
       this.collations = NO_COLLATION;
       this.indices = indices;
       this.rows = Iterators.peekingIterator(Collections.emptyIterator());
-      this.hashed = hash(iterator, indices);
-      this.estimatedNumRows = hashed.size();
-      counter.setValue(hashed.size());
+      this.hashed = hash(peek(iterator, counter), indices);
+      this.estimatedNumRows = counter.intValue();
       LOG.debug("-- %s = hashed (%s:%s)(group=%d)", alias, joinColumns, columns, hashed.size());
     }
 
@@ -686,9 +685,12 @@ public class JoinProcessor
     @Override
     public String toString()
     {
-      return alias + "." + joinColumns +
-             (isHashed() ? "(hashed:" : isSorted() ? "(sorted-stream:" : "(stream:") +
-             (counter.intValue() > 0 ? counter : estimatedNumRows > 0 ? estimatedNumRows : "?") + ")";
+      if (isHashed()) {
+        return String.format("%s.%s(hashed:%d/%d)", alias, joinColumns, hashed.size(), counter.intValue());
+      }
+      String prefix = isSorted() ? "sorted-stream" : "stream";
+      String row = counter.intValue() > 0 ? String.valueOf(counter) : estimatedNumRows > 0 ? estimatedNumRows + "?" : "?";
+      return String.format("%s.%s(%s:%s)", alias, joinColumns, prefix, row);
     }
   }
 
@@ -891,5 +893,18 @@ public class JoinProcessor
       return () -> ((JoinQuery.JoinHolder) query).getCollations();
     }
     return NO_COLLATION;
+  }
+
+  public static <T> PeekingIterator<T> peek(Iterator<? extends T> iterator, MutableInt counter)
+  {
+    return new GuavaUtils.DelegatedPeekingIterator<T>(Iterators.peekingIterator(iterator))
+    {
+      @Override
+      public T next()
+      {
+        counter.increment();
+        return delegated.next();
+      }
+    };
   }
 }

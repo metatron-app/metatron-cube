@@ -277,7 +277,7 @@ public class GroupByQueryRunnerFactory
         }
         if (query.isStreamingAggregatable() && cardinality > splitCardinality * 0.5 &&
             query.getContextBoolean(Query.GBY_STREAMING, gbyConfig.isStreamingAggregation())) {
-          long[] selectivity = Queries.estimateSelectivity(query, segmentWalker);
+          long[] selectivity = Queries.filterSelectivity(query, segmentWalker);
           if (selectivity[0] > 0 && cardinality > selectivity[0] * 0.25) {
             logger.info("Using streaming aggregation.. ratio = [%.2f]", cardinality / (float) selectivity[0]);
             query = query.withOverriddenContext(Query.STREAMING_GBY_SCHEMA, resolver.get().resolve(query.toStreaming()));

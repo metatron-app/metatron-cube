@@ -247,14 +247,6 @@ public abstract class BaseQuery<T> implements Query<T>
     return BaseQuery.allMetricsForEmpty(this, true);
   }
 
-  public static String getAlias(Query<?> query)
-  {
-    if (query instanceof JoinQuery.JoinHolder) {
-      return ((JoinQuery.JoinHolder) query).getAlias();
-    }
-    return StringUtils.concat(",", query.getDataSource().getNames());
-  }
-
   public static List<VirtualColumn> getVirtualColumns(Query query)
   {
     return query instanceof VCSupport ? ((VCSupport<?>) query).getVirtualColumns() : Collections.emptyList();
@@ -457,12 +449,6 @@ public abstract class BaseQuery<T> implements Query<T>
   public double getContextDouble(String key, double defaultValue)
   {
     return PropUtils.parseDouble(getContext(), key, defaultValue);
-  }
-
-  @Override
-  public Query<T> withOverriddenContext(String contextKey, Object contextValue)
-  {
-    return withOverriddenContext(GuavaUtils.mutableMap(contextKey, contextValue));
   }
 
   protected static final Map<String, Object> DEFAULT_DATALOCAL_CONTEXT = GuavaUtils.mutableMap(

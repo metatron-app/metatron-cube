@@ -82,6 +82,32 @@ public class SemiJoinFactory
     }
   }
 
+  public static DimFilter from(List<String> fieldNames, Iterator<Object[]> iterator, int[] ix)
+  {
+    try {
+      if (fieldNames.size() == 1) {
+        final List<String> set = Lists.newArrayList();
+        while (iterator.hasNext()) {
+          set.add(Objects.toString(iterator.next()[ix[0]], ""));
+        }
+        Collections.sort(set);
+        return toInFilter(fieldNames.get(0), GuavaUtils.dedup(set));
+      } else {
+        final List<StringArray> set = Lists.newArrayList();
+        while (iterator.hasNext()) {
+          set.add(StringArray.of(iterator.next(), ix, ""));
+        }
+        Collections.sort(set);
+        return toInsFilter(fieldNames, GuavaUtils.dedup(set));
+      }
+    }
+    finally {
+      if (iterator instanceof Closeable) {
+        IOUtils.closeQuietly((Closeable) iterator);
+      }
+    }
+  }
+
   @SuppressWarnings("unchecked")
   public static DimFilter toFilter(List<String> fieldNames, Object2IntSortedMap<?> mapping)
   {

@@ -45,6 +45,15 @@ public class StringArray extends ObjectArray<String>
     return new StringArray(strings);
   }
 
+  public static StringArray of(Object[] array, int[] ix, String nullValue)
+  {
+    final String[] strings = new String[ix.length];
+    for (int i = 0; i < ix.length; i++) {
+      strings[i] = Objects.toString(array[ix[i]], nullValue);
+    }
+    return new StringArray(strings);
+  }
+
   public static StringArray of(String[] array)
   {
     return new StringArray(Preconditions.checkNotNull(array));

@@ -113,22 +113,23 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence run(Query holder, Map responseContext)
       {
+        final JoinHolder joinQuery = (JoinHolder) holder;
         final int joinAliases = elements.length + 1;
         final List<String> aliases = Lists.newArrayList();
         for (int i = 0; i < joinAliases; i++) {
           aliases.add(toAlias(i));
         }
 
-        final List<Pair<Query, Sequence>> pairs = Sequences.toList(baseRunner.run(query, responseContext));
+        final List<Pair<Query, Sequence>> pairs = Sequences.toList(baseRunner.run(holder, responseContext));
         final List<IntTagged<Callable<JoinAlias>>> nested = Lists.newArrayList();
         final List<IntTagged<Callable<JoinAlias>>> nonNested = Lists.newArrayList();
         for (int i = 0; i < pairs.size(); i++) {
-          Pair<Query, Sequence> in = pairs.get(i);
-          Query.ArrayOutputSupport alias = (Query.ArrayOutputSupport) in.lhs;
-          Callable<JoinAlias> callable = toJoinAlias(toAlias(i), alias, toJoinColumns(i), alias.array(in.rhs));
-          if (Queries.isNestedQuery(in.lhs)) {
+          Pair<Query, Sequence> pair = pairs.get(i);
+          Query.ArrayOutputSupport query = (Query.ArrayOutputSupport) pair.lhs;
+          Callable<JoinAlias> callable = toJoinAlias(toAlias(i), query, toJoinColumns(i), query.array(pair.rhs));
+          if (Queries.isNestedQuery(pair.lhs)) {
             nested.add(IntTagged.of(i, callable));
           } else {
             nonNested.add(IntTagged.of(i, callable));
@@ -142,8 +143,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         for (IntTagged<Callable<JoinAlias>> callable : nonNested) {
           joining[callable.tag] = exec.submit(callable.value);
         }
-        final JoinHolder joinQuery = (JoinHolder) query;
-        final int estimatedNumRows = query.getContextInt(JoinQuery.CARDINALITY, -1);
+        final int estimatedNumRows = JoinQuery.getCardinality(holder);
 
         LOG.debug("Running %d-way join processing %s", joinAliases, toAliases());
         try {
@@ -181,12 +181,11 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     if (indices == null) {
       throw new IAE("Cannot find join column %s in %s of %s", joinColumns, columnNames, aliases);
     }
-    final int cardinality = source.getContextInt(JoinQuery.CARDINALITY, -1);
-    final boolean hashing = source.getContextBoolean(JoinQuery.HASHING, false);
-    final boolean sorting = source.getContextBoolean(JoinQuery.SORTING, false);
-    if (hashing) {
+    if (JoinQuery.isHashing(source)) {
       return () -> new JoinAlias(aliases, columnNames, joinColumns, indices, Sequences.toIterator(sequence));
     }
+    final boolean sorting = JoinQuery.isSorting(source);
+    final int cardinality = JoinQuery.getCardinality(source);
     return () -> new JoinAlias(
         aliases, columnNames, joinColumns, sorting ? getCollations(source) : null, indices, Sequences.toIterator(sequence), cardinality
     );

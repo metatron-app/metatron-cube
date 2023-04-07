@@ -26,26 +26,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
-import io.druid.data.input.Row;
-import io.druid.granularity.Granularities;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.SemiJoinFactory;
-import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.query.timeseries.TimeseriesQuery;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntSortedMap;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,8 +47,6 @@ import static io.druid.query.JoinQuery.SORTING;
  */
 public class JoinElement
 {
-  private static final Logger LOG = new Logger(JoinQuery.class);
-
   public static JoinElement inner(String expression)
   {
     return new JoinElement(JoinType.INNER, expression);
@@ -162,7 +148,7 @@ public class JoinElement
         throw new IllegalArgumentException("invalid expression " + expression);
       }
     }
-    return new JoinElement(joinType, leftAlias, leftJoinColumns, rightAlias, rightJoinColumns);
+    return new JoinElement(joinType, leftAlias, leftJoinColumns, rightAlias, rightJoinColumns, null);
   }
 
   private String findAlias(String expression, Set<String> aliases)
@@ -321,12 +307,23 @@ public class JoinElement
     return toQuery(segmentWalker, dataSource, null, segmentSpec, context);
   }
 
+  @SuppressWarnings("unchecked")
   public static ArrayOutputSupport toQuery(
       QuerySegmentWalker segmentWalker,
       DataSource dataSource,
       List<String> sortColumns,
       QuerySegmentSpec segmentSpec,
       Map<String, Object> context
+  ) {
+    ArrayOutputSupport query = toQuery(segmentWalker, dataSource, sortColumns, segmentSpec);
+    return (ArrayOutputSupport) query.withOverriddenContext(context);
+  }
+
+  private static ArrayOutputSupport toQuery(
+      QuerySegmentWalker segmentWalker,
+      DataSource dataSource,
+      List<String> sortColumns,
+      QuerySegmentSpec segmentSpec
   )
   {
     Preconditions.checkNotNull(dataSource);
@@ -357,7 +354,6 @@ public class JoinElement
           .filters(view.getFilter())
           .columns(view.getColumns())
           .virtualColumns(view.getVirtualColumns())
-          .context(BaseQuery.copyContextForMeta(context))
           .streaming(sortColumns);
       if (GuavaUtils.isNullOrEmpty(query.getColumns())) {
         query = (StreamQuery) QueryUtils.resolve(query, segmentWalker);
@@ -365,153 +361,6 @@ public class JoinElement
       return query;
     }
     throw new ISE("todo: cannot join on %s(%s)", dataSource, dataSource.getClass());
-  }
-
-  private static final int TRIVIAL_SIZE = 100;
-  private static final int ACCEPTABLE_MAX_LIMIT = 10000;
-
-  private static long[] applyLimit(Query<?> query, long[] estimated)
-  {
-    LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
-    if (limitSpec != null && limitSpec.hasLimit()) {
-      if (estimated[0] > 0) {
-        estimated[0] = Math.min(limitSpec.getLimit(), estimated[0]);
-      } else if (limitSpec.getLimit() < ACCEPTABLE_MAX_LIMIT) {
-        estimated[0] = limitSpec.getLimit();
-      }
-    }
-    return estimated;
-  }
-
-  private static final float MIN_SAMPLING = 4000;
-
-  public static long[] estimatedNumRows(
-      DataSource dataSource,
-      QuerySegmentSpec segmentSpec,
-      Map<String, Object> context,
-      QuerySegmentWalker segmentWalker
-  )
-  {
-    long[] estimated = JoinQuery.estimatedCardinality(dataSource);
-    if (estimated[0] != Queries.NOT_EVALUATED) {
-      return estimated;
-    }
-    if (dataSource instanceof QueryDataSource) {
-      Query query = ((QueryDataSource) dataSource).getQuery();
-      LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
-      if (limitSpec != null && limitSpec.hasLimit() && limitSpec.getLimit() < TRIVIAL_SIZE) {
-        return new long[] {limitSpec.getLimit(), limitSpec.getLimit()};
-      }
-      if (query.getDataSource() instanceof QueryDataSource) {
-        if (query instanceof StreamQuery) {
-          StreamQuery stream = (StreamQuery) query;
-          // ignore simple projections
-          estimated = estimatedNumRows(query.getDataSource(), segmentSpec, context, segmentWalker);
-          if (estimated[0] > 0 && stream.getFilter() != null) {
-            estimated[0] = Math.max(1, estimated[0] >>> 1);
-          }
-          return applyLimit(stream, estimated);
-        } else if (query instanceof TimeseriesQuery && Granularities.isAll(query.getGranularity())) {
-          return new long[]{1, 1};
-        }
-        return new long[]{Queries.NOT_EVALUATED, Queries.NOT_EVALUATED};  // see later
-      }
-      if (query instanceof TimeseriesQuery) {
-        TimeseriesQuery timeseries = (TimeseriesQuery) query;
-        return Queries.estimateCardinality(timeseries.withHavingSpec(null), segmentWalker);
-      } else if (query instanceof GroupByQuery) {
-        GroupByQuery groupBy = (GroupByQuery) query;
-        long[] selectivity = Queries.estimateSelectivity(groupBy, segmentWalker);
-        if (selectivity[0] <= TRIVIAL_SIZE) {
-          return selectivity;
-        }
-        long start = System.currentTimeMillis();
-        List<DimensionSpec> dimensions = groupBy.getDimensions();
-        DimensionSamplingQuery sampling = groupBy.toSampling(Math.min(0.05f, MIN_SAMPLING / selectivity[1]));
-        IntTagged<Object2IntSortedMap<?>> mapping = SemiJoinFactory.toMap(
-            dimensions.size(), Sequences.toIterator(sampling.run(segmentWalker, null))
-        );
-        estimated[0] = Math.min(selectivity[0], estimateBySample(mapping, selectivity[0]));
-//        estimated = Queries.estimateCardinality(groupBy.withHavingSpec(null), segmentWalker);
-        if (selectivity[0] > 0 && selectivity[1] > 0) {
-          estimated[1] = estimated[0] * selectivity[1] / selectivity[0];
-        } else {
-          estimated[1] = estimated[0];
-        }
-        if (groupBy.getHavingSpec() != null) {
-          long threshold = segmentWalker.getJoinConfig().anyMinThreshold();
-          if (threshold > 0 && estimated[0] > threshold << 1 && DimensionSpecs.isAllDefault(dimensions)) {
-            DimFilter filter = SemiJoinFactory.toFilter(DimensionSpecs.toInputNames(dimensions), mapping.value());
-            Query<Row> sampler = groupBy.prepend(filter)
-                                        .withOverriddenContext(Query.GBY_LOCAL_SPLIT_CARDINALITY, -1)
-                                        .withOverriddenContext("$skip", true);   // for test hook
-            int size = SemiJoinFactory.sizeOf(filter);
-            int passed = Sequences.size(QueryUtils.resolve(sampler, segmentWalker).run(segmentWalker, null));
-            estimated[0] = Math.max(1, estimated[0] * passed / size);
-            LOG.debug("--- 'having' selectivity by sampling: %f", (float) passed / size);
-          } else {
-            estimated[0] = Math.max(1, estimated[0] >>> 1);    // half
-          }
-        }
-        LOG.debug(
-            "--- %s is estimated to %d rows by sampling %d rows from %d rows in %,d msec",
-            groupBy.getDataSource(), estimated[0], mapping.tag, selectivity[0], System.currentTimeMillis() - start
-        );
-        return applyLimit(query, estimated);
-      } else if (query instanceof StreamQuery) {
-        return applyLimit(query, Queries.estimateSelectivity(query, segmentWalker));
-      }
-      return new long[]{Queries.UNKNOWN, Queries.UNKNOWN};  // see later
-    }
-    return Queries.estimateSelectivity(
-        dataSource,
-        segmentSpec,
-        null,
-        BaseQuery.copyContextForMeta(context),
-        segmentWalker
-    );
-  }
-
-  private static long estimateBySample(IntTagged<Object2IntSortedMap<?>> mapping, long N)
-  {
-    final int n = mapping.tag;
-    final Object2IntMap<?> samples = mapping.value;
-
-    float q = (float) n / N;
-    final float d = samples.size();
-
-    float f1 = samples.object2IntEntrySet().stream().filter(e -> e.getIntValue() == 1).count();
-
-//    final IntIterator counts = samples.values().iterator();
-//    final Int2IntOpenHashMap fn = new Int2IntOpenHashMap();
-//    while (counts.hasNext()) {
-//      fn.addTo(counts.nextInt(), 1);
-//    }
-//    float f1 = fn.get(1);
-//
-//    float sum = 0;
-//    float numerator = 0f;
-//    float denominator = 0f;
-//    for (Int2IntMap.Entry entry : fn.int2IntEntrySet()) {
-//      int i = entry.getIntKey();
-//      int fi = entry.getIntValue();
-//      numerator += Math.pow(1 - q, i) * fi;
-//      denominator += i * q * Math.pow(1 - q, i - 1) * fi;
-//      sum += i * (i - 1) * fi;
-//    }
-//    double Dsh = d + f1 * numerator / denominator;
-//
-//    float f1n = 1 - f1 / n;
-//    double Dcl = d + f1 * d * sum / (Math.pow(n, 2) - n - 1) / f1n / f1n;
-//    double Dchar = d + f1 * (Math.sqrt(1 / q) - 1);
-//    double Dchao = d + 0.5 * Math.pow(f1, 2) / (d - f1);
-//    LOG.info("Dsh = %.2f, Dcl = %.2f, Dchar = %.2f, Dchao = %.2f", Dsh, Dcl, Dchar, Dchao);
-
-    if (f1 == d) {
-      return (long) (d * Math.sqrt(1 / q));   // Dchar
-    } else {
-      return (long) (d + 0.5 * Math.pow(f1, 2) / (d - f1));   // Dchao
-    }
   }
 
   @Override

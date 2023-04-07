@@ -28,7 +28,6 @@ import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.BaseQuery;
 import io.druid.query.FilterMetaQuery;
 import io.druid.query.FilterMetaQueryEngine;
 import io.druid.query.Queries;
@@ -44,7 +43,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.Segment;
@@ -172,9 +170,7 @@ public class StreamQueryRunnerFactory
     if (filter == null || numRows <= splitRows) {
       return numRows;
     }
-    final FilterMetaQuery meta = FilterMetaQuery.of(
-        query.getDataSource(), QuerySegmentSpec.ETERNITY, filter, BaseQuery.copyContextForMeta(query)
-    );
+    final FilterMetaQuery meta = FilterMetaQuery.of(query);
     final MutableInt counter = new MutableInt();
     for (Segment segment : segments) {
       final DimFilter optimized = filter.specialize(segment, query.getVirtualColumns());

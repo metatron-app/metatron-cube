@@ -23,7 +23,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableMap;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
@@ -152,7 +155,13 @@ public interface Query<T> extends QueryContextKeys
 
   Query<T> withOverriddenContext(Map<String, Object> contextOverride);
 
-  Query<T> withOverriddenContext(String contextKey, Object contextValue);
+  default Query<T> withOverriddenContext(String contextKey, Object contextValue)
+  {
+    return withOverriddenContext(
+        contextValue == null ? GuavaUtils.mutableMap(contextKey, contextValue) :
+        ImmutableMap.of(contextKey, contextValue)
+    );
+  }
 
   Query<T> withQuerySegmentSpec(QuerySegmentSpec spec);
 
@@ -161,6 +170,21 @@ public interface Query<T> extends QueryContextKeys
   Query<T> withId(String id);
 
   String getId();
+
+  default String alias()
+  {
+    if (this instanceof JoinQuery.JoinHolder) {
+      return ((JoinQuery.JoinHolder) this).getAlias();
+    }
+    DataSource dataSource = getDataSource();
+    if (dataSource instanceof TableDataSource) {
+      return ((TableDataSource) dataSource).getName();
+    }
+    if (dataSource instanceof ViewDataSource) {
+      return ((ViewDataSource) dataSource).getName();
+    }
+    return StringUtils.concat(",", dataSource.getNames());
+  }
 
   Query<T> withDataSource(DataSource dataSource);
 
