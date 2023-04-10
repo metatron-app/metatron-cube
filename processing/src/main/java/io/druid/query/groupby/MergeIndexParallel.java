@@ -22,7 +22,6 @@ package io.druid.query.groupby;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -110,10 +109,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     }
 
     // sort all
-    final Comparator<Object[]> cmp = Comparators.toArrayComparator(
-        DimensionSpecs.toComparator(groupBy.getDimensions(), true),
-        Granularities.isAll(groupBy.getGranularity()) ? 1 : 0
-    );
+    final Comparator<Object[]> cmp = DimensionSpecs.toComparator(groupBy.getDimensions(), groupBy.getGranularity());
     final long start = System.currentTimeMillis();
     final Object[][] array = sortRows(values, cmp, parallel);
     LOG.debug("Took %d msec for sorting %,d rows", (System.currentTimeMillis() - start), array.length);

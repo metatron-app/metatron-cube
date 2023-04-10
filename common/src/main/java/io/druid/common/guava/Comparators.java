@@ -82,7 +82,7 @@ public class Comparators
   @SuppressWarnings("unchecked")
   public static Comparator<List<Object>> toListComparator(Comparator elementComp)
   {
-    return (List<Object> o1, List<Object> o2) ->
+    return (o1, o2) ->
     {
       final int min = Math.min(o1.size(), o2.size());
       for (int i = 0; i < min; i++) {
@@ -95,41 +95,28 @@ public class Comparators
     };
   }
 
-  public static Comparator<Object[]> NF_ARRAY = new Comparator<Object[]>()
-  {
-    @Override
-    public int compare(Object[] o1, Object[] o2)
-    {
-      return compareNF(o1, o2);
-    }
-  };
-
-  public static Comparator<Object[]> toArrayComparator(List<Comparator> comparators)
-  {
-    return toArrayComparator(comparators.toArray(new Comparator[0]));
-  }
-
   public static Comparator<Object[]> toArrayComparator(final Comparator[] cx)
   {
     return toArrayComparator(cx, 0);
   }
 
+  @SuppressWarnings("unchecked")
   public static Comparator<Object[]> toArrayComparator(final Comparator[] cx, final int from)
   {
-    return new Comparator<Object[]>()
-    {
-      @Override
-      @SuppressWarnings("unchecked")
-      public int compare(Object[] o1, Object[] o2)
-      {
-        for (int i = from; i < cx.length; i++) {
-          final int compare = cx[i].compare(o1[i], o2[i]);
-          if (compare != 0) {
-            return compare;
-          }
+    if (cx.length - from == 0) {
+      return GuavaUtils.allEquals();
+    }
+    if (cx.length - from == 1) {
+      return (o1, o2) -> cx[from].compare(o1[from], o2[from]);
+    }
+    return (o1, o2) -> {
+      for (int i = from; i < cx.length; i++) {
+        final int compare = cx[i].compare(o1[i], o2[i]);
+        if (compare != 0) {
+          return compare;
         }
-        return 0;
       }
+      return 0;
     };
   }
 

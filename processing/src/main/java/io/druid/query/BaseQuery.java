@@ -585,7 +585,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
 
   /**
-   * If "query" has a single universal timestamp, return it. Otherwise return null. This is useful
+   * If "query" has a single universal timestamp, return it. Otherwise, return null. This is useful
    * for keeping timestamps in sync across partial queries that may have different intervals.
    *
    * @param query the query

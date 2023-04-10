@@ -26,6 +26,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.granularity.Granularities;
+import io.druid.granularity.Granularity;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
@@ -80,21 +82,19 @@ public class DimensionSpecs
     }
   }
 
-  public static Comparator[] toComparator(List<DimensionSpec> dimensionSpecs)
+  public static Comparator<Object[]> toComparator(List<DimensionSpec> dimensionSpecs, Granularity granularity)
   {
-    return toComparator(dimensionSpecs, false);
+    return Comparators.toArrayComparator(toComparator(dimensionSpecs), Granularities.isAll(granularity) ? 1 : 0);
   }
 
-  public static Comparator[] toComparator(List<DimensionSpec> dimensionSpecs, boolean prependTime)
+  private static Comparator[] toComparator(List<DimensionSpec> dimensionSpecs)
   {
-    List<Comparator> comparators = Lists.newArrayList();
-    if (prependTime) {
-      comparators.add(GuavaUtils.TIME_COMPARATOR);
+    Comparator[] comparators = new Comparator[dimensionSpecs.size() + 1];
+    comparators[0] = GuavaUtils.TIME_COMPARATOR;
+    for (int i = 0; i < dimensionSpecs.size(); i++) {
+      comparators[i + 1] = toComparator(dimensionSpecs.get(i));
     }
-    for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      comparators.add(toComparator(dimensionSpec));
-    }
-    return comparators.toArray(new Comparator[0]);
+    return comparators;
   }
 
   public static Comparator toComparator(DimensionSpec dimensionSpec)

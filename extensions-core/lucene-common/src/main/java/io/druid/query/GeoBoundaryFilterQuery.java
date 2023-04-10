@@ -438,7 +438,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     final ShapeReader reader = GeomUtils.newWKTReader();
     final Map<String, Object> context = BaseQuery.copyContextForMeta(getContext());
     final ArrayOutputSupport runner = (ArrayOutputSupport) boundary.withOverriddenContext(context);
-    final Sequence<Object[]> array = QueryRunners.runArray(runner, segmentWalker);
+    final Sequence<Object[]> array = QueryRunners.resolveAndRun(runner, segmentWalker);
     for (Object[] row : Sequences.toList(array)) {
       String boundary = Objects.toString(row[geomIndex], null);
       if (!StringUtils.isNullOrEmpty(boundary)) {

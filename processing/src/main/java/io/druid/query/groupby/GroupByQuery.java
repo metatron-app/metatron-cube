@@ -874,23 +874,8 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
 
   Comparator<Row> getCompactRowOrdering()
   {
-    return new Comparator<Row>()
-    {
-      private final Comparator[] comparators = DimensionSpecs.toComparator(dimensions, true);
-
-      @Override
-      @SuppressWarnings("unchecked")
-      public int compare(Row lhs, Row rhs)
-      {
-        final Object[] values1 = ((CompactRow) lhs).getValues();
-        final Object[] values2 = ((CompactRow) rhs).getValues();
-        int compare = 0;
-        for (int i = 0; compare == 0 && i < comparators.length; i++) {
-          compare = comparators[i].compare(values1[i], values2[i]);
-        }
-        return compare;
-      }
-    };
+    final Comparator<Object[]> comparator = DimensionSpecs.toComparator(dimensions, granularity);
+    return (r1, r2) -> comparator.compare(((CompactRow) r1).getValues(), ((CompactRow) r2).getValues());
   }
 
   public TimeseriesQuery asTimeseriesQuery()

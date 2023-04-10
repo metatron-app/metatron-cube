@@ -20,11 +20,9 @@
 package io.druid.query.groupby;
 
 import com.google.common.collect.Iterables;
-import io.druid.common.guava.Comparators;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
-import io.druid.granularity.Granularities;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.dimension.DimensionSpecs;
@@ -54,11 +52,8 @@ public final class MergeIndexSorting extends MergeIndex.GroupByMerge
   {
     super(groupBy);
 
-    final Comparator<Object[]> comparator =
-        Comparators.toArrayComparator(
-            DimensionSpecs.toComparator(groupBy.getDimensions(), true),
-            Granularities.isAll(groupBy.getGranularity()) ? 1 : 0
-        );
+    final Comparator<Object[]> comparator = DimensionSpecs.toComparator(groupBy.getDimensions(), groupBy.getGranularity());
+
     this.mapping = parallelism == 1 ?
                    new TreeMap<Object[], Object[]>(comparator) :
                    new ConcurrentSkipListMap<Object[], Object[]>(comparator);

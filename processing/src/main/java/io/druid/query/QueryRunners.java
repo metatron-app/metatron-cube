@@ -61,14 +61,17 @@ public class QueryRunners
       @Override
       public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
       {
-        return Sequences.concat(query.estimatedOutputColumns(), Iterables.transform(runners, new Function<QueryRunner<T>, Sequence<T>>()
-        {
-          @Override
-          public Sequence<T> apply(QueryRunner<T> runner)
-          {
-            return runner.run(query, responseContext);
-          }
-        }));
+        return Sequences.concat(
+            query.estimatedOutputColumns(),
+            Iterables.transform(runners, new Function<QueryRunner<T>, Sequence<T>>()
+            {
+              @Override
+              public Sequence<T> apply(QueryRunner<T> runner)
+              {
+                return runner.run(query, responseContext);
+              }
+            })
+        );
       }
     };
   }
@@ -195,9 +198,11 @@ public class QueryRunners
     return query.run(segmentWalker, Maps.<String, Object>newHashMap());
   }
 
-  public static Sequence<Object[]> runArray(Query.ArrayOutputSupport query, QuerySegmentWalker segmentWalker)
+  // this is for firing queries in rewrite stage (resolve is done after that)
+  public static Sequence<Object[]> resolveAndRun(Query.ArrayOutputSupport<?> query, QuerySegmentWalker segmentWalker)
   {
-    return runArray(query, segmentWalker, Maps.newHashMap());
+    Query<?> resolved = QueryUtils.resolveRecursively(query, segmentWalker);
+    return runArray((Query.ArrayOutputSupport) resolved, segmentWalker, Maps.newHashMap());
   }
 
   @SuppressWarnings("unchecked")

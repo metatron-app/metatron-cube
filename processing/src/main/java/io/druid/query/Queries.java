@@ -454,7 +454,7 @@ public class Queries
 
   public static long[] filterSelectivity(Query query, QuerySegmentWalker segmentWalker)
   {
-    return Sequences.only(FilterMetaQuery.of(query).run(segmentWalker, null), new long[] {0, 0});
+    return Sequences.only(QueryRunners.run(FilterMetaQuery.of(query), segmentWalker), new long[] {0, 0});
   }
 
   public static long[] filterSelectivity(
@@ -478,7 +478,7 @@ public class Queries
   )
   {
     FilterMetaQuery query = new FilterMetaQuery(dataSource, segmentSpec, virtualColumns, filter, context);
-    return Sequences.only(query.run(segmentWalker, null), new long[] {0, 0});
+    return Sequences.only(QueryRunners.run(query, segmentWalker), new long[] {0, 0});
   }
 
   public static long[] estimateCardinality(TimeseriesQuery query, QuerySegmentWalker segmentWalker)
