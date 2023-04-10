@@ -48,6 +48,7 @@ import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
+import io.druid.segment.filter.FilterContext;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.commons.lang.mutable.MutableDouble;
@@ -537,12 +538,13 @@ public class ColumnSelectors
 
   private static final int THRESHOLD = 4194304;
 
-  public static ObjectColumnSelector asRawAccess(WithRawAccess selector, ImmutableBitmap ref, int rowCount)
+  public static ObjectColumnSelector asRawAccess(WithRawAccess selector, String column, FilterContext context)
   {
     Dictionary dictionary = selector.getDictionary();
+    ImmutableBitmap ref = context.dictionaryRef(column);
     int sizeOfCache = ref == null ? dictionary.size() : ref.size();
     long estimation = dictionary.getSerializedSize() * sizeOfCache / dictionary.size();
-    if (estimation < THRESHOLD) {
+    if (estimation < THRESHOLD && context.targetNumRows() > sizeOfCache) {
       IntIterator iterator = ref == null ? null : ref.iterator();
       if (dictionary.size() > sizeOfCache << 2) {
         Int2ObjectMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>(sizeOfCache);

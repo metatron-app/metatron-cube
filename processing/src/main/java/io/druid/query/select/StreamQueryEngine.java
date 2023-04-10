@@ -25,7 +25,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -48,6 +47,7 @@ import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
+import io.druid.segment.filter.FilterContext;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -116,8 +116,8 @@ public class StreamQueryEngine
                 dimensions[index] = selector;
               }
               if (useRawUTF8 && selector instanceof WithRawAccess) {
-                ImmutableBitmap dictionary = cursor.getFilterContext().dictionaryRef(column);
-                selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector, dictionary, size);
+                FilterContext context = cursor.getFilterContext();
+                selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector, column, context);
               } else {
                 selectors[index] = ColumnSelectors.asSingleValued((SingleValued) selector);
               }
