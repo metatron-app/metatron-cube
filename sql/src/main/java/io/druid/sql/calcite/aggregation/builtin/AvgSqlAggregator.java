@@ -31,6 +31,7 @@ import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -48,12 +49,16 @@ public class AvgSqlAggregator implements SqlAggregator
   @Override
   public boolean register(Aggregations aggregations, DimFilter predicate, AggregateCall call, String outputName)
   {
-    DruidExpression expression = aggregations.getNonDistinctSingleArgument(call);
+    if (call.isDistinct() || call.getArgList().size() != 1) {
+      return false;
+    }
+    RexNode rexNode = aggregations.toRexNode(call.getArgList().get(0));
+    DruidExpression expression = aggregations.toExpression(rexNode);
     if (expression == null) {
       return false;
     }
     String inputName = aggregations.registerColumn(outputName, expression);
-    ValueDesc outputType = toSumType(call.type);
+    ValueDesc outputType = toSumType(rexNode.getType());
 
     String sumName = Calcites.makePrefixedName(outputName, "sum");
     aggregations.register(GenericSumAggregatorFactory.of(sumName, inputName, outputType), predicate);

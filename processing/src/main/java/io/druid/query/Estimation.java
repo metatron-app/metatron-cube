@@ -78,6 +78,11 @@ public class Estimation
     return selectivity < estimation.selectivity;
   }
 
+  public boolean eq(Estimation estimation, float epsilon)
+  {
+    return Math.abs(estimated - estimation.estimated) < epsilon;
+  }
+
   public boolean gt(Estimation estimation)
   {
     return estimated > estimation.estimated;

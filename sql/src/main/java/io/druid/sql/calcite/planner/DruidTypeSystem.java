@@ -102,12 +102,9 @@ public class DruidTypeSystem implements RelDataTypeSystem
   }
 
   @Override
-  public RelDataType deriveAvgAggType(
-      final RelDataTypeFactory typeFactory,
-      final RelDataType argumentType
-  )
+  public RelDataType deriveAvgAggType(final RelDataTypeFactory typeFactory, final RelDataType argumentType)
   {
-    return RelDataTypeSystem.DEFAULT.deriveAvgAggType(typeFactory, argumentType);
+    return Calcites.asRelDataType(typeFactory, SqlTypeName.DOUBLE);
   }
 
   @Override
@@ -135,7 +132,7 @@ public class DruidTypeSystem implements RelDataTypeSystem
   @Override
   public boolean isSchemaCaseSensitive()
   {
-    return RelDataTypeSystem.DEFAULT.isSchemaCaseSensitive();
+    return true;
   }
 
   @Override

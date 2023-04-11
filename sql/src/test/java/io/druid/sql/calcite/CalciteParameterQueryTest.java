@@ -160,7 +160,7 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
         + "FROM INFORMATION_SCHEMA.COLUMNS\n"
         + "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?",
         Arrays.asList("druid", "foo"),
-        new Object[]{7L, 1239L, 177L, -5L, 1111L}
+        new Object[]{7L, 1239L, 177D, -5L, 1111L}
     );
   }
 

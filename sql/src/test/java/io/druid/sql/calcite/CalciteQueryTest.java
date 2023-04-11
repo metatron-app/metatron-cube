@@ -1906,7 +1906,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               )
               .outputColumns("a0", "a1", "a2", "a3", "a4", "a5", "a6", "p0")
               .build(),
-        new Object[]{6L, 6L, 5L, "1", "def", 1L, 6L, 8L}
+        new Object[]{6L, 6L, 5L, "1", "def", 1D, 6L, 8L}
     );
   }
 
@@ -3238,7 +3238,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .outputColumns("_a0", "_a1", "_a2", "p0", "_a4")
               .limit(1)
               .build(),
-        new Object[]{1L, 1L, 1L, 978480000L, 6L}
+        new Object[]{1L, 1L, 1D, 978480000L, 6L}
     );
   }
 
@@ -3278,7 +3278,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               )
               .outputColumns("_a0")
               .build(),
-        new Object[]{1L}
+        new Object[]{1D}
     );
   }
 
