@@ -20,11 +20,13 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -107,6 +109,18 @@ public class DummyQuery<T> extends BaseQuery<T> implements QueryRunner<T>
       runner = ((ForwardingSegmentWalker) walker).handle(this, runner);
     }
     return runner;
+  }
+
+  @Override
+  public List<String> estimatedOutputColumns()
+  {
+    return sequence.columns();
+  }
+
+  @Override
+  public Query<T> resolveQuery(Supplier<RowResolver> resolver, boolean expand)
+  {
+    return this;
   }
 
   @Override

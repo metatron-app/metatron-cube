@@ -53,7 +53,7 @@ public class BySegmentQueryRunner<T> implements QueryRunner<T>
   {
     final Sequence<T> sequence = runner.run(query, responseContext);
     if (BaseQuery.isBySegment(query)) {
-      return Sequences.of(
+      return Sequences.from(
           sequence.columns(),
           new Result<BySegmentResultValue<T>>(timestamp, toolChest.bySegment(query, sequence, segmentIdentifier))
       );

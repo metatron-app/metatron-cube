@@ -25,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.StreamQuery;
@@ -36,7 +38,7 @@ import java.util.List;
 import java.util.Objects;
 
 @JsonTypeName("view")
-public class ViewDataSource implements DataSource
+public class ViewDataSource implements DataSource, Cacheable
 {
   public static final ViewDataSource DUMMY = ViewDataSource.of("___dummy");
 
@@ -202,5 +204,11 @@ public class ViewDataSource implements DataSource
     return "$view:" + name + columns +
            (GuavaUtils.isNullOrEmpty(virtualColumns) ? "" : "(" + virtualColumns + ")") +
            (filter == null ? "" : "(" + filter + ")");
+  }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return builder.append(name).append(columns).append(virtualColumns).append(false);
   }
 }

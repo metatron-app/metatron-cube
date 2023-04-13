@@ -30,6 +30,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QuerySegmentWalker.DenseSupport;
 import io.druid.query.SegmentDescriptor;
 import io.druid.timeline.SegmentKey;
 import it.unimi.dsi.fastutil.ints.IntIterator;
@@ -104,14 +105,23 @@ public class DenseSegmentsSpec implements QuerySegmentSpec
   @Override
   public <T> QueryRunner<T> lookup(Query<T> query, QuerySegmentWalker walker)
   {
-    if (walker instanceof QuerySegmentWalker.DenseSupport) {
-      return ((QuerySegmentWalker.DenseSupport) walker).getQueryRunnerForSegments(query, keys, partitions);
+    if (walker instanceof DenseSupport) {
+      return ((DenseSupport) walker).getQueryRunnerForSegments(query, keys, partitions);
     }
     return walker.getQueryRunnerForSegments(query, getDescriptors());
   }
 
   @JsonIgnore
   public List<SegmentDescriptor> getDescriptors()
+  {
+    return toDescriptors(dataSource, keys, partitions);
+  }
+
+  public static List<SegmentDescriptor> toDescriptors(
+      String dataSource,
+      List<SegmentKey> keys,
+      List<IntList> partitions
+  )
   {
     List<SegmentDescriptor> descriptors = Lists.newArrayList();
     for (int i = 0; i < keys.size(); i++) {

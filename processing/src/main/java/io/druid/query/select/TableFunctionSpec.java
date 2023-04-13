@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.Query;
@@ -39,7 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 // todo schema evolving
-public class TableFunctionSpec
+public class TableFunctionSpec implements Cacheable
 {
   public static TableFunctionSpec from(GroupByQuery query)
   {
@@ -98,6 +100,12 @@ public class TableFunctionSpec
   public DimFilter getFilter()
   {
     return filter;
+  }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return builder.append(operation).append(parameters).append(filter);
   }
 
   @Override

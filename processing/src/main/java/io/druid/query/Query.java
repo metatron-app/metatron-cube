@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.StringUtils;
@@ -75,11 +76,11 @@ import java.util.Set;
     @JsonSubTypes.Type(name = Query.SELECT_META, value = SelectMetaQuery.class),
     @JsonSubTypes.Type(name = Query.SCHEMA, value = SchemaQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_STREAM, value = StreamQuery.class),
+    @JsonSubTypes.Type(name = Query.SELECT_DELEGATE, value = SelectForwardQuery.class),
     @JsonSubTypes.Type(name = Query.TOPN, value = TopNQuery.class),
     @JsonSubTypes.Type(name = Query.DATASOURCE_METADATA, value = DataSourceMetadataQuery.class),
     @JsonSubTypes.Type(name = Query.UNION_ALL, value = UnionAllQuery.class),
     @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class),
-    @JsonSubTypes.Type(name = Query.SELECT_DELEGATE, value = SelectForwardQuery.class),
     @JsonSubTypes.Type(name = Query.FILTER_META, value = FilterMetaQuery.class),
     @JsonSubTypes.Type(name = Query.DIMENSION_SAMPLING, value = DimensionSamplingQuery.class),
     @JsonSubTypes.Type(name = "kmeans", value = KMeansQuery.class),
@@ -378,5 +379,20 @@ public interface Query<T> extends QueryContextKeys
   interface SchemaProvider
   {
     RowSignature schema(QuerySegmentWalker segmentWalker);
+  }
+
+  interface Cacheable<T> extends Query<T>, io.druid.common.Cacheable
+  {
+    @Override
+    default byte[] getCacheKey()
+    {
+      if (!(getDataSource() instanceof TableDataSource)) {
+        return null;
+      }
+      if (getContextValue(Query.POST_PROCESSING) != null || getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+        return null;
+      }
+      return getCacheKey(KeyBuilder.get(DEFAULT_KEY_LIMIT)).build();
+    }
   }
 }

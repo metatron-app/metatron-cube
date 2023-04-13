@@ -327,6 +327,14 @@ public class JoinElement
   )
   {
     Preconditions.checkNotNull(dataSource);
+    MaterializedQuery materialized = segmentWalker.getMaterialized(dataSource);
+    if (materialized != null) {
+      if (!GuavaUtils.isNullOrEmpty(sortColumns)) {
+        materialized = (MaterializedQuery) materialized.withResultOrdering(OrderByColumnSpec.ascending(sortColumns))
+                                                       .withOverriddenContext(SORTING, true);
+      }
+      return materialized;
+    }
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
       if (query instanceof JoinQuery.JoinHolder) {

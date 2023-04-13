@@ -29,7 +29,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
-import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.RowExploder;
 import io.druid.segment.StringArray;
 import it.unimi.dsi.fastutil.objects.Object2IntAVLTreeMap;
@@ -163,22 +162,21 @@ public class SemiJoinFactory
   }
 
   public static Pair<DimFilter, RowExploder> extract(
-      List<String> fieldNames, Sequence<Object[]> sequence, boolean allowDuplication
+      List<String> fieldNames, Iterable<Object[]> sequence, boolean allowDuplication
   )
   {
     return allowDuplication ? Pair.of(from(fieldNames, sequence), null) : extract(fieldNames, sequence);
   }
 
-  public static Pair<DimFilter, RowExploder> extract(List<String> fieldNames, Sequence<Object[]> sequence)
+  public static Pair<DimFilter, RowExploder> extract(List<String> fieldNames, Iterable<Object[]> sequence)
   {
-    final CloseableIterator<Object[]> iterator = Sequences.toIterator(sequence);
+    Hasher hasher = Hashing.murmur3_128().newHasher();
     try {
-      Hasher hasher = Hashing.murmur3_128().newHasher();
       if (fieldNames.size() == 1) {
         boolean hasDuplication = false;
         final Object2IntMap<String> mapping = new Object2IntAVLTreeMap<>();
-        while (iterator.hasNext()) {
-          String key = Objects.toString(iterator.next()[0], "");
+        for (Object[] value : sequence) {
+          String key = Objects.toString(value[0], "");
           mapping.computeInt(key, (k, v) -> v == null ? 1 : v + 1);
           hasher.putUnencodedChars(key);
         }
@@ -191,8 +189,8 @@ public class SemiJoinFactory
         return Pair.of(filter, null);
       } else {
         final Object2IntMap<StringArray> mapping = new Object2IntAVLTreeMap<>();
-        while (iterator.hasNext()) {
-          mapping.computeInt(StringArray.of(iterator.next(), ""), (k, v) -> v == null ? 1 : v + 1);
+        for (Object[] value : sequence) {
+          mapping.computeInt(StringArray.of(value, ""), (k, v) -> v == null ? 1 : v + 1);
         }
         List<List<String>> valuesList = Lists.newArrayList();
         for (int i = 0; i < fieldNames.size(); i++) {
@@ -211,9 +209,10 @@ public class SemiJoinFactory
         }
         return Pair.of(filter, null);
       }
-    }
-    finally {
-      IOUtils.closeQuietly(iterator);
+    } finally {
+      if (sequence instanceof Closeable) {
+        IOUtils.closeQuietly((Closeable) sequence);
+      }
     }
   }
 

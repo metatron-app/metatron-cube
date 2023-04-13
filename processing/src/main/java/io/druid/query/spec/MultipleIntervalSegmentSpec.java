@@ -21,6 +21,7 @@ package io.druid.query.spec;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.common.KeyBuilder;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -87,5 +88,11 @@ public class MultipleIntervalSegmentSpec implements QuerySegmentSpec
   public int hashCode()
   {
     return Objects.hashCode(intervals);
+  }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return builder.appendIntervals(intervals);
   }
 }

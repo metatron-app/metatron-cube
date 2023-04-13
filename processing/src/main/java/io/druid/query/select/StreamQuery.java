@@ -28,7 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.common.guava.Comparators;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -69,7 +69,8 @@ public class StreamQuery extends BaseQuery<Object[]>
     Query.RowOutputSupport<Object[]>,
     Query.MapOutputSupport<Object[]>,
     Query.LastProjectionSupport<Object[]>,
-    Query.ArrayOutput
+    Query.ArrayOutput,
+    Query.Cacheable<Object[]>
 {
   public static Query projection(DataSource dataSource, List<String> columns)
   {
@@ -93,8 +94,8 @@ public class StreamQuery extends BaseQuery<Object[]>
   private final DimFilter filter;
   private final TableFunctionSpec tableFunction;
   private final List<String> columns;
-  private final List<OrderByColumnSpec> orderingSpecs;
   private final List<VirtualColumn> virtualColumns;
+  private final List<OrderByColumnSpec> orderingSpecs;
   private final String concatString;
   private final LimitSpec limitSpec;
   private final List<String> outputColumns;
@@ -328,22 +329,12 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Comparator<Object[]> getMergeOrdering(List<String> columns)
   {
-    if (GuavaUtils.isNullOrEmpty(orderingSpecs)) {
-      return null;
+    if (!GuavaUtils.isNullOrEmpty(orderingSpecs)) {
+      return OrderByColumnSpec.toComparator(columns == null ? getColumns() : columns, orderingSpecs);
     }
-    final List<String> columnNames = columns == null ? getColumns() : columns;
-    final List<Comparator<Object[]>> comparators = Lists.newArrayList();
-    for (OrderByColumnSpec ordering : orderingSpecs) {
-      final int index = columnNames.indexOf(ordering.getDimension());
-      if (index >= 0) {
-        final Comparator comparator = ordering.getComparator();
-        comparators.add((l, r) -> comparator.compare(l[index], r[index]));
-      }
-    }
-    return Comparators.compound(comparators);
+    return null;
   }
 
   @Override
@@ -761,4 +752,14 @@ public class StreamQuery extends BaseQuery<Object[]>
     result = 31 * result + Objects.hash(outputColumns);
     return result;
   }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return super.append(builder.append(0x09))
+                .append(filter).append(tableFunction).append(columns)
+                .append(virtualColumns).append(concatString).append(orderingSpecs)
+                .append(limitSpec).append(outputColumns);
+  }
+
 }

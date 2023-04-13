@@ -34,6 +34,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.CachingSegmentWalker;
 import io.druid.query.DummyQuery;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
@@ -114,9 +115,10 @@ public class QueryMaker
   // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
   public Query prepareQuery(Query<?> baseQuery)
   {
+    QuerySegmentWalker walker = new CachingSegmentWalker(segmentWalker);
     Query prepared = QueryUtils.readPostProcessors(baseQuery, getJsonMapper());
-    prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker);
-    prepared = QueryUtils.resolveRecursively(prepared, segmentWalker);
+    prepared = QueryUtils.rewriteRecursively(prepared, walker);
+    prepared = QueryUtils.resolveRecursively(prepared, walker);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
       Queries.iterate(prepared, query ->
         {

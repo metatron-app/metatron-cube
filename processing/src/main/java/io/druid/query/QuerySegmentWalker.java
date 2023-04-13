@@ -97,4 +97,24 @@ public interface QuerySegmentWalker
   {
     <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, List<SegmentKey> keys, List<IntList> partitions);
   }
+
+  default boolean supportsCache()
+  {
+    return false;
+  }
+
+  default boolean cached(DataSource dataSource)
+  {
+    return getMaterialized(dataSource) != null;
+  }
+
+  default MaterializedQuery getMaterialized(DataSource dataSource)
+  {
+    return null;
+  }
+
+  default MaterializedQuery register(DataSource dataSource, MaterializedQuery materialized)
+  {
+    return materialized;
+  }
 }

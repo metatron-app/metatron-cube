@@ -87,6 +87,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     Query.LimitSupport<Row>,
     Query.LastProjectionSupport<Row>,
     Query.LateralViewSupport<Row>,
+    Query.Cacheable<Row>,
     Query.RowOutput
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";

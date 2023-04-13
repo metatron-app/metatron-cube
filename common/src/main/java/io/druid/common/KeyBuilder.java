@@ -19,6 +19,7 @@
 
 package io.druid.common;
 
+import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
@@ -278,14 +279,20 @@ public class KeyBuilder
     return limit - output.size();
   }
 
-  public void disable()
+  public KeyBuilder disable()
   {
     disabled = true;
+    return this;
   }
 
   public byte[] build()
   {
     return isValid() ? output.toByteArray() : null;
+  }
+
+  public BytesRef ref()
+  {
+    return isValid() ? output.asRef() : null;
   }
 
   private boolean isValid()

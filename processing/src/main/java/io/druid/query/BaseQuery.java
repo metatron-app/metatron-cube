@@ -31,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import io.druid.common.Intervals;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -654,9 +655,6 @@ public abstract class BaseQuery<T> implements Query<T>
     if (!Objects.equals(querySegmentSpec, baseQuery.querySegmentSpec)) {
       return false;
     }
-    if (!Objects.equals(duration, baseQuery.duration)) {
-      return false;
-    }
 
     return true;
   }
@@ -667,7 +665,11 @@ public abstract class BaseQuery<T> implements Query<T>
     int result = dataSource.hashCode();
     result = 31 * result + (descending ? 1 : 0);
     result = 31 * result + (querySegmentSpec != null ? querySegmentSpec.hashCode() : 0);
-    result = 31 * result + (duration != null ? duration.hashCode() : 0);
     return result;
+  }
+
+  protected KeyBuilder append(KeyBuilder builder)
+  {
+    return builder.append(DataSources.getName(getDataSource())).append(isDescending()).append(getQuerySegmentSpec());
   }
 }

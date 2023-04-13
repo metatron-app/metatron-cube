@@ -47,6 +47,7 @@ import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSource;
+import io.druid.query.DataSources;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
@@ -322,7 +323,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     if (!(dataSource instanceof TableDataSource)) {
       throw new UOE("data source type '%s' unsupported", dataSource.getClass());
     }
-    final String dataSourceName = getDataSourceName(dataSource);
+    final String dataSourceName = DataSources.getName(query);
 
     final VersionedIntervalTimeline<ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
 
@@ -347,18 +348,13 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     return toQueryRunner(query, Lists.newArrayList(segments));
   }
 
-  private String getDataSourceName(DataSource dataSource)
-  {
-    return Iterables.getOnlyElement(dataSource.getNames());
-  }
-
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
     if (query instanceof Query.ManagementQuery) {
       return QueryRunnerHelper.toManagementRunner(query, conglomerate, exec, objectMapper);
     }
-    String dataSourceName = getDataSourceName(query.getDataSource());
+    String dataSourceName = DataSources.getName(query);
 
     final VersionedIntervalTimeline<ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
     if (timeline == null) {
@@ -386,7 +382,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, List<SegmentKey> keys, List<IntList> partitions)
   {
-    String dataSourceName = getDataSourceName(query.getDataSource());
+    String dataSourceName = DataSources.getName(query.getDataSource());
     VersionedIntervalTimeline<ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
     if (timeline == null) {
       return NoopQueryRunner.instance();

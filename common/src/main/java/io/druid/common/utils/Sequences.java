@@ -98,9 +98,20 @@ public class Sequences
   }
 
   @SafeVarargs
-  public static <T> Sequence<T> of(List<String> columns, T... elements)
+  public static <T> Sequence<T> of(T... elements)
   {
-    return simple(columns, Arrays.asList(elements));
+    return new Materialized<>(null, Arrays.asList(elements));
+  }
+
+  @SafeVarargs
+  public static <T> Materialized<T> from(List<String> columns, T... elements)
+  {
+    return from(columns, Arrays.asList(elements));
+  }
+
+  public static <T> Materialized<T> from(List<String> columns, List<T> elements)
+  {
+    return new Materialized<T>(columns, elements);
   }
 
   @SuppressWarnings("unchecked")
@@ -170,6 +181,9 @@ public class Sequences
 
   public static <T> List<T> toList(Sequence<T> sequence)
   {
+    if (sequence instanceof Materialized) {
+      return Lists.newArrayList(((Materialized<T>) sequence).values);
+    }
     return sequence.accumulate(Lists.<T>newArrayList(), Accumulators.<List<T>, T>list());
   }
 
@@ -178,9 +192,9 @@ public class Sequences
     return sequence.accumulate(list, Accumulators.<ListType, T>list());
   }
 
-  public static <T> Sequence<T> materialize(Sequence<T> sequence)
+  public static <T> Materialized<T> materialize(Sequence<T> sequence)
   {
-    return Sequences.simple(sequence.columns(), Sequences.toList(sequence));
+    return new Materialized<T>(sequence.columns(), Sequences.toList(sequence));
   }
 
   private static class EmptySequence<T> implements Sequence<T>
@@ -253,12 +267,6 @@ public class Sequences
   public static <T> Sequence<T> filterNull(Sequence<T> sequence)
   {
     return filter(sequence, Predicates.<T>notNull());
-  }
-
-  @SafeVarargs
-  public static <T> Sequence<T> of(T... elements)
-  {
-    return simple(Arrays.asList(elements));
   }
 
   public static <T> T only(Sequence<T> seq)
@@ -603,6 +611,17 @@ public class Sequences
     public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
     {
       return sequence.toYielder(initValue, accumulator);
+    }
+  }
+
+  private static class Materialized<T> extends BaseSequence<T>
+  {
+    private final List<T> values;
+
+    public Materialized(List<String> columns, List<T> values)
+    {
+      super(columns, () -> values.iterator());
+      this.values = values;
     }
   }
 }

@@ -24,6 +24,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.query.JoinQuery.JoinHolder;
@@ -316,5 +317,19 @@ public class DataSources
   {
     return dataSource instanceof ViewDataSource
            ? TableDataSource.of(((ViewDataSource) dataSource).getName()) : dataSource;
+  }
+
+  public static byte[] toCacheKey(DataSource dataSource)
+  {
+    if (dataSource instanceof Cacheable) {
+      return ((Cacheable) dataSource).getCacheKey();
+    }
+    if (dataSource instanceof QueryDataSource) {
+      Query<Object> query = ((QueryDataSource) dataSource).getQuery();
+      if (query instanceof Cacheable) {
+        return ((Cacheable) query).getCacheKey();
+      }
+    }
+    return null;
   }
 }

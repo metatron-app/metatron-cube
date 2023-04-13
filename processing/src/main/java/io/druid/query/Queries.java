@@ -183,7 +183,7 @@ public class Queries
     return dataSource.getSchema() != null ? dataSource.getSchema() : relaySchema(dataSource.getQuery(), segmentWalker);
   }
 
-  private static RowSignature sourceSchema(Query<?> query, QuerySegmentWalker segmentWalker)
+  public static RowSignature sourceSchema(Query<?> query, QuerySegmentWalker segmentWalker)
   {
     SegmentAnalysis analysis = QueryUtils.analyzeSegments(query, segmentWalker);
     if (query instanceof Query.AggregationsSupport) {

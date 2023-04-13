@@ -476,7 +476,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
       } else {
         final Object[][] array = Sequences.toList(sequence).toArray(new Object[0][]);
         Arrays.sort(array, ordering);
-        return Sequences.simple(sequence.columns(), Arrays.asList(array));
+        return Sequences.from(sequence.columns(), Arrays.asList(array));
       }
     }
   }

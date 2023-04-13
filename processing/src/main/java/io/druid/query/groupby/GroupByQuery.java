@@ -32,6 +32,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -864,6 +865,15 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
            (lateralView == null ? "" : "lateralView=" + lateralView) +
            toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING) +
            '}';
+  }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return super.append(builder.append(0x03))
+                .append(granularity).append(dimensions).append(filter).append(groupingSets)
+                .append(virtualColumns).append(aggregatorSpecs).append(postAggregatorSpecs).append(havingSpec)
+                .append(limitSpec).append(outputColumns).append(lateralView);
   }
 
   @Override

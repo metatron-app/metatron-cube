@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -464,5 +465,14 @@ public class TimeseriesQuery extends BaseAggregationQuery
            (lateralView == null ? "" : "lateralView=" + lateralView) +
            toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING) +
            '}';
+  }
+
+  @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return super.append(builder.append(0x00))
+                .append(granularity).append(filter)
+                .append(virtualColumns).append(aggregatorSpecs).append(postAggregatorSpecs).append(havingSpec)
+                .append(limitSpec).append(outputColumns).append(lateralView);
   }
 }
