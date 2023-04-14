@@ -452,14 +452,11 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             segmentWalker.register(left, MaterializedQuery.of(query0, sequence.columns(), values).withSchema(signature));
           }
           LOG.debug("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
+          boolean applyfilter = false;
           if (leftEstimated.moreSelective(rightEstimated)) {
-            // todo: should be done in BroadcastJoinProcessor
-            if (values.size() < semiJoinThrehold && DataSources.isDataLocalFilterable(query1, rightJoinColumns)) {
-              DimFilter filter = SemiJoinFactory.from(
-                  rightJoinColumns, values.iterator(), GuavaUtils.indexOf(signature.columnNames, leftJoinColumns, true)
-              );
-              query1 = DimFilters.and((FilterSupport) query1, filter);
-              LOG.debug("-- %s:%s (L) is applied as filter to %s (R)", leftAlias, leftEstimated, rightAlias);
+            if (leftEstimated.lt(rightEstimated) && DataSources.isDataLocalFilterable(query1, rightJoinColumns)) {
+              applyfilter = true;
+              LOG.debug("-- %s:%s (L) will be applied as filter to %s (R)", leftAlias, leftEstimated, rightAlias);
             } else if (rightEstimated.gt(bloomFilterThreshold) && query0.hasFilters() && DataSources.isFilterableOn(query1, rightJoinColumns) && !element.isCrossJoin()) {
               RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
               BloomKFilter bloom = BloomFilterAggregator.build(resolver, leftJoinColumns, values.size(), values);
@@ -471,7 +468,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           }
           byte[] bytes = ObjectMappers.writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature));
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
-              mapper, config, element, true, signature, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow, bytes
+              mapper, config, element, true, signature, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow, bytes, applyfilter
           );
           query1 = PostProcessingOperators.appendLocal(query1, processor);
           query1 = ((LastProjectionSupport) query1).withOutputColumns(null);
@@ -493,14 +490,11 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             segmentWalker.register(right, MaterializedQuery.of(query1, sequence.columns(), values).withSchema(signature));
           }
           LOG.debug("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
+          boolean applyfilter = false;
           if (rightEstimated.moreSelective(leftEstimated)) {
-            // todo: should be done in BroadcastJoinProcessor
-            if (values.size() < semiJoinThrehold && DataSources.isDataLocalFilterable(query0, leftJoinColumns)) {
-              DimFilter filter = SemiJoinFactory.from(
-                  leftJoinColumns, values.iterator(), GuavaUtils.indexOf(signature.columnNames, rightJoinColumns, true)
-              );
-              query0 = DimFilters.and((FilterSupport) query0, filter);
-              LOG.debug("-- %s:%s (R) is applied as filter to %s (L)", rightAlias, rightEstimated, leftAlias);
+            if (rightEstimated.lt(leftEstimated) && DataSources.isDataLocalFilterable(query0, leftJoinColumns)) {
+              applyfilter = true;
+              LOG.debug("-- %s:%s (R) will be applied as filter to %s (L)", rightAlias, rightEstimated, leftAlias);
             } else if (leftEstimated.gt(bloomFilterThreshold) && query1.hasFilters() && DataSources.isFilterableOn(query0, leftJoinColumns)) {
               RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
               BloomKFilter bloom = BloomFilterAggregator.build(resolver, rightJoinColumns, values.size(), values);
@@ -512,7 +506,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           }
           byte[] bytes = ObjectMappers.writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature));
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
-              mapper, config, element, false, signature, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow, bytes
+              mapper, config, element, false, signature, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow, bytes, applyfilter
           );
           query0 = PostProcessingOperators.appendLocal(query0, processor);
           query0 = ((LastProjectionSupport) query0).withOutputColumns(null);

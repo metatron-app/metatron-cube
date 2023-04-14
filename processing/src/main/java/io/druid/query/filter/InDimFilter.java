@@ -85,6 +85,7 @@ public class InDimFilter extends SingleInput
     this(dimension, values, extractionFn, null);
   }
 
+  // values should be sorted
   public InDimFilter(String dimension, ExtractionFn extractionFn, List<String> values, byte[] hash)
   {
     this.dimension = Preconditions.checkNotNull(dimension, "dimension can not be null");

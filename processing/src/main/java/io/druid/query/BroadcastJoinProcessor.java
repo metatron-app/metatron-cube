@@ -31,6 +31,9 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.BulkRow;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.SemiJoinFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -48,6 +51,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
   private final boolean hashLeft;
   private final RowSignature hashSignature;
   private final byte[] values;
+  private final boolean applyFilter;
 
   @JsonCreator
   public BroadcastJoinProcessor(
@@ -61,7 +65,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
       @JsonProperty("outputAlias") List<String> outputAlias,
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("maxOutputRow") int maxOutputRow,
-      @JsonProperty("values") byte[] values
+      @JsonProperty("values") byte[] values,
+      @JsonProperty("applyFilter") boolean applyFilter
   )
   {
     super(config.getJoin(), prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow);
@@ -71,6 +76,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
     this.hashLeft = hashLeft;
     this.hashSignature = hashSignature;
     this.values = values;
+    this.applyFilter = applyFilter;
   }
 
   @Override
@@ -87,7 +93,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         outputAlias,
         outputColumns,
         maxOutputRow,
-        values
+        values,
+        applyFilter
     );
   }
 
@@ -105,7 +112,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         outputAlias,
         outputColumns,
         maxOutputRow,
-        values
+        values,
+        applyFilter
     );
   }
 
@@ -134,6 +142,12 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
     return values;
   }
 
+  @JsonProperty
+  public boolean applyFilter()
+  {
+    return applyFilter;
+  }
+
   @Override
   public QueryRunner postProcess(final QueryRunner baseRunner)
   {
@@ -154,12 +168,28 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         List<List<String>> names;
         LOG.info("Preparing broadcast join %s + %s", leftAlias, rightAlias);
 
-        Sequence<BulkRow> rows = Sequences.simple(deserializeValue(mapper, values));
-        Sequence<Object[]> queried = arrayQuery.array(QueryRunners.run(query, baseRunner));
+        Sequence<BulkRow> rows = Sequences.simple(hashSignature.getColumnNames(), deserializeValue(mapper, values));
         boolean stringAsRaw = arrayQuery.getContextBoolean(Query.STREAM_USE_RAW_UTF8, config.getSelect().isUseRawUTF8());
         Sequence<Object[]> hashing = Sequences.explode(rows, bulk -> Sequences.once(bulk.decompose(stringAsRaw)));
 
-        List<String> hashColumns = hashSignature.getColumnNames();
+        if (applyFilter) {
+          // todo: stick to bytes if possible
+          List<Object[]> materialized = Sequences.toList(hashing);
+          List<String> filterOn = hashLeft ? rightJoinColumns : leftJoinColumns;
+          int[] indices = GuavaUtils.indexOf(rows.columns(), hashLeft ? leftJoinColumns : rightJoinColumns);
+          DimFilter filter = SemiJoinFactory.from(filterOn, materialized.iterator(), indices);
+          arrayQuery = (Query.ArrayOutputSupport) DimFilters.and((Query.FilterSupport) arrayQuery, filter);
+          hashing = Sequences.from(hashing.columns(), materialized);
+          if (hashLeft) {
+            LOG.info("-- %s:%d (L) is applied as filter to %s (R)", leftAlias, materialized.size(), rightAlias);
+          } else {
+            LOG.info("-- %s:%d (R) is applied as filter to %s (L)", rightAlias, materialized.size(), leftAlias);
+          }
+        }
+
+        Sequence<Object[]> queried = QueryRunners.runArray(arrayQuery, baseRunner);
+
+        List<String> hashColumns = hashing.columns();
         List<String> queryColumns = queried.columns();
 
         JoinAlias left;
@@ -267,7 +297,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         outputAlias,
         outputColumns,
         maxOutputRow,
-        null
+        null,
+        applyFilter
     );
   }
 
@@ -278,6 +309,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
            "element=" + element +
            ", hashLeft=" + hashLeft +
            ", hashSignature=" + hashSignature +
+           (applyFilter ? ", applyFilter=true" : "") +
            '}';
   }
 }

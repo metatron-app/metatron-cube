@@ -73,6 +73,11 @@ public class Estimation
     update(update.applyAsLong(estimated));
   }
 
+  public boolean lt(Estimation estimation)
+  {
+    return estimated < estimation.estimated;
+  }
+
   public boolean moreSelective(Estimation estimation)
   {
     return selectivity < estimation.selectivity;
