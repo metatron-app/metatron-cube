@@ -180,9 +180,27 @@ public class PostProcessingOperators
     return query.withOverriddenContext(Query.POST_PROCESSING, processor);
   }
 
-  public static PostProcessingOperator list(List<PostProcessingOperator> processors)
+  @SuppressWarnings("unchecked")
+  private static PostProcessingOperator list(List<PostProcessingOperator> processors)
   {
     return processors.size() == 1 ? processors.get(0) : new ListPostProcessingOperator(processors);
+  }
+
+  public static int count(Query<?> query)
+  {
+    return count(query, Query.POST_PROCESSING) + count(query, Query.LOCAL_POST_PROCESSING);
+  }
+
+  private static int count(Query<?> query, String key)
+  {
+    PostProcessingOperator postProcessor = query.getContextValue(key);
+    if (postProcessor != null) {
+      if (postProcessor instanceof ListPostProcessingOperator) {
+        return ((ListPostProcessingOperator) postProcessor).getProcessors().size();
+      }
+      return 1;
+    }
+    return 0;
   }
 
   public static Class<?> returns(Query query)

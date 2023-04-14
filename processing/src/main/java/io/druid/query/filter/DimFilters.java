@@ -574,4 +574,30 @@ public class DimFilters
     }
     return limit;
   }
+
+  // it's not serious
+  public static double cost(DimFilter filter)
+  {
+    if (filter == null) {
+      return 0;
+    } else if (filter instanceof Expression.RelationExpression) {
+      return ((Expression.RelationExpression) filter).getChildren().stream().mapToDouble(f -> cost((DimFilter) f)).sum();
+    }
+    if (filter instanceof SelectorDimFilter || filter instanceof IsNullDimFilter) {
+      return 0.001;
+    } else if (filter instanceof InDimFilter) {
+      return Math.min(0.1, 0.001 * ((InDimFilter) filter).getValues().size());
+    } else if (filter instanceof PrefixDimFilter) {
+      return 0.01;
+    } else if (filter instanceof BoundDimFilter || filter instanceof LikeDimFilter) {
+      return 0.04;
+    } else if (filter instanceof MathExprFilter || filter instanceof RegexDimFilter) {
+      return 0.1;
+    } else if (filter instanceof BloomDimFilter || filter instanceof InDimsFilter) {
+      return 0.2;
+    } else if (filter instanceof Compressed || filter instanceof DimFilter.LuceneFilter) {
+      return 0.4;
+    }
+    return 0.5;
+  }
 }

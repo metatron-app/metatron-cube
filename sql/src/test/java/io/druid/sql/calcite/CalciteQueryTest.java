@@ -1450,10 +1450,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
 
     testQuery(queries.get(0), new Object[] {36L});
     hook.verifyHooked(
-        "KJta7RCi5Zir3Ny01nqkvA==",
-        "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}], $hash=true}, StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}]}], timeColumnName=__time}', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
-        "StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}], $hash=true}",
-        "StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}]}"
+        "OzU7Sms+6ZqY/peLoSnhZg==",
+        "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}]}, StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}], $hash=true}], timeColumnName=__time}', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
+        "StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}]}",
+        "StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}], $hash=true}"
     );
     try {
       testQuery(queries.get(1));
@@ -6344,10 +6344,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{"preferred", 19000.0D}
     );
     hook.verifyHooked(
-        "0Mkk145g6lpwCR46F4Z4Qg==",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='mmapped-split', columns=[placementish, placement, index], limitSpec=LimitSpec{columns=[], limit=10}, $hash=true}, StreamQuery{dataSource='mmapped-split', columns=[placement], limitSpec=LimitSpec{columns=[], limit=10}}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='placementish', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='index', inputType='double'}], limitSpec=LimitSpec{columns=[], limit=10}, outputColumns=[d0, a0]}",
-        "StreamQuery{dataSource='mmapped-split', columns=[placementish, placement, index], limitSpec=LimitSpec{columns=[], limit=10}, $hash=true}",
-        "StreamQuery{dataSource='mmapped-split', columns=[placement], limitSpec=LimitSpec{columns=[], limit=10}}"
+        "OOkB6I4r8IRnYXasbfkc5Q==",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='mmapped-split', columns=[placementish, placement, index], limitSpec=LimitSpec{columns=[], limit=10}}, StreamQuery{dataSource='mmapped-split', columns=[placement], limitSpec=LimitSpec{columns=[], limit=10}, $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='placementish', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='index', inputType='double'}], limitSpec=LimitSpec{columns=[], limit=10}, outputColumns=[d0, a0]}",
+        "StreamQuery{dataSource='mmapped-split', columns=[placementish, placement, index], limitSpec=LimitSpec{columns=[], limit=10}}",
+        "StreamQuery{dataSource='mmapped-split', columns=[placement], limitSpec=LimitSpec{columns=[], limit=10}, $hash=true}"
     );
   }
 

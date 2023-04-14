@@ -433,7 +433,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         boolean leftBroadcast = joinType.isRightDrivable() && leftEstimated.lte(broadcastThreshold) && !segmentWalker.cached(right);
         boolean rightBroadcast = joinType.isLeftDrivable() && rightEstimated.lte(broadcastThreshold) && !segmentWalker.cached(left);
         if (leftBroadcast && rightBroadcast) {
-          if (leftEstimated.gt(rightEstimated)) {
+          if (leftExpensive(left, leftEstimated, right, rightEstimated)) {
             leftBroadcast = false;
           } else {
             rightBroadcast = false;
@@ -521,18 +521,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       boolean leftHashing = i == 0 && joinType.isRightDrivable() && leftEstimated.lte(hashThreshold);
       boolean rightHashing = joinType.isLeftDrivable() && rightEstimated.lte(hashThreshold);
       if (leftHashing && rightHashing) {
-        if (Estimation.delta(leftEstimated, rightEstimated) < Estimation.max(leftEstimated, rightEstimated) * 0.1f) {
-          boolean ldn = DataSources.isDataNodeSourced(left);
-          boolean rdn = DataSources.isDataNodeSourced(right);
-          if (!ldn && rdn) {
-            leftHashing = false;
-          } else if (ldn && !rdn) {
-            rightHashing = false;
-          }
-        }
-        if (rightHashing && leftEstimated.gt(rightEstimated)) {
+        if (leftExpensive(left, leftEstimated, right, rightEstimated)) {
           leftHashing = false;
-        } else if (leftHashing) {
+        } else {
           rightHashing = false;
         }
       }
@@ -708,6 +699,13 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     );
   }
 
+  private static boolean leftExpensive(DataSource ds0, Estimation estimation0, DataSource ds1, Estimation estimation1)
+  {
+    if (Estimation.delta(estimation0, estimation1) < Estimation.max(estimation0, estimation1) * 0.1f) {
+      return DataSources.cost(ds0) >= DataSources.cost(ds1);
+    }
+    return estimation0.gt(estimation1);
+  }
 
   // todo convert back to JoinQuery and rewrite
   public static List<Query> changeHashing(
