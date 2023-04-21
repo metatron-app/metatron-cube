@@ -32,6 +32,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.Filters;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +42,12 @@ import java.util.function.Function;
  */
 public class AndDimFilter implements DimFilter, AndExpression
 {
+  // do nothing but creates instance (see DimFilters.and)
+  public static AndDimFilter of(DimFilter... filters)
+  {
+    return new AndDimFilter(Arrays.asList(filters));
+  }
+
   private static final Joiner AND_JOINER = Joiner.on(" && ");
 
   final private List<DimFilter> fields;

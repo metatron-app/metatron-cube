@@ -31,7 +31,6 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
@@ -49,16 +48,21 @@ import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.filter.InFilter;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 @JsonTypeName("in")
 public class InDimFilter extends SingleInput
     implements RangeFilter, LogProvider, Compressible, Mergeable, IndexedIDSupport
 {
+  public static InDimFilter of(String dimension, String... values)
+  {
+    return new InDimFilter(dimension, Arrays.asList(values), null, null);
+  }
+
   private final String dimension;
   private final ExtractionFn extractionFn;
   private final List<String> values;
@@ -273,13 +277,14 @@ public class InDimFilter extends SingleInput
   {
     if (other instanceof InDimFilter) {
       InDimFilter in = (InDimFilter) other;
-      Set<String> set1 = Sets.newHashSet(values);
-      Set<String> set2 = Sets.newHashSet(in.values);
       switch (op) {
         case AND:
-          return new InDimFilter(dimension, Lists.newArrayList(Sets.intersection(set1, set2)), extractionFn);
+          List<String> intersection = GuavaUtils.intersection(values, in.values);
+          return intersection.isEmpty() ? DimFilters.NONE :
+                 intersection.size() == 1 ? new SelectorDimFilter(dimension, intersection.get(0), extractionFn) :
+                 new InDimFilter(dimension, extractionFn, intersection, null);
         case OR:
-          return new InDimFilter(dimension, Lists.newArrayList(Sets.union(set1, set2)), extractionFn);
+          return new InDimFilter(dimension, extractionFn, GuavaUtils.union(values, in.values), null);
       }
     } else if (other instanceof SelectorDimFilter) {
       SelectorDimFilter select = (SelectorDimFilter) other;

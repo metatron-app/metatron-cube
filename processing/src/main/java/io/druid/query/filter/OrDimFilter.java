@@ -32,6 +32,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.OrFilter;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +42,12 @@ import java.util.function.Function;
  */
 public class OrDimFilter implements DimFilter, OrExpression
 {
+  // do nothing but creates instance (see DimFilters.or)
+  public static OrDimFilter of(DimFilter... filters)
+  {
+    return new OrDimFilter(Arrays.asList(filters));
+  }
+
   private static final Joiner OR_JOINER = Joiner.on(" || ");
 
   final private List<DimFilter> fields;

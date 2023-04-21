@@ -212,6 +212,8 @@ public class SelectorDimFilter extends SingleInput
     if (other instanceof SelectorDimFilter) {
       SelectorDimFilter select = (SelectorDimFilter) other;
       return dimension.equals(select.dimension) && Objects.equals(extractionFn, select.extractionFn);
+    } else if (other instanceof InDimFilter) {
+      return ((InDimFilter) other).supports(op, this);
     }
     return false;
   }
@@ -219,6 +221,9 @@ public class SelectorDimFilter extends SingleInput
   @Override
   public DimFilter merge(OP op, DimFilter other)
   {
+    if (other instanceof InDimFilter) {
+      return ((InDimFilter) other).merge(op, this);
+    }
     if (other instanceof SelectorDimFilter) {
       SelectorDimFilter select = (SelectorDimFilter) other;
       int compare = GuavaUtils.nullFirstNatural().compare(value, select.value);
@@ -230,7 +235,7 @@ public class SelectorDimFilter extends SingleInput
           return DimFilters.NONE;
         case OR:
           List<String> values = compare < 0 ? Arrays.asList(value, select.value) : Arrays.asList(select.value, value);
-          return new InDimFilter(dimension, values, extractionFn);
+          return new InDimFilter(dimension, extractionFn, values, null);
       }
     }
     throw new ISE("merge?? %s %s %s", this, op, other);

@@ -1084,4 +1084,68 @@ public class GuavaUtils
       }
     }
   }
+
+  // for sorted, without null
+  public static List<String> intersection(List<String> values1, List<String> values2)
+  {
+    if (values1.isEmpty() || values2.isEmpty()) {
+      return ImmutableList.of();
+    }
+    List<String> intersection = Lists.newArrayList();
+    Iterator<String> it1 = values1.iterator();
+    Iterator<String> it2 = values2.iterator();
+    String v1 = it1.next();
+    String v2 = it2.next();
+    while (v1 != null && v2 != null) {
+      int compare = v1.compareTo(v2);
+      if (compare == 0) {
+        intersection.add(v1);
+        v1 = it1.hasNext() ? it1.next() : null;
+        v2 = it2.hasNext() ? it2.next() : null;
+      } else if (compare > 0) {
+        v2 = it2.hasNext() ? it2.next() : null;
+      } else if (compare < 0) {
+        v1 = it1.hasNext() ? it1.next() : null;
+      }
+    }
+    return intersection;
+  }
+
+  // for sorted, without null
+  public static List<String> union(List<String> values1, List<String> values2)
+  {
+    if (values1.isEmpty()) {
+      return values2;
+    }
+    if (values2.isEmpty()) {
+      return values1;
+    }
+    List<String> union = Lists.newArrayList();
+    Iterator<String> it1 = values1.iterator();
+    Iterator<String> it2 = values2.iterator();
+    String v1 = it1.next();
+    String v2 = it2.next();
+    while (v1 != null && v2 != null) {
+      final int compare = v1.compareTo(v2);
+      if (compare == 0) {
+        union.add(v1);
+        v1 = it1.hasNext() ? it1.next() : null;
+        v2 = it2.hasNext() ? it2.next() : null;
+      } else if (compare > 0) {
+        union.add(v2);
+        v2 = it2.hasNext() ? it2.next() : null;
+      } else if (compare < 0) {
+        union.add(v1);
+        v1 = it1.hasNext() ? it1.next() : null;
+      }
+    }
+    if (v1 != null) {
+      union.add(v1);
+      Iterators.addAll(union, it1);
+    } else if (v2 != null) {
+      union.add(v2);
+      Iterators.addAll(union, it2);
+    }
+    return union;
+  }
 }

@@ -25,11 +25,11 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedConciseBitmap;
+import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
@@ -60,9 +60,7 @@ import org.roaringbitmap.IntIterator;
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -107,37 +105,50 @@ public class DimFilters
 
   private static List<DimFilter> merge(List<DimFilter> fields, DimFilter.OP op)
   {
-    if (fields.size() <= 1) {
-      return fields;
+    final IntList indices = new IntList();
+    for (int i = 0; i < fields.size(); i++) {
+      if (fields.get(i) instanceof DimFilter.Mergeable) {
+        indices.add(i);
+      }
     }
-    final Iterable<DimFilter.Mergeable> mergeables = Iterables.filter(fields, DimFilter.Mergeable.class);
-    if (Iterables.isEmpty(mergeables)) {
+    if (indices.isEmpty()) {
       return fields;
     }
     boolean anyMerge = false;
-    final Set<DimFilter> remains = Sets.newHashSet(fields);
-    for (DimFilter.Mergeable mergeable : mergeables) {
-      if (!remains.remove(mergeable)) {
+    final List<DimFilter> remains = Lists.newArrayList(fields);
+next:
+    for (int index : indices) {
+      DimFilter source = remains.get(index);
+      if (!(source instanceof DimFilter.Mergeable)) {
         continue;   // merged already
       }
-      Iterator<DimFilter> iterator = remains.iterator();
-      while (iterator.hasNext()) {
-        DimFilter filter = iterator.next();
+      DimFilter.Mergeable mergeable = (DimFilter.Mergeable) source;
+      for (int i = 0; i < remains.size(); i++) {
+        DimFilter filter = remains.get(i);
+        if (filter == null || i == index) {
+          continue;
+        }
         if (mergeable.supports(op, filter)) {
           anyMerge = true;
-          iterator.remove();
+          remains.set(i, null);
           DimFilter merged = mergeable.merge(op, filter);
+          if (op == DimFilter.OP.OR && ALL.equals(merged)) {
+            return Arrays.asList(ALL);
+          }
+          if (op == DimFilter.OP.AND && NONE.equals(merged)) {
+            return Arrays.asList(NONE);
+          }
           if (merged instanceof DimFilter.Mergeable) {
             mergeable = (DimFilter.Mergeable) merged;
           } else {
-            remains.add(merged);
-            break;
+            remains.set(index, merged);
+            continue next;
           }
         }
       }
-      remains.add(mergeable);
+      remains.set(index, mergeable);
     }
-    return anyMerge ? Lists.newArrayList(remains) : fields;
+    return anyMerge ? Lists.newArrayList(Iterables.filter(remains, Predicates.notNull())) : fields;
   }
 
   public static DimFilter and(DimFilter... filters)
@@ -436,12 +447,6 @@ public class DimFilters
     }
 
     @Override
-    public DimFilter withRedirection(Map<String, String> mapping)
-    {
-      return this;
-    }
-
-    @Override
     public void addDependent(Set<String> handler) {}
 
     @Override
@@ -454,6 +459,12 @@ public class DimFilters
     public boolean equals(Object other)
     {
       return other instanceof None;
+    }
+
+    @Override
+    public String toString()
+    {
+      return "NONE";
     }
   }
 
@@ -493,6 +504,12 @@ public class DimFilters
     public boolean equals(Object other)
     {
       return other instanceof All;
+    }
+
+    @Override
+    public String toString()
+    {
+      return "ALL";
     }
   }
 
