@@ -264,7 +264,7 @@ public class GroupByQueryRunnerFactory
       if (splitCardinality > 1) {
         splitCardinality = Math.min(splitCardinality, maxResults);
         long start = System.currentTimeMillis();
-        long cardinality = Queries.estimateCardinality(query, segments, segmentWalker, splitCardinality);
+        long cardinality = Queries.estimateCardinality(query, segments, segmentWalker, resolver, splitCardinality);
         if (cardinality <= 0) {
           return null;    // failed ?
         }
