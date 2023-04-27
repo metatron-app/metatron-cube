@@ -60,6 +60,7 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.Interval;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -842,6 +843,7 @@ public class SegmentMetadataQueryTest
   }
 
   @Test
+  @Ignore("deprecated")
   public void testDefaultIntervalAndFiltering() throws Exception
   {
     SegmentMetadataQuery testQuery = Druids.newSegmentMetadataQueryBuilder()

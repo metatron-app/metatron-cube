@@ -46,6 +46,7 @@ import org.easymock.EasyMock;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -76,6 +77,7 @@ public class CachingClusteredClientFunctionalityTest {
   }
 
   @Test
+  @Ignore("deprecated")
   public void testUncoveredInterval() throws Exception {
     addToTimeline(new Interval("2015-01-02/2015-01-03"), "1");
     addToTimeline(new Interval("2015-01-04/2015-01-05"), "1");

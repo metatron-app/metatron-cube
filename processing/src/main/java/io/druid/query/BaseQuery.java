@@ -145,11 +145,6 @@ public abstract class BaseQuery<T> implements Query<T>
     return PropUtils.parseBoolean(query.getContext(), ALL_METRICS_FOR_EMPTY, defaultValue);
   }
 
-  public static int getContextUncoveredIntervalsLimit(Query<?> query, int defaultValue)
-  {
-    return PropUtils.parseInt(query.getContext(), "uncoveredIntervalsLimit", defaultValue);
-  }
-
   public static String getResultForwardURL(Query<?> query)
   {
     return query.getContextValue(FORWARD_URL);
