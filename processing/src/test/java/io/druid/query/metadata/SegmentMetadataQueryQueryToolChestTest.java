@@ -49,8 +49,9 @@ public class SegmentMetadataQueryQueryToolChestTest
   public void testCacheStrategy() throws Exception
   {
     SegmentMetadataQuery query = new SegmentMetadataQuery(
-        new TableDataSource("dummy"),
+        TableDataSource.of("dummy"),
         QuerySegmentSpecs.create("2015-01-01/2015-01-02"),
+        false,
         null,
         null,
         null,

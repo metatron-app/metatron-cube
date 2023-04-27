@@ -156,6 +156,7 @@ public class DumpSegment extends GuiceRunnable
     final SegmentMetadataQuery query = new SegmentMetadataQuery(
         new TableDataSource("dataSource"),
         new SpecificSegmentSpec(new SegmentDescriptor("dataSource", index.getInterval(), "0", 0)),
+        false,
         null,
         null,
         null,

@@ -110,8 +110,6 @@ public class ChatHandlerServerModule implements Module
       @RemoteChatHandler ServerConfig config
   )
   {
-    final Server server = JettyServerModule.makeJettyServer(node, config);
-    JettyServerModule.initializeServer(injector, lifecycle, server);
-    return server;
+    return JettyServerModule.makeJettyServer(injector, lifecycle, node, config);
   }
 }

@@ -311,8 +311,8 @@ public class SegmentMetadataQueryTest
         Arrays.asList(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
         Arrays.asList("numeric-expr", "string-expr"),
         Arrays.asList(
-            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, null, null, 0, null, -1, 60.02102279663086D, 1871.06103515625D, null),
-            new ColumnAnalysis(ValueDesc.STRING_TYPE, null, null, 0, null, -1, "spot|automotive", "upfront|premium", null)
+            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, null, false, 0, null, -1, 60.02102279663086D, 1871.06103515625D, null),
+            new ColumnAnalysis(ValueDesc.STRING_TYPE, null, false, 0, null, -1, "spot|automotive", "upfront|premium", null)
         ),
         mmap1 ? 63801 : 0,
         1209,

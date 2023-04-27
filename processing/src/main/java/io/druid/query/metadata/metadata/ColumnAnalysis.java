@@ -47,7 +47,7 @@ public class ColumnAnalysis
 
   private final String type;
   private final Map<String, String> descriptor;
-  private final Boolean hasMultipleValues;
+  private final boolean hasMultipleValues;
   private final long serializedSize;
   private final long[] cardinality;
   private final int nullCount;
@@ -61,7 +61,7 @@ public class ColumnAnalysis
   public ColumnAnalysis(
       @JsonProperty("type") String type,
       @JsonProperty("descriptor") Map<String, String> descriptor,
-      @JsonProperty("hasMultipleValues") Boolean hasMultipleValues,
+      @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
       @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("cardinality") long[] cardinality,
       @JsonProperty("nullCount") int nullCount,
@@ -196,6 +196,12 @@ public class ColumnAnalysis
 
   public ColumnAnalysis fold(ColumnAnalysis rhs)
   {
+    return fold(rhs, false);
+  }
+
+  // schema : keeps lhs
+  public ColumnAnalysis fold(ColumnAnalysis rhs, boolean schema)
+  {
     if (rhs == null) {
       return this;
     }
@@ -208,22 +214,22 @@ public class ColumnAnalysis
       return rhs;
     }
 
-    if (!Objects.equals(type, rhs.getType())) {
+    if (!schema && !Objects.equals(type, rhs.getType())) {
       return ColumnAnalysis.error("cannot_merge_diff_types");
     }
-    Map<String, String> mergedDescriptor;
+    Map<String, String> mergedDescriptor = null;
     if (descriptor == null) {
       mergedDescriptor = rhs.descriptor;
     } else if (rhs.descriptor == null || Objects.equals(descriptor, rhs.descriptor)) {
       mergedDescriptor = descriptor;
-    } else {
+    } else if (!schema) {
       return ColumnAnalysis.error("cannot_merge_diff_descs");
     }
 
     return new ColumnAnalysis(
         type,
         mergedDescriptor,
-        hasMultipleValues == null || rhs.hasMultipleValues == null ? null : hasMultipleValues || rhs.hasMultipleValues,
+        hasMultipleValues || rhs.hasMultipleValues,
         serializedSize < 0 || rhs.serializedSize < 0 ? -1 : serializedSize + rhs.serializedSize,
         mergeCardinality(cardinality, rhs.cardinality),
         nullCount < 0 || rhs.nullCount < 0 ? -1 : nullCount +  rhs.nullCount,

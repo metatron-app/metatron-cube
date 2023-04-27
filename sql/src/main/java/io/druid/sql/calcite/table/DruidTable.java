@@ -24,10 +24,8 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -40,7 +38,6 @@ import io.druid.query.aggregation.SetAggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpecs;
 import io.druid.query.spec.SpecificSegmentSpec;
@@ -103,10 +100,13 @@ public class DruidTable implements TranslatableTable
 
   public void update(DataSegment segment, boolean added)
   {
+    if (!added) {
+      return;   // sure?
+    }
     Supplier<Holder> update = Suppliers.memoize(
         () -> build(segment.getDataSource(), new SpecificSegmentSpec(segment.toDescriptor()), segmentWalker)
     );
-    if (signature != null && !Objects.equals(update.get().signature, signature)) {
+    if (signature != null && !signature.containsAll(update.get().signature)) {
       signature = null;
     }
     if (descriptors != null && !Objects.equals(update.get().descriptors, descriptors)) {
@@ -219,32 +219,19 @@ public class DruidTable implements TranslatableTable
 
   private static Holder build(String dataSource, QuerySegmentSpec segmentSpec, QuerySegmentWalker segmentWalker)
   {
-    SegmentMetadataQuery query = SegmentMetadataQuery.of(dataSource, segmentSpec, AnalysisType.INTERVAL, AnalysisType.CARDINALITY);
-    Sequence<SegmentAnalysis> sequence = QueryRunners.run(query.withId(UUID.randomUUID().toString()), segmentWalker);
+    SegmentMetadataQuery query = SegmentMetadataQuery.schema(dataSource, segmentSpec);
+    SegmentAnalysis segment = Sequences.only(QueryRunners.run(query.withId(UUID.randomUUID().toString()), segmentWalker));
 
-    long rowNum = 0;
-    Set<String> columns = Sets.newHashSet();
-    RowSignature.Builder builder = RowSignature.builder();
     Map<String, long[]> cardinalities = Maps.newHashMap();
     Map<String, Map<String, String>> descriptors = Maps.newHashMap();
-    for (SegmentAnalysis schema : Lists.reverse(Sequences.toList(sequence))) {
-      for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
-        String column = entry.getKey();
-        ColumnAnalysis analysis = entry.getValue();
-        if (columns.add(column)) {
-          builder.add(column, analysis.toValueDesc(null));   // todo
-          descriptors.put(column, analysis.getDescriptor());
-        }
-        long[] cardinality = analysis.getCardinality();
-        if (cardinality != null) {
-          cardinalities.compute(
-              column, (c, p) -> p == null ? cardinality : ColumnAnalysis.mergeCardinality(p, cardinality)
-          );
-        }
-      }
-      rowNum += schema.getNumRows();
+    for (Map.Entry<String, ColumnAnalysis> entry : segment.getColumns().entrySet()) {
+      String column = entry.getKey();
+      ColumnAnalysis analysis = entry.getValue();
+      descriptors.put(column, analysis.getDescriptor());
+      cardinalities.put(column, analysis.getCardinality());
     }
-    return new Holder(builder.sort().build(), cardinalities, descriptors, rowNum);
+    RowSignature.Builder builder = RowSignature.builderFrom(segment.asSignature(null));
+    return new Holder(builder.sort().build(), cardinalities, descriptors, segment.getNumRows());
   }
 
   @SuppressWarnings("unchecked")

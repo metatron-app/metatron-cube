@@ -21,9 +21,7 @@ package io.druid.query.metadata;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
@@ -46,8 +44,6 @@ import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.timeline.LogicalSegment;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
@@ -60,7 +56,6 @@ public class SegmentMetadataQueryQueryToolChest
 {
   private static final TypeReference<SegmentAnalysis> TYPE_REFERENCE = new TypeReference<SegmentAnalysis>() {};
 
-  private final SegmentMetadataQueryConfig config;
   private final GenericQueryMetricsFactory metricsFactory;
 
   @VisibleForTesting
@@ -72,7 +67,6 @@ public class SegmentMetadataQueryQueryToolChest
   @Inject
   public SegmentMetadataQueryQueryToolChest(SegmentMetadataQueryConfig config, GenericQueryMetricsFactory metricsFactory)
   {
-    this.config = config;
     this.metricsFactory = metricsFactory;
   }
 
@@ -107,7 +101,11 @@ public class SegmentMetadataQueryQueryToolChest
       @Override
       protected BinaryFn.Identical<SegmentAnalysis> createMergeFn(final Query<SegmentAnalysis> inQ)
       {
-        final boolean lenient = ((SegmentMetadataQuery) inQ).isLenientAggregatorMerge();
+        SegmentMetadataQuery query = (SegmentMetadataQuery) inQ;
+        if (query.analyzingSchema()) {
+          return (arg1, arg2) -> mergeSchemaAnalyses(arg1, arg2);
+        }
+        final boolean lenient = query.isLenientAggregatorMerge();
         return (arg1, arg2) -> mergeAnalyses(arg1, arg2, lenient);
       }
     };
@@ -144,35 +142,51 @@ public class SegmentMetadataQueryQueryToolChest
     };
   }
 
-  @Override
-  public <T extends LogicalSegment> List<T> filterSegments(Query<SegmentAnalysis> base, List<T> segments)
+  private static SegmentAnalysis mergeSchemaAnalyses(SegmentAnalysis arg1, SegmentAnalysis arg2)
   {
-    SegmentMetadataQuery query = (SegmentMetadataQuery) base;
-    if (!query.isUsingDefaultInterval()) {
-      return segments;
+    if (arg1 == null) {
+      return arg2;
     }
-
-    if (segments.size() <= 1) {
-      return segments;
+    if (arg2 == null) {
+      return arg1;
     }
+    Interval interval1 = JodaUtils.umbrellaInterval(arg1.getIntervals());
+    Interval interval2 = JodaUtils.umbrellaInterval(arg2.getIntervals());
 
-    final T max = segments.get(segments.size() - 1);
+    boolean lhs = interval1.getEndMillis() > interval2.getEndMillis();
 
-    DateTime targetEnd = max.getInterval().getEnd();
-    final Interval targetInterval = new Interval(config.getDefaultHistory(), targetEnd);
+    SegmentAnalysis latest = lhs ? arg1 : arg2;
+    SegmentAnalysis merging = lhs ? arg2 : arg1;
 
-    return Lists.newArrayList(
-        Iterables.filter(
-            segments,
-            new Predicate<T>()
-            {
-              @Override
-              public boolean apply(T input)
-              {
-                return (input.getInterval().overlaps(targetInterval));
-              }
-            }
-        )
+    List<String> names1 = latest.getColumnNames();
+    List<String> names2 = merging.getColumnNames();
+    List<ColumnAnalysis> analyses1 = latest.getColumnAnalyses();
+    List<ColumnAnalysis> analyses2 = merging.getColumnAnalyses();
+    for (int i = 0; i < names2.size(); i++) {
+      String column = names2.get(i);
+      ColumnAnalysis analysis2 = analyses2.get(i);
+      int x = names1.indexOf(column);
+      if (x < 0) {
+        names1.add(column);
+        analyses1.add(analysis2);
+      } else {
+        analyses1.set(x, analyses1.get(x).fold(analysis2, true));
+      }
+    }
+    Interval interval = JodaUtils.umbrellaInterval(Arrays.asList(interval1, interval2));
+    return new SegmentAnalysis(
+        "schema",
+        Arrays.asList(interval),
+        names1,
+        analyses1,
+        sumIfPositives(arg1.getSerializedSize(), arg2.getSerializedSize()),
+        sumIfPositives(arg1.getNumRows(), arg2.getNumRows()),
+        sumIfPositives(arg1.getIngestedNumRows(), arg2.getIngestedNumRows()),
+        Math.max(arg1.getLastAccessTime(), arg2.getLastAccessTime()),
+        null,
+        null,
+        null,
+        null
     );
   }
 

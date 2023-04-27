@@ -196,11 +196,12 @@ public class SegmentAnalyzer
       serializedSize = storageAdapter.getSerializedSize(columnName);
     }
     ColumnMeta columnMeta = storageAdapter.getColumnMeta(columnName);
+    ColumnCapabilities capabilities = storageAdapter.getColumnCapabilities(columnName);
 
     return new ColumnAnalysis(
         valueDesc.typeName(),
         columnMeta == null ? null : columnMeta.getDescs(),
-        columnMeta == null ? null : columnMeta.isHasMultipleValues(),
+        capabilities != null && capabilities.hasMultipleValues(),
         serializedSize,
         null,
         nullCount,

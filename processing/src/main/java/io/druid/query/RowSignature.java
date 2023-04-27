@@ -137,6 +137,18 @@ public class RowSignature implements io.druid.data.RowSignature
     return resolved;
   }
 
+  public boolean containsAll(RowSignature signature)
+  {
+    for (int i = 0; i < signature.size(); i++) {
+      final String column = signature.columnName(i);
+      final int ix = columnNames.indexOf(column);
+      if (ix < 0 || !columnTypes.get(ix).equals(signature.columnType(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private ValueDesc findElementOfStruct(String column, String element)
   {
     int index = columnNames.indexOf(column);

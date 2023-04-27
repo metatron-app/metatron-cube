@@ -668,6 +668,7 @@ public class Druids
       return new SegmentMetadataQuery(
           dataSource,
           querySegmentSpec,
+          false,
           virtualColumns,
           toInclude,
           columns,

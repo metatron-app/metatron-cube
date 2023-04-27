@@ -359,6 +359,7 @@ public class SummaryPostProcessor implements PostProcessingOperator.UnionSupport
           final SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
               representative.getDataSource(),
               representative.getQuerySegmentSpec(),
+              false,
               null,
               ColumnIncluderator.NONE,
               null,

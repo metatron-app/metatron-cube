@@ -71,6 +71,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.DenseSegmentsSpec;
+import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.ObjectArray;
 import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -78,6 +79,7 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
+import io.druid.timeline.partition.PartitionHolder;
 import io.druid.utils.StopWatch;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.curator.x.discovery.ServiceDiscovery;
@@ -191,15 +193,32 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     // build set of segments to query
     Set<Pair<ServerSelector, SegmentDescriptor>> segments = Sets.newLinkedHashSet();
 
-    List<TimelineObjectHolder<ServerSelector>> serversLookup = Lists.newLinkedList();
-
-    for (Interval interval : query.getIntervals()) {
-      Iterables.addAll(serversLookup, timeline.lookup(interval));
+    if (query.getQuerySegmentSpec() instanceof SpecificSegmentSpec) {
+      SegmentDescriptor descriptor = ((SpecificSegmentSpec) query.getQuerySegmentSpec()).getDescriptor();
+      PartitionHolder<ServerSelector> holder = timeline.findEntry(descriptor.getInterval(), descriptor.getVersion());
+      if (holder == null) {
+        return Sequences.empty(query.estimatedOutputColumns());
+      }
+      PartitionChunk<ServerSelector> chunk = holder.getChunk(descriptor.getPartitionNumber());
+      if (chunk == null) {
+        return Sequences.empty(query.estimatedOutputColumns());
+      }
+      segments.add(Pair.of(chunk.getObject(), descriptor));
+    } else {
+      List<TimelineObjectHolder<ServerSelector>> serversLookup = Lists.newLinkedList();
+      for (Interval interval : query.getIntervals()) {
+        Iterables.addAll(serversLookup, timeline.lookup(interval));
+      }
+      // Let tool chest filter out unneeded segments
+      for (TimelineObjectHolder<ServerSelector> holder : toolChest.filterSegments(query, serversLookup)) {
+        for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
+          SegmentDescriptor descriptor = new SegmentDescriptor(
+              dataSource, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
+          );
+          segments.add(Pair.of(chunk.getObject(), descriptor));
+        }
+      }
     }
-
-    // Let tool chest filter out unneeded segments
-    final List<TimelineObjectHolder<ServerSelector>> filteredServersLookup =
-        toolChest.filterSegments(query, serversLookup);
 
     // minor quick-path
     if (query instanceof SegmentMetadataQuery && ((SegmentMetadataQuery) query).analyzingOnlyInterval()) {
@@ -207,21 +226,10 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           query.estimatedOutputColumns(),
           new SegmentAnalysis(
               JodaUtils.condenseIntervals(
-                  Iterables.transform(
-                      filteredServersLookup, TimelineObjectHolder::getInterval
-                  )
+                  Iterables.transform(segments, s -> s.rhs.getInterval())
               )
           )
       );
-    }
-
-    for (TimelineObjectHolder<ServerSelector> holder : filteredServersLookup) {
-      for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
-        final SegmentDescriptor descriptor = new SegmentDescriptor(
-            dataSource, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
-        );
-        segments.add(Pair.of(chunk.getObject(), descriptor));
-      }
     }
 
     final byte[] queryCacheKey;

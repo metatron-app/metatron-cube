@@ -182,6 +182,7 @@ public class SegmentAnalyzerTest
     final SegmentMetadataQuery query = new SegmentMetadataQuery(
         new LegacyDataSource("test"),
         QuerySegmentSpecs.create("2011/2012"),
+        false,
         null,
         null,
         null,

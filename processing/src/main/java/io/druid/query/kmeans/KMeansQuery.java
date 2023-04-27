@@ -352,6 +352,7 @@ public class KMeansQuery
     SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        false,
         getVirtualColumns(),
         null,
         getMetrics(),

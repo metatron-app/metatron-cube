@@ -65,6 +65,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
+import java.util.function.IntPredicate;
 
 /**
  */
@@ -491,6 +492,16 @@ public class GuavaUtils
       }
     }
     return true;
+  }
+
+  public static boolean any(int[] indices, IntPredicate predicate)
+  {
+    for (int i = 0; i < indices.length; i++) {
+      if (predicate.test(indices[i])) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public static double[] castDouble(long[] longs)

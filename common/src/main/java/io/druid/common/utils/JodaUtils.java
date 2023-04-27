@@ -117,6 +117,11 @@ public class JodaUtils
     };
   }
 
+  public static Comparator<Interval> intervalComparator(boolean descending)
+  {
+    return descending ? INTERVAL_BY_END_THEN_START : INTERVAL_BY_START_THEN_END;
+  }
+
   public static Comparator<Interval> intervalsByStartThenEnd()
   {
     return INTERVAL_BY_START_THEN_END;

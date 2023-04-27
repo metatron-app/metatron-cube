@@ -52,23 +52,35 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
 {
   public static SegmentMetadataQuery of(Query<?> query, AnalysisType... analysisTypes)
   {
-    return of(DataSources.unwrapView(query.getDataSource()), query.getQuerySegmentSpec(), analysisTypes)
+    return of(DataSources.unwrapView(query.getDataSource()), query.getQuerySegmentSpec(), false, analysisTypes)
         .withOverriddenContext(BaseQuery.copyContextForMeta(query.getContext(), Query.DISABLE_LOG, true));
   }
 
   public static SegmentMetadataQuery of(String dataSource, AnalysisType... analysisTypes)
   {
-    return of(dataSource, QuerySegmentSpec.ETERNITY, analysisTypes);
+    return of(TableDataSource.of(dataSource), QuerySegmentSpec.ETERNITY, false, analysisTypes);
   }
 
-  public static SegmentMetadataQuery of(String dataSource, QuerySegmentSpec spec, AnalysisType... analysisTypes)
+  public static SegmentMetadataQuery of(DataSource dataSource, QuerySegmentSpec spec, boolean descending, AnalysisType... analysisTypes)
   {
-    return of(TableDataSource.of(dataSource), spec, analysisTypes);
+    return new SegmentMetadataQuery(dataSource, spec, descending, null, null, null, null, of(analysisTypes), null, null, null);
   }
 
-  public static SegmentMetadataQuery of(DataSource dataSource, QuerySegmentSpec spec, AnalysisType... analysisTypes)
+  public static SegmentMetadataQuery schema(String dataSource, QuerySegmentSpec spec)
   {
-    return new SegmentMetadataQuery(dataSource, spec, null, null, null, null, of(analysisTypes), null, null, null);
+    return new SegmentMetadataQuery(
+        TableDataSource.of(dataSource),
+        spec,
+        true,
+        null,
+        null,
+        null,
+        true,
+        of(AnalysisType.INTERVAL, AnalysisType.CARDINALITY),
+        null,
+        null,
+        null
+    );
   }
 
   public static EnumSet<AnalysisType> of(AnalysisType... analysisTypes)
@@ -135,6 +147,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   public SegmentMetadataQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("descending") boolean descending,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("toInclude") ColumnIncluderator toInclude,
       @JsonProperty("columns") List<String> columns,
@@ -145,7 +158,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(dataSource, querySegmentSpec, false, context);
+    super(dataSource, querySegmentSpec, descending, context);
     this.usingDefaultInterval = querySegmentSpec == null || useDefaultInterval != null && useDefaultInterval;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.toInclude = toInclude;
@@ -217,6 +230,11 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return merge ? GuavaUtils.<SegmentAnalysis>allEquals() : super.getMergeOrdering(columns);
   }
 
+  public boolean analyzes(AnalysisType interval)
+  {
+    return analysisTypes.contains(interval);
+  }
+
   public boolean analyzingOnlyInterval()
   {
     return analysisTypes.size() == 1
@@ -224,44 +242,49 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
            && toInclude instanceof NoneColumnIncluderator;
   }
 
+  public boolean analyzingSchema()
+  {
+    return descending && analysisTypes.size() == 2 && analyzes(AnalysisType.INTERVAL) && analyzes(AnalysisType.CARDINALITY);
+  }
+
   public boolean analyzingInterval()
   {
-    return analysisTypes.contains(AnalysisType.INTERVAL);
+    return analyzes(AnalysisType.INTERVAL);
   }
 
   public boolean hasAggregators()
   {
-    return analysisTypes.contains(AnalysisType.AGGREGATORS);
+    return analyzes(AnalysisType.AGGREGATORS);
   }
 
   public boolean hasQueryGranularity()
   {
-    return analysisTypes.contains(AnalysisType.QUERYGRANULARITY);
+    return analyzes(AnalysisType.QUERYGRANULARITY);
   }
 
   public boolean hasRollup()
   {
-    return analysisTypes.contains(AnalysisType.ROLLUP);
+    return analyzes(AnalysisType.ROLLUP);
   }
 
   public boolean hasMinMax()
   {
-    return analysisTypes.contains(AnalysisType.MINMAX);
+    return analyzes(AnalysisType.MINMAX);
   }
 
   public boolean hasIngestedNumRows()
   {
-    return analysisTypes.contains(AnalysisType.INGESTED_NUMROW);
+    return analyzes(AnalysisType.INGESTED_NUMROW);
   }
 
   public boolean hasSerializedSize()
   {
-    return analysisTypes.contains(AnalysisType.SERIALIZED_SIZE);
+    return analyzes(AnalysisType.SERIALIZED_SIZE);
   }
 
   public boolean hasLastAccessTime()
   {
-    return analysisTypes.contains(AnalysisType.LAST_ACCESS_TIME);
+    return analyzes(AnalysisType.LAST_ACCESS_TIME);
   }
 
   @Override
@@ -270,6 +293,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        descending,
         virtualColumns,
         toInclude,
         columns,
@@ -287,6 +311,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return new SegmentMetadataQuery(
         getDataSource(),
         spec,
+        descending,
         virtualColumns,
         toInclude,
         columns,
@@ -304,6 +329,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return new SegmentMetadataQuery(
         dataSource,
         getQuerySegmentSpec(),
+        descending,
         virtualColumns,
         toInclude,
         columns,
@@ -320,6 +346,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        descending,
         virtualColumns,
         includerator,
         columns,
@@ -337,6 +364,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        descending,
         virtualColumns,
         toInclude,
         columns,
@@ -356,6 +384,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        descending,
         virtualColumns,
         toInclude,
         columns,
@@ -372,6 +401,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     return new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        descending,
         virtualColumns,
         toInclude,
         columns,

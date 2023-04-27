@@ -66,6 +66,7 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.util.thread.ScheduledExecutorScheduler;
 
 import javax.servlet.ServletException;
+import java.net.BindException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -134,8 +135,7 @@ public class JettyServerModule extends JerseyServletModule
       final Injector injector, final Lifecycle lifecycle, @Self final DruidNode node, final ServerConfig config
   )
   {
-    final Server server = makeJettyServer(node, config);
-    initializeServer(injector, lifecycle, server);
+    final Server server = makeJettyServer(injector, lifecycle, node, config);
     return server;
   }
 
@@ -157,7 +157,7 @@ public class JettyServerModule extends JerseyServletModule
     return provider;
   }
 
-  static Server makeJettyServer(DruidNode node, ServerConfig config)
+  static Server makeJettyServer(Injector injector, Lifecycle lifecycle, DruidNode node, ServerConfig config)
   {
     if (!node.isListening()) {
       return new Server();  // return dummy to prevent NPE
@@ -188,11 +188,6 @@ public class JettyServerModule extends JerseyServletModule
 
     server.setConnectors(new Connector[]{connector});
 
-    return server;
-  }
-
-  static void initializeServer(Injector injector, Lifecycle lifecycle, final Server server)
-  {
     JettyServerInitializer initializer = injector.getInstance(JettyServerInitializer.class);
     try {
       initializer.initialize(server, injector);
@@ -207,7 +202,13 @@ public class JettyServerModule extends JerseyServletModule
           @Override
           public void start() throws Exception
           {
-            server.start();
+            try {
+              server.start();
+            }
+            catch (BindException e) {
+              log.warn("%s.. port : %d", e.getMessage(), node.getPort());
+              throw e;
+            }
           }
 
           @Override
@@ -222,6 +223,7 @@ public class JettyServerModule extends JerseyServletModule
           }
         }
     );
+    return server;
   }
 
   @Provides
