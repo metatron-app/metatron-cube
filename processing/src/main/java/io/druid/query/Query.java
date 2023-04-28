@@ -63,6 +63,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "queryType")
 @JsonSubTypes(value = {
@@ -169,6 +170,11 @@ public interface Query<T> extends QueryContextKeys
   Query<T> toLocalQuery();
 
   Query<T> withId(String id);
+
+  default Query<T> withRandomId()
+  {
+    return withId(UUID.randomUUID().toString());
+  }
 
   String getId();
 

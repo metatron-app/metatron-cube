@@ -68,6 +68,16 @@ public class RowSignature extends io.druid.query.RowSignature
     return rowSignatureBuilder.build();
   }
 
+  public static RowSignature fromTypeString(String typeString, ValueDesc defaultType)
+  {
+    return from(io.druid.query.RowSignature.fromTypeString(typeString, defaultType));
+  }
+
+  public static RowSignature from(io.druid.data.RowSignature signature)
+  {
+    return new RowSignature(signature.getColumnNames(), signature.getColumnTypes());
+  }
+
   public static RowSignature from(final List<String> rowOrder, final RelDataType rowType)
   {
     return from(rowOrder, rowType, null);
@@ -132,6 +142,14 @@ public class RowSignature extends io.druid.query.RowSignature
     return new RowSignature(
         GuavaUtils.concat(getColumnNames(), names),
         GuavaUtils.concat(getColumnTypes(), types)
+    );
+  }
+
+  public RowSignature prepend(String name, ValueDesc type)
+  {
+    return new RowSignature(
+        GuavaUtils.concat(name, getColumnNames()),
+        GuavaUtils.concat(type, getColumnTypes())
     );
   }
 

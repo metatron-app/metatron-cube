@@ -39,6 +39,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.sql.calcite.table.DruidTable;
+import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.view.DruidViewMacro;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.timeline.DataSegment;
@@ -62,13 +63,15 @@ public class DruidSchema extends AbstractSchema implements BiFunction<String, Dr
   private final ViewManager viewManager;
   private final Map<String, DruidTable> cached;
   private final Map<String, String> multitenants;
+  private final Map<String, RowSignature> explictSignatures;
 
   @Inject
   public DruidSchema(
       final @JacksonInject QuerySegmentWalker segmentWalker,
       final TimelineServerView serverView,
       final ViewManager viewManager,
-      final @MultiTenants Map<String, String> multitenants
+      final @MultiTenants Map<String, String> multitenants,
+      final @ExplictSchema Map<String, RowSignature> explictSignatures
   )
   {
     this.segmentWalker = Preconditions.checkNotNull(segmentWalker, "segmentWalker");
@@ -112,6 +115,7 @@ public class DruidSchema extends AbstractSchema implements BiFunction<String, Dr
         LOG.info("Table [%s] is registerd with tenant column '%s'", m.getKey(), m.getValue());
       }
     }
+    this.explictSignatures = explictSignatures;
   }
 
   @Override
@@ -146,7 +150,7 @@ public class DruidSchema extends AbstractSchema implements BiFunction<String, Dr
             String sourceName = tableName.substring(0, index);
             DruidTable source = cached.compute(sourceName, DruidSchema.this);
             if (source != null && source.isMultiTenent()) {
-              return new DruidTable.Tenant(source, tableName.substring(index + 1), segmentWalker);
+              return new DruidTable.Tenant(source, tableName.substring(index + 1), segmentWalker, null);
             }
           }
         }
@@ -177,7 +181,7 @@ public class DruidSchema extends AbstractSchema implements BiFunction<String, Dr
     if (serverView.getTimeline(tableName) == null) {
       table = null;
     } else if (table == null) {
-      table = new DruidTable(TableDataSource.of(tableName), segmentWalker, multitenants.get(tableName));
+      table = new DruidTable(TableDataSource.of(tableName), segmentWalker, explictSignatures.get(tableName), multitenants.get(tableName));
     }
     return table;
   }

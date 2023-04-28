@@ -87,7 +87,7 @@ public class RowSignature implements io.druid.data.RowSignature
           throw new IAE("missing type for %s in typeString %s", column, typeString);
         }
         columnNames.add(column.trim());
-        columnTypes.add(ValueDesc.STRING);
+        columnTypes.add(defaultType);
       } else {
         columnNames.add(column.substring(0, index).trim());
         columnTypes.add(ValueDesc.fromTypeString(column.substring(index + 1).trim()));

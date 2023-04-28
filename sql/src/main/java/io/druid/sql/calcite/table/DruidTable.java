@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -86,10 +87,11 @@ public class DruidTable implements TranslatableTable
   private Map<String, long[]> cardinalities;
   private Set<String> tenants;
 
-  public DruidTable(TableDataSource dataSource, QuerySegmentWalker segmentWalker, String tenantColumn)
+  public DruidTable(TableDataSource dataSource, QuerySegmentWalker segmentWalker, RowSignature signature, String tenantColumn)
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
     this.segmentWalker = Preconditions.checkNotNull(segmentWalker, "segmentWalker");
+    this.signature = signature;
     this.tenantColumn = tenantColumn;
   }
 
@@ -106,8 +108,8 @@ public class DruidTable implements TranslatableTable
     Supplier<Holder> update = Suppliers.memoize(
         () -> build(segment.getDataSource(), new SpecificSegmentSpec(segment.toDescriptor()), segmentWalker)
     );
-    if (signature != null && !signature.containsAll(update.get().signature)) {
-      signature = null;
+    if (signature != null) {
+      signature = RowSignature.from(signature.merge(update.get().signature));
     }
     if (descriptors != null && !Objects.equals(update.get().descriptors, descriptors)) {
       descriptors = null;
@@ -131,7 +133,7 @@ public class DruidTable implements TranslatableTable
     return dataSource;
   }
 
-  public RowSignature getRowSignature()
+  public synchronized RowSignature getRowSignature()
   {
     if (signature == null) {
       updateAll();
@@ -139,24 +141,28 @@ public class DruidTable implements TranslatableTable
     return signature;
   }
 
-  public Map<String, Map<String, String>> getDescriptors()
+  public synchronized Map<String, Map<String, String>> getDescriptors()
   {
     if (descriptors == null) {
       updateAll();
     }
-    return descriptors;
+    return descriptors == null ? ImmutableMap.of() : descriptors;
   }
 
   @Override
-  public Statistic getStatistic()
+  public synchronized Statistic getStatistic()
   {
     if (statistic == null) {
-      updateAll();
+      if (signature == null) {
+        updateAll();
+      } else {
+        updateStats();
+      }
     }
-    return statistic;
+    return statistic == null ? Statistics.of(-1, ImmutableList.of()) : statistic;
   }
 
-  public long[] cardinalityRange(String dimension)
+  public synchronized long[] cardinalityRange(String dimension)
   {
     if (cardinalities == null) {
       updateAll();
@@ -168,7 +174,7 @@ public class DruidTable implements TranslatableTable
   {
     RowSignature signature = getRowSignature();
     long[] cardinality = Arrays.stream(groupKey.toArray())
-                               .mapToObj(x -> cardinalities.get(signature.columnName(x))).filter(Objects::nonNull)
+                               .mapToObj(x -> cardinalityRange(signature.columnName(x))).filter(Objects::nonNull)
                                .reduce(ColumnAnalysis::mergeCardinality).orElse(null);
     if (cardinality != null) {
       cardinality[0] = (long) Math.min(cardinality[0], statistic.getRowCount());
@@ -177,7 +183,7 @@ public class DruidTable implements TranslatableTable
     return cardinality;
   }
 
-  private synchronized void updateAll()
+  private void updateAll()
   {
     long start = System.currentTimeMillis();
     Holder update = build(dataSource.getName(), QuerySegmentSpec.ETERNITY, segmentWalker);
@@ -186,6 +192,18 @@ public class DruidTable implements TranslatableTable
     this.descriptors = update.descriptors;
     this.statistic = Statistics.of(update.rowCount, ImmutableList.of());
     LOG.info("Refreshed schema of [%s].. %,d msec", dataSource.getName(), System.currentTimeMillis() - start);
+  }
+
+  private void updateStats()
+  {
+    long start = System.currentTimeMillis();
+    TimeseriesQuery query = TimeseriesQuery.countAll(dataSource);
+    Row result = Sequences.only(QueryRunners.run(query.withRandomId(), segmentWalker), null);
+    Long count = result == null ? null : result.getLong("count");
+    if (count != null) {
+      statistic = Statistics.of(count, ImmutableList.of());
+      LOG.info("Refreshed stats of [%s].. %,d msec", dataSource.getName(), System.currentTimeMillis() - start);
+    }
   }
 
   public Set<String> getTenants()
@@ -220,7 +238,7 @@ public class DruidTable implements TranslatableTable
   private static Holder build(String dataSource, QuerySegmentSpec segmentSpec, QuerySegmentWalker segmentWalker)
   {
     SegmentMetadataQuery query = SegmentMetadataQuery.schema(dataSource, segmentSpec);
-    SegmentAnalysis segment = Sequences.only(QueryRunners.run(query.withId(UUID.randomUUID().toString()), segmentWalker));
+    SegmentAnalysis segment = Sequences.only(QueryRunners.run(query.withRandomId(), segmentWalker));
 
     Map<String, long[]> cardinalities = Maps.newHashMap();
     Map<String, Map<String, String>> descriptors = Maps.newHashMap();
@@ -306,9 +324,9 @@ public class DruidTable implements TranslatableTable
     private final DruidTable source;
     private final String tenant;
 
-    public Tenant(DruidTable source, String tenant, QuerySegmentWalker segmentWalker)
+    public Tenant(DruidTable source, String tenant, QuerySegmentWalker segmentWalker, RowSignature signature)
     {
-      super(source.getDataSource(), segmentWalker, null);
+      super(source.getDataSource(), segmentWalker, signature, null);
       this.source = Preconditions.checkNotNull(source, "'source' should not be null");
       this.tenant = Preconditions.checkNotNull(tenant, "'tenant' should not be null");
       Preconditions.checkArgument(

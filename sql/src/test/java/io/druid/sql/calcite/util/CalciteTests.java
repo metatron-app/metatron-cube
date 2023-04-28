@@ -420,6 +420,7 @@ public class CalciteTests
         walker,
         new TestServerInventoryView(walker.getTimeLines()),
         viewManager,
+        ImmutableMap.of(),
         ImmutableMap.of()
     );
 

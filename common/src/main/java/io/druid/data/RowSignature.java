@@ -153,9 +153,14 @@ public interface RowSignature extends TypeResolver
     return Iterables.any(getColumnTypes(), predicate);
   }
 
-  default int[] indexOf(Predicate<ValueDesc> predicate)
+  default IntStream indexOf(Predicate<ValueDesc> predicate)
   {
     List<ValueDesc> types = getColumnTypes();
-    return IntStream.range(0, size()).filter(x -> predicate.apply(types.get(x))).toArray();
+    return IntStream.range(0, size()).filter(x -> predicate.apply(types.get(x)));
+  }
+
+  default int indexOf(String column)
+  {
+    return getColumnNames().indexOf(column);
   }
 }

@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
@@ -36,6 +37,7 @@ import io.druid.query.JoinQuery;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -45,6 +47,7 @@ import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +60,25 @@ public class TimeseriesQuery extends BaseAggregationQuery
   public static Builder builder()
   {
     return new Builder();
+  }
+
+  public static TimeseriesQuery countAll(DataSource dataSource)
+  {
+    return new TimeseriesQuery(
+        dataSource,
+        null,
+        false,
+        null,
+        null,
+        null,
+        Arrays.asList(CountAggregatorFactory.of("count")),
+        null,
+        null,
+        null,
+        null,
+        null,
+        Maps.newHashMap()
+    );
   }
 
   @JsonCreator

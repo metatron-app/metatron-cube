@@ -190,7 +190,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
           }
           Sequence<Cursor> cursors = ColumnSelectorFactories.toArrayCursors(sequence, schema, timeColumn, query);
           int[] indices = GuavaUtils.indexOf(sequence.columns(), DimensionSpecs.toInputNames(groupBy.getDimensions()));
-          int[] mvs = schema.indexOf(t -> t.isDimension() || t.isMultiValued());
+          int[] mvs = schema.indexOf(t -> t.isDimension() || t.isMultiValued()).toArray();
           return postAggregation(groupBy, Sequences.map(
               AggregateIndex.of(indices, mvs).aggregate(groupBy, cursors),
               GroupByQueryEngine.arrayToRow(groupBy.withPostAggregatorSpecs(null), false)

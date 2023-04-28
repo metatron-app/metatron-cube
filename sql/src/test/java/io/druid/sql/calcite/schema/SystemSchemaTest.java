@@ -192,6 +192,7 @@ public class SystemSchemaTest extends CalciteTestBase
         walker,
         new TestServerInventoryView(walker.getTimeLines()),
         new NoopViewManager(),
+        ImmutableMap.of(),
         ImmutableMap.of()
     );
 

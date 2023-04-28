@@ -29,12 +29,16 @@ import com.google.inject.Key;
 import com.google.inject.multibindings.MapBinder;
 import com.google.inject.multibindings.Multibinder;
 import io.druid.common.utils.PropUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.PolyBind;
 import io.druid.initialization.DruidModule;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.server.initialization.jetty.JettyBindings;
@@ -50,7 +54,9 @@ import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.schema.DruidSchema;
+import io.druid.sql.calcite.schema.ExplictSchema;
 import io.druid.sql.calcite.schema.MultiTenants;
+import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.sql.http.ResultFormat;
@@ -68,6 +74,8 @@ import java.util.Properties;
 
 public class SqlModule implements DruidModule
 {
+  private static final Logger LOG = new Logger(SqlModule.class);
+
   private static final String PROPERTY_SQL_ENABLE = "druid.sql.enable";
   private static final String PROPERTY_SQL_ENABLE_JSON_OVER_HTTP = "druid.sql.http.enable";
   private static final String PROPERTY_SQL_ENABLE_AVATICA = "druid.sql.avatica.enable";
@@ -94,12 +102,28 @@ public class SqlModule implements DruidModule
     if (isEnabled()) {
       Calcites.setSystemProperties();
 
-      MapBinder<String, String> mt = MapBinder.newMapBinder(binder, String.class, String.class, MultiTenants.class);
+      MapBinder<String, RowSignature> schemas = MapBinder.newMapBinder(binder, String.class, RowSignature.class, ExplictSchema.class);
+      for (Properties properties : PropUtils.loadProperties(SqlModule.class.getClassLoader(), "schemas.properties")) {
+        for (String key : properties.stringPropertyNames()) {
+          String typeString = properties.getProperty(key);
+          if (!StringUtils.isNullOrEmpty(typeString)) {
+            RowSignature signature = RowSignature.fromTypeString(typeString, ValueDesc.DIM_STRING);
+            if (signature.indexOf(Row.TIME_COLUMN_NAME) < 0) {
+              signature = signature.prepend(Row.TIME_COLUMN_NAME, ValueDesc.LONG);
+            }
+            schemas.addBinding(key).toInstance(signature);
+            LOG.info(".. schema binding %s=%s", key, StringUtils.forLog(signature.toString(), 96));
+          }
+        }
+      }
+
+      MapBinder<String, String> mts = MapBinder.newMapBinder(binder, String.class, String.class, MultiTenants.class);
       for (Properties properties : PropUtils.loadProperties(SqlModule.class.getClassLoader(), "multitenants.properties")) {
         for (String key : properties.stringPropertyNames()) {
           String columnName = properties.getProperty(key);
           if (columnName != null) {
-            mt.addBinding(key).toInstance(columnName);
+            mts.addBinding(key).toInstance(columnName);
+            LOG.info(".. multitenants binding %s=%s", key, columnName);
           }
         }
       }
