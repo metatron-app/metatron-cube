@@ -190,7 +190,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
         try {
           final int cardinality = context.dictionaryRange(dimension, encoded.cardinality());
           final IntIterator iterator;
-          if (encoded.hasMultipleValues() || context.notFiltered() || cardinality < context.targetNumRows()) {
+          if (encoded.hasMultipleValues() || !context.bitmapFiltered() || cardinality < context.targetNumRows()) {
             iterator = context.dictionaryIterator(dimension);
           } else {
             final IntSet set = new IntOpenHashSet();

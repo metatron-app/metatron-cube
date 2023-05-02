@@ -57,7 +57,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  */
@@ -349,6 +348,14 @@ public abstract class BaseQuery<T> implements Query<T>
         if (filter != optimized) {
           query = filterSupport.withFilter(optimized);
         }
+      }
+    }
+    if (query instanceof Query.AggregationsSupport) {
+      Query.AggregationsSupport<T> aggregationsSupport = (Query.AggregationsSupport<T>) query;
+      List<AggregatorFactory> aggregators = aggregationsSupport.getAggregatorSpecs();
+      List<AggregatorFactory> optimized = AggregatorFactory.optimize(aggregators, segment);
+      if (aggregators != optimized) {
+        query = aggregationsSupport.withAggregatorSpecs(optimized);
       }
     }
     return query;

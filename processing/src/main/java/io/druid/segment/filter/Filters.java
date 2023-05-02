@@ -433,7 +433,7 @@ public class Filters
       final int cardinality = context.dictionaryRange(dimension, dictionary.size());
 
       final IntIterator iterator;
-      if (encoded.hasMultipleValues() || context.notFiltered() || cardinality < context.targetNumRows()) {
+      if (encoded.hasMultipleValues() || !context.bitmapFiltered() || cardinality < context.targetNumRows()) {
         iterator = context.dictionaryIterator(dimension);
       } else {
         final IntSet set = new IntOpenHashSet();

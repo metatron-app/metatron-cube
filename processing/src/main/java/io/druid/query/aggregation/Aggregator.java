@@ -155,4 +155,22 @@ public interface Aggregator<T>
       return null;
     }
   };
+
+  static Aggregator relay(Object value)
+  {
+    return new Aggregator()
+    {
+      @Override
+      public Object aggregate(Object current)
+      {
+        return current;
+      }
+
+      @Override
+      public Object get(Object current)
+      {
+        return value;
+      }
+    };
+  }
 }

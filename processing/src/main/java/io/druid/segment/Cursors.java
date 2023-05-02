@@ -73,15 +73,15 @@ public class Cursors
     }
 
     @Override
-    public FilterContext getFilterContext()
+    public FilterContext filterContext()
     {
-      return delegated.getFilterContext();
+      return delegated.filterContext();
     }
 
     @Override
-    public IntFunction getAttachment(String name)
+    public IntFunction attachment(String name)
     {
-      return delegated.getAttachment(name);
+      return delegated.attachment(name);
     }
 
     @Override
@@ -127,6 +127,12 @@ public class Cursors
     public ValueMatcher makePredicateMatcher(DimFilter filter)
     {
       return super.makePredicateMatcher(filter);    // bitmap is not valid with lateral view. stick to matcher
+    }
+
+    @Override
+    public int size()
+    {
+      return -1;
     }
 
     @Override
@@ -181,6 +187,12 @@ public class Cursors
     {
       delegated.reset();
       function.prepare();
+    }
+
+    @Override
+    public Scanning scanContext()
+    {
+      return delegated.scanContext();
     }
   }
 }

@@ -114,4 +114,22 @@ public interface BufferAggregator
       return null;
     }
   };
+
+  static BufferAggregator relay(Object value)
+  {
+    return new BufferAggregator()
+    {
+      @Override
+      public void init(ByteBuffer buf, int position0, int position1) {}
+
+      @Override
+      public void aggregate(ByteBuffer buf, int position0, int position1) {}
+
+      @Override
+      public Object get(ByteBuffer buf, int position0, int position1)
+      {
+        return value;
+      }
+    };
+  }
 }

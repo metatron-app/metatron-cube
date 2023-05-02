@@ -95,7 +95,7 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
       return null;
     }
     return ImmutableMap.<String, Object>of(
-        "numNulls", writer.nulls.size()
+        ColumnStats.NUM_NULLS, writer.nulls.size()
     );
   }
 

@@ -213,22 +213,18 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     final Filter matcher = Filters.toFilter(extracted.getValue(), resolver);
-    final boolean fullscan =
-        Granularities.isAll(granularity) && Filters.matchAll(matcher) && actualInterval.contains(timeMinMax);
-
-    context.prepared(matcher, fullscan);  // this can be used for value/predicate filters
 
     return Sequences.withBaggage(
         Sequences.filter(
             new CursorSequenceBuilder(
                 index,
                 actualInterval,
+                timeMinMax,
                 resolver,
                 granularity,
                 offset,
-                timeMinMax.getStartMillis(),
-                timeMinMax.getEndMillis(),
                 descending,
+                matcher,
                 context
             ).build(),
             Predicates.<Cursor>notNull()
@@ -266,18 +262,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final long maxDataTimestamp;
     private final boolean descending;
 
-    private final FilterContext context;
     private final Filter filter;
+    private final FilterContext context;
+    private final boolean swipping;
 
     public CursorSequenceBuilder(
         QueryableIndex index,
         Interval interval,
+        Interval timeMinMax,
         RowResolver resolver,
         Granularity granularity,
         Offset offset,
-        long minDataTimestamp,
-        long maxDataTimestamp,
         boolean descending,
+        Filter filter,
         FilterContext context
     )
     {
@@ -286,11 +283,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.resolver = resolver;
       this.granularity = granularity;
       this.offset = offset;
-      this.minDataTimestamp = minDataTimestamp;
-      this.maxDataTimestamp = maxDataTimestamp;
+      this.minDataTimestamp = timeMinMax.getStartMillis();
+      this.maxDataTimestamp = timeMinMax.getEndMillis();
       this.descending = descending;
+      this.filter = filter;
       this.context = context;
-      this.filter = context.getMatcher();
+      this.swipping = Granularities.isAll(granularity) && actualInterval.contains(timeMinMax);
     }
 
     public Sequence<Cursor> build()
@@ -335,13 +333,21 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public FilterContext getFilterContext()
+                    public Scanning scanContext()
+                    {
+                      return !swipping ? Scanning.OTHER :
+                             filterMatcher != ValueMatcher.TRUE ? Scanning.MATCHER :
+                             context.bitmapFiltered() ? Scanning.BITMAP : Scanning.FULL;
+                    }
+
+                    @Override
+                    public FilterContext filterContext()
                     {
                       return context;
                     }
 
                     @Override
-                    public IntFunction getAttachment(String name)
+                    public IntFunction attachment(String name)
                     {
                       return context.attachmentOf(name);
                     }
@@ -884,10 +890,23 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
+                    public ColumnMeta getMeta(String columnName)
+                    {
+                      return index.getColumnMeta(columnName);
+                    }
+
+                    @Override
                     public Map<String, String> getDescriptor(String columnName)
                     {
                       Column column = index.getColumn(columnName);
                       return column == null ? null : column.getColumnDescs();
+                    }
+
+                    @Override
+                    public Map<String, Object> getStats(String columnName)
+                    {
+                      Column column = index.getColumn(columnName);
+                      return column == null ? null : column.getColumnStats();
                     }
 
                     @Override

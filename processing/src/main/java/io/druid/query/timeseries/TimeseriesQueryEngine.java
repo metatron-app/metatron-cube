@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Maps;
 import io.druid.cache.SessionCache;
 import io.druid.common.DateTimes;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
@@ -33,14 +32,12 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.BaseQuery;
-import io.druid.query.Query;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
-import io.druid.segment.filter.FilterContext;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
@@ -75,9 +72,7 @@ public class TimeseriesQueryEngine
     {
       private final Granularity granularity = query.getGranularity();
       private final List<String> columns = query.estimatedInitialColumns();
-      private final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
-      private final String[] aggregatorNames = AggregatorFactory.toNamesAsArray(aggregatorSpecs);
-      private final boolean countAll = Aggregators.isCountAll(aggregatorSpecs);
+      private final String[] aggregatorNames = AggregatorFactory.toNamesAsArray(query.getAggregatorSpecs());
 
       @Override
       public Sequence<Row> apply(final Cursor cursor)
@@ -85,22 +80,16 @@ public class TimeseriesQueryEngine
         if (cursor.isDone()) {
           return Sequences.empty(columns);
         }
-        FilterContext context = cursor.getFilterContext();
-        if (countAll && context != null && context.isFullScan()) {
-          final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
-          final Row row;
-          if (compact) {
-            row = new CompactRow(new Object[] {new MutableLong(timestamp), context.targetNumRows()});
-          } else {
-            row = new MapBasedRow(timestamp, GuavaUtils.mutableMap(aggregatorNames[0], context.targetNumRows()));
-          }
+        long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
+        List<AggregatorFactory> factories = AggregatorFactory.optimize(query.getAggregatorSpecs(), cursor);
+        if (factories.stream().allMatch(f -> f instanceof AggregatorFactory.ContantFactory)) {
+          Row row = AggregatorFactory.constansToRow(timestamp, factories, compact);
           return Sequences.simple(columns, Arrays.asList(row));
         }
         if (Granularities.isAll(granularity)) {
           return Sequences.simple(columns, new Iterable<Row>()
           {
-            private final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
-            private final Aggregator[] aggregators = Aggregators.makeAggregators(aggregatorSpecs, cursor);
+            private final Aggregator[] aggregators = Aggregators.makeAggregators(factories, cursor);
 
             @Override
             public Iterator<Row> iterator()
@@ -139,7 +128,7 @@ public class TimeseriesQueryEngine
         }
         return Sequences.simple(columns, new Iterable<Row>()
         {
-          private final Aggregator[] aggregators = Aggregators.makeAggregators(aggregatorSpecs, cursor);
+          private final Aggregator[] aggregators = Aggregators.makeAggregators(factories, cursor);
           private final Object[] values = new Object[aggregators.length];
 
           @Override

@@ -24,6 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -56,6 +57,7 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnStats;
 import io.druid.segment.Metadata;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -828,6 +830,17 @@ public abstract class IncrementalIndex implements Closeable
       return multiValueHandling;
     }
 
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getStats()
+    {
+      return values.getStats();
+    }
+
+    public boolean containsNull()
+    {
+      return values.containsNull();
+    }
+
     public int getPivotIndex()
     {
       return pivotIx;
@@ -916,6 +929,11 @@ public abstract class IncrementalIndex implements Closeable
     {
       return capabilities;
     }
+
+    public Map<String, Object> getStats()
+    {
+      return null;    // todo
+    }
   }
 
   static interface SizeEstimator<T>
@@ -948,6 +966,10 @@ public abstract class IncrementalIndex implements Closeable
     public int compare(int index1, int index2);
 
     public SortedDimLookup sort();
+
+    public boolean containsNull();
+
+    public Map<String, Object> getStats();
   }
 
   static interface SortedDimLookup<T extends Comparable<? super T>>
@@ -1029,6 +1051,18 @@ public abstract class IncrementalIndex implements Closeable
     public SortedDimLookup sort()
     {
       return new NullValueConverterDimLookup(delegate.sort());
+    }
+
+    @Override
+    public boolean containsNull()
+    {
+      return delegate.containsNull();
+    }
+
+    @Override
+    public Map<String, Object> getStats()
+    {
+      return delegate.getStats();
     }
 
     @Override
@@ -1298,6 +1332,24 @@ public abstract class IncrementalIndex implements Closeable
     {
       synchronized (valueToId) {
         return new OnHeapDimLookup<T>(idToValue, size(), clazz);
+      }
+    }
+
+    @Override
+    public Map<String, Object> getStats()
+    {
+      synchronized (valueToId) {
+        return idToValue.isEmpty()
+               ? ImmutableMap.of()
+               : ImmutableMap.of(ColumnStats.MIN, minValue, ColumnStats.MAX, maxValue);
+      }
+    }
+
+    @Override
+    public boolean containsNull()
+    {
+      synchronized (valueToId) {
+        return valueToId.containsKey("");
       }
     }
 

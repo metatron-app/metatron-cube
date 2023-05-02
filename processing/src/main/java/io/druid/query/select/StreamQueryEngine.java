@@ -116,7 +116,7 @@ public class StreamQueryEngine
                 dimensions[index] = selector;
               }
               if (useRawUTF8 && selector instanceof WithRawAccess) {
-                FilterContext context = cursor.getFilterContext();
+                FilterContext context = cursor.filterContext();
                 selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector, column, context);
               } else {
                 selectors[index] = ColumnSelectors.asSingleValued((SingleValued) selector);

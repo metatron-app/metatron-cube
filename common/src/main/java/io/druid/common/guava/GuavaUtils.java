@@ -513,6 +513,16 @@ public class GuavaUtils
     return doubles;
   }
 
+  public static boolean isTrue(Boolean bool)
+  {
+    return bool != null && bool;
+  }
+
+  public static boolean isFalse(Boolean bool)
+  {
+    return bool != null && !bool;
+  }
+
   public static <K, V> void add(Map<K, List<V>> map, K key, V value)
   {
     List<V> list = map.get(key);

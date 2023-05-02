@@ -29,7 +29,6 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.filter.Filter;
 import io.druid.segment.Cursor;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.column.ColumnCapabilities;
@@ -53,9 +52,6 @@ public class FilterContext implements Closeable
   private final Map<String, IntFunction> attached;    // vc from filter (like lucene)
   private final Map<Object, ImmutableBitmap> possibles;
   private final Map<String, ImmutableBitmap> ranges;  // range on dictionary
-
-  private Filter matcher;
-  private boolean fullScan;
 
   public FilterContext(BitmapIndexSelector selector)
   {
@@ -125,24 +121,20 @@ public class FilterContext implements Closeable
     return baseBitmap == null ? null : baseBitmap.iterator();
   }
 
-  public void andBaseBitmap(ImmutableBitmap newBaseBitmap)
+  public void andBaseBitmap(ImmutableBitmap bitmap)
   {
-    baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(factory, baseBitmap, newBaseBitmap);
+    baseBitmap = baseBitmap == null ? bitmap : DimFilters.intersection(factory, baseBitmap, bitmap);
+  }
+
+  public int difference(ImmutableBitmap bitmap)
+  {
+    return baseBitmap == null ? selector.getNumRows() - bitmap.size() :
+           baseBitmap.isEmpty() ? 0 : DimFilters.difference(factory, baseBitmap, bitmap, selector.getNumRows()).size();
   }
 
   public float selectivity()
   {
-    return baseBitmap == null ? 1f : numRows() / (float) baseBitmap.size();
-  }
-
-  public Filter getMatcher()
-  {
-    return matcher;
-  }
-
-  public boolean isFullScan()
-  {
-    return fullScan;
+    return baseBitmap == null ? 1f : baseBitmap.isEmpty() ? 0f : numRows() / (float) baseBitmap.size();
   }
 
   public void dictionaryRef(String dimension, ImmutableBitmap range)
@@ -197,20 +189,14 @@ public class FilterContext implements Closeable
     return baseBitmap == null ? selector.getNumRows() : baseBitmap.size();
   }
 
-  public boolean notFiltered()
+  public boolean bitmapFiltered()
   {
-    return baseBitmap == null || baseBitmap.size() == selector.getNumRows();
+    return baseBitmap != null && baseBitmap.size() < selector.getNumRows();
   }
 
   public boolean isAll(ImmutableBitmap bitmap)
   {
     return bitmap.size() == selector.getNumRows();
-  }
-
-  public void prepared(Filter matcher, boolean fullscan)
-  {
-    this.matcher = matcher;
-    this.fullScan = fullscan;
   }
 
   @Override

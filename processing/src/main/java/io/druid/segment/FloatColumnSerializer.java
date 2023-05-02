@@ -98,10 +98,10 @@ public class FloatColumnSerializer implements GenericColumnSerializer
             return null;
           }
           return ImmutableMap.<String, Object>of(
-              "min", histogram.getMin(),
-              "max", histogram.getMax(),
-              "numZeros", histogram.getNumZeros(),
-              "numNulls", nulls.size()
+              ColumnStats.MIN, histogram.getMin(),
+              ColumnStats.MAX, histogram.getMax(),
+              ColumnStats.NUM_ZEROS, histogram.getNumZeros(),
+              ColumnStats.NUM_NULLS, nulls.size()
           );
         }
       };
@@ -206,9 +206,9 @@ public class FloatColumnSerializer implements GenericColumnSerializer
       return null;
     }
     return ImmutableMap.<String, Object>of(
-        "min", histogram.getMin(),
-        "max", histogram.getMax(),
-        "numZeros", histogram.getNumZeros()
+        ColumnStats.MIN, histogram.getMin(),
+        ColumnStats.MAX, histogram.getMax(),
+        ColumnStats.NUM_ZEROS, histogram.getNumZeros()
     );
   }
 

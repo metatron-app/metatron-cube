@@ -20,9 +20,11 @@
 package io.druid.segment.column;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 
 import java.util.Map;
@@ -33,6 +35,8 @@ public class ColumnMeta
   final boolean hasMultipleValues;
   final Map<String, String> descs;
   final Map<String, Object> stats;
+  final Boolean containsNull;
+  final ImmutableBitmap nulls;
 
   @JsonCreator
   public ColumnMeta(
@@ -42,10 +46,24 @@ public class ColumnMeta
       @JsonProperty("stats") Map<String, Object> stats
   )
   {
+    this(valueType, hasMultipleValues, descs, stats, null, null);
+  }
+
+  public ColumnMeta(
+      ValueDesc valueType,
+      boolean hasMultipleValues,
+      Map<String, String> descs,
+      Map<String, Object> stats,
+      Boolean containsNull,
+      ImmutableBitmap nulls
+  )
+  {
     this.valueType = Preconditions.checkNotNull(valueType);
     this.hasMultipleValues = hasMultipleValues;
     this.descs = descs;
     this.stats = stats;
+    this.nulls = nulls;
+    this.containsNull = containsNull;
   }
 
   @JsonProperty
@@ -72,5 +90,17 @@ public class ColumnMeta
   public Map<String, Object> getStats()
   {
     return stats;
+  }
+
+  @JsonIgnore
+  public ImmutableBitmap getNulls()
+  {
+    return nulls;
+  }
+
+  @JsonIgnore
+  public Boolean hasNull()
+  {
+    return containsNull;
   }
 }

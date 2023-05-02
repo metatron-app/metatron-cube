@@ -30,7 +30,10 @@ import io.druid.math.expr.Parser;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
+import io.druid.segment.ColumnStats;
+import io.druid.segment.Cursor;
 import io.druid.segment.LongColumnSelector;
+import io.druid.segment.Scanning;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -68,6 +71,18 @@ public class LongMaxAggregatorFactory extends AggregatorFactory implements Aggre
   public LongMaxAggregatorFactory(String name, String fieldName)
   {
     this(name, fieldName, null);
+  }
+
+  @Override
+  public AggregatorFactory optimize(Cursor cursor)
+  {
+    if (fieldName != null && cursor.scanContext() == Scanning.FULL) {
+      Long constant = ColumnStats.getLong(cursor.getStats(fieldName), ColumnStats.MAX);
+      if (constant != null) {
+        return AggregatorFactory.constant(this, constant);
+      }
+    }
+    return this;
   }
 
   @Override

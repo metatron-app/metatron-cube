@@ -66,7 +66,7 @@ public class AttachmentVirtualColumn implements VirtualColumn
   {
     if (column.equals(outputName) && factory instanceof Cursor) {
       final Cursor cursor = (Cursor) factory;
-      final IntFunction attachment = cursor.getAttachment(outputName);
+      final IntFunction attachment = cursor.attachment(outputName);
       if (attachment != null) {
         return new ObjectColumnSelector()
         {

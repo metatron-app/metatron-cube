@@ -33,16 +33,19 @@ import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.RowSignature;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.Cursor;
 import io.druid.segment.Metadata;
+import io.druid.segment.Segment;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -103,6 +106,50 @@ public abstract class AggregatorFactory implements Cacheable
         return combiner.apply(param1, param2);
       }
     };
+  }
+
+  public AggregatorFactory optimize(Segment segment)
+  {
+    return this;
+  }
+
+  public static List<AggregatorFactory> optimize(List<AggregatorFactory> factories, Segment segment)
+  {
+    List<AggregatorFactory> list = null;
+    for (int i = 0; i < factories.size(); i++) {
+      AggregatorFactory origin = factories.get(i);
+      AggregatorFactory optimized = origin.optimize(segment);
+      if (origin == optimized) {
+        continue;
+      }
+      if (list == null) {
+        list = Lists.newArrayList(factories);
+      }
+      list.set(i, optimized);
+    }
+    return list == null ? factories : list;
+  }
+
+  public AggregatorFactory optimize(Cursor cursor)
+  {
+    return this;
+  }
+
+  public static List<AggregatorFactory> optimize(List<AggregatorFactory> factories, Cursor cursor)
+  {
+    List<AggregatorFactory> list = null;
+    for (int i = 0; i < factories.size(); i++) {
+      AggregatorFactory origin = factories.get(i);
+      AggregatorFactory optimized = origin.optimize(cursor);
+      if (origin == optimized) {
+        continue;
+      }
+      if (list == null) {
+        list = Lists.newArrayList(factories);
+      }
+      list.set(i, optimized);
+    }
+    return list == null ? factories : list;
   }
 
   /**
@@ -498,6 +545,58 @@ public abstract class AggregatorFactory implements Cacheable
       return ((PredicateSupport) factory).andPredicate(((MathExprFilter) predicate).getExpression());
     }
     return FilteredAggregatorFactory.of(factory, predicate);
+  }
+
+  public static AggregatorFactory constant(AggregatorFactory source, Object value)
+  {
+    return new ContantFactory(source, value);
+  }
+
+  public static class ContantFactory extends DelegatedAggregatorFactory
+  {
+    private final Object value;
+
+    public ContantFactory(AggregatorFactory delegate, Object value)
+    {
+      super(delegate);
+      this.value = value;
+    }
+
+    @Override
+    public Aggregator factorize(ColumnSelectorFactory factory) {return Aggregator.relay(value);}
+
+    @Override
+    public BufferAggregator factorizeBuffered(ColumnSelectorFactory factory) {return BufferAggregator.relay(value);}
+
+    @Override
+    public int getMaxIntermediateSize() {return 0;}
+  }
+
+  public static Row constansToRow(long timestamp, List<AggregatorFactory> constants, boolean compact)
+  {
+    if (compact) {
+      Object[] values = new Object[constants.size() + 1];
+      for (int i = 0; i < constants.size(); i++) {
+        values[i + 1] = ((ContantFactory) constants.get(i)).value;
+      }
+      values[0] = new MutableLong(timestamp);
+      return new CompactRow(values);
+    }
+    Map<String, Object> values = Maps.newHashMapWithExpectedSize(constants.size());
+    for (AggregatorFactory factory : constants) {
+      values.put(factory.getName(), ((ContantFactory) factory).value);
+    }
+    return new MapBasedRow(timestamp, values);
+  }
+
+  public static boolean isAllConstant(List<AggregatorFactory> factories)
+  {
+    for (AggregatorFactory factory : factories) {
+      if (!(factory instanceof ContantFactory)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static interface FieldExpressionSupport

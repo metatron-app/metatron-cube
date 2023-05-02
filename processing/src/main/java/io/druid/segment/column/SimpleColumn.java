@@ -20,6 +20,7 @@
 package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
@@ -76,8 +77,11 @@ class SimpleColumn implements Column
     this.metricBitmap = metricBitmap;
     this.bitSlicedBitmap = bitSlicedBitmap;
     this.secondaryIndices = secondaryIndices;
+    ImmutableBitmap bitmap = nullBitmap();
     this.columnMeta = new ColumnMeta(
-        capabilities.getTypeDesc(), capabilities.hasMultipleValues(), descs, stats
+        capabilities.getTypeDesc(), capabilities.hasMultipleValues(), descs, stats,
+        bitmap != null && !bitmap.isEmpty(),
+        bitmap
     );
   }
 
@@ -253,5 +257,25 @@ class SimpleColumn implements Column
   public Map<String, String> getColumnDescs()
   {
     return columnMeta.getDescs();
+  }
+
+  private ImmutableBitmap nullBitmap()
+  {
+    if (dictionaryEncodedColumn != null) {
+      Dictionary<String> dictionary = dictionaryEncodedColumn.getDictionary();
+      Boolean containsNull = dictionary.containsNull();
+      if (containsNull == null) {
+        return null;
+      }
+      BitmapIndex bitmaps = bitmapIndex.get();
+      if (containsNull) {
+        return bitmaps.getBitmap(0);
+      }
+      return bitmaps.getBitmapFactory().makeEmptyImmutableBitmap();
+    }
+    if (genericColumn != null) {
+      return genericColumn.get().getNulls();
+    }
+    return null;
   }
 }

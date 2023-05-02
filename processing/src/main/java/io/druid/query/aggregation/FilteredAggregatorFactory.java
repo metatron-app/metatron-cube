@@ -24,31 +24,26 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
-import io.druid.data.ValueDesc;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnSelectorFactory;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public class FilteredAggregatorFactory extends AggregatorFactory
+public class FilteredAggregatorFactory extends DelegatedAggregatorFactory
 {
   public static FilteredAggregatorFactory of(AggregatorFactory factory, DimFilter predicate)
   {
     if (factory instanceof FilteredAggregatorFactory) {
       FilteredAggregatorFactory inner = (FilteredAggregatorFactory) factory;
-      return new FilteredAggregatorFactory(inner.getAggregator(), DimFilters.and(inner.getFilter(), predicate));
+      return new FilteredAggregatorFactory(inner.unwrap(), DimFilters.and(inner.getFilter(), predicate));
     }
     return new FilteredAggregatorFactory(factory, predicate);
   }
 
   private static final byte CACHE_TYPE_ID = 0x9;
-
-  private final AggregatorFactory delegate;
   private final DimFilter filter;
 
   public FilteredAggregatorFactory(
@@ -56,14 +51,12 @@ public class FilteredAggregatorFactory extends AggregatorFactory
       @JsonProperty("filter") DimFilter filter
   )
   {
-    Preconditions.checkNotNull(delegate);
-    Preconditions.checkNotNull(filter);
-
-    this.delegate = delegate;
-    this.filter = filter;
+    super(delegate);
+    this.filter = Preconditions.checkNotNull(filter);
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Aggregator factorize(ColumnSelectorFactory columnSelectorFactory)
   {
     return Aggregators.wrap(
@@ -77,24 +70,6 @@ public class FilteredAggregatorFactory extends AggregatorFactory
     return Aggregators.wrap(
         columnSelectorFactory.makePredicateMatcher(filter), delegate.factorizeBuffered(columnSelectorFactory)
     );
-  }
-
-  @Override
-  public Comparator getComparator()
-  {
-    return delegate.getComparator();
-  }
-
-  @Override
-  public BinaryFn.Identical combiner()
-  {
-    return delegate.combiner();
-  }
-
-  @Override
-  public AggregatorFactory getCombiningFactory()
-  {
-    return delegate.getCombiningFactory();
   }
 
   @Override
@@ -115,31 +90,6 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object deserialize(Object object)
-  {
-    return delegate.deserialize(object);
-  }
-
-  @Override
-  public Object finalizeComputation(Object object)
-  {
-    return delegate.finalizeComputation(object);
-  }
-
-  @Override
-  public ValueDesc finalizedType()
-  {
-    return delegate.finalizedType();
-  }
-
-  @JsonProperty
-  @Override
-  public String getName()
-  {
-    return delegate.getName();
-  }
-
-  @Override
   public List<String> requiredFields()
   {
     Set<String> required = Sets.newLinkedHashSet(delegate.requiredFields());
@@ -153,30 +103,6 @@ public class FilteredAggregatorFactory extends AggregatorFactory
     return builder.append(CACHE_TYPE_ID)
                   .append(filter)
                   .append(delegate);
-  }
-
-  @Override
-  public ValueDesc getOutputType()
-  {
-    return delegate.getOutputType();
-  }
-
-  @Override
-  public ValueDesc getInputType()
-  {
-    return delegate.getInputType();
-  }
-
-  @Override
-  public int getMaxIntermediateSize()
-  {
-    return delegate.getMaxIntermediateSize();
-  }
-
-  @JsonProperty
-  public AggregatorFactory getAggregator()
-  {
-    return delegate;
   }
 
   @JsonProperty

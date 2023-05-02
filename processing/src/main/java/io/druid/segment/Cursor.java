@@ -28,11 +28,7 @@ import java.util.function.IntFunction;
  */
 public interface Cursor extends ColumnSelectorFactory
 {
-  default int size()
-  {
-    return -1;
-  }
-
+  int size();
   long getStartTime();
   long getRowTimestamp();
   int offset();
@@ -43,8 +39,17 @@ public interface Cursor extends ColumnSelectorFactory
   boolean isDone();
   void reset();
 
-  default FilterContext getFilterContext() { return null;}
-  default IntFunction getAttachment(String name) { return null;}
+  Scanning scanContext();
+
+  // target number of rows for segment (valid when Scanning.FULL or Scanning.BITMAP_SCAN)
+  default int targetNumRows()
+  {
+    FilterContext context = filterContext();
+    return context == null ? size() : context.targetNumRows();
+  }
+
+  default FilterContext filterContext() { return null;}
+  default IntFunction attachment(String name) { return null;}
 
   abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor { }
 }

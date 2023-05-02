@@ -770,6 +770,12 @@ public class ColumnSelectorFactories
               private boolean done;
 
               @Override
+              public int size()
+              {
+                return -1;
+              }
+
+              @Override
               public long getStartTime()
               {
                 final long timestamp = input.getStartMillis();
@@ -794,6 +800,12 @@ public class ColumnSelectorFactories
               public boolean isDone()
               {
                 return done;
+              }
+
+              @Override
+              public Scanning scanContext()
+              {
+                return Scanning.OTHER;
               }
             };
           }

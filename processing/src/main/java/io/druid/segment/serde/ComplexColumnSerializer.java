@@ -21,6 +21,7 @@ package io.druid.segment.serde;
 
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.ValueDesc;
+import io.druid.segment.ColumnStats;
 import io.druid.segment.GenericColumnSerializer;
 import io.druid.segment.MetricColumnSerializer;
 import io.druid.segment.SecondaryIndexingSpec;
@@ -136,13 +137,13 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     }
     if (minValue == null || maxValue == null) {
       return ImmutableMap.<String, Object>of(
-          "numNulls", numNulls
+          ColumnStats.NUM_NULLS, numNulls
       );
     }
     return ImmutableMap.<String, Object>of(
-        "min", minValue,
-        "max", maxValue,
-        "numNulls", numNulls
+        ColumnStats.MIN, minValue,
+        ColumnStats.MAX, maxValue,
+        ColumnStats.NUM_NULLS, numNulls
     );
   }
 }

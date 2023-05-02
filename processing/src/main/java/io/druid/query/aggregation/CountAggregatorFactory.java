@@ -24,7 +24,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.filter.DimFilters;
@@ -32,6 +34,10 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatchers;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
+import io.druid.segment.Cursor;
+import io.druid.segment.Segment;
+import io.druid.segment.column.ColumnMeta;
+import io.druid.segment.filter.FilterContext;
 
 import java.util.Comparator;
 import java.util.List;
@@ -78,6 +84,45 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   public CountAggregatorFactory(String name)
   {
     this(name, null, null);
+  }
+
+  @Override
+  public AggregatorFactory optimize(Segment segment)
+  {
+    if (fieldName != null) {
+      ColumnMeta meta = segment.asStorageAdapter(false).getColumnMeta(fieldName);
+      if (meta == null) {
+        return AggregatorFactory.constant(this, 0L);
+      } else if (predicate == null && GuavaUtils.isFalse(meta.hasNull())) {
+        return CountAggregatorFactory.of(name);
+      }
+    }
+    return this;
+  }
+
+  @Override
+  public AggregatorFactory optimize(Cursor cursor)
+  {
+    if (cursor.scanContext().awareTargetRows()) {
+      if (fieldName == null) {
+        return AggregatorFactory.constant(this, cursor.targetNumRows());
+      }
+      ColumnMeta meta = cursor.getMeta(fieldName);
+      if (meta != null) {
+        ImmutableBitmap nulls = meta.getNulls();
+        if (nulls != null) {
+          if (nulls.isEmpty()) {
+            return AggregatorFactory.constant(this, cursor.targetNumRows());
+          }
+          FilterContext context = cursor.filterContext();
+          if (context != null) {
+            return AggregatorFactory.constant(this, (long) context.difference(nulls));
+          }
+          return AggregatorFactory.constant(this, (long) context.numRows() - nulls.size());
+        }
+      }
+    }
+    return this;
   }
 
   @Override
@@ -187,8 +232,8 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   {
     return "CountAggregatorFactory{" +
            "name='" + name + '\'' +
-           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
-           (predicate == null ? "": ", predicate='" + predicate + '\'') +
+           (fieldName == null ? "" : ", fieldName='" + fieldName + '\'') +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            '}';
   }
 

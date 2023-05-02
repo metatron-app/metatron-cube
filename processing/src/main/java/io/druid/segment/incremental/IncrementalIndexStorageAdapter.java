@@ -32,6 +32,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryException;
 import io.druid.query.RowResolver;
@@ -52,6 +53,7 @@ import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
 import io.druid.segment.NullDimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.Scanning;
 import io.druid.segment.SingleScanTimeDimSelector;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
@@ -147,10 +149,13 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   {
     ColumnCapabilities capabilities = index.getCapabilities(column);
     if (capabilities != null) {
+      IncrementalIndex.DimensionDesc dimension = index.getDimension(column);
       return new ColumnMeta(
           capabilities.getTypeDesc(),
           capabilities.hasMultipleValues(),
           index.getColumnDescriptor(column),
+          dimension == null ? null : dimension.getStats(),
+          dimension == null ? null : dimension.containsNull(),
           null
       );
     }
@@ -231,6 +236,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
         Sequences.simple(iterable),
         new Function<Interval, Cursor>()
         {
+          private final boolean swipping = Granularities.isAll(granularity) && actualInterval.contains(timeMinMax);
+
           private final EntryHolder currEntry = new EntryHolder();
 
           @Override
@@ -269,6 +276,13 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               public long getRowTimestamp()
               {
                 return currEntry.getKey().getTimestamp();
+              }
+
+              @Override
+              public Scanning scanContext()
+              {
+                return !swipping ? Scanning.OTHER :
+                       filterMatcher != ValueMatcher.TRUE ? Scanning.MATCHER : Scanning.FULL;
               }
 
               @Override
@@ -751,9 +765,29 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
+              public ColumnMeta getMeta(String columnName)
+              {
+                return getColumnMeta(columnName);
+              }
+
+              @Override
               public Map<String, String> getDescriptor(String columnName)
               {
                 return index.getColumnDescriptor(columnName);
+              }
+
+              @Override
+              public Map<String, Object> getStats(String columnName)
+              {
+                IncrementalIndex.DimensionDesc dimension = index.getDimension(columnName);
+                if (dimension != null) {
+                  return dimension.getValues().getStats();
+                }
+                IncrementalIndex.MetricDesc metric = index.getMetricDesc(columnName);
+                if (metric != null) {
+                  return metric.getStats();
+                }
+                return null;
               }
 
               @Override

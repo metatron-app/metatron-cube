@@ -28,7 +28,6 @@ import io.druid.query.filter.DimFilter;
 import io.druid.segment.Segment;
 import io.druid.segment.SegmentMissingException;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.filter.FilterContext;
 import org.joda.time.Interval;
 
 /**
@@ -54,9 +53,8 @@ public class FilterMetaQueryEngine
         query,
         cache,
         cursor -> {
-          final FilterContext context = cursor.getFilterContext();
-          if (context != null && context.isFullScan()) {
-            return new long[]{context.targetNumRows(), totalRow};
+          if (cursor.scanContext().awareTargetRows()) {
+            return new long[]{cursor.targetNumRows(), totalRow};
           }
           int row = 0;
           for (; !cursor.isDone(); cursor.advance(), row++) { }
