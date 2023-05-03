@@ -23,6 +23,7 @@ import io.druid.data.Rows;
 import io.druid.data.ValueType;
 
 import java.util.Map;
+import java.util.Objects;
 
 public interface ColumnStats
 {
@@ -34,11 +35,17 @@ public interface ColumnStats
   static Object get(Map<String, Object> stats, ValueType type, String key)
   {
     switch (type) {
+      case STRING: return ColumnStats.getString(stats, key);
       case DOUBLE: return ColumnStats.getDouble(stats, key);
       case FLOAT: return ColumnStats.getFloat(stats, key);
       case LONG: return ColumnStats.getLong(stats, key);
     }
     return null;
+  }
+
+  static String getString(Map<String, Object> stats, String key)
+  {
+    return stats == null ? null : Objects.toString(stats.get(key), null);
   }
 
   static Double getDouble(Map<String, Object> stats, String key)

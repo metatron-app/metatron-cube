@@ -29,9 +29,13 @@ import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnStats;
+import io.druid.segment.Cursor;
+import io.druid.segment.Scanning;
 import io.druid.segment.column.Column;
 
 import java.util.Arrays;
@@ -167,6 +171,18 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   public RelayAggregatorFactory(String name, String columnName, String typeName, String relayType)
   {
     this(name, columnName, typeName, relayType, null);
+  }
+
+  @Override
+  public AggregatorFactory optimize(Cursor cursor)
+  {
+    if (cursor.scanContext() == Scanning.FULL) {
+      Object constant = ColumnStats.get(cursor.getStats(columnName), ValueType.STRING, relayType.toLowerCase());
+      if (constant != null) {
+        return AggregatorFactory.constant(this, constant);
+      }
+    }
+    return this;
   }
 
   @Override

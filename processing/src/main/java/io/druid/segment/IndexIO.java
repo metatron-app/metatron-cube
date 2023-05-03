@@ -646,7 +646,7 @@ public class IndexIO
               dimBuffer, ObjectStrategy.STRING_STRATEGY
           );
 
-          if (dictionary.size() == 0) {
+          if (dictionary.isEmpty()) {
             log.info("Dimension[%s] had cardinality 0, equivalent to no column, so skipping.", dimension);
             skippedDimensions.add(dimension);
             continue;

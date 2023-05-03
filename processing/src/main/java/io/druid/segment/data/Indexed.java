@@ -35,6 +35,8 @@ public interface Indexed<T> extends Iterable<T>
 
   T get(int index);
 
+  default boolean isEmpty() {return size() == 0;}
+
   /**
    * Returns the index of "value" in this Indexed object, or a negative number if the value is not present.
    * The negative number is not guaranteed to be any particular number. Subclasses may tighten this contract

@@ -21,7 +21,9 @@ package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.ColumnStats;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
@@ -79,8 +81,11 @@ class SimpleColumn implements Column
     this.secondaryIndices = secondaryIndices;
     ImmutableBitmap bitmap = nullBitmap();
     this.columnMeta = new ColumnMeta(
-        capabilities.getTypeDesc(), capabilities.hasMultipleValues(), descs, stats,
-        bitmap != null && !bitmap.isEmpty(),
+        capabilities.getTypeDesc(),
+        capabilities.hasMultipleValues(),
+        descs,
+        stats != null ? stats : stats(),
+        bitmap != null ? !bitmap.isEmpty() : null,
         bitmap
     );
   }
@@ -277,5 +282,34 @@ class SimpleColumn implements Column
       return genericColumn.get().getNulls();
     }
     return null;
+  }
+
+  // stats are not included in descriptor of dimensions
+  private Map<String, Object> stats()
+  {
+    if (dictionaryEncodedColumn == null) {
+      return null;
+    }
+    Dictionary<String> dictionary = dictionaryEncodedColumn.getDictionary();
+    if (dictionary == null || dictionary.isEmpty() || !dictionary.isSorted()) {
+      return null;
+    }
+    if (!dictionary.containsNull()) {
+      return GuavaUtils.mutableMap(
+          ColumnStats.MIN, dictionary.get(0),
+          ColumnStats.MAX, dictionary.get(dictionary.size() - 1),
+          ColumnStats.NUM_NULLS, 0
+      );
+    }
+    if (dictionary.size() > 1) {
+      return GuavaUtils.mutableMap(
+          ColumnStats.MIN, dictionary.get(1),
+          ColumnStats.MAX, dictionary.get(dictionary.size() - 1),
+          ColumnStats.NUM_NULLS, bitmapIndex.get().getBitmap(0).size()
+      );
+    }
+    return GuavaUtils.mutableMap(
+        ColumnStats.NUM_NULLS, dictionaryEncodedColumn.numRows()
+    );
   }
 }
