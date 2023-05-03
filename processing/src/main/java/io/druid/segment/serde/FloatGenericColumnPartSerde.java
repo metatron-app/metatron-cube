@@ -26,6 +26,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.FloatScanner;
 import io.druid.segment.column.GenericColumn;
@@ -43,6 +44,7 @@ import org.roaringbitmap.IntIterator;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.stream.DoubleStream;
 
 /**
  */
@@ -188,6 +190,12 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                       scanner.apply(iterator.next(), supplier);
                     }
                   }
+                }
+
+                @Override
+                public DoubleStream stream(IntIterator iterator)
+                {
+                  return IntIterators.filteredStream(iterator, bitmap, size()).mapToDouble(x -> bufferToUse.get(x));
                 }
               };
             }

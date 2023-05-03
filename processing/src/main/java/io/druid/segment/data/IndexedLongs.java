@@ -19,10 +19,13 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.LongScanner;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
 /**
  * Get a long at an index (array or list lookup abstraction without boxing).
@@ -47,5 +50,13 @@ public interface IndexedLongs extends Closeable
         scanner.apply(iterator.next(), this::get);
       }
     }
+  }
+
+  default LongStream stream(IntIterator iterator)
+  {
+    if (iterator == null) {
+      return IntStream.range(0, size()).mapToLong(this::get);
+    }
+    return IntIterators.stream(iterator).mapToLong(this::get);
   }
 }

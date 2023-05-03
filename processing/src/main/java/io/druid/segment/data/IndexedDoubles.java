@@ -19,10 +19,13 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.DoubleScanner;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 
 /**
  */
@@ -46,5 +49,13 @@ public interface IndexedDoubles extends Closeable
         scanner.apply(iterator.next(), this::get);
       }
     }
+  }
+
+  default DoubleStream stream(IntIterator iterator)
+  {
+    if (iterator == null) {
+      return IntStream.range(0, size()).mapToDouble(this::get);
+    }
+    return IntIterators.stream(iterator).mapToDouble(this::get);
   }
 }

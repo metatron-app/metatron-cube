@@ -38,6 +38,8 @@ import java.nio.ShortBuffer;
 import java.util.Objects;
 import java.util.function.DoublePredicate;
 import java.util.function.LongPredicate;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
  */
@@ -139,6 +141,8 @@ public interface GenericColumn extends ComplexColumn
 
     public abstract void scan(IntIterator include, LongScanner scanner);
 
+    public abstract LongStream stream(IntIterator iterator);
+
     public ImmutableBitmap collect(
         final BitmapFactory factory,
         final IntIterator iterator,
@@ -202,6 +206,8 @@ public interface GenericColumn extends ComplexColumn
 
     public abstract void scan(IntIterator iterator, FloatScanner scanner);
 
+    public abstract DoubleStream stream(IntIterator iterator);
+
     public ImmutableBitmap collect(
         final BitmapFactory factory,
         final IntIterator iterator,
@@ -264,6 +270,8 @@ public interface GenericColumn extends ComplexColumn
     public abstract Double getValue(int rowNum);
 
     public abstract void scan(IntIterator iterator, DoubleScanner scanner);
+
+    public abstract DoubleStream stream(IntIterator iterator);
 
     public ImmutableBitmap collect(
         final BitmapFactory factory,

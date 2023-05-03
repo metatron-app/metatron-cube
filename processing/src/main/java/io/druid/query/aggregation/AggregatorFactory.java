@@ -45,6 +45,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
+import io.druid.segment.filter.FilterContext;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
@@ -137,10 +138,14 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static List<AggregatorFactory> optimize(List<AggregatorFactory> factories, Cursor cursor)
   {
+    FilterContext context = cursor.scanContext().awareTargetRows() ? cursor.filterContext() : null;
     List<AggregatorFactory> list = null;
     for (int i = 0; i < factories.size(); i++) {
       AggregatorFactory origin = factories.get(i);
       AggregatorFactory optimized = origin.optimize(cursor);
+      if (context != null) {
+        optimized = optimized.evaluate(context);
+      }
       if (origin == optimized) {
         continue;
       }
@@ -150,6 +155,11 @@ public abstract class AggregatorFactory implements Cacheable
       list.set(i, optimized);
     }
     return list == null ? factories : list;
+  }
+
+  public AggregatorFactory evaluate(FilterContext context)
+  {
+    return this;
   }
 
   /**

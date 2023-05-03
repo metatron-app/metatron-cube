@@ -20,12 +20,15 @@
 package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedLongs;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
 /**
  */
@@ -91,6 +94,12 @@ public final class IndexedLongsGenericColumn extends GenericColumn.LongType
   public void scan(IntIterator include, LongScanner scanner)
   {
     column.scan(include, scanner);
+  }
+
+  @Override
+  public LongStream stream(IntIterator iterator)
+  {
+    return column.stream(IntIterators.filter(iterator, nulls, size()));
   }
 
   @Override

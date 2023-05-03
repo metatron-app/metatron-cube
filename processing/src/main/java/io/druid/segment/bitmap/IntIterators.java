@@ -20,6 +20,7 @@
 package io.druid.segment.bitmap;
 
 import com.google.common.collect.Lists;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.query.aggregation.IntPredicate;
 import io.druid.segment.Cursor;
@@ -31,7 +32,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.PrimitiveIterator;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.IntFunction;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 // values should be >= 0 and sorted (all for handling bitmap iterator)
 public final class IntIterators
@@ -346,7 +352,7 @@ public final class IntIterators
     }
   }
 
-  private static final class OR extends NextFirst
+  private static final class OR extends AdvanceFirst
   {
     private final Peekable iterator;
 
@@ -365,7 +371,7 @@ public final class IntIterators
     }
   }
 
-  private static final class AND extends NextFirst
+  private static final class AND extends AdvanceFirst
   {
     private static final int EOF = Integer.MIN_VALUE;
 
@@ -426,7 +432,7 @@ public final class IntIterators
     }
   }
 
-  private static final class NOT extends NextFirst
+  private static final class NOT extends AdvanceFirst
   {
     private final IntIterator iterator;
     private final int limit;
@@ -452,7 +458,7 @@ public final class IntIterators
     }
   }
 
-  private static final class DIFF extends NextFirst
+  private static final class DIFF extends AdvanceFirst
   {
     private final IntIterator iterator;
     private final Peekable other;
@@ -505,7 +511,7 @@ public final class IntIterators
     }
   }
 
-  protected abstract static class NextFirst extends Abstract
+  protected abstract static class AdvanceFirst extends Abstract
   {
     int next;
 
@@ -592,5 +598,72 @@ public final class IntIterators
       }
     }
     return !iterator2.hasNext();
+  }
+
+  // iterator return >= 0
+  public static IntIterator filter(IntIterator iterator, ImmutableBitmap skip, int size)
+  {
+    if (iterator == null) {
+      return skip == null ? null : not(skip.iterator(), size);
+    }
+    if (skip == null || skip.isEmpty()) {
+      return iterator;
+    }
+    return new Abstract()
+    {
+      private int ix = advance();
+
+      @Override
+      public boolean hasNext()
+      {
+        return ix >= 0;
+      }
+
+      @Override
+      public int next()
+      {
+        int next = ix;
+        ix = advance();
+        return next;
+      }
+
+      private int advance()
+      {
+        while (iterator.hasNext()) {
+          int ix = iterator.next();
+          if (!skip.get(ix)) {
+            return ix;
+          }
+        }
+        return -1;
+      }
+    };
+  }
+
+  public static IntStream stream(IntIterator iterator)
+  {
+    PrimitiveIterator.OfInt ints = new PrimitiveIterator.OfInt()
+    {
+      @Override
+      public int nextInt()
+      {
+        return iterator.next();
+      }
+
+      @Override
+      public boolean hasNext()
+      {
+        return iterator.hasNext();
+      }
+    };
+    return StreamSupport.intStream(
+        Spliterators.spliteratorUnknownSize(ints, Spliterator.NONNULL | Spliterator.IMMUTABLE), false
+    );
+  }
+
+  public static IntStream filteredStream(IntIterator iterator, ImmutableBitmap skip, int size)
+  {
+    IntIterator filtered = IntIterators.filter(iterator, skip, size);
+    return filtered == null ? IntStream.range(0, size) : stream(iterator);
   }
 }

@@ -26,6 +26,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.LongScanner;
@@ -43,6 +44,7 @@ import org.roaringbitmap.IntIterator;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.LongBuffer;
+import java.util.stream.LongStream;
 
 /**
  */
@@ -188,6 +190,12 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
                       scanner.apply(iterator.next(), supplier);
                     }
                   }
+                }
+
+                @Override
+                public LongStream stream(IntIterator iterator)
+                {
+                  return IntIterators.filteredStream(iterator, bitmap, size()).mapToLong(x -> bufferToUse.get(x));
                 }
               };
             }
