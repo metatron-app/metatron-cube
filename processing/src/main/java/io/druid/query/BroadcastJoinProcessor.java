@@ -168,8 +168,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         List<List<String>> names;
         LOG.info("Preparing broadcast join %s + %s", leftAlias, rightAlias);
 
+        boolean stringAsRaw = config.useUTF8(arrayQuery);
         Sequence<BulkRow> rows = Sequences.simple(hashSignature.getColumnNames(), deserializeValue(mapper, values));
-        boolean stringAsRaw = arrayQuery.getContextBoolean(Query.STREAM_USE_RAW_UTF8, config.getSelect().isUseRawUTF8());
         Sequence<Object[]> hashing = Sequences.explode(rows, bulk -> Sequences.once(bulk.decompose(stringAsRaw)));
 
         if (applyFilter) {

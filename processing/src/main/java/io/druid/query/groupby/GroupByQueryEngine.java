@@ -21,6 +21,8 @@ package io.druid.query.groupby;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -36,7 +38,9 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.UTF8Bytes;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -85,6 +89,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiFunction;
+import java.util.function.IntFunction;
 
 /**
  *
@@ -189,6 +194,7 @@ public class GroupByQueryEngine
     private final Long fixedTimestamp;
 
     private final DimensionSelector[] dimensions;
+    private final ValueDesc[] dimensionTypes;
     private final BufferAggregator[] aggregators;
 
     private final int[] increments;
@@ -214,12 +220,12 @@ public class GroupByQueryEngine
       this.cursor = Cursors.explode(source, TableFunctionSpec.from(query));
       this.bufferPool = bufferPool;
       this.metricValues = new ByteBuffer[maxPage];
-      this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
-                        query.getContextBoolean(Query.GBY_USE_RAW_UTF8, config.getGroupBy().isUseRawUTF8());
+      this.useRawUTF8 = config.useUTF8(query);
       this.fixedTimestamp = BaseQuery.getUniversalTimestamp(query, null);
 
       List<DimensionSpec> dimensionSpecs = query.getDimensions();
       dimensions = new DimensionSelector[dimensionSpecs.size()];
+      dimensionTypes = new ValueDesc[dimensions.length];
 
       IntList svDimensions = new IntList(dimensions.length);
       IntList mvDimensions = new IntList(dimensions.length);
@@ -227,9 +233,11 @@ public class GroupByQueryEngine
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
 
+      Supplier<TypeResolver> resolver = Suppliers.ofInstance(source);
       for (int i = 0; i < dimensions.length; i++) {
         DimensionSpec dimensionSpec = dimensionSpecs.get(i);
         dimensions[i] = cursor.makeDimensionSelector(dimensionSpec);
+        dimensionTypes[i] = dimensionSpec.resolve(resolver);
         if (dimensions[i] instanceof IndexProvidingSelector) {
           IndexProvidingSelector provider = (IndexProvidingSelector) dimensions[i];
           if (indexedColumns.removeAll(provider.targetColumns())) {
@@ -336,9 +344,16 @@ public class GroupByQueryEngine
 
     public Sequence<Object[]> asArray()
     {
-      final boolean[] rawAccess = new boolean[dimensions.length];
+      final IntFunction[] rawAccess = new IntFunction[dimensions.length];
       for (int x = 0; x < rawAccess.length; x++) {
-        rawAccess[x] = useRawUTF8 && dimensions[x] instanceof WithRawAccess;
+        final DimensionSelector selector = dimensions[x];
+        if (useRawUTF8 && dimensionTypes[x].isStringOrDimension()) {
+          rawAccess[x] = selector instanceof WithRawAccess ?
+                         ix -> UTF8Bytes.of(((WithRawAccess) selector).getAsRaw(ix)) :
+                         ix -> UTF8Bytes.of((String) selector.lookupName(ix));
+        } else {
+          rawAccess[x] = ix -> StringUtils.emptyToNull(selector.lookupName(ix));
+        }
       }
 
       return Sequences.once(GuavaUtils.map(this, new Function<KeyValue, Object[]>()
@@ -356,11 +371,7 @@ public class GroupByQueryEngine
 
           row[i++] = new MutableLong(timestamp.longValue());
           for (int x = 0; x < dimensions.length; x++) {
-            if (rawAccess[x]) {
-              row[i++] = UTF8Bytes.of(((WithRawAccess) dimensions[x]).getAsRaw(array[x + BUFFER_POS]));
-            } else {
-              row[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(array[x + BUFFER_POS]));
-            }
+            row[i++] = rawAccess[x].apply(array[x + BUFFER_POS]);
           }
 
           final int position0 = array[0];

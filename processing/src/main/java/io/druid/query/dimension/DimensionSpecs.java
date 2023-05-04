@@ -112,12 +112,30 @@ public class DimensionSpecs
     return comparator;
   }
 
+  public static boolean isAllNaturalOrdering(List<DimensionSpec> dimensionSpecs)
+  {
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (!isNaturalOrdering(dimensionSpec)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static boolean isAllDefaultOrdering(List<DimensionSpec> dimensionSpecs)
   {
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
       if (!isDefaultOrdering(dimensionSpec)) {
         return false;
       }
+    }
+    return true;
+  }
+
+  private static boolean isNaturalOrdering(DimensionSpec dimensionSpec)
+  {
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      return ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec().isNaturalOrdering();
     }
     return true;
   }

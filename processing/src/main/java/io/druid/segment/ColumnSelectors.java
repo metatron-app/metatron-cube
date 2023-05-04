@@ -569,6 +569,18 @@ public class ColumnSelectors
     return ObjectColumnSelector.string(() -> UTF8Bytes.of(selector.getAsRaw(selector.getRow().get(0))));
   }
 
+  public static ObjectColumnSelector<UTF8Bytes> asSingleRaw(final SingleValued selector)
+  {
+    return new ObjectColumnSelector.Typed<UTF8Bytes>(ValueDesc.STRING)
+    {
+      @Override
+      public UTF8Bytes get()
+      {
+        return UTF8Bytes.of((String) selector.lookupName(selector.getRow().get(0)));
+      }
+    };
+  }
+
   public static ObjectColumnSelector<String> asSingleValued(final SingleValued selector)
   {
     return new ObjectColumnSelector.Typed<String>(ValueDesc.STRING)

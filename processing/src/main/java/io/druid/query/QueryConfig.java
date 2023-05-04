@@ -23,10 +23,12 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.frequency.FrequencyQueryConfig;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
+import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryConfig;
@@ -180,10 +182,29 @@ public class QueryConfig
     return false;
   }
 
+  public boolean useUTF8(Query query)
+  {
+    if (query instanceof StreamQuery) {
+      return useUTF8((StreamQuery) query);
+    } else if (query instanceof GroupByQuery) {
+      return useUTF8((GroupByQuery) query);
+    }
+    return false;
+  }
+
   public boolean useUTF8(StreamQuery query)
   {
     return !BaseQuery.isLocalFinalizingQuery(query) &&
+           OrderingSpec.isAllNaturalOrdering(query.getOrderingSpecs()) &&
            query.getContextBoolean(Query.STREAM_USE_RAW_UTF8, select.get().isUseRawUTF8());
+
+  }
+
+  public boolean useUTF8(GroupByQuery query)
+  {
+    return !BaseQuery.isLocalFinalizingQuery(query) &&
+           DimensionSpecs.isAllNaturalOrdering(query.getDimensions()) &&
+           query.getContextBoolean(Query.GBY_USE_RAW_UTF8, groupBy.get().isUseRawUTF8());
   }
 
   public boolean isUseCuboids()

@@ -630,6 +630,11 @@ public class ValueDesc implements Serializable, Cacheable
     return STRING_DIMENSION_TYPE.equals(typeName) || isDimension(typeName);
   }
 
+  public boolean isStringOrDimension()
+  {
+    return isString() || isDimension();
+  }
+
   public boolean isArrayOrStruct()
   {
     return isArray() || isStruct();

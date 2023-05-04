@@ -217,7 +217,7 @@ public class Queries
     if (query instanceof Query.ColumnsSupport) {
       final List<String> columns = ((Query.ColumnsSupport<?>) query).getColumns();
       for (String column : columns) {
-        newColumnTypes.add(resolver.resolve(column));
+        newColumnTypes.add(resolver.resolve(column, ValueDesc.UNKNOWN));
         newColumnNames.add(column);
       }
       return resolving;
@@ -231,7 +231,7 @@ public class Queries
       newColumnNames.add(dimensionSpec.getOutputName());
     }
     for (String metric : BaseQuery.getMetrics(query)) {
-      newColumnTypes.add(resolver.resolve(metric));
+      newColumnTypes.add(resolver.resolve(metric, ValueDesc.UNKNOWN));
       newColumnNames.add(metric);
     }
     List<AggregatorFactory> aggregators = Lists.newArrayList(BaseQuery.getAggregators(query));

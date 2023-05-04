@@ -47,7 +47,6 @@ import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
-import io.druid.segment.filter.FilterContext;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -104,35 +103,38 @@ public class StreamQueryEngine
         final int size = cursor.size();
         final List<String> orderingColumns = Lists.newArrayList(Iterables.transform(orderings, o -> o.getDimension()));
 
-        int index = 0;
         boolean optimizeOrdering = !orderingColumns.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings);
         final DimensionSelector[] dimensions = new DimensionSelector[columns.length];
         final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.length];
-        for (String column : columns) {
-          if (cursor.resolve(column, ValueDesc.UNKNOWN).isDimension()) {
+        for (int i = 0; i < columns.length; i++) {
+          String column = columns[i];
+          ValueDesc columnType = cursor.resolve(column, ValueDesc.UNKNOWN);
+          if (columnType.isDimension()) {
             final DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
             if (selector instanceof SingleValued) {
               if (selector.withSortedDictionary()) {
-                dimensions[index] = selector;
+                dimensions[i] = selector;
               }
-              if (useRawUTF8 && selector instanceof WithRawAccess) {
-                FilterContext context = cursor.filterContext();
-                selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector, column, context);
-              } else {
-                selectors[index] = ColumnSelectors.asSingleValued((SingleValued) selector);
+              if (useRawUTF8 && columnType.isStringOrDimension()) {
+                if (selector instanceof WithRawAccess) {
+                  selectors[i] = ColumnSelectors.asRawAccess((WithRawAccess) selector, column, cursor.filterContext());
+                } else {
+                  selectors[i] = ColumnSelectors.asSingleRaw((SingleValued) selector);
+                }
+                } else {
+                selectors[i] = ColumnSelectors.asSingleValued((SingleValued) selector);
               }
             } else if (concatString != null) {
-              selectors[index] = ColumnSelectors.asConcatValued(selector, concatString);
+              selectors[i] = ColumnSelectors.asConcatValued(selector, concatString);
             } else {
-              selectors[index] = ColumnSelectors.asMultiValued(selector);
+              selectors[i] = ColumnSelectors.asMultiValued(selector);
             }
           } else {
-            selectors[index] = cursor.makeObjectColumnSelector(column);
+            selectors[i] = cursor.makeObjectColumnSelector(column);
           }
           if (orderingColumns.contains(column)) {
-            optimizeOrdering &= dimensions[index] != null;
+            optimizeOrdering &= dimensions[i] != null;
           }
-          index++;
         }
 
         final int[] indices = GuavaUtils.indexOf(query.getColumns(), orderingColumns, true);

@@ -33,6 +33,8 @@ import java.util.Comparator;
 
 public final class UTF8Bytes implements Comparable<UTF8Bytes>
 {
+  public static UTF8Bytes EMPTY = of(StringUtils.EMPTY_BYTES);
+
   public static UTF8Bytes of(byte[] value)
   {
     return of(value, 0, value.length);
@@ -40,7 +42,7 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
 
   public static UTF8Bytes of(String value)
   {
-    return of(StringUtils.toUtf8(value));
+    return value == null ? EMPTY :of(StringUtils.toUtf8(value));
   }
 
   public static UTF8Bytes read(ByteBuffer buffer, int offset, int length)

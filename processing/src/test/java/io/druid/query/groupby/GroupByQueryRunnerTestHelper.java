@@ -58,6 +58,8 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 
     QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);
+    config.getGroupBy().setUseRawUTF8(false);
+    config.getSelect().setUseRawUTF8(false);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     StreamQueryEngine stream = new StreamQueryEngine();
@@ -74,6 +76,8 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
     config = new QueryConfig();
     config.getGroupBy().setSingleThreaded(true);
     config.getGroupBy().setMaxResults(10000);
+    config.getGroupBy().setUseRawUTF8(false);
+    config.getSelect().setUseRawUTF8(false);
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
         engine,
