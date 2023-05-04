@@ -157,6 +157,7 @@ public abstract class AggregatorFactory implements Cacheable
     return list == null ? factories : list;
   }
 
+  // called only when Scanning.FULL or Scanning.BITMAP
   public AggregatorFactory evaluate(FilterContext context)
   {
     return this;

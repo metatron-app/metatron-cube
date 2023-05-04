@@ -169,12 +169,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
-  public Map<String, Object> getColumnStats(String column)
-  {
-    return null;
-  }
-
-  @Override
   public long getSerializedSize(String column)
   {
     return 0L;
@@ -768,6 +762,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               public ColumnMeta getMeta(String columnName)
               {
                 return getColumnMeta(columnName);
+              }
+
+              @Override
+              public ColumnCapabilities getColumnCapabilities(String columnName)
+              {
+                return index.getCapabilities(columnName);
               }
 
               @Override

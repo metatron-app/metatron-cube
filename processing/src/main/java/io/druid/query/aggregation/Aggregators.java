@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
@@ -166,25 +168,33 @@ public class Aggregators
     }
   }
 
-  public static enum RELAY_TYPE
+  public static enum RelayType
   {
     ONLY_ONE, FIRST, LAST, MIN, MAX, TIME_MIN, TIME_MAX;
 
-    public static RELAY_TYPE fromString(String value)
+    @JsonValue
+    public String getName()
+    {
+      return name();
+    }
+
+    // see ColumnStats
+    public String toStatKey()
+    {
+      return name().toLowerCase();
+    }
+
+    @JsonCreator
+    public static RelayType fromString(String value)
     {
       return value == null ? ONLY_ONE : valueOf(value.toUpperCase());
     }
   }
 
-  public static Aggregator relayAggregator(ColumnSelectorFactory factory, String column, String type)
-  {
-    return relayAggregator(factory, column, RELAY_TYPE.fromString(type));
-  }
-
   public static Aggregator relayAggregator(
       final ColumnSelectorFactory factory,
       final String column,
-      final RELAY_TYPE type
+      final RelayType type
   )
   {
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
@@ -345,7 +355,7 @@ public class Aggregators
   public static BufferAggregator relayBufferAggregator(
       final ColumnSelectorFactory factory,
       final String column,
-      final String type
+      final RelayType type
   )
   {
     return new RelayBufferAggregator(relayAggregator(factory, column, type));
@@ -443,9 +453,9 @@ public class Aggregators
   }
 
   @SuppressWarnings("unchecked")
-  public static BinaryFn.Identical relayCombiner(String type)
+  public static BinaryFn.Identical relayCombiner(RelayType type)
   {
-    switch (RELAY_TYPE.fromString(type)) {
+    switch (type) {
       case ONLY_ONE:
         return (param1, param2) -> {
           throw new UnsupportedOperationException("cannot combine");

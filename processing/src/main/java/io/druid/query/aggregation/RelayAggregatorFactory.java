@@ -29,19 +29,28 @@ import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
+import io.druid.query.aggregation.Aggregators.RelayType;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnStats;
 import io.druid.segment.Cursor;
 import io.druid.segment.Scanning;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.GenericColumn.DoubleType;
+import io.druid.segment.column.GenericColumn.FloatType;
+import io.druid.segment.column.GenericColumn.LongType;
+import io.druid.segment.data.Dictionary;
+import io.druid.segment.filter.FilterContext;
 
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalDouble;
+import java.util.OptionalLong;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
  */
@@ -98,12 +107,12 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   public static AggregatorFactory first(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "FIRST", null);
+    return new RelayAggregatorFactory(name, columnName, null, RelayType.FIRST, null);
   }
 
   public static AggregatorFactory last(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "LAST", null);
+    return new RelayAggregatorFactory(name, columnName, null, RelayType.LAST, null);
   }
 
   public static AggregatorFactory min(String name, String columnName)
@@ -113,7 +122,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   public static AggregatorFactory min(String name, String columnName, String type)
   {
-    return new RelayAggregatorFactory(name, columnName, type, "MIN", null);
+    return new RelayAggregatorFactory(name, columnName, type, RelayType.MIN, null);
   }
 
   public static AggregatorFactory max(String name, String columnName)
@@ -123,23 +132,23 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   public static AggregatorFactory max(String name, String columnName, String type)
   {
-    return new RelayAggregatorFactory(name, columnName, type, "MAX", null);
+    return new RelayAggregatorFactory(name, columnName, type, RelayType.MAX, null);
   }
 
   public static AggregatorFactory timeMin(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "TIME_MIN", null);
+    return new RelayAggregatorFactory(name, columnName, null, RelayType.TIME_MIN, null);
   }
 
   public static AggregatorFactory timeMax(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "TIME_MAX", null);
+    return new RelayAggregatorFactory(name, columnName, null, RelayType.TIME_MAX, null);
   }
 
   private final String name;
   private final String columnName;
   private final String typeName;
-  private final String relayType;
+  private final RelayType relayType;
   private final List<String> extractHints;
 
   @JsonCreator
@@ -147,14 +156,14 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
       @JsonProperty("name") String name,
       @JsonProperty("columnName") String columnName,
       @JsonProperty("typeName") String typeName,
-      @JsonProperty("relayType") String relayType,
+      @JsonProperty("relayType") RelayType relayType,
       @JsonProperty("extractHints") List<String> extractHints
   )
   {
     this.name = Preconditions.checkNotNull(name == null ? columnName : name);
     this.columnName = Preconditions.checkNotNull(columnName == null ? name : columnName);
     this.typeName = typeName;
-    this.relayType = relayType;
+    this.relayType = relayType == null ? RelayType.ONLY_ONE : relayType;
     this.extractHints = extractHints;
   }
 
@@ -170,17 +179,71 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   public RelayAggregatorFactory(String name, String columnName, String typeName, String relayType)
   {
-    this(name, columnName, typeName, relayType, null);
+    this(name, columnName, typeName, RelayType.valueOf(relayType), null);
   }
 
   @Override
   public AggregatorFactory optimize(Cursor cursor)
   {
-    if (cursor.scanContext() == Scanning.FULL) {
-      Object constant = ColumnStats.get(cursor.getStats(columnName), ValueType.STRING, relayType.toLowerCase());
-      if (constant != null) {
-        return AggregatorFactory.constant(this, constant);
+    if ((relayType == RelayType.MIN || relayType == RelayType.MAX) && cursor.scanContext() == Scanning.FULL) {
+      if (cursor.getColumnCapabilities(columnName) == null) {
+        return this;
       }
+      ValueDesc desc = ValueDesc.of(typeName);
+      if (desc != null && desc.isPrimitive()) {
+        Object constant = ColumnStats.get(cursor.getStats(columnName), desc.type(), relayType.toStatKey());
+        if (constant != null) {
+          return AggregatorFactory.constant(this, constant);
+        }
+      }
+    }
+    return this;
+  }
+
+  @Override
+  public AggregatorFactory evaluate(FilterContext context)
+  {
+    if (relayType != RelayType.MAX && relayType != RelayType.MIN) {
+      return this;  // todo
+    }
+    Column column = context.indexSelector().getColumn(columnName);
+    if (column == null) {
+      return this;    // vc?
+    }
+    if (context.targetNumRows() == 0) {
+      return AggregatorFactory.constant(this, null);
+    }
+    Dictionary<String> dictionary = column.getDictionary();
+    if (dictionary != null && dictionary.isSorted()) {
+      if (dictionary.isEmpty()) {
+        return AggregatorFactory.constant(this, null);
+      }
+      if (relayType == RelayType.MAX) {
+        return AggregatorFactory.constant(this, dictionary.get(dictionary.size() - 1));
+      }
+      if (!dictionary.containsNull()) {
+        return AggregatorFactory.constant(this, dictionary.get(0));
+      } else if (dictionary.size() > 1) {
+        return AggregatorFactory.constant(this, dictionary.get(1));
+      } else {
+        return AggregatorFactory.constant(this, null);
+      }
+    } else if (column.hasGenericColumn()) {
+      GenericColumn generic = column.getGenericColumn();
+      if (generic instanceof LongType) {
+        LongStream stream = ((LongType) generic).stream(context.rowIterator());
+        OptionalLong max = relayType == RelayType.MAX ? stream.max() : stream.min();
+        return AggregatorFactory.constant(this, max.isPresent() ? max.getAsLong() : null);
+      } else if (generic instanceof FloatType) {
+        DoubleStream stream = ((FloatType) generic).stream(context.rowIterator());
+        OptionalDouble max = relayType == RelayType.MAX ? stream.max() : stream.min();
+        return AggregatorFactory.constant(this, max.isPresent() ? max.getAsDouble() : null);
+      } else if (generic instanceof DoubleType) {
+        DoubleStream stream = ((DoubleType) generic).stream(context.rowIterator());
+        OptionalDouble max = relayType == RelayType.MAX ? stream.max() : stream.min();
+        return AggregatorFactory.constant(this, max.isPresent() ? max.getAsDouble() : null);
+      }
+      // todo: handle IndexedStringsGenericColumn
     }
     return this;
   }
@@ -260,7 +323,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getRelayType()
+  public RelayType getRelayType()
   {
     return relayType;
   }
@@ -276,8 +339,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   @Override
   public ValueDesc getOutputType()
   {
-    final RELAY_TYPE relayType = RELAY_TYPE.fromString(this.relayType);
-    if (relayType == RELAY_TYPE.TIME_MIN || relayType == RELAY_TYPE.TIME_MAX) {
+    if (relayType == RelayType.TIME_MIN || relayType == RelayType.TIME_MAX) {
       return typeName == null ? ValueDesc.STRUCT : ValueDesc.of(String.format("struct(t:long,v:%s)", typeName));
     }
     return typeName == null ? null : ValueDesc.of(typeName);

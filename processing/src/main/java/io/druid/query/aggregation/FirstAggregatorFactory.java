@@ -21,7 +21,7 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
-import static io.druid.query.aggregation.Aggregators.RELAY_TYPE.FIRST;
+import static io.druid.query.aggregation.Aggregators.RelayType.FIRST;
 
 @JsonTypeName("first")
 public class FirstAggregatorFactory extends RelayAggregatorFactory

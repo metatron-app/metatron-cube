@@ -97,6 +97,19 @@ public final class RoaringBitmapFactory implements BitmapFactory
     return EMPTY_IMMUTABLE_BITMAP;
   }
 
+  public static int lastOf(ImmutableBitmap b)
+  {
+    Preconditions.checkArgument(!b.isEmpty());
+    if (b instanceof WrappedImmutableRoaringBitmap) {
+      return unwrap(b).last();
+    } else if (b instanceof LazyImmutableBitmap) {
+      return ((LazyImmutableBitmap) b).last();
+    } else if (b instanceof WrappedBitSetBitmap) {
+      return ((WrappedBitSetBitmap) b).bitset().length() - 1;
+    }
+    return -1;
+  }
+
   private static ImmutableRoaringBitmap unwrap(ImmutableBitmap b)
   {
     return ((WrappedImmutableRoaringBitmap) b).getBitmap();
@@ -465,6 +478,15 @@ public final class RoaringBitmapFactory implements BitmapFactory
       }
 
       @Override
+      public int last()
+      {
+        if (iterable instanceof IntIterable.MinMaxAware) {
+          return ((IntIterable.MinMaxAware) iterable).max();
+        }
+        return -1;
+      }
+
+      @Override
       public void or(BitSet target)
       {
         if (iterable instanceof IntIterable.Range) {
@@ -516,6 +538,12 @@ public final class RoaringBitmapFactory implements BitmapFactory
       public boolean get(int value)
       {
         return bitSet.get(value);
+      }
+
+      @Override
+      public int last()
+      {
+        return bitSet.length() - 1;
       }
 
       @Override
@@ -578,6 +606,8 @@ public final class RoaringBitmapFactory implements BitmapFactory
     {
       return materializer.get().get(value);
     }
+
+    public abstract int last();
 
     @Override
     public ImmutableBitmap union(ImmutableBitmap otherBitmap)

@@ -95,7 +95,10 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
     if (fieldName != null && inputType.isPrimitiveNumeric()) {
       BitmapIndexSelector selector = context.indexSelector();
       Column column = selector.getColumn(fieldName);
-      if (column == null || !column.hasGenericColumn()) {
+      if (column == null) {
+        return this;  // todo: handle virual column
+      }
+      if (!column.hasGenericColumn()) {
         return AggregatorFactory.constant(this, inputType.type().cast(0L));
       }
       GenericColumn generic = column.getGenericColumn();

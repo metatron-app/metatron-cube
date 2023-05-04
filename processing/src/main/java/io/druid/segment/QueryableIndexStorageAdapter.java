@@ -70,7 +70,6 @@ import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.function.IntFunction;
 
@@ -792,19 +791,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public Object get()
                             {
-                              final IndexedInts multiValueRow = column.getMultiValueRow(offset());
-                              final int length = multiValueRow.size();
-                              if (length == 0) {
-                                return null;
-                              } else if (length == 1) {
-                                return column.lookupName(multiValueRow.get(0));
-                              } else {
-                                final String[] strings = new String[length];
-                                for (int i = 0; i < length; i++) {
-                                  strings[i] = column.lookupName(multiValueRow.get(i));
-                                }
-                                return Arrays.asList(strings);
-                              }
+                              return column.getMultiValued(offset());
                             }
                           };
                         } else {
@@ -893,6 +880,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     public ColumnMeta getMeta(String columnName)
                     {
                       return index.getColumnMeta(columnName);
+                    }
+
+                    @Override
+                    public ColumnCapabilities getColumnCapabilities(String columnName)
+                    {
+                      Column column = index.getColumn(columnName);
+                      return column == null ? null : column.getCapabilities();
                     }
 
                     @Override

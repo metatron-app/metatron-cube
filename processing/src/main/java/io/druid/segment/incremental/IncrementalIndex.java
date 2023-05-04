@@ -1252,6 +1252,7 @@ public abstract class IncrementalIndex implements Closeable
     private final Map<T, Integer> valueToId = Maps.newHashMap();
     private T minValue = null;
     private T maxValue = null;
+    private int numNulls;
 
     private long estimatedSize;
 
@@ -1339,9 +1340,13 @@ public abstract class IncrementalIndex implements Closeable
     public Map<String, Object> getStats()
     {
       synchronized (valueToId) {
-        return idToValue.isEmpty()
-               ? ImmutableMap.of()
-               : ImmutableMap.of(ColumnStats.MIN, minValue, ColumnStats.MAX, maxValue);
+        if (idToValue.isEmpty()) {
+          return ImmutableMap.of();
+        }
+        if (maxValue == null) {
+          return ImmutableMap.of(ColumnStats.NUM_NULLS, numNulls);
+        }
+        return ImmutableMap.of(ColumnStats.MIN, minValue, ColumnStats.MAX, maxValue, ColumnStats.NUM_NULLS, numNulls);
       }
     }
 
@@ -1356,11 +1361,15 @@ public abstract class IncrementalIndex implements Closeable
     @Override
     public Integer apply(T key, Integer prev)
     {
+      boolean nullValue = StringUtils.isNullOrEmpty(key);
+      if (nullValue) {
+        numNulls++;
+      }
       if (prev != null) {
         estimatedSize += Integer.BYTES;
         return prev;
       }
-      if (key != null) {
+      if (!nullValue) {
         minValue = minValue == null || minValue.compareTo(key) > 0 ? key : minValue;
         maxValue = maxValue == null || maxValue.compareTo(key) < 0 ? key : maxValue;
       }

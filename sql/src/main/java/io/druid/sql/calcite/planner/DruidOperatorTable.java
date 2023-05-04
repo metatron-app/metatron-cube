@@ -37,7 +37,7 @@ import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import io.druid.math.expr.WindowFunctions;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
+import io.druid.query.aggregation.Aggregators.RelayType;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.WindowContext;
@@ -143,9 +143,9 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new MaxSqlAggregator())
           .add(new SumSqlAggregator())
           .add(new SumZeroSqlAggregator())
-          .add(new RelayAggregator(new RelayAggFunction("ANY"), RELAY_TYPE.FIRST))
-          .add(new RelayAggregator(new RelayAggFunction("EARLIEST"), RELAY_TYPE.TIME_MIN))
-          .add(new RelayAggregator(new RelayAggFunction("LATEST"), RELAY_TYPE.TIME_MAX))
+          .add(new RelayAggregator(new RelayAggFunction("ANY"), RelayType.FIRST))
+          .add(new RelayAggregator(new RelayAggFunction("EARLIEST"), RelayType.TIME_MIN))
+          .add(new RelayAggregator(new RelayAggFunction("LATEST"), RelayType.TIME_MAX))
           .build();
 
   // STRLEN has so many aliases.

@@ -277,7 +277,7 @@ public class SegmentMetadataQueryTest
         Arrays.asList("partial_null_column"),
         Arrays.asList(
             new ColumnAnalysis(
-                ValueDesc.STRING_DIMENSION_TYPE, null, false, mmap1 ? 2956 : 0, new long[]{2, 2}, 1023, "", "value", null
+                ValueDesc.STRING_DIMENSION_TYPE, null, false, mmap1 ? 2956 : 0, new long[]{2, 2}, 1023, "value", "value", null
             )
         ),
         mmap1 ? 63801 : 0,

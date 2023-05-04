@@ -36,10 +36,10 @@ import java.util.List;
 
 public class RelayAggregator implements SqlAggregator
 {
-  private final Aggregators.RELAY_TYPE relayType;
+  private final Aggregators.RelayType relayType;
   private final SqlAggFunction function;
 
-  public RelayAggregator(SqlAggFunction function, Aggregators.RELAY_TYPE relayType)
+  public RelayAggregator(SqlAggFunction function, Aggregators.RelayType relayType)
   {
     this.function = function;
     this.relayType = relayType;

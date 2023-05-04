@@ -91,9 +91,7 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   {
     if (fieldName != null) {
       ColumnMeta meta = segment.asStorageAdapter(false).getColumnMeta(fieldName);
-      if (meta == null) {
-        return AggregatorFactory.constant(this, 0L);
-      } else if (predicate == null && GuavaUtils.isFalse(meta.hasNull())) {
+      if (meta != null && predicate == null && GuavaUtils.isFalse(meta.hasNull())) {
         return CountAggregatorFactory.of(name);
       }
     }

@@ -30,6 +30,7 @@ import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
 
 import java.util.Map;
@@ -71,6 +72,7 @@ public interface ColumnSelectorFactory extends TypeResolver
   ValueMatcher makePredicateMatcher(DimFilter filter);
 
   default ColumnMeta getMeta(String columnName) {return null;}
+  default ColumnCapabilities getColumnCapabilities(String columnName) {return null;}
   default Map<String, String> getDescriptor(String columnName) {return null;}
   default Map<String, Object> getStats(String columnName) {return null;}
 

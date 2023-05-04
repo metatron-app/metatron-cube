@@ -27,6 +27,7 @@ import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  *
@@ -63,6 +64,11 @@ public final class DictionaryEncodedColumn implements Closeable
     return column.get(rowNum);
   }
 
+  public Object getSingleValued(int rowNum)
+  {
+    return lookupName(getSingleValueRow(rowNum));
+  }
+
   public int getSingleValueRow(int rowNum, int[] handover)
   {
     return column.get(rowNum, handover);
@@ -84,6 +90,23 @@ public final class DictionaryEncodedColumn implements Closeable
   public IndexedInts getMultiValueRow(int rowNum)
   {
     return index == rowNum ? cached : (cached = multiValueColumn.get(index = rowNum));
+  }
+
+  public Object getMultiValued(int rowNum)
+  {
+    final IndexedInts indexedInts = getMultiValueRow(rowNum);
+    final int length = indexedInts.size();
+    if (length == 0) {
+      return null;
+    } else if (length == 1) {
+      return lookupName(indexedInts.get(0));
+    } else {
+      final String[] strings = new String[length];
+      for (int i = 0; i < length; i++) {
+        strings[i] = lookupName(indexedInts.get(i));
+      }
+      return Arrays.asList(strings);
+    }
   }
 
   public String lookupName(int id)
