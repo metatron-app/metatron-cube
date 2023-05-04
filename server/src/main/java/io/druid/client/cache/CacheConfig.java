@@ -57,7 +57,8 @@ public class CacheConfig
       Query.GROUP_BY,
       Query.SELECT,
       Query.SELECT_STREAM,
-      Query.SELECT_DELEGATE
+      Query.SELECT_DELEGATE,
+      Query.SEGMENT_METADATA
   );
 
   public boolean isPopulateCache()

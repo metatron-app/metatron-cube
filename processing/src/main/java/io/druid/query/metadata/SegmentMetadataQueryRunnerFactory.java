@@ -20,13 +20,11 @@
 package io.druid.query.metadata;
 
 import com.google.common.base.Supplier;
-import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.concurrent.Execs;
 import io.druid.data.Pair;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
@@ -47,7 +45,6 @@ import org.joda.time.Interval;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstract<SegmentAnalysis>
 {
@@ -142,29 +139,6 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                 )
             )
         );
-      }
-    };
-  }
-
-  @Override
-  public QueryRunner<SegmentAnalysis> mergeRunners(
-      Query<SegmentAnalysis> query,
-      ExecutorService exec,
-      Iterable<QueryRunner<SegmentAnalysis>> queryRunners,
-      Supplier<Object> optimizer
-  )
-  {
-    return new QueryRunner<SegmentAnalysis>()
-    {
-      @Override
-      public Sequence<SegmentAnalysis> run(Query<SegmentAnalysis> query, Map<String, Object> responseContext)
-      {
-        Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture<>(), "concat-runner");
-        queryWatcher.register(query, future);
-        Iterable<SegmentAnalysis> analyses = Iterables.concat(Iterables.transform(
-            queryRunners, r -> Sequences.toList(r.run(query, responseContext))
-        ));
-        return Sequences.interruptible(future, Sequences.withBaggage(Sequences.simple(analyses), future));
       }
     };
   }
