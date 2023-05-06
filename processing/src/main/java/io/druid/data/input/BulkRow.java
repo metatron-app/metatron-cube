@@ -35,6 +35,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.FrontCoding;
+import io.druid.data.UTF8Bytes;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.function.IntFunction;
 
 public class BulkRow extends AbstractRow
 {
@@ -105,7 +107,7 @@ public class BulkRow extends AbstractRow
         throws IOException
     {
       typeSer.writeTypePrefixForObject(bulk, jgen);   // see mixin in AggregatorsModule
-      jgen.writeObjectField("s", bulk.sorted);
+      jgen.writeObjectField("s", bulk.encoded);
       jgen.writeFieldName("v");
       serialize(bulk, jgen, provider);
       typeSer.writeTypeSuffixForObject(bulk, jgen);
@@ -114,7 +116,6 @@ public class BulkRow extends AbstractRow
     @Override
     public void serialize(BulkRow bulk, JsonGenerator jgen, SerializerProvider provider) throws IOException
     {
-      final BitSet nulls = new BitSet();
       final BytesOutputStream output = BUFFER.get();
       final JsonFactory factory = Preconditions.checkNotNull(jgen.getCodec()).getFactory();
 
@@ -131,52 +132,32 @@ public class BulkRow extends AbstractRow
         scratch.clear();
         switch (bulk.category[i]) {
           case 1:
-            final Float[] floats = (Float[]) bulk.values[i];
+            final float[] floats = (float[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
-              if (floats[x] == null) {
-                scratch.writeFloat(0);
-                nulls.set(x);
-              } else {
-                scratch.writeFloat(floats[x].floatValue());
-              }
+              scratch.writeFloat(floats[x]);
             }
-            compressTo(writeNulls(nulls, scratch), output);
+            compressTo(writeNulls(bulk.nulls[i], scratch), output);
             continue;
           case 2:
-            final Long[] longs = (Long[]) bulk.values[i];
+            final long[] longs = (long[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
-              if (longs[x] == null) {
-                scratch.writeVarLong(0);
-                nulls.set(x);
-              } else {
-                scratch.writeVarLong(longs[x].longValue());
-              }
+              scratch.writeVarLong(longs[x]);
             }
-            compressTo(writeNulls(nulls, scratch), output);
+            compressTo(writeNulls(bulk.nulls[i], scratch), output);
             continue;
           case 3:
-            final Double[] doubles = (Double[]) bulk.values[i];
+            final double[] doubles = (double[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
-              if (doubles[x] == null) {
-                scratch.writeDouble(0);
-                nulls.set(x);
-              } else {
-                scratch.writeDouble(doubles[x].doubleValue());
-              }
+              scratch.writeDouble(doubles[x]);
             }
-            compressTo(writeNulls(nulls, scratch), output);
+            compressTo(writeNulls(bulk.nulls[i], scratch), output);
             continue;
           case 4:
-            final Boolean[] booleans = (Boolean[]) bulk.values[i];
+            final boolean[] booleans = (boolean[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
-              if (booleans[x] == null) {
-                scratch.writeBoolean(false);
-                nulls.set(x);
-              } else {
-                scratch.writeBoolean(booleans[x].booleanValue());
-              }
+              scratch.writeBoolean(booleans[x]);
             }
-            compressTo(writeNulls(nulls, scratch), output);
+            compressTo(writeNulls(bulk.nulls[i], scratch), output);
             continue;
           case 5:
             compressTo((byte[]) bulk.values[i], output);
@@ -200,7 +181,6 @@ public class BulkRow extends AbstractRow
     if (!nulls.isEmpty()) {
       scratch.writeBoolean(true);
       scratch.writeVarSizeBytes(nulls.toByteArray());
-      nulls.clear();
     } else {
       scratch.writeBoolean(false);
     }
@@ -216,7 +196,7 @@ public class BulkRow extends AbstractRow
       Preconditions.checkArgument(jp.getCurrentToken() == JsonToken.FIELD_NAME);
       Preconditions.checkArgument("s".equals(jp.getText()));
       Preconditions.checkArgument(jp.nextToken() == JsonToken.VALUE_NUMBER_INT);
-      final int sorted = jp.getIntValue();
+      final int encoded = jp.getIntValue();
 
       Preconditions.checkArgument(jp.nextToken() == JsonToken.FIELD_NAME);
       Preconditions.checkArgument("v".equals(jp.getText()));
@@ -231,6 +211,7 @@ public class BulkRow extends AbstractRow
         category[i] = input.readUnsignedVarInt();
       }
       final Object[] values = new Object[category.length];
+      final BitSet[] nulls = new BitSet[category.length];
       final BytesOutputStream scratch = SCRATCH.get();
 
       int offset = 0;
@@ -249,54 +230,42 @@ public class BulkRow extends AbstractRow
         }
         switch (category[i]) {
           case 1:
-            final Float[] floats = new Float[count];
+            final float[] floats = new float[count];
             for (int x = 0; x < count; x++) {
               floats[x] = decompressed.readFloat();
             }
             if (decompressed.readBoolean()) {
-              final BitSet bitSet = BitSet.valueOf(decompressed.readVarSizeBytes());
-              for (int index = bitSet.nextSetBit(0); index >= 0; index = bitSet.nextSetBit(index + 1)) {
-                floats[index] = null;
-              }
+              nulls[i] = BitSet.valueOf(decompressed.readVarSizeBytes());
             }
             values[i] = floats;
             continue;
           case 2:
-            final Long[] longs = new Long[count];
+            final long[] longs = new long[count];
             for (int x = 0; x < count; x++) {
               longs[x] = decompressed.readVarLong();
             }
             if (decompressed.readBoolean()) {
-              final BitSet bitSet = BitSet.valueOf(decompressed.readVarSizeBytes());
-              for (int index = bitSet.nextSetBit(0); index >= 0; index = bitSet.nextSetBit(index + 1)) {
-                longs[index] = null;
-              }
+              nulls[i] = BitSet.valueOf(decompressed.readVarSizeBytes());
             }
             values[i] = longs;
             continue;
           case 3:
-            final Double[] doubles = new Double[count];
+            final double[] doubles = new double[count];
             for (int x = 0; x < count; x++) {
               doubles[x] = decompressed.readDouble();
             }
             if (decompressed.readBoolean()) {
-              final BitSet bitSet = BitSet.valueOf(decompressed.readVarSizeBytes());
-              for (int index = bitSet.nextSetBit(0); index >= 0; index = bitSet.nextSetBit(index + 1)) {
-                doubles[index] = null;
-              }
+              nulls[i] = BitSet.valueOf(decompressed.readVarSizeBytes());
             }
             values[i] = doubles;
             continue;
           case 4:
-            final Boolean[] booleans = new Boolean[count];
+            final boolean[] booleans = new boolean[count];
             for (int x = 0; x < count; x++) {
               booleans[x] = decompressed.readBoolean();
             }
             if (decompressed.readBoolean()) {
-              final BitSet bitSet = BitSet.valueOf(decompressed.readVarSizeBytes());
-              for (int index = bitSet.nextSetBit(0); index >= 0; index = bitSet.nextSetBit(index + 1)) {
-                booleans[index] = null;
-              }
+              nulls[i] = BitSet.valueOf(decompressed.readVarSizeBytes());
             }
             values[i] = booleans;
             continue;
@@ -312,21 +281,23 @@ public class BulkRow extends AbstractRow
         }
       }
       jp.nextToken();
-      return new BulkRow(count, category, values, sorted);
+      return new BulkRow(count, category, values, nulls, encoded);
     }
   };
 
   private final int count;
   private final int[] category;
   private final Object[] values;
-  private final int sorted;
+  private final BitSet[] nulls;
+  private final int encoded;
 
-  public BulkRow(int count, int[] category, Object[] values, int sorted)
+  public BulkRow(int count, int[] category, Object[] values, BitSet[] nulls, int encoded)
   {
     this.category = category;
     this.count = count;
     this.values = values;
-    this.sorted = sorted;
+    this.nulls = nulls;
+    this.encoded = encoded;
   }
 
   public int count()
@@ -347,20 +318,28 @@ public class BulkRow extends AbstractRow
 
   public Iterator<Object[]> decompose(final boolean stringAsRaw)
   {
+    IntFunction[] extractors = new IntFunction[values.length];
     for (int i = 0; i < values.length; i++) {
-      if (category[i] == 5) {
-        final BytesInputStream source = (BytesInputStream) values[i];
-        if (i == sorted) {
-          values[i] = FrontCoding.decode(
-              source, count, b -> stringAsRaw ? b : StringUtils.toUTF8String(b), Object.class
-          );
-        } else {
-          final Object[] strings = new Object[count];
-          for (int x = 0; x < strings.length; x++) {
-            strings[x] = stringAsRaw ? source.viewVarSizeUTF() : source.readVarSizeUTF();
+      final int ix = i;
+      switch (category[i]) {
+        case 1: extractors[i] = x -> ((float[]) values[ix])[x]; continue;
+        case 2: extractors[i] = x -> ((long[]) values[ix])[x]; continue;
+        case 3: extractors[i] = x -> ((double[]) values[ix])[x]; continue;
+        case 4: extractors[i] = x -> ((boolean[]) values[ix])[x]; continue;
+        case 5:
+          final BytesInputStream source = (BytesInputStream) values[i];
+          if (i == encoded) {
+            values[i] = FrontCoding.decode(source, count, stringAsRaw ? UTF8Bytes::of : StringUtils::toUTF8String);
+          } else {
+            final Object[] strings = new Object[count];
+            for (int x = 0; x < strings.length; x++) {
+              strings[x] = stringAsRaw ? source.viewVarSizeUTF() : source.readVarSizeUTF();
+            }
+            values[i] = strings;
           }
-          values[i] = strings;
-        }
+          // go through
+        default:
+          extractors[i] = x -> ((Object[]) values[ix])[x];
       }
     }
     return new Iterator<Object[]>()
@@ -379,7 +358,9 @@ public class BulkRow extends AbstractRow
         final int ix = index++;
         final Object[] row = new Object[values.length];
         for (int i = 0; i < values.length; i++) {
-          row[i] = ((Object[]) values[i])[ix];
+          if (nulls[i] == null || !nulls[i].get(ix)) {
+            row[i] = extractors[i].apply(ix);
+          }
         }
         return row;
       }

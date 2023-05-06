@@ -59,6 +59,11 @@ public class FrontCoding
     return Arrays.asList(decode(new BytesInputStream(bytes), valueLen, converter, clazz));
   }
 
+  public static Object[] decode(BytesInputStream input, int valueLen, Function<byte[], Object> converter)
+  {
+    return decode(input, valueLen, converter, Object.class);
+  }
+
   @SuppressWarnings("unchecked")
   public static <T> T[] decode(BytesInputStream input, int valueLen, Function<byte[], T> converter, Class<T> clazz)
   {

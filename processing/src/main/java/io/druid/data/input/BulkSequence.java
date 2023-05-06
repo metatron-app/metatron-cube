@@ -36,6 +36,7 @@ import io.druid.query.RowSignature;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 import java.util.function.BiConsumer;
 
@@ -68,8 +69,9 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
   private final RowSignature schema;
   private final int[] category;
   private final Object[] page;
+  private final BitSet[] nulls;
   private final int max;
-  private final int sorted;
+  private final int encoded;
   private final StringWriter[] writers;
 
   BulkSequence(Sequence<Object[]> sequence, RowSignature schema, int max, int sorted)
@@ -80,6 +82,7 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
     this.schema = schema;
     this.category = new int[schema.size()];
     this.page = new Object[schema.size()];
+    this.nulls = new BitSet[schema.size()];
     this.writers = new StringWriter[schema.size()];
     final List<ValueDesc> types = schema.getColumnTypes();
     for (int i = 0; i < types.size(); i++) {
@@ -87,19 +90,23 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
       switch (valueDesc.type()) {
         case FLOAT:
           category[i] = 1;
-          page[i] = new Float[max];
+          page[i] = new float[max];
+          nulls[i] = new BitSet();
           break;
         case LONG:
           category[i] = 2;
-          page[i] = new Long[max];
+          page[i] = new long[max];
+          nulls[i] = new BitSet();
           break;
         case DOUBLE:
           category[i] = 3;
-          page[i] = new Double[max];
+          page[i] = new double[max];
+          nulls[i] = new BitSet();
           break;
         case BOOLEAN:
           category[i] = 4;
-          page[i] = new Boolean[max];
+          page[i] = new boolean[max];
+          nulls[i] = new BitSet();
           break;
         case STRING:
           category[i] = 5;
@@ -111,7 +118,7 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
           page[i] = new Object[max];
       }
     }
-    this.sorted = sorted >= 0 && category[sorted] == 5 ? sorted : -1;
+    this.encoded = sorted >= 0 && category[sorted] == 5 ? sorted : -1;
   }
 
   @Override
@@ -204,11 +211,22 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
     {
       final int ix = index++;
       for (int i = 0; i < category.length; i++) {
+        if (values[i] == null && category[i] <= 3) {
+          nulls[i].set(ix);
+          continue;
+        }
         switch (category[i]) {
-          case 1: ((Float[]) page[i])[ix] = values[i] == null ? null : ((Number) values[i]).floatValue(); continue;
-          case 2: ((Long[]) page[i])[ix] = values[i] == null ? null : ((Number) values[i]).longValue(); continue;
-          case 3: ((Double[]) page[i])[ix] = values[i] == null ? null : ((Number) values[i]).doubleValue(); continue;
-          case 4: ((Boolean[]) page[i])[ix] = Rows.parseBoolean(values[i]); continue;
+          case 1: ((float[]) page[i])[ix] = ((Number) values[i]).floatValue(); continue;
+          case 2: ((long[]) page[i])[ix] = ((Number) values[i]).longValue(); continue;
+          case 3: ((double[]) page[i])[ix] = ((Number) values[i]).doubleValue(); continue;
+          case 4:
+            final Boolean bool = Rows.parseBoolean(values[i]);
+            if (bool == null) {
+              nulls[i].set(ix);
+            } else {
+              ((boolean[]) page[i])[ix] = bool;
+            }
+            continue;
           case 5: writers[i].accept((BytesOutputStream) page[i], values[i]); continue;
           case 6: ((Object[]) page[i])[ix] = values[i]; continue;
           default:
@@ -221,29 +239,35 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
     private OutType asBulkRow()
     {
       final int size = index;
-      final Object[] copy = new Object[page.length];
+      final Object[] copy = new Object[category.length];
+      final BitSet[] ncopy = new BitSet[category.length];
 
       // unnecessary copy ?
       for (int i = 0; i < category.length; i++) {
         switch (category[i]) {
-          case 1: copy[i] = Arrays.copyOf((Float[]) page[i], size); continue;
-          case 2: copy[i] = Arrays.copyOf((Long[]) page[i], size); continue;
-          case 3: copy[i] = Arrays.copyOf((Double[]) page[i], size); continue;
-          case 4: copy[i] = Arrays.copyOf((Boolean[]) page[i], size); continue;
-          case 5: copy[i] = writers[i].next((BytesOutputStream) page[i]);continue;
+          case 1: copy[i] = Arrays.copyOf((float[]) page[i], size); continue;
+          case 2: copy[i] = Arrays.copyOf((long[]) page[i], size); continue;
+          case 3: copy[i] = Arrays.copyOf((double[]) page[i], size); continue;
+          case 4: copy[i] = Arrays.copyOf((boolean[]) page[i], size); continue;
+          case 5: copy[i] = writers[i].next((BytesOutputStream) page[i]); continue;
           case 6: copy[i] = Arrays.copyOf((Object[]) page[i], size); continue;
           default:
             throw new ISE("invalid type %d", category[i]);
         }
       }
+      for (int i = 0; i < category.length; i++) {
+        if (category[i] <= 4) {
+          ncopy[i] = (BitSet) nulls[i].clone(); nulls[i].clear();
+        }
+      }
       index = 0;
-      return retValue = accumulator.accumulate(retValue, toBulkRow(size, category, copy));
+      return retValue = accumulator.accumulate(retValue, toBulkRow(size, category, copy, ncopy));
     }
   }
 
-  private BulkRow toBulkRow(int size, int[] category, Object[] copy)
+  private BulkRow toBulkRow(int size, int[] category, Object[] copy, BitSet[] nulls)
   {
-    return new BulkRow(size, category, copy, sorted);
+    return new BulkRow(size, category, copy, nulls, encoded);
   }
 
   private static interface StringWriter extends BiConsumer<BytesOutputStream, Object>
