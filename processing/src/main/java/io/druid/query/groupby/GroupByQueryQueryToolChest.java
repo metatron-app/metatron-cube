@@ -104,9 +104,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      GroupByQuery groupBy = (GroupByQuery) query;
-      RowSignature schema = Queries.relaySchema(query, segmentWalker);
-      return BulkSequence.fromRow(sequence, schema, groupBy.getSimpleLimit(), groupBy.sortedIndex(schema.getColumnNames()));
+      return BulkSequence.fromRow(sequence, Queries.relaySchema(query, segmentWalker), (GroupByQuery) query);
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }

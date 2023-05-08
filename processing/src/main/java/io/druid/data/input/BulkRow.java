@@ -131,6 +131,8 @@ public class BulkRow extends AbstractRow
       for (int i = 0; i < bulk.category.length; i++) {
         scratch.clear();
         switch (bulk.category[i]) {
+          case 0:
+            continue;
           case 1:
             final float[] floats = (float[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
@@ -178,7 +180,7 @@ public class BulkRow extends AbstractRow
 
   private static BytesOutputStream writeNulls(final BitSet nulls, final BytesOutputStream scratch)
   {
-    if (!nulls.isEmpty()) {
+    if (nulls != null && !nulls.isEmpty()) {
       scratch.writeBoolean(true);
       scratch.writeVarSizeBytes(nulls.toByteArray());
     } else {
@@ -216,6 +218,9 @@ public class BulkRow extends AbstractRow
 
       int offset = 0;
       for (int i = 0; i < category.length; i++) {
+        if (category[i] == 0) {
+          continue;
+        }
         final byte[] array = input.readVarSizeBytes();
         final int destLen = Ints.fromByteArray(array);
         final BytesInputStream decompressed;
@@ -318,28 +323,29 @@ public class BulkRow extends AbstractRow
 
   public Iterator<Object[]> decompose(final boolean stringAsRaw)
   {
-    IntFunction[] extractors = new IntFunction[values.length];
-    for (int i = 0; i < values.length; i++) {
+    final IntFunction[] extractors = new IntFunction[category.length];
+    for (int i = 0; i < category.length; i++) {
       final int ix = i;
-      switch (category[i]) {
-        case 1: extractors[i] = x -> ((float[]) values[ix])[x]; continue;
-        case 2: extractors[i] = x -> ((long[]) values[ix])[x]; continue;
-        case 3: extractors[i] = x -> ((double[]) values[ix])[x]; continue;
-        case 4: extractors[i] = x -> ((boolean[]) values[ix])[x]; continue;
+      switch (category[ix]) {
+        case 0: extractors[ix] = x -> null; continue;
+        case 1: extractors[ix] = x -> ((float[]) values[ix])[x]; continue;
+        case 2: extractors[ix] = x -> ((long[]) values[ix])[x]; continue;
+        case 3: extractors[ix] = x -> ((double[]) values[ix])[x]; continue;
+        case 4: extractors[ix] = x -> ((boolean[]) values[ix])[x]; continue;
         case 5:
-          final BytesInputStream source = (BytesInputStream) values[i];
-          if (i == encoded) {
-            values[i] = FrontCoding.decode(source, count, stringAsRaw ? UTF8Bytes::of : StringUtils::toUTF8String);
+          final BytesInputStream source = (BytesInputStream) values[ix];
+          if (ix == encoded) {
+            values[ix] = FrontCoding.decode(source, count, stringAsRaw ? UTF8Bytes::of : StringUtils::toUTF8String);
           } else {
             final Object[] strings = new Object[count];
             for (int x = 0; x < strings.length; x++) {
               strings[x] = stringAsRaw ? source.viewVarSizeUTF() : source.readVarSizeUTF();
             }
-            values[i] = strings;
+            values[ix] = strings;
           }
           // go through
         default:
-          extractors[i] = x -> ((Object[]) values[ix])[x];
+          extractors[ix] = x -> ((Object[]) values[ix])[x];
       }
     }
     return new Iterator<Object[]>()
@@ -356,8 +362,8 @@ public class BulkRow extends AbstractRow
       public Object[] next()
       {
         final int ix = index++;
-        final Object[] row = new Object[values.length];
-        for (int i = 0; i < values.length; i++) {
+        final Object[] row = new Object[extractors.length];
+        for (int i = 0; i < extractors.length; i++) {
           if (nulls[i] == null || !nulls[i].get(ix)) {
             row[i] = extractors[i].apply(ix);
           }

@@ -470,7 +470,7 @@ public abstract class QueryToolChest<T>
   @SuppressWarnings("unchecked")
   public static ToIntFunction numRows(Query query, QueryToolChest toolChest)
   {
-    return toolChest == null ? QueryToolChest.ROW_COUNTER : toolChest.numRows(query);
+    return toolChest == null ? ROW_COUNTER : toolChest.numRows(query);
   }
 
   public ToIntFunction numRows(Query<T> query)

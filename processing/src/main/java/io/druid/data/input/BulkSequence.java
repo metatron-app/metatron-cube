@@ -32,7 +32,10 @@ import io.druid.data.VLongUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.Query;
 import io.druid.query.RowSignature;
+import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.select.StreamQuery;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -47,19 +50,28 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
 {
   private static final Logger LOG = new Logger(BulkSequence.class);
 
-  public static Sequence<BulkRow> fromRow(Sequence<Row> sequence, RowSignature schema, int limit, int sorted)
+  public static Sequence<BulkRow> fromRow(Sequence<Row> sequence, RowSignature schema, GroupByQuery query)
   {
-    return fromArray(Sequences.map(sequence, CompactRow.UNWRAP), schema, limit, sorted);
+    int offset = query.getContextValue(Query.FUDGE_TIMESTAMP) == null ? 0 : 1;
+    int limit = query.getSimpleLimit();
+    int sorted = query.sortedIndex(schema.getColumnNames());
+    return fromArray(Sequences.map(sequence, CompactRow.UNWRAP), schema, offset, limit, sorted);
   }
 
   public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema)
   {
-    return fromArray(sequence, schema, DEFAULT_PAGE_SIZE, -1);
+    return fromArray(sequence, schema, 0, DEFAULT_PAGE_SIZE, -1);
   }
 
-  public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema, int limit, int sorted)
+  public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema, StreamQuery query)
   {
-    return new BulkSequence(sequence, schema, limit <= 0 ? DEFAULT_PAGE_SIZE : Math.min(MAX_PAGE_SIZE, limit), -1);   // disabled
+    return fromArray(sequence, schema, 0, query.getSimpleLimit(), query.sortedIndex(schema.getColumnNames()));
+  }
+
+  private static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema, int offset, int limit, int sorted)
+  {
+    limit = limit <= 0 ? DEFAULT_PAGE_SIZE : Math.min(MAX_PAGE_SIZE, limit);
+    return new BulkSequence(sequence, schema, offset, limit, -1);   // disabled
   }
 
   private static final int DEFAULT_PAGE_SIZE = 1024 << 1;
@@ -70,22 +82,24 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
   private final int[] category;
   private final Object[] page;
   private final BitSet[] nulls;
+  private final int offset;
   private final int max;
   private final int encoded;
   private final StringWriter[] writers;
 
-  BulkSequence(Sequence<Object[]> sequence, RowSignature schema, int max, int sorted)
+  BulkSequence(Sequence<Object[]> sequence, RowSignature schema, int offset, int max, int sorted)
   {
     Preconditions.checkArgument(max > 0 && max < 0xffff);
     this.max = max;
     this.sequence = sequence;
     this.schema = schema;
+    this.offset = offset;
     this.category = new int[schema.size()];
     this.page = new Object[schema.size()];
     this.nulls = new BitSet[schema.size()];
     this.writers = new StringWriter[schema.size()];
     final List<ValueDesc> types = schema.getColumnTypes();
-    for (int i = 0; i < types.size(); i++) {
+    for (int i = offset; i < category.length; i++) {
       final ValueDesc valueDesc = types.get(i).unwrapDimension();
       switch (valueDesc.type()) {
         case FLOAT:
@@ -210,7 +224,7 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
     public OutType accumulate(OutType prevValue, Object[] values)
     {
       final int ix = index++;
-      for (int i = 0; i < category.length; i++) {
+      for (int i = offset; i < category.length; i++) {
         if (values[i] == null && category[i] <= 3) {
           nulls[i].set(ix);
           continue;
@@ -241,10 +255,15 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
       final int size = index;
       final Object[] copy = new Object[category.length];
       final BitSet[] ncopy = new BitSet[category.length];
+      final int[] ccopy = Arrays.copyOf(category, category.length);
 
       // unnecessary copy ?
-      for (int i = 0; i < category.length; i++) {
-        switch (category[i]) {
+      for (int i = offset; i < category.length; i++) {
+        if (ccopy[i] == 0 || (nulls[i] != null && nulls[i].size() == size)) {
+          ccopy[i] = 0;
+          continue;
+        }
+        switch (ccopy[i]) {
           case 1: copy[i] = Arrays.copyOf((float[]) page[i], size); continue;
           case 2: copy[i] = Arrays.copyOf((long[]) page[i], size); continue;
           case 3: copy[i] = Arrays.copyOf((double[]) page[i], size); continue;
@@ -252,16 +271,16 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
           case 5: copy[i] = writers[i].next((BytesOutputStream) page[i]); continue;
           case 6: copy[i] = Arrays.copyOf((Object[]) page[i], size); continue;
           default:
-            throw new ISE("invalid type %d", category[i]);
+            throw new ISE("invalid type %d", ccopy[i]);
         }
       }
-      for (int i = 0; i < category.length; i++) {
-        if (category[i] <= 4) {
+      for (int i = offset; i < ccopy.length; i++) {
+        if (nulls[i] != null && !nulls[i].isEmpty()) {
           ncopy[i] = (BitSet) nulls[i].clone(); nulls[i].clear();
         }
       }
       index = 0;
-      return retValue = accumulator.accumulate(retValue, toBulkRow(size, category, copy, ncopy));
+      return retValue = accumulator.accumulate(retValue, toBulkRow(size, ccopy, copy, ncopy));
     }
   }
 

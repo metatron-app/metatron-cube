@@ -52,6 +52,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -311,6 +312,15 @@ public class GuavaUtils
   public static <T> T[] concatArray(Iterable<T> iterable, T... elements)
   {
     return iterable == null ? elements : concat(iterable, elements).toArray(elements);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> T[] prepend(T prefix, T[] elements, Class<T> clazz)
+  {
+    T[] prepended = (T[]) Array.newInstance(clazz, elements.length + 1);
+    prepended[0] = prefix;
+    System.arraycopy(elements, 0, prepended, 1, elements.length);
+    return prepended;
   }
 
   public static <T> List<T> concat(T element, List<T> list2)

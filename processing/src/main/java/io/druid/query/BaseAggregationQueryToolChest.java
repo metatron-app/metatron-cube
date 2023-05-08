@@ -24,7 +24,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombineFn;
@@ -158,9 +157,13 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   public Sequence<Row> deserializeSequence(Query<Row> query, Sequence sequence)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      sequence = Sequences.explode(
-          (Sequence<BulkRow>) sequence, bulk -> Sequences.once(Iterators.transform(bulk.decompose(), CompactRow.WRAP))
-      );
+      Sequence<Object[]> decomposed = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> Sequences.once(bulk.decompose()));
+      Long timestamp = BaseQuery.getUniversalTimestamp(query, null);
+      if (timestamp != null) {
+        sequence = Sequences.map(decomposed, v -> CompactRow.timestamp(timestamp, v));
+      } else {
+        sequence = Sequences.map(decomposed, CompactRow::new);
+      }
     }
     return super.deserializeSequence(query, sequence);
   }

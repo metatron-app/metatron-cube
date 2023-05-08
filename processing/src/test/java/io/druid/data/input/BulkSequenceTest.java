@@ -193,7 +193,7 @@ public class BulkSequenceTest
 
   private Sequence<BulkRow> seq(Sequence<Object[]> rows, int max, ValueDesc... types)
   {
-    return new BulkSequence(rows, schema(types), max, -1);
+    return new BulkSequence(rows, schema(types), 0, max, -1);
   }
 
   private List<BulkRow> serde(Sequence<BulkRow> sequence) throws IOException
