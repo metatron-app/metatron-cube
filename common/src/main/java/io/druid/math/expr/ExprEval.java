@@ -150,7 +150,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public static ExprEval of(BigDecimal decimal)
   {
-    return of(decimal, ValueDesc.ofDecimal(decimal));
+    return of(decimal, ValueDesc.DECIMAL);
   }
 
   public static ExprEval of(DateTime dateTimeValue)
