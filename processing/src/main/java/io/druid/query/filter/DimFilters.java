@@ -98,11 +98,6 @@ public class DimFilters
     return new IsNullDimFilter(dimension);
   }
 
-  public static SelectorDimFilter dimEquals(String dimension, String value)
-  {
-    return new SelectorDimFilter(dimension, value, null);
-  }
-
   private static List<DimFilter> merge(List<DimFilter> fields, DimFilter.OP op)
   {
     final IntList indices = new IntList();
@@ -278,9 +273,9 @@ next:
       dimFilters.add(new BoundDimFilter(dimension, lower, upper, lowerStrict, upperStrict, false, null));
     }
     if (equalValues.size() > 1) {
-      dimFilters.add(new InDimFilter(dimension, equalValues, null));
+      dimFilters.add(InDimFilter.of(dimension, equalValues));
     } else if (equalValues.size() == 1) {
-      dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
+      dimFilters.add(SelectorDimFilter.of(dimension, equalValues.get(0)));
     }
     DimFilter filter = DimFilters.or(dimFilters).optimize();
     LOG.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, filter);

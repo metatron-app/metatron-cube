@@ -22,13 +22,14 @@ package io.druid.segment;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.Pair;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.Pair;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -42,6 +43,7 @@ import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.search.SearchResultValue;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
@@ -600,14 +602,8 @@ public class AppendTest
                  .intervals(fullOnInterval)
                  .filters(
                      DimFilters.or(
-                         Druids.newSelectorDimFilterBuilder()
-                               .dimension(marketDimension)
-                               .value("spot")
-                               .build(),
-                         Druids.newSelectorDimFilterBuilder()
-                               .dimension(marketDimension)
-                               .value("total_market")
-                               .build()
+                         SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+                         SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "total_market")
                      )
                  )
                  .aggregators(
@@ -659,14 +655,8 @@ public class AppendTest
         .threshold(3)
         .filters(
             DimFilters.and(
-                Druids.newSelectorDimFilterBuilder()
-                      .dimension(marketDimension)
-                      .value("spot")
-                      .build(),
-                Druids.newSelectorDimFilterBuilder()
-                      .dimension(placementDimension)
-                      .value("preferred")
-                      .build()
+                SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+                SelectorDimFilter.of(QueryRunnerTestHelper.placementDimension, "preferred")
             )
         )
         .intervals(fullOnInterval)
@@ -701,10 +691,7 @@ public class AppendTest
                  .dataSource(dataSource)
                  .filters(
                      DimFilters.not(
-                         Druids.newSelectorDimFilterBuilder()
-                               .dimension(marketDimension)
-                               .value("spot")
-                               .build()
+                         SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot")
                      )
                  )
                  .granularity(allGran)

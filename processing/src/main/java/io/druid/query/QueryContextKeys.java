@@ -77,7 +77,7 @@ public interface QueryContextKeys
   // jmx
   String PREVIOUS_JMX = "previousJmx";
 
-  // post processing
+  // post-processing
   String POST_PROCESSING = "postProcessing";
   String LOCAL_POST_PROCESSING = "localPostProcessing";
   String DECORATOR_CONTEXT = "decoratorContext";
@@ -120,6 +120,7 @@ public interface QueryContextKeys
       GBY_USE_BULK_ROW,
       GBY_MAX_STREAM_SUBQUERY_PAGE,
       GBY_MAX_MULTIVALUE_DIMENSIONS,
+      GBY_STREAMING,
       STREAM_USE_RAW_UTF8,
       STREAM_USE_BULK_ROW,
       STREAM_RAW_LOCAL_SPLIT_NUM,
@@ -135,6 +136,8 @@ public interface QueryContextKeys
       ALL_DIMENSIONS_FOR_EMPTY,
       ALL_METRICS_FOR_EMPTY,
       MAX_RESULTS,
-      MAX_QUERY_PARALLELISM
+      FORCE_PARALLEL_MERGE,
+      MAX_QUERY_PARALLELISM,
+      DATETIME_STRING_SERDE
   );
 }

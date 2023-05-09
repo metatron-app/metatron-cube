@@ -238,10 +238,7 @@ public class TimeseriesQueryRunnerTest
                                   .build();
 
     Assert.assertEquals(
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.marketDimension)
-              .value("upfront")
-              .build(),
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "upfront"),
         query.getFilter()
     );
 
@@ -1016,13 +1013,10 @@ public class TimeseriesQueryRunnerTest
   public void testTimeseriesWithMultiDimFilterAndOr()
   {
     DimFilter andDimFilter = DimFilters.and(
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.marketDimension)
-              .value("spot")
-              .build(),
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
         DimFilters.or(
-            new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "automotive", null),
-            new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "business", null)
+            SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "automotive"),
+            SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "business")
         )
     );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
@@ -1067,14 +1061,8 @@ public class TimeseriesQueryRunnerTest
   public void testTimeseriesWithMultiDimFilter()
   {
     DimFilter andDimFilter = DimFilters.and(
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.marketDimension)
-              .value("spot")
-              .build(),
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.qualityDimension)
-              .value("automotive")
-              .build()
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "automotive")
     );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
@@ -1179,14 +1167,8 @@ public class TimeseriesQueryRunnerTest
   public void testTimeseriesWithOtherMultiDimFilter()
   {
     DimFilter andDimFilter = DimFilters.and(
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.marketDimension)
-              .value("spot")
-              .build(),
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.qualityDimension)
-              .value("business")
-              .build()
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "business")
     );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
@@ -1287,15 +1269,14 @@ public class TimeseriesQueryRunnerTest
                                   .dataSource(dataSource)
                                   .granularity(Granularities.DAY)
                                   .filters(
-                                      new InDimFilter(
+                                      InDimFilter.of(
                                           QueryRunnerTestHelper.marketDimension,
                                           Arrays.asList(
                                               "spot",
                                               "upfront",
                                               "total_market",
                                               "billyblank"
-                                          ),
-                                          null
+                                          )
                                       )
                                   )
                                   .intervals(QueryRunnerTestHelper.firstToThird)
@@ -1787,10 +1768,7 @@ public class TimeseriesQueryRunnerTest
                                               Lists.newArrayList(
                                                   new FilteredAggregatorFactory(
                                                       new CountAggregatorFactory("filteredAgg"),
-                                                      Druids.newSelectorDimFilterBuilder()
-                                                            .dimension(QueryRunnerTestHelper.marketDimension)
-                                                            .value("spot")
-                                                            .build()
+                                                      SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot")
                                                   )
                                               )
                                           )
@@ -1834,10 +1812,7 @@ public class TimeseriesQueryRunnerTest
                                               Lists.newArrayList(
                                                   new FilteredAggregatorFactory(
                                                       new CountAggregatorFactory("filteredAgg"),
-                                                      Druids.newSelectorDimFilterBuilder()
-                                                            .dimension("abraKaDabra")
-                                                            .value("Lol")
-                                                            .build()
+                                                      SelectorDimFilter.of("abraKaDabra", "Lol")
                                                   )
                                               )
                                           )
@@ -1882,10 +1857,7 @@ public class TimeseriesQueryRunnerTest
                                               Lists.newArrayList(
                                                   new FilteredAggregatorFactory(
                                                       new CountAggregatorFactory("filteredAgg"),
-                                                      Druids.newSelectorDimFilterBuilder()
-                                                            .dimension("abraKaDabra")
-                                                            .value(null)
-                                                            .build()
+                                                      SelectorDimFilter.of("abraKaDabra", null)
                                                   )
                                               )
                                           )
@@ -1931,10 +1903,7 @@ public class TimeseriesQueryRunnerTest
                                                   new FilteredAggregatorFactory(
                                                       new CountAggregatorFactory("filteredAgg"),
                                                       new NotDimFilter(
-                                                          Druids.newSelectorDimFilterBuilder()
-                                                                .dimension(QueryRunnerTestHelper.marketDimension)
-                                                                .value("LolLol")
-                                                                .build()
+                                                          SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "LolLol")
                                                       )
                                                   )
                                               )
@@ -1980,10 +1949,7 @@ public class TimeseriesQueryRunnerTest
                                                   new FilteredAggregatorFactory(
                                                       new CountAggregatorFactory("filteredAgg"),
                                                       new NotDimFilter(
-                                                          Druids.newSelectorDimFilterBuilder()
-                                                                .dimension(QueryRunnerTestHelper.marketDimension)
-                                                                .value(null)
-                                                                .build()
+                                                          SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, null)
                                                       )
                                                   )
                                               )

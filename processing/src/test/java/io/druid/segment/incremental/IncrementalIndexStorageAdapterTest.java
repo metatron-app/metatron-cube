@@ -40,7 +40,6 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
@@ -346,7 +345,7 @@ public class IncrementalIndexStorageAdapterTest
                     .addDimension("billy")
                     .addDimension("sally")
                     .addAggregator(new LongSumAggregatorFactory("cnt", "cnt"))
-                    .setDimFilter(DimFilters.dimEquals("sally", null))
+                    .setDimFilter(SelectorDimFilter.of("sally", null))
                     .build(),
         new QueryConfig(),
         new IncrementalIndexSegment(index, DataSegment.asKey("test")),

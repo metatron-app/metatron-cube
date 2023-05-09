@@ -100,6 +100,12 @@ public interface Offset extends ReadableOffset
     }
 
     @Override
+    public int incrementN(int n)
+    {
+      return offset.incrementN(n);
+    }
+
+    @Override
     public boolean withinBounds()
     {
       return offset.withinBounds();

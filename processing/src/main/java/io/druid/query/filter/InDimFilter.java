@@ -24,10 +24,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -53,25 +53,38 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @JsonTypeName("in")
 public class InDimFilter extends SingleInput
     implements RangeFilter, LogProvider, Compressible, Mergeable, IndexedIDSupport
 {
+  public static InDimFilter of(String dimension, Collection<String> values)
+  {
+    return of(dimension, values, null);
+  }
+
   public static InDimFilter of(String dimension, String... values)
   {
-    return new InDimFilter(dimension, Arrays.asList(values), null, null);
+    return of(dimension, Arrays.asList(values), null);
+  }
+
+  public static InDimFilter of(String dimension, Collection<String> values, ExtractionFn extractionFn)
+  {
+    return new InDimFilter(dimension, values, false, extractionFn, null);
   }
 
   private final String dimension;
   private final ExtractionFn extractionFn;
   private final List<String> values;
+  private final boolean prepared;
   private final byte[] hash;
 
   @JsonCreator
   public InDimFilter(
       @JsonProperty("dimension") String dimension,
       @JsonProperty("values") Collection<String> values,
+      @JsonProperty("prepared") boolean prepared,
       @JsonProperty("extractionFn") ExtractionFn extractionFn,
       @JsonProperty("hash") byte[] hash
   )
@@ -79,14 +92,16 @@ public class InDimFilter extends SingleInput
     this(
         dimension,
         extractionFn,
-        ImmutableList.copyOf(ImmutableSortedSet.copyOf(Iterables.transform(values, s -> Strings.nullToEmpty(s)))),
+        prepared ? ImmutableList.copyOf(values) :
+        values.stream().map(Strings::nullToEmpty).sorted().collect(Collectors.toList()),
         hash
     );
   }
 
+  @VisibleForTesting
   public InDimFilter(String dimension, Collection<String> values, ExtractionFn extractionFn)
   {
-    this(dimension, values, extractionFn, null);
+    this(dimension, values, false, extractionFn, null);
   }
 
   // values should be sorted
@@ -96,6 +111,7 @@ public class InDimFilter extends SingleInput
     this.extractionFn = extractionFn;
     this.values = Preconditions.checkNotNull(values, "values can not be null");
     this.hash = hash;
+    this.prepared = true;
   }
 
   @Override
@@ -115,6 +131,12 @@ public class InDimFilter extends SingleInput
   public List<String> getValues()
   {
     return values;
+  }
+
+  @JsonProperty
+  public boolean isPrepared()
+  {
+    return prepared;
   }
 
   @JsonProperty
@@ -158,7 +180,7 @@ public class InDimFilter extends SingleInput
   private InDimFilter optimizeLookup()
   {
     List<String> rewritten = ExtractionFns.reverseMap(extractionFn, values);
-    return rewritten == null ? this : new InDimFilter(dimension, rewritten, null);
+    return rewritten == null ? this : InDimFilter.of(dimension, rewritten);
   }
 
   @Override

@@ -747,12 +747,12 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
 
     public Builder<T> filters(String dimensionName, String value)
     {
-      return setDimFilter(new SelectorDimFilter(dimensionName, value, null));
+      return setDimFilter(SelectorDimFilter.of(dimensionName, value));
     }
 
     public Builder<T> filters(String dimensionName, String value, String... values)
     {
-      return setDimFilter(new InDimFilter(dimensionName, Lists.asList(value, values), null));
+      return setDimFilter(InDimFilter.of(dimensionName, Lists.asList(value, values)));
     }
 
     public Builder<T> setGranularity(Granularity granularity)

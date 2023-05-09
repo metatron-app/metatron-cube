@@ -760,11 +760,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
           }
         }
     );
-    DimFilter filter = new InDimFilter(
-        dimensionSpec.getDimension(),
-        Lists.newArrayList(dimensionValues),
-        dimensionSpec.getExtractionFn()
-    );
+    DimFilter filter = InDimFilter.of(dimensionSpec.getDimension(), dimensionValues, dimensionSpec.getExtractionFn());
     // seemed not need to split now
     return withFilter(DimFilters.and(filter, getFilter())).withOverriddenContext(GBY_LOCAL_SPLIT_NUM, -1);
   }

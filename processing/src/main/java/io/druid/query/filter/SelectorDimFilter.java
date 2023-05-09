@@ -46,7 +46,6 @@ import io.druid.segment.filter.SelectorFilter;
 import io.netty.util.internal.StringUtil;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -104,10 +103,9 @@ public class SelectorDimFilter extends SingleInput
       return DimFilters.NONE;
     }
     if (rewritten.size() == 1) {
-      return new SelectorDimFilter(dimension, rewritten.get(0), null);
+      return SelectorDimFilter.of(dimension, rewritten.get(0));
     }
-    Collections.sort(rewritten);
-    return new InDimFilter(dimension, null, rewritten, null);
+    return InDimFilter.of(dimension, rewritten);
   }
 
   @Override

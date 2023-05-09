@@ -292,7 +292,7 @@ public class TopNQueryBuilder
 
   public TopNQueryBuilder filters(String dimensionName, String value, String... values)
   {
-    dimFilter = new InDimFilter(dimensionName, Lists.asList(value, values), null);
+    dimFilter = InDimFilter.of(dimensionName, Lists.asList(value, values));
     return this;
   }
 

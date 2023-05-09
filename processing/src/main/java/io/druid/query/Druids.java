@@ -19,10 +19,7 @@
 
 package io.druid.query;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
@@ -36,7 +33,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -60,7 +56,6 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -70,75 +65,9 @@ import java.util.Map;
  */
 public class Druids
 {
-  public static final Function<String, DimensionSpec> DIMENSION_IDENTITY = new Function<String, DimensionSpec>()
-  {
-    @Nullable
-    @Override
-    public DimensionSpec apply(String input)
-    {
-      return new DefaultDimensionSpec(input, input);
-    }
-  };
-
   private Druids()
   {
     throw new AssertionError();
-  }
-
-  /**
-   * A Builder for SelectorDimFilter.
-   * <p/>
-   * Required: dimension() and value() must be called before build()
-   * <p/>
-   * Usage example:
-   * <pre><code>
-   *   Selector selDimFilter = Druids.newSelectorDimFilterBuilder()
-   *                                        .dimension("test")
-   *                                        .value("sample")
-   *                                        .build();
-   * </code></pre>
-   *
-   * @see SelectorDimFilter
-   */
-  public static class SelectorDimFilterBuilder
-  {
-    private String dimension;
-    private String value;
-
-    public SelectorDimFilterBuilder()
-    {
-      dimension = "";
-      value = "";
-    }
-
-    public SelectorDimFilter build()
-    {
-      return new SelectorDimFilter(dimension, value, null);
-    }
-
-    public SelectorDimFilterBuilder copy(SelectorDimFilterBuilder builder)
-    {
-      return new SelectorDimFilterBuilder()
-          .dimension(builder.dimension)
-          .value(builder.value);
-    }
-
-    public SelectorDimFilterBuilder dimension(String d)
-    {
-      dimension = d;
-      return this;
-    }
-
-    public SelectorDimFilterBuilder value(String v)
-    {
-      value = v;
-      return this;
-    }
-  }
-
-  public static SelectorDimFilterBuilder newSelectorDimFilterBuilder()
-  {
-    return new SelectorDimFilterBuilder();
   }
 
   /**
@@ -204,24 +133,6 @@ public class Druids
           .outputColumns(query.getOutputColumns())
           .lateralViewSpec(query.getLateralView())
           .context(query.getContext());
-    }
-
-    public TimeseriesQueryBuilder copy(TimeseriesQueryBuilder builder)
-    {
-      return (TimeseriesQueryBuilder) new TimeseriesQueryBuilder()
-          .dataSource(builder.dataSource)
-          .intervals(builder.querySegmentSpec)
-          .filters(builder.dimFilter)
-          .descending(builder.descending)
-          .granularity(builder.granularity)
-          .virtualColumns(builder.virtualColumns)
-          .aggregators(builder.aggregatorSpecs)
-          .postAggregators(builder.postAggregatorSpecs)
-          .havingSpec(builder.havingSpec)
-          .limitSpec(builder.limitSpec)
-          .outputColumns(builder.outputColumns)
-          .lateralViewSpec(builder.lateralViewSpec)
-          .context(builder.context);
     }
 
     public DataSource getDataSource()
@@ -332,32 +243,6 @@ public class Druids
       );
     }
 
-    public SearchQueryBuilder copy(SearchQuery query)
-    {
-      return new SearchQueryBuilder()
-          .dataSource(query.getDataSource())
-          .intervals(query.getQuerySegmentSpec())
-          .filters(query.getFilter())
-          .granularity(query.getGranularity())
-          .limit(query.getLimit())
-          .dimensions(query.getDimensions())
-          .query(query.getQuery())
-          .context(query.getContext());
-    }
-
-    public SearchQueryBuilder copy(SearchQueryBuilder builder)
-    {
-      return new SearchQueryBuilder()
-          .dataSource(builder.dataSource)
-          .intervals(builder.querySegmentSpec)
-          .filters(builder.dimFilter)
-          .granularity(builder.granularity)
-          .limit(builder.limit)
-          .dimensions(builder.dimensions)
-          .query(builder.querySpec)
-          .context(builder.context);
-    }
-
     public SearchQueryBuilder dataSource(String d)
     {
       dataSource = new TableDataSource(d);
@@ -372,13 +257,13 @@ public class Druids
 
     public SearchQueryBuilder filters(String dimensionName, String value)
     {
-      dimFilter = new SelectorDimFilter(dimensionName, value, null);
+      dimFilter = SelectorDimFilter.of(dimensionName, value);
       return this;
     }
 
     public SearchQueryBuilder filters(String dimensionName, String value, String... values)
     {
-      dimFilter = new InDimFilter(dimensionName, Lists.asList(value, values), null);
+      dimFilter = InDimFilter.of(dimensionName, Lists.asList(value, values));
       return this;
     }
 
@@ -443,13 +328,13 @@ public class Druids
 
     public SearchQueryBuilder dimensions(String d)
     {
-      dimensions = ImmutableList.of(DIMENSION_IDENTITY.apply(d));
+      dimensions = DefaultDimensionSpec.toSpec(d);
       return this;
     }
 
     public SearchQueryBuilder dimensions(Iterable<String> d)
     {
-      dimensions = ImmutableList.copyOf(Iterables.transform(d, DIMENSION_IDENTITY));
+      dimensions = DefaultDimensionSpec.toSpec(d);
       return this;
     }
 
@@ -680,22 +565,6 @@ public class Druids
       );
     }
 
-    public SegmentMetadataQueryBuilder copy(SegmentMetadataQueryBuilder builder)
-    {
-      final SegmentMetadataQuery.AnalysisType[] analysisTypesArray =
-          analysisTypes != null
-          ? analysisTypes.toArray(new SegmentMetadataQuery.AnalysisType[0])
-          : null;
-      return new SegmentMetadataQueryBuilder()
-          .dataSource(builder.dataSource)
-          .intervals(builder.querySegmentSpec)
-          .toInclude(toInclude)
-          .analysisTypes(analysisTypesArray)
-          .merge(merge)
-          .lenientAggregatorMerge(lenientAggregatorMerge)
-          .context(builder.context);
-    }
-
     public SegmentMetadataQueryBuilder dataSource(String ds)
     {
       dataSource = new TableDataSource(ds);
@@ -877,40 +746,6 @@ public class Druids
       );
     }
 
-    public SelectQueryBuilder copy(SelectQueryBuilder builder)
-    {
-      return new SelectQueryBuilder()
-          .dataSource(builder.dataSource)
-          .intervals(builder.querySegmentSpec)
-          .descending(builder.descending)
-          .filters(builder.dimFilter)
-          .granularity(builder.granularity)
-          .dimensionSpecs(builder.dimensions)
-          .metrics(builder.metrics)
-          .virtualColumns(builder.virtualColumns)
-          .pagingSpec(builder.pagingSpec)
-          .lateralViewSpec(builder.lateralViewSpec)
-          .outputColumns(builder.outputColumns)
-          .context(builder.context);
-    }
-
-    public static SelectQueryBuilder copy(SelectQuery query)
-    {
-      return new SelectQueryBuilder()
-          .dataSource(query.getDataSource())
-          .intervals(query.getIntervals())
-          .descending(query.isDescending())
-          .filters(query.getFilter())
-          .granularity(query.getGranularity())
-          .dimensionSpecs(query.getDimensions())
-          .metrics(query.getMetrics())
-          .virtualColumns(query.getVirtualColumns())
-          .pagingSpec(query.getPagingSpec())
-          .lateralViewSpec(query.getLateralView())
-          .outputColumns(query.getOutputColumns())
-          .context(query.getContext());
-    }
-
     public SelectQueryBuilder dataSource(String ds)
     {
       dataSource = new TableDataSource(ds);
@@ -994,13 +829,13 @@ public class Druids
 
     public SelectQueryBuilder filters(String dimensionName, String value)
     {
-      dimFilter = new SelectorDimFilter(dimensionName, value, null);
+      dimFilter = SelectorDimFilter.of(dimensionName, value);
       return this;
     }
 
     public SelectQueryBuilder filters(String dimensionName, String value, String... values)
     {
-      dimFilter = new InDimFilter(dimensionName, Lists.asList(value, values), null);
+      dimFilter = InDimFilter.of(dimensionName, Lists.asList(value, values));
       return this;
     }
 
@@ -1174,14 +1009,6 @@ public class Druids
           querySegmentSpec,
           context
       );
-    }
-
-    public DataSourceMetadataQueryBuilder copy(DataSourceMetadataQueryBuilder builder)
-    {
-      return new DataSourceMetadataQueryBuilder()
-          .dataSource(builder.dataSource)
-          .intervals(builder.querySegmentSpec)
-          .context(builder.context);
     }
 
     public DataSourceMetadataQueryBuilder dataSource(String ds)
@@ -1409,15 +1236,5 @@ public class Druids
   public static JoinQueryBuilder newJoinQueryBuilder()
   {
     return new JoinQueryBuilder();
-  }
-
-  public static BaseAggregationQuery.Builder builderFor(BaseAggregationQuery query)
-  {
-    if (query instanceof GroupByQuery) {
-      return new GroupByQuery.Builder((GroupByQuery) query);
-    } else if (query instanceof TimeseriesQuery) {
-      return new TimeseriesQuery.Builder((TimeseriesQuery) query);
-    }
-    throw new UnsupportedOperationException("?? " + query.getClass());
   }
 }

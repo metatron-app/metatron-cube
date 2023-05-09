@@ -466,14 +466,8 @@ public class SearchQueryRunnerTest
     expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "automotive", 93));
 
     DimFilter filter = DimFilters.and(
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.marketDimension)
-              .value("spot")
-              .build(),
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.qualityDimension)
-              .value("automotive")
-              .build()
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "spot"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "automotive")
     );
 
     checkSearchQuery(
@@ -496,14 +490,8 @@ public class SearchQueryRunnerTest
     expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "automotive", 93));
 
     DimFilter filter = DimFilters.or(
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.qualityDimension)
-              .value("total_market")
-              .build(),
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.qualityDimension)
-              .value("automotive")
-              .build()
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "total_market"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "automotive")
     );
 
     checkSearchQuery(
@@ -541,14 +529,8 @@ public class SearchQueryRunnerTest
     List<SearchHit> expectedHits = Lists.newLinkedList();
 
     DimFilter filter = DimFilters.and(
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.marketDimension)
-              .value("total_market")
-              .build(),
-        Druids.newSelectorDimFilterBuilder()
-              .dimension(QueryRunnerTestHelper.qualityDimension)
-              .value("automotive")
-              .build()
+        SelectorDimFilter.of(QueryRunnerTestHelper.marketDimension, "total_market"),
+        SelectorDimFilter.of(QueryRunnerTestHelper.qualityDimension, "automotive")
     );
 
     checkSearchQuery(

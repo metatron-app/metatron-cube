@@ -23,7 +23,6 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.common.guava.BinaryRef;
-import io.druid.data.UTF8Bytes;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
