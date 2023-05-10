@@ -24,16 +24,16 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.inject.Injector;
+import io.druid.common.DateTimes;
+import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.guice.GuiceInjectors;
 import io.druid.server.Shutdown;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
-import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
 import java.io.File;
@@ -130,7 +130,7 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
 
   public static void main(String[] args) throws Exception
   {
-    DateTimeZone timeZone = new DateTime().getChronology().getZone();
+    DateTimeZone timeZone = DateTimes.DEFAULT_CHRONOLOGY.getZone();
     LOGGER.info(
         "Starting with git.tag[%s], git.revision[%s], default timezone[%s]",
         Initialization.git_tag, Initialization.git_revision, timeZone

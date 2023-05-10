@@ -246,8 +246,8 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     Assert.assertEquals(
         ImmutableList.of(
             ImmutableMap.of(
-                "__time", new Timestamp(DateTimes.of("2000-01-01T00:00:00.000Z").getMillis()),
-                "t2", new Date(DateTimes.of("2000-01-01").getMillis())
+                "__time", new Timestamp(DateTimes.millis("2000-01-01T00:00:00.000Z")),
+                "t2", new Date(DateTimes.millis("2000-01-01"))
             )
         ),
         getRows(resultSet)

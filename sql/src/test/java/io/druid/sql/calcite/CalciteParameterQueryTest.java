@@ -266,7 +266,7 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
   {
     testQuery(
         "SELECT count(*), sum(m2) FROM druid.foo WHERE __time > ?",
-        Arrays.asList(DateTimes.of("2000-01-02T00:00:00Z").getMillis()),
+        Arrays.asList(DateTimes.millis("2000-01-02T00:00:00Z")),
         newTimeseries()
             .dataSource(CalciteTests.DATASOURCE1)
             .intervals(QuerySegmentSpecs.create(

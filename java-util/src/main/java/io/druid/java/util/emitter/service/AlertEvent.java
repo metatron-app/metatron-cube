@@ -16,10 +16,10 @@ package io.druid.java.util.emitter.service;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.ImmutableMap;
+import io.druid.java.util.common.DateTimes;
 import org.joda.time.DateTime;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -68,7 +68,7 @@ public class AlertEvent implements ServiceEvent
       Map<String, Object> dataMap
   )
   {
-    this(new DateTime(), service, host, severity, description, dataMap);
+    this(DateTimes.now(), service, host, severity, description, dataMap);
   }
 
   public AlertEvent(
@@ -78,7 +78,7 @@ public class AlertEvent implements ServiceEvent
       Map<String, Object> dataMap
   )
   {
-    this(new DateTime(), service, host, Severity.DEFAULT, description, dataMap);
+    this(DateTimes.now(), service, host, Severity.DEFAULT, description, dataMap);
   }
 
   public AlertEvent(
@@ -87,7 +87,7 @@ public class AlertEvent implements ServiceEvent
       String description
   )
   {
-    this(new DateTime(), service, host, Severity.DEFAULT, description, ImmutableMap.<String, Object>of());
+    this(DateTimes.now(), service, host, Severity.DEFAULT, description, ImmutableMap.<String, Object>of());
   }
 
   public DateTime getCreatedTime()

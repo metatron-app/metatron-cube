@@ -827,11 +827,11 @@ public class EvalTest
   @Test
   public void testDatetimeExtractWeekYear()
   {
-    DateTime time1 = DateTimes.of("2010-01-01");
-    DateTime time2 = DateTimes.of("2010-01-02");
-    DateTime time3 = DateTimes.of("2010-01-03");
-    DateTime time4 = DateTimes.of("2010-01-04");
-    DateTime time5 = DateTimes.of("2009-01-01");
+    DateTime time1 = DateTimes.utc("2010-01-01");
+    DateTime time2 = DateTimes.utc("2010-01-02");
+    DateTime time3 = DateTimes.utc("2010-01-03");
+    DateTime time4 = DateTimes.utc("2010-01-04");
+    DateTime time5 = DateTimes.utc("2009-01-01");
     Expr.NumericBinding bindings = Parser.withMap(
         ImmutableMap.of(
             "t1", time1.getMillis(),
@@ -886,7 +886,7 @@ public class EvalTest
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("Y", "2008", "M", "1", "D", "3", "HM", "754"));
     Assert.assertEquals(
-        DateTimes.of("2008-01-03T07:54:00.000Z"),
+        DateTimes.utc("2008-01-03T07:54:00.000Z"),
         Parser.parse("datetime(format('%s/%s/%s %s',Y,M,D,lpad(HM,4,'0')), format='yyyy/MM/dd HHmm')")
               .eval(bindings)
               .value()

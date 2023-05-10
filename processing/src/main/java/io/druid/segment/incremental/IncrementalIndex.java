@@ -324,7 +324,7 @@ public abstract class IncrementalIndex implements Closeable
       throw new IAE(
           "Cannot add row[%s] because it is below the minTimestamp[%s]",
           row,
-          DateTimes.of(minTimestampLimit)
+          DateTimes.utc(minTimestampLimit)
       );
     }
 
@@ -1138,7 +1138,7 @@ public abstract class IncrementalIndex implements Closeable
     @Override
     public String toString()
     {
-      return "Rollup{timestamp=" + DateTimes.of(timestamp) + ", dims=" + GuavaUtils.arrayToString(dims) + '}';
+      return "Rollup{timestamp=" + DateTimes.utc(timestamp) + ", dims=" + GuavaUtils.arrayToString(dims) + '}';
     }
   }
 
@@ -1155,7 +1155,7 @@ public abstract class IncrementalIndex implements Closeable
     @Override
     public String toString()
     {
-      return "NoRollup{timestamp=" + DateTimes.of(timestamp) + ", indexer=" + indexer + "}";
+      return "NoRollup{timestamp=" + DateTimes.utc(timestamp) + ", indexer=" + indexer + "}";
     }
   }
 
@@ -1172,7 +1172,7 @@ public abstract class IncrementalIndex implements Closeable
     @Override
     public String toString()
     {
-      return "NoRollup{timestamp=" + DateTimes.of(timestamp) + ", indexer=" + indexer + "}";
+      return "NoRollup{timestamp=" + DateTimes.utc(timestamp) + ", indexer=" + indexer + "}";
     }
   }
 

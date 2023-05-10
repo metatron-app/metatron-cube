@@ -58,9 +58,9 @@ public class IndexerMetadataStorageAdapterTest
     EasyMock.expect(taskStorageQueryAdapter.getActiveTasks())
             .andReturn(ImmutableList.of(NoopTask.create("id1", 0), NoopTask.create("id2", 0)));
     EasyMock.expect(taskStorageQueryAdapter.getCreatedTime(EasyMock.eq("id1")))
-            .andReturn(DateTimes.of("2017-12-01"));
+            .andReturn(DateTimes.utc("2017-12-01"));
     EasyMock.expect(taskStorageQueryAdapter.getCreatedTime(EasyMock.eq("id2")))
-            .andReturn(DateTimes.of("2017-12-02"));
+            .andReturn(DateTimes.utc("2017-12-02"));
 
     final Interval deleteInterval = Intervals.of("2017-01-01/2017-12-01");
     EasyMock
@@ -79,9 +79,9 @@ public class IndexerMetadataStorageAdapterTest
     EasyMock.expect(taskStorageQueryAdapter.getActiveTasks())
             .andReturn(ImmutableList.of(NoopTask.create("id1", 0), NoopTask.create("id2", 0)));
     EasyMock.expect(taskStorageQueryAdapter.getCreatedTime(EasyMock.eq("id1")))
-            .andReturn(DateTimes.of("2017-11-01"));
+            .andReturn(DateTimes.utc("2017-11-01"));
     EasyMock.expect(taskStorageQueryAdapter.getCreatedTime(EasyMock.eq("id2")))
-            .andReturn(DateTimes.of("2017-12-02"));
+            .andReturn(DateTimes.utc("2017-12-02"));
 
     final Interval deleteInterval = Intervals.of("2017-01-01/2017-12-01");
     EasyMock

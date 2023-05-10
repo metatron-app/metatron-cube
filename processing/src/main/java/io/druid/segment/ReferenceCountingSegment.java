@@ -21,10 +21,10 @@ package io.druid.segment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import io.druid.common.DateTimes;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.Query;
 import io.druid.query.Schema;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -170,7 +170,7 @@ public class ReferenceCountingSegment extends Segment.Delegated
     {
       super(baseSegment);
       this.metaData = Maps.newLinkedHashMap(metaData);
-      this.metaData.put("registered", new DateTime().toString());
+      this.metaData.put("registered", DateTimes.now().toString());
     }
 
     public Map<String, Object> metaData()

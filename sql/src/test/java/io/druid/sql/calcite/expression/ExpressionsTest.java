@@ -97,7 +97,7 @@ public class ExpressionsTest extends CalciteTestBase
       .add("dstr", ValueDesc.STRING)
       .build();
   private final Map<String, Object> bindings = ImmutableMap.<String, Object>builder()
-      .put("t", DateTimes.of("2000-02-03T04:05:06").getMillis())
+      .put("t", DateTimes.millis("2000-02-03T04:05:06"))
       .put("a", 10)
       .put("b", 25)
       .put("x", 2.25)
@@ -334,20 +334,20 @@ public class ExpressionsTest extends CalciteTestBase
         rexBuilder.makeCall(
             new DateTruncOperatorConversion().calciteOperator(),
             rexBuilder.makeLiteral("hour"),
-            timestampLiteral(DateTimes.of("2000-02-03T04:05:06Z"))
+            timestampLiteral(DateTimes.utc("2000-02-03T04:05:06Z"))
         ),
         DruidExpression.fromExpression("timestamp_floor(949550706000,'PT1H','','UTC')"),
-        DateTimes.of("2000-02-03T04:00:00").getMillis()
+        DateTimes.millis("2000-02-03T04:00:00")
     );
 
     testExpression(
         rexBuilder.makeCall(
             new DateTruncOperatorConversion().calciteOperator(),
             rexBuilder.makeLiteral("DAY"),
-            timestampLiteral(DateTimes.of("2000-02-03T04:05:06Z"))
+            timestampLiteral(DateTimes.utc("2000-02-03T04:05:06Z"))
         ),
         DruidExpression.fromExpression("timestamp_floor(949550706000,'P1D','','UTC')"),
-        DateTimes.of("2000-02-03T00:00:00").getMillis()
+        DateTimes.millis("2000-02-03T00:00:00")
     );
   }
 
@@ -394,11 +394,11 @@ public class ExpressionsTest extends CalciteTestBase
     testExpression(
         rexBuilder.makeCall(
             new TimeFloorOperatorConversion().calciteOperator(),
-            timestampLiteral(DateTimes.of("2000-02-03T04:05:06Z")),
+            timestampLiteral(DateTimes.utc("2000-02-03T04:05:06Z")),
             rexBuilder.makeLiteral("PT1H")
         ),
         DruidExpression.fromExpression("timestamp_floor(949550706000,'PT1H','','UTC')"),
-        DateTimes.of("2000-02-03T04:00:00").getMillis()
+        DateTimes.utc("2000-02-03T04:00:00").getMillis()
     );
 
     testExpression(
@@ -412,7 +412,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "timestamp_floor(t,'P1D','','America/Los_Angeles')"
         ),
-        DateTimes.of("2000-02-02T08:00:00").getMillis()
+        DateTimes.millis("2000-02-02T08:00:00")
     );
   }
 
@@ -430,7 +430,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "timestamp_floor(t,'P1Y','','UTC')"
         ),
-        DateTimes.of("2000").getMillis()
+        DateTimes.millis("2000")
     );
   }
 
@@ -446,7 +446,7 @@ public class ExpressionsTest extends CalciteTestBase
             rexBuilder.makeFlag(TimeUnitRange.YEAR)
         ),
         DruidExpression.fromExpression("timestamp_ceil(t,'P1Y','','UTC')"),
-        DateTimes.of("2001").getMillis()
+        DateTimes.millis("2001")
     );
   }
 
@@ -461,7 +461,7 @@ public class ExpressionsTest extends CalciteTestBase
             rexBuilder.makeLiteral(-3, typeFactory.createSqlType(SqlTypeName.INTEGER), true)
         ),
         DruidExpression.fromExpression("timestamp_shift(t,'PT2H',-3)"),
-        DateTimes.of("2000-02-02T22:05:06").getMillis()
+        DateTimes.millis("2000-02-02T22:05:06")
     );
   }
 
@@ -511,7 +511,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "(t + 90060000)"
         ),
-        DateTimes.of("2000-02-03T04:05:06").plus(period).getMillis()
+        DateTimes.utc("2000-02-03T04:05:06").plus(period).getMillis()
     );
   }
 
@@ -532,7 +532,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "timestamp_shift(t,'P13M',1)"
         ),
-        DateTimes.of("2000-02-03T04:05:06").plus(period).getMillis()
+        DateTimes.utc("2000-02-03T04:05:06").plus(period).getMillis()
     );
   }
 
@@ -554,7 +554,7 @@ public class ExpressionsTest extends CalciteTestBase
             )
         ),
         DruidExpression.fromExpression("(t - 90060000)"),
-        DateTimes.of("2000-02-03T04:05:06").minus(period).getMillis()
+        DateTimes.utc("2000-02-03T04:05:06").minus(period).getMillis()
     );
   }
 
@@ -578,7 +578,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "timestamp_shift(t,'P13M',-1)"
         ),
-        DateTimes.of("2000-02-03T04:05:06").minus(period).getMillis()
+        DateTimes.utc("2000-02-03T04:05:06").minus(period).getMillis()
     );
   }
 
@@ -592,7 +592,7 @@ public class ExpressionsTest extends CalciteTestBase
             rexBuilder.makeLiteral("yyyy-MM-dd HH:mm:ss")
         ),
         DruidExpression.fromExpression("timestamp_parse(tstr,'yyyy-MM-dd HH:mm:ss')"),
-        DateTimes.of("2000-02-03T04:05:06").getMillis()
+        DateTimes.millis("2000-02-03T04:05:06")
     );
 
     testExpression(
@@ -603,7 +603,7 @@ public class ExpressionsTest extends CalciteTestBase
             rexBuilder.makeLiteral("America/Los_Angeles")
         ),
         DruidExpression.fromExpression("timestamp_parse(tstr,'yyyy-MM-dd HH:mm:ss','America/Los_Angeles')"),
-        DateTimes.of("2000-02-03T04:05:06-08:00").getMillis()
+        DateTimes.millis("2000-02-03T04:05:06-08:00")
     );
   }
 
@@ -688,7 +688,7 @@ public class ExpressionsTest extends CalciteTestBase
             SimpleExtraction.of("t", null),
             "t"
         ),
-        DateTimes.of("2000-02-03T04:05:06Z").getMillis()
+        DateTimes.millis("2000-02-03T04:05:06Z")
     );
 
     testExpression(
@@ -699,7 +699,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "timestamp_parse(tstr,'','UTC')"
         ),
-        DateTimes.of("2000-02-03T04:05:06Z").getMillis()
+        DateTimes.millis("2000-02-03T04:05:06Z")
     );
   }
 
@@ -732,7 +732,7 @@ public class ExpressionsTest extends CalciteTestBase
             SimpleExtraction.of("t", null),
             "t"
         ),
-        DateTimes.of("2000-02-03T04:05:06").getMillis()
+        DateTimes.millis("2000-02-03T04:05:06")
     );
   }
 
@@ -747,7 +747,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "timestamp_floor(t,'P1D','','UTC')"
         ),
-        DateTimes.of("2000-02-03").getMillis()
+        DateTimes.millis("2000-02-03")
     );
 
     testExpression(
@@ -758,7 +758,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "timestamp_floor(timestamp_parse(dstr,'','UTC'),'P1D','','UTC')"
         ),
-        DateTimes.of("2000-02-03").getMillis()
+        DateTimes.millis("2000-02-03")
     );
   }
 
@@ -790,7 +790,7 @@ public class ExpressionsTest extends CalciteTestBase
         DruidExpression.fromExpression(
             "timestamp_floor(t,'P1D','','UTC')"
         ),
-        DateTimes.of("2000-02-03").getMillis()
+        DateTimes.millis("2000-02-03")
     );
   }
 
@@ -822,10 +822,10 @@ public class ExpressionsTest extends CalciteTestBase
   )
   {
     final DruidExpression expression = Expressions.toDruidExpression(plannerContext, rowSignature, rexNode);
-    Assert.assertEquals("Expression for: " + rexNode.toString(), expectedExpression, expression);
+    Assert.assertEquals("Expression for: " + rexNode, expectedExpression, expression);
 
     final ExprEval result = Parser.parse(expression.getExpression())
                                   .eval(Parser.withMap(bindings));
-    Assert.assertEquals("Result for: " + rexNode.toString(), expectedResult, result.value());
+    Assert.assertEquals("Result for: " + rexNode, expectedResult, result.value());
   }
 }

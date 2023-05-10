@@ -196,13 +196,29 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       final Object o = supplier.get();
       if (o instanceof List) {
         final List values = (List) o;
-        final int[] ids = new int[values.size()];
-        for (int i = 0; i < ids.length; i++) {
-          ids[i] = register(values.get(i));
-        }
-        return IndexedInts.from(ids);
+        return new IndexedInts()
+        {
+          @Override
+          public int size()
+          {
+            return values.size();
+          }
+
+          @Override
+          public int get(int index)
+          {
+            return register(values.get(index));
+          }
+        };
       }
-      return IndexedInts.from(register(o));
+      return new IndexedInts.SingleValued()
+      {
+        @Override
+        public int get(int index)
+        {
+          return register(o);
+        }
+      };
     }
   }
 

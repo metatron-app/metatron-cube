@@ -501,7 +501,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     assertExpectedResults(expectedResults, query);
 
     boolean mmapedSplit = dataSource.equals(TestIndex.MMAPPED_SPLIT);
-    DateTime timestamp = DateTimes.of(mmapedSplit ? "2011-03-01" : "2011-01-12");
+    DateTime timestamp = DateTimes.utc(mmapedSplit ? "2011-03-01" : "2011-01-12");
     String segmentId = mmapedSplit ?
                        dataSource + "_2011-03-01T00:00:00.000Z_2011-05-01T00:00:00.000Z_0" :
                        dataSource + "_2011-01-12T00:00:00.000Z_2011-05-01T00:00:00.000Z_0";

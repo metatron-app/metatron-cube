@@ -16,7 +16,7 @@ package io.druid.java.util.emitter.service;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import org.joda.time.DateTime;
+import io.druid.java.util.common.DateTimes;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -85,7 +85,7 @@ public class AlertBuilder extends ServiceEventBuilder<AlertEvent>
   @Override
   public AlertEvent build(ImmutableMap<String, String> serviceDimensions)
   {
-    return new AlertEvent(new DateTime(), serviceDimensions, severity, description, dataMap);
+    return new AlertEvent(DateTimes.now(), serviceDimensions, severity, description, dataMap);
   }
 
   public void emit()

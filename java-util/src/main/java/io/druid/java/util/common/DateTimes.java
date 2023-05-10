@@ -21,11 +21,12 @@ package io.druid.java.util.common;
 
 import org.joda.time.Chronology;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.chrono.ISOChronology;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
-public final class DateTimes
+public class DateTimes
 {
   public static final DateTime EPOCH = utc(0);
   public static final DateTime MAX = utc(JodaUtils.MAX_INSTANT);
@@ -37,6 +38,8 @@ public final class DateTimes
   public static final UtcFormatter ISO_DATE_OR_TIME_WITH_OFFSET = wrapFormatter(
       ISODateTimeFormat.dateTimeParser().withOffsetParsed()
   );
+
+  public static final ISOChronology DEFAULT_CHRONOLOGY = ISOChronology.getInstance();
 
   /**
    * Simple wrapper class to enforce UTC Chronology in formatter. Specifically, it will use
@@ -67,12 +70,17 @@ public final class DateTimes
     return new UtcFormatter(formatter);
   }
 
+  public static DateTime now()
+  {
+    return DateTime.now(DEFAULT_CHRONOLOGY);
+  }
+
   public static DateTime utc(long instant)
   {
     return new DateTime(instant, ISOChronology.getInstanceUTC());
   }
 
-  public static DateTime of(String instant)
+  public static DateTime utc(String instant)
   {
     return new DateTime(instant, ISOChronology.getInstanceUTC());
   }
@@ -92,7 +100,8 @@ public final class DateTimes
     return dt1.compareTo(dt2) < 0 ? dt1 : dt2;
   }
 
-  private DateTimes()
+  public static DateTime withZone(long instant, DateTimeZone zone)
   {
+    return zone == null ? utc(instant) : new DateTime(instant, zone);
   }
 }

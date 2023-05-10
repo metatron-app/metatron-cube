@@ -22,7 +22,6 @@ package io.druid.metadata;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
-import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -30,7 +29,6 @@ import io.druid.java.util.common.Pair;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.TaskInfo;
-import io.druid.indexer.TaskStatus;
 import io.druid.jackson.DefaultObjectMapper;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -164,7 +162,7 @@ public class SQLMetadataStorageActionHandlerTest
 
     Assert.assertEquals(
         ImmutableList.of(),
-        handler.getCompletedTaskInfo(DateTimes.of("2014-01-01"), null, null)
+        handler.getCompletedTaskInfo(DateTimes.utc("2014-01-01"), null, null)
     );
 
     Assert.assertTrue(handler.setStatus(entryId, false, status1));
@@ -189,11 +187,11 @@ public class SQLMetadataStorageActionHandlerTest
 
     Assert.assertEquals(
         ImmutableList.of(),
-        handler.getCompletedTaskInfo(DateTimes.of("2014-01-03"), null, null)
+        handler.getCompletedTaskInfo(DateTimes.utc("2014-01-03"), null, null)
     );
 
     List<Map<String, Integer>> list1 = new ArrayList<>();
-    for (TaskInfo<Map<String, Integer>, Map<String, Integer>> mapMapTaskInfo : handler.getCompletedTaskInfo(DateTimes.of(
+    for (TaskInfo<Map<String, Integer>, Map<String, Integer>> mapMapTaskInfo : handler.getCompletedTaskInfo(DateTimes.utc(
         "2014-01-01"), null, null)) {
       Map<String, Integer> status = mapMapTaskInfo.getStatus();
       list1.add(status);
@@ -212,11 +210,11 @@ public class SQLMetadataStorageActionHandlerTest
       final Map<String, Integer> entry = ImmutableMap.of("a", i);
 
       final Map<String, Integer> status = ImmutableMap.of("count", i * 10);
-      handler.insert(entryId, DateTimes.of(StringUtils.format("2014-01-%02d", i)), "test", entry, false, status);
+      handler.insert(entryId, DateTimes.utc(StringUtils.format("2014-01-%02d", i)), "test", entry, false, status);
     }
 
     final List<TaskInfo<Map<String, Integer>, Map<String, Integer>>> statuses = handler.getCompletedTaskInfo(
-        DateTimes.of("2014-01-01"),
+        DateTimes.utc("2014-01-01"),
         7,
         null
     );
@@ -235,11 +233,11 @@ public class SQLMetadataStorageActionHandlerTest
       final Map<String, Integer> entry = ImmutableMap.of("a", i);
       final Map<String, Integer> status = ImmutableMap.of("count", i * 10);
 
-      handler.insert(entryId, DateTimes.of(StringUtils.format("2014-01-%02d", i)), "test", entry, false, status);
+      handler.insert(entryId, DateTimes.utc(StringUtils.format("2014-01-%02d", i)), "test", entry, false, status);
     }
 
     final List<TaskInfo<Map<String, Integer>, Map<String, Integer>>> statuses = handler.getCompletedTaskInfo(
-        DateTimes.of("2014-01-01"),
+        DateTimes.utc("2014-01-01"),
         10,
         null
     );

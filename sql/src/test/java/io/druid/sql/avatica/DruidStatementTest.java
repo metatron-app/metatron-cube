@@ -156,12 +156,12 @@ public class DruidStatementTest extends CalciteTestBase
             0,
             true,
             Lists.<Object>newArrayList(
-                new Object[]{DateTimes.of("2000-01-01").getMillis(), 1L, "", "a", 1.0d},
-                new Object[]{DateTimes.of("2000-01-02").getMillis(), 1L, "10.1", "", 2.0d},
-                new Object[]{DateTimes.of("2000-01-03").getMillis(), 1L, "2", "", 3.0d},
-                new Object[]{DateTimes.of("2001-01-01").getMillis(), 1L, "1", "a", 4.0d},
-                new Object[]{DateTimes.of("2001-01-02").getMillis(), 1L, "def", "abc", 5.0d},
-                new Object[]{DateTimes.of("2001-01-03").getMillis(), 1L, "abc", "", 6.0d}
+                new Object[]{DateTimes.millis("2000-01-01"), 1L, "", "a", 1.0d},
+                new Object[]{DateTimes.millis("2000-01-02"), 1L, "10.1", "", 2.0d},
+                new Object[]{DateTimes.millis("2000-01-03"), 1L, "2", "", 3.0d},
+                new Object[]{DateTimes.millis("2001-01-01"), 1L, "1", "a", 4.0d},
+                new Object[]{DateTimes.millis("2001-01-02"), 1L, "def", "abc", 5.0d},
+                new Object[]{DateTimes.millis("2001-01-03"), 1L, "abc", "", 6.0d}
             )
         ),
         frame
@@ -182,8 +182,8 @@ public class DruidStatementTest extends CalciteTestBase
             0,
             false,
             Lists.<Object>newArrayList(
-                new Object[]{DateTimes.of("2000-01-01").getMillis(), 1L, "", "a", 1.0d},
-                new Object[]{DateTimes.of("2000-01-02").getMillis(), 1L, "10.1", "", 2.0d}
+                new Object[]{DateTimes.utc("2000-01-01").getMillis(), 1L, "", "a", 1.0d},
+                new Object[]{DateTimes.utc("2000-01-02").getMillis(), 1L, "10.1", "", 2.0d}
             )
         ),
         frame
@@ -197,10 +197,10 @@ public class DruidStatementTest extends CalciteTestBase
             2,
             true,
             Lists.<Object>newArrayList(
-                new Object[]{DateTimes.of("2000-01-03").getMillis(), 1L, "2", "", 3.0d},
-                new Object[]{DateTimes.of("2001-01-01").getMillis(), 1L, "1", "a", 4.0d},
-                new Object[]{DateTimes.of("2001-01-02").getMillis(), 1L, "def", "abc", 5.0d},
-                new Object[]{DateTimes.of("2001-01-03").getMillis(), 1L, "abc", "", 6.0d}
+                new Object[]{DateTimes.millis("2000-01-03"), 1L, "2", "", 3.0d},
+                new Object[]{DateTimes.millis("2001-01-01"), 1L, "1", "a", 4.0d},
+                new Object[]{DateTimes.millis("2001-01-02"), 1L, "def", "abc", 5.0d},
+                new Object[]{DateTimes.millis("2001-01-03"), 1L, "abc", "", 6.0d}
             )
         ),
         frame
@@ -257,7 +257,7 @@ public class DruidStatementTest extends CalciteTestBase
         resultSet.close();
       }
     } catch (Exception e) {
-      LOG.error("SQL failed.", e);
+      LOG.error(e, "SQL failed.");
     }
   }
 }

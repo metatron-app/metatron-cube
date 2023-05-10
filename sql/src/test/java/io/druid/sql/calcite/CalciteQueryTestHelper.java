@@ -527,7 +527,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   // Generate timestamps for expected results
   protected static long T(final String timeString)
   {
-    return Calcites.jodaToCalciteTimestamp(DateTimes.of(timeString), DateTimeZone.UTC);
+    return Calcites.jodaToCalciteTimestamp(DateTimes.utc(timeString), DateTimeZone.UTC);
   }
 
   // Generate timestamps for expected results
@@ -545,7 +545,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected static DateTime DT(final String timeString)
   {
-    return DateTimes.of(timeString);
+    return DateTimes.utc(timeString);
   }
 
   protected static QuerySegmentSpec QSS(final Interval... intervals)

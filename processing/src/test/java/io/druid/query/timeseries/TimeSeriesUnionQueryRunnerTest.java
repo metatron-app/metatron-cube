@@ -107,10 +107,10 @@ public class TimeSeriesUnionQueryRunnerTest
                                   .build();
 
     List<Row> expectedResults = Arrays.<Row>asList(
-        new MapBasedRow(DateTimes.of("2011-04-01"), ImmutableMap.<String, Object>of("rows", 5L, "idx", 6L)),
-        new MapBasedRow(DateTimes.of("2011-04-02"), ImmutableMap.<String, Object>of("rows", 8L, "idx", 10L)),
-        new MapBasedRow(DateTimes.of("2011-04-03"), ImmutableMap.<String, Object>of("rows", 3L, "idx", 4L)),
-        new MapBasedRow(DateTimes.of("2011-04-04"), ImmutableMap.<String, Object>of("rows", 9L, "idx", 10L))
+        new MapBasedRow(DateTimes.utc("2011-04-01"), ImmutableMap.<String, Object>of("rows", 5L, "idx", 6L)),
+        new MapBasedRow(DateTimes.utc("2011-04-02"), ImmutableMap.<String, Object>of("rows", 8L, "idx", 10L)),
+        new MapBasedRow(DateTimes.utc("2011-04-03"), ImmutableMap.<String, Object>of("rows", 3L, "idx", 4L)),
+        new MapBasedRow(DateTimes.utc("2011-04-04"), ImmutableMap.<String, Object>of("rows", 9L, "idx", 10L))
     );
 
     for (boolean descending : new boolean[]{false, true}) {

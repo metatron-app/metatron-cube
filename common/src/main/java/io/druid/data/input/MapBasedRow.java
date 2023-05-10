@@ -72,7 +72,7 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
 
   public MapBasedRow(long timestamp, Map<String, Object> event)
   {
-    this(DateTimes.of(timestamp), event);
+    this(DateTimes.utc(timestamp), event);
   }
 
   @Override

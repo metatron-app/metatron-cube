@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.druid.java.util.common.DateTimes;
 import io.druid.java.util.common.ISE;
 import org.joda.time.DateTime;
 
@@ -49,7 +50,7 @@ public class ServiceMetricEvent implements ServiceEvent
       Number value
   )
   {
-    this.createdTime = createdTime != null ? createdTime : new DateTime();
+    this.createdTime = createdTime != null ? createdTime : DateTimes.now();
     this.serviceDims = serviceDims;
     this.userDims = userDims;
     this.feed = feed;

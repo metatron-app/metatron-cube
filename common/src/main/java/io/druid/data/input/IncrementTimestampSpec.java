@@ -74,6 +74,6 @@ public class IncrementTimestampSpec implements TimestampSpec
   @Override
   public DateTime extractTimestamp(Map<String, Object> input)
   {
-    return DateTimes.of(counter.getAndAdd(increment));
+    return DateTimes.utc(counter.getAndAdd(increment));
   }
 }

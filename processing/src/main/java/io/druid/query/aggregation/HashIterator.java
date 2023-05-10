@@ -25,10 +25,11 @@ import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.HashCollector.ScanSupport;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.DimensionSelector.SingleValued;
@@ -143,11 +144,13 @@ public abstract class HashIterator<T extends HashCollector>
     return collector -> hashValues(collector);
   }
 
-  @Nullable
+  // called only when size == 1
   private static Supplier<byte[]> toSingleValueSupplier(DimensionSelector selector)
   {
-    if (selector instanceof SingleValued && selector instanceof ObjectColumnSelector) {
-      return ColumnSelectors.asPrimitiveSerializer((ObjectColumnSelector) selector);
+    if (selector instanceof ObjectColumnSelector) {
+      ValueDesc type = ((ObjectColumnSelector) selector).type();
+      ValueType serializer = type.isDimension() || type.isMultiValued() ? ValueType.STRING : type.type();
+      return () -> serializer.toBytes(((ObjectColumnSelector) selector).get());
     }
     if (selector instanceof WithRawAccess) {
       return () -> ((WithRawAccess) selector).getAsRaw(selector.getRow().get(0));

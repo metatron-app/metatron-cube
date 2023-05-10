@@ -17,6 +17,7 @@ package io.druid.java.util.emitter.service;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import io.druid.java.util.common.DateTimes;
 import io.druid.java.util.emitter.core.Event;
 import org.joda.time.DateTime;
 
@@ -48,7 +49,7 @@ public class QueryEvent implements Event
       String interrupted
   )
   {
-    this.createdTime = createdTime != null ? createdTime : new DateTime();
+    this.createdTime = createdTime != null ? createdTime : DateTimes.now();
     this.id = id;
     this.remoteAddress = remoteAddress;
     this.query = query;

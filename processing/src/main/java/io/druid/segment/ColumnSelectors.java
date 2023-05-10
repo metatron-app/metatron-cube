@@ -31,7 +31,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.math.expr.Evals;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -528,12 +527,6 @@ public class ColumnSelectors
         }
       }
     };
-  }
-
-  public static Supplier<byte[]> asPrimitiveSerializer(final ObjectColumnSelector selector)
-  {
-    final ValueType type = selector.type().type();
-    return () -> type.toBytes(selector.get());
   }
 
   private static final int THRESHOLD = 4194304;

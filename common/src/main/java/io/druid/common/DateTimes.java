@@ -19,102 +19,15 @@
 
 package io.druid.common;
 
-import io.druid.common.utils.JodaUtils;
-import org.joda.time.Chronology;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.chrono.ISOChronology;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
-
-public final class DateTimes
+public class DateTimes extends io.druid.java.util.common.DateTimes
 {
-  public static final DateTime EPOCH = utc(0);
-  public static final DateTime MAX = utc(JodaUtils.MAX_INSTANT);
-  public static final DateTime MIN = utc(JodaUtils.MIN_INSTANT);
-
-  public static final UtcFormatter ISO_DATE_TIME = wrapFormatter(ISODateTimeFormat.dateTime());
-  public static final UtcFormatter ISO_DATE_OPTIONAL_TIME = wrapFormatter(ISODateTimeFormat.dateOptionalTimeParser());
-  public static final UtcFormatter ISO_DATE_OR_TIME = wrapFormatter(ISODateTimeFormat.dateTimeParser());
-  public static final UtcFormatter ISO_DATE_OR_TIME_WITH_OFFSET = wrapFormatter(
-      ISODateTimeFormat.dateTimeParser().withOffsetParsed()
-  );
-
-  /**
-   * Simple wrapper class to enforce UTC Chronology in formatter. Specifically, it will use
-   * {@link DateTimeFormatter#withChronology(Chronology)} to set the chronology to
-   * {@link ISOChronology#getInstanceUTC()} on the wrapped {@link DateTimeFormatter}.
-   */
-  public static class UtcFormatter
-  {
-    private final DateTimeFormatter innerFormatter;
-
-    private UtcFormatter(final DateTimeFormatter innerFormatter)
-    {
-      this.innerFormatter = innerFormatter.withChronology(ISOChronology.getInstanceUTC());
-    }
-
-    public DateTime parse(final String instant)
-    {
-      return innerFormatter.parseDateTime(instant);
-    }
-  }
-
-  /**
-   * Creates a {@link UtcFormatter} that wraps around a {@link DateTimeFormatter}.
-   * @param formatter inner {@link DateTimeFormatter} used to parse {@link String}
-   */
-  public static UtcFormatter wrapFormatter(final DateTimeFormatter formatter)
-  {
-    return new UtcFormatter(formatter);
-  }
-
-  public static DateTime utc(long instant)
-  {
-    return new DateTime(instant, ISOChronology.getInstanceUTC());
-  }
-
-  public static DateTime withZone(long instant, DateTimeZone zone)
-  {
-    return zone == null ? utc(instant) : new DateTime(instant, zone);
-  }
-
-  public static DateTime of(String instant)
-  {
-    return new DateTime(instant, ISOChronology.getInstanceUTC());
-  }
-
   public static long millis(String instant)
   {
-    return of(instant).getMillis();
-  }
-
-  public static DateTime of(long instant)
-  {
-    return new DateTime(instant, ISOChronology.getInstanceUTC());
-  }
-
-  public static DateTime nowUtc()
-  {
-    return DateTime.now(ISOChronology.getInstanceUTC());
-  }
-
-  public static DateTime max(DateTime dt1, DateTime dt2)
-  {
-    return dt1.compareTo(dt2) >= 0 ? dt1 : dt2;
-  }
-
-  public static DateTime min(DateTime dt1, DateTime dt2)
-  {
-    return dt1.compareTo(dt2) < 0 ? dt1 : dt2;
+    return utc(instant).getMillis();
   }
 
   public static long elapsed(long start)
   {
     return System.currentTimeMillis() - start;
-  }
-
-  private DateTimes()
-  {
   }
 }

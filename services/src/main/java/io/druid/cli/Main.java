@@ -24,11 +24,11 @@ import io.airlift.airline.Cli;
 import io.airlift.airline.Help;
 import io.airlift.airline.ParseException;
 import io.druid.cli.validate.DruidJsonValidator;
+import io.druid.common.DateTimes;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
 import io.druid.java.util.common.logger.Logger;
-import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
 import java.util.Collection;
@@ -100,7 +100,7 @@ public class Main
         properties = new String[]{args[1] + "/runtime.properties"};
       }
     }
-    DateTimeZone timeZone = new DateTime().getChronology().getZone();
+    DateTimeZone timeZone = DateTimes.DEFAULT_CHRONOLOGY.getZone();
     LOG.info(
         "Starting with git.tag[%s], git.revision[%s], default timezone[%s]",
         Initialization.git_tag, Initialization.git_revision, timeZone

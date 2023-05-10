@@ -2536,9 +2536,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .intervals(
                   QSS(
-                      new Interval(DateTimes.MIN, DateTimes.of("2000")),
+                      new Interval(DateTimes.MIN, DateTimes.utc("2000")),
                       Intervals.of("2001/2003"),
-                      new Interval(DateTimes.of("2004"), DateTimes.MAX)
+                      new Interval(DateTimes.utc("2004"), DateTimes.MAX)
                   )
               )
               .filters(NOT(SELECTOR("dim1", "xxx")))
@@ -2600,8 +2600,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .filters(
                   BOUND(
                       "cnt",
-                      String.valueOf(DateTimes.of("1970-01-01").getMillis()),
-                      String.valueOf(DateTimes.of("1970-01-02").getMillis()),
+                      String.valueOf(DateTimes.millis("1970-01-01")),
+                      String.valueOf(DateTimes.millis("1970-01-02")),
                       false,
                       true,
                       null,
@@ -2627,8 +2627,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .filters(
                   BOUND(
                       "cnt",
-                      String.valueOf(DateTimes.of("1970-01-01").getMillis()),
-                      String.valueOf(DateTimes.of("1970-01-02").getMillis()),
+                      String.valueOf(DateTimes.millis("1970-01-01")),
+                      String.valueOf(DateTimes.millis("1970-01-02")),
                       false,
                       true,
                       null,
@@ -2654,8 +2654,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .filters(
                   BOUND(
                       "cnt",
-                      String.valueOf(DateTimes.of("1970-01-01").getMillis()),
-                      String.valueOf(DateTimes.of("1970-01-02").getMillis()),
+                      String.valueOf(DateTimes.millis("1970-01-01")),
+                      String.valueOf(DateTimes.millis("1970-01-02")),
                       false,
                       true,
                       null,
@@ -2722,8 +2722,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .filters(
                 BOUND(
                     "cnt",
-                    String.valueOf(DateTimes.of("1970-01-01").getMillis()),
-                    String.valueOf(DateTimes.of("1970-01-02").getMillis()),
+                    String.valueOf(DateTimes.millis("1970-01-01")),
+                    String.valueOf(DateTimes.millis("1970-01-02")),
                     false,
                     true,
                     null,
@@ -2754,8 +2754,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .filters(
                 BOUND(
                     "cnt",
-                    String.valueOf(DateTimes.of("1970-01-01").getMillis()),
-                    String.valueOf(DateTimes.of("1970-01-02").getMillis()),
+                    String.valueOf(DateTimes.millis("1970-01-01")),
+                    String.valueOf(DateTimes.millis("1970-01-02")),
                     false,
                     true,
                     null,
@@ -4061,8 +4061,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .intervals(QSS(
-                  new Interval(DateTimes.MIN, DateTimes.of("2001-01-01")),
-                  new Interval(DateTimes.of("2001-02-01"), DateTimes.MAX)
+                  new Interval(DateTimes.MIN, DateTimes.utc("2001-01-01")),
+                  new Interval(DateTimes.utc("2001-02-01"), DateTimes.MAX)
               ))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
@@ -4080,7 +4080,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "FLOOR(__time TO MONTH) < TIMESTAMP '2000-02-01 00:00:00'",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .intervals(QSS(new Interval(DateTimes.MIN, DateTimes.of("2000-02-01"))))
+              .intervals(QSS(new Interval(DateTimes.MIN, DateTimes.utc("2000-02-01"))))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
               .build(),
@@ -4097,7 +4097,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "FLOOR(__time TO MONTH) < TIMESTAMP '2000-02-01 00:00:01'",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .intervals(QSS(new Interval(DateTimes.MIN, DateTimes.of("2000-03-01"))))
+              .intervals(QSS(new Interval(DateTimes.MIN, DateTimes.utc("2000-03-01"))))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
               .build(),
@@ -4570,7 +4570,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(
                   new PeriodGranularity(
                       Period.months(1),
-                      DateTimes.of("1970-01-01T01:02:03"),
+                      DateTimes.utc("1970-01-01T01:02:03"),
                       DateTimeZone.UTC
                   )
               )
@@ -5964,7 +5964,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{3L, T("2001-01-01")}
     );
 
-    final QuerySegmentSpec interval = QSS(Intervals.utc(DateTimes.of("2000-01-01").getMillis(), JodaUtils.MAX_INSTANT));
+    final QuerySegmentSpec interval = QSS(Intervals.utc(DateTimes.millis("2000-01-01"), JodaUtils.MAX_INSTANT));
 
     // nested groupby only requires time condition for inner most query
     testQuery(
@@ -6167,7 +6167,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT market, quality, index, $sum(index) over (partition by market order by quality desc, index asc) FROM mmapped WHERE __time < '2011-01-15'",
         newScan()
               .dataSource("mmapped")
-              .intervals(Intervals.utc(JodaUtils.MIN_INSTANT, DateTimes.of("2011-01-15").getMillis()))
+              .intervals(Intervals.utc(JodaUtils.MIN_INSTANT, DateTimes.millis("2011-01-15")))
               .columns("index", "market", "quality")
               .limitSpec(
                   LimitSpec.of(new WindowingSpec(

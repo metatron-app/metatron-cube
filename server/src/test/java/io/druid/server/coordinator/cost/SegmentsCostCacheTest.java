@@ -41,7 +41,7 @@ public class SegmentsCostCacheTest
 {
 
   private static final String DATA_SOURCE = "dataSource";
-  private static final DateTime REFERENCE_TIME = DateTimes.of("2014-01-01T00:00:00");
+  private static final DateTime REFERENCE_TIME = DateTimes.utc("2014-01-01T00:00:00");
   private static final double EPSILON = 0.00000001;
 
   @Test

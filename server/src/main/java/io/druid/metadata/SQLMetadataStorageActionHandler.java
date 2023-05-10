@@ -356,7 +356,7 @@ public abstract class SQLMetadataStorageActionHandler<EntryType, StatusType, Log
       }
       taskInfo = new TaskInfo<>(
           resultSet.getString("id"),
-          DateTimes.of(resultSet.getString("created_date")),
+          DateTimes.utc(resultSet.getString("created_date")),
           status,
           resultSet.getString("datasource"),
           task
@@ -387,7 +387,7 @@ public abstract class SQLMetadataStorageActionHandler<EntryType, StatusType, Log
         .bind("entryId", entryId)
         .map(
             (index, resultSet, ctx) -> Pair.of(
-                DateTimes.of(resultSet.getString("created_date")), resultSet.getString("datasource")
+                DateTimes.utc(resultSet.getString("created_date")), resultSet.getString("datasource")
             )
         )
         .first()

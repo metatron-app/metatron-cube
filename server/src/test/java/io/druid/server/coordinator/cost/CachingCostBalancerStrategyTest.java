@@ -60,7 +60,7 @@ public class CachingCostBalancerStrategyTest
   public void setUp() throws Exception
   {
     Random random = new Random(0);
-    DateTime referenceTime = DateTimes.of("2014-01-01T00:00:00");
+    DateTime referenceTime = DateTimes.utc("2014-01-01T00:00:00");
 
     serverHolderList = Lists.<ServerHolder>newArrayList();
     for (int i = 0; i < NUMBER_OF_SERVERS; i++) {
