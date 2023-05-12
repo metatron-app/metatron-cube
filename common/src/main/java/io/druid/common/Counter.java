@@ -17,43 +17,24 @@
  * under the License.
  */
 
-package io.druid.segment;
+package io.druid.common;
 
-import io.druid.data.ValueDesc;
-import io.druid.segment.column.LongScanner;
-import org.apache.commons.lang.mutable.MutableLong;
-import org.roaringbitmap.IntIterator;
-
-import java.io.Closeable;
-import java.util.stream.LongStream;
-
-/**
- *
- */
-public interface LongColumnSelector extends ObjectColumnSelector<Long>
+public class Counter
 {
-  default ValueDesc type()
+  private int c;
+
+  public int intValue()
   {
-    return ValueDesc.LONG;
+    return c;
   }
 
-  default boolean getLong(MutableLong handover)
+  public int getAndIncrement()
   {
-    Long lv = get();
-    if (lv == null) {
-      return false;
-    } else {
-      handover.setValue(lv.longValue());
-      return true;
-    }
+    return c++;
   }
 
-  interface WithBaggage extends LongColumnSelector, Closeable { }
-
-  interface Scannable extends WithBaggage
+  public void reset()
   {
-    void scan(IntIterator iterator, LongScanner scanner);
-
-    LongStream stream(IntIterator iterator);
+    c = 0;
   }
 }

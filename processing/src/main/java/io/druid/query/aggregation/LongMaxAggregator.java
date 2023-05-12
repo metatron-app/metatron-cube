@@ -22,12 +22,14 @@ package io.druid.query.aggregation;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 import org.apache.commons.lang.mutable.MutableLong;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Comparator;
+import java.util.OptionalLong;
 
 /**
  */
-public abstract class LongMaxAggregator implements Aggregator.FromMutableLong
+public abstract class LongMaxAggregator implements Aggregator.FromMutableLong, Aggregator.LongScannable
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -36,6 +38,19 @@ public abstract class LongMaxAggregator implements Aggregator.FromMutableLong
     return new LongMaxAggregator()
     {
       private final MutableLong handover = new MutableLong();
+
+      @Override
+      public boolean supports()
+      {
+        return predicate == ValueMatcher.TRUE && selector instanceof LongColumnSelector.Scannable;
+      }
+
+      @Override
+      public Object aggregate(IntIterator iterator)
+      {
+        OptionalLong max = ((LongColumnSelector.Scannable) selector).stream(iterator).max();
+        return max.isPresent() ? max.getAsLong() : null;
+      }
 
       @Override
       public MutableLong aggregate(final MutableLong current)

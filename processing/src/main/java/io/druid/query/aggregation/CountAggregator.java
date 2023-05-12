@@ -20,13 +20,15 @@
 package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.bitmap.IntIterators;
 import org.apache.commons.lang.mutable.MutableLong;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Comparator;
 
 /**
  */
-public class CountAggregator implements Aggregator.FromMutableLong
+public class CountAggregator implements Aggregator.FromMutableLong, Aggregator.LongScannable
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -71,5 +73,17 @@ public class CountAggregator implements Aggregator.FromMutableLong
       }
     }
     return current;
+  }
+
+  @Override
+  public boolean supports()
+  {
+    return predicate == ValueMatcher.TRUE;
+  }
+
+  @Override
+  public Object aggregate(IntIterator iterator)
+  {
+    return (long) IntIterators.count(iterator);
   }
 }

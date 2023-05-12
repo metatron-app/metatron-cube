@@ -22,12 +22,14 @@ package io.druid.query.aggregation;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.FloatColumnSelector;
 import org.apache.commons.lang.mutable.MutableFloat;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Comparator;
+import java.util.OptionalDouble;
 
 /**
  */
-public abstract class FloatMinAggregator implements Aggregator.FromMutableFloat
+public abstract class FloatMinAggregator implements Aggregator.FromMutableFloat, Aggregator.FloatScannable
 {
   static final Comparator COMPARATOR = FloatMaxAggregator.COMPARATOR;
 
@@ -36,6 +38,19 @@ public abstract class FloatMinAggregator implements Aggregator.FromMutableFloat
     return new FloatMinAggregator()
     {
       private final MutableFloat handover = new MutableFloat();
+
+      @Override
+      public boolean supports()
+      {
+        return predicate == ValueMatcher.TRUE && selector instanceof FloatColumnSelector.Scannable;
+      }
+
+      @Override
+      public Object aggregate(IntIterator iterator)
+      {
+        OptionalDouble min = ((FloatColumnSelector.Scannable) selector).stream(iterator).min();
+        return min.isPresent() ? (float) min.getAsDouble() : null;
+      }
 
       @Override
       public MutableFloat aggregate(final MutableFloat current)

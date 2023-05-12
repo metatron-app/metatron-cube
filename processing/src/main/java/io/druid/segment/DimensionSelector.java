@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import io.druid.collections.IntList;
 import io.druid.common.guava.BufferRef;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.IntScanner;
@@ -28,12 +29,14 @@ import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import org.roaringbitmap.IntIterator;
 
+import java.util.function.IntFunction;
+
 /**
  */
 public interface DimensionSelector
 {
   /**
-   * Gets all values for the row inside of an IntBuffer.  I.e. one possible implementation could be
+   * Gets all values for the row inside an IntBuffer.  I.e. one possible implementation could be
    *
    * return IntBuffer.wrap(lookupExpansion(get());
    *
@@ -140,5 +143,21 @@ public interface DimensionSelector
 
   interface Mimic extends DimensionSelector, ObjectColumnSelector
   {
+  }
+
+  static IntFunction[] convert(DimensionSelector[] dimensions, ValueDesc[] dimensionTypes, boolean useRawUTF8)
+  {
+    final IntFunction[] rawAccess = new IntFunction[dimensions.length];
+    for (int x = 0; x < rawAccess.length; x++) {
+      final DimensionSelector selector = dimensions[x];
+      if (useRawUTF8 && dimensionTypes[x].isStringOrDimension()) {
+        rawAccess[x] = selector instanceof DimensionSelector.WithRawAccess ?
+                       ix -> UTF8Bytes.of(((DimensionSelector.WithRawAccess) selector).getAsRaw(ix)) :
+                       ix -> UTF8Bytes.of((String) selector.lookupName(ix));
+      } else {
+        rawAccess[x] = ix -> StringUtils.emptyToNull(selector.lookupName(ix));
+      }
+    }
+    return rawAccess;
   }
 }

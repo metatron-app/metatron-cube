@@ -192,7 +192,6 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
                   }
                 }
 
-
                 @Override
                 public DoubleStream stream(IntIterator iterator)
                 {

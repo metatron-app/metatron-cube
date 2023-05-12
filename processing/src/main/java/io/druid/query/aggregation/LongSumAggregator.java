@@ -25,6 +25,7 @@ import io.druid.math.expr.Expr;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 import org.apache.commons.lang.mutable.MutableLong;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Comparator;
 
@@ -37,6 +38,8 @@ public abstract class LongSumAggregator implements Aggregator.FromMutableLong
   );
 
   static final BinaryFn.Identical<Number> COMBINER = (lhs, rhs) -> lhs.longValue() + rhs.longValue();
+
+  static abstract class ScanSupport extends LongSumAggregator implements Aggregator.LongScannable { }
 
   @Override
   public Long get(MutableLong current)
@@ -72,9 +75,21 @@ public abstract class LongSumAggregator implements Aggregator.FromMutableLong
         }
       };
     }
-    return new LongSumAggregator()
+    return new LongSumAggregator.ScanSupport()
     {
       private final MutableLong handover = new MutableLong();
+
+      @Override
+      public boolean supports()
+      {
+        return predicate == ValueMatcher.TRUE && selector instanceof LongColumnSelector.Scannable;
+      }
+
+      @Override
+      public Object aggregate(IntIterator iterator)
+      {
+        return ((LongColumnSelector.Scannable) selector).stream(iterator).sum();
+      }
 
       @Override
       public MutableLong aggregate(final MutableLong current)

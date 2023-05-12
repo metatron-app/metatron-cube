@@ -25,6 +25,7 @@ import org.apache.commons.lang.mutable.MutableFloat;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
+import java.util.stream.DoubleStream;
 
 /**
  * An object that gets a metric value.  Metric values are always floats and there is an assumption that the
@@ -54,5 +55,7 @@ public interface FloatColumnSelector extends ObjectColumnSelector<Float>
   interface Scannable extends WithBaggage
   {
     void scan(IntIterator iterator, FloatScanner scanner);
+
+    DoubleStream stream(IntIterator iterator);
   }
 }

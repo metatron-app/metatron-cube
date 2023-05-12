@@ -25,6 +25,7 @@ import org.apache.commons.lang.mutable.MutableDouble;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
+import java.util.stream.DoubleStream;
 
 /**
  *
@@ -52,5 +53,7 @@ public interface DoubleColumnSelector extends ObjectColumnSelector<Double>
   interface Scannable extends WithBaggage
   {
     void scan(IntIterator iterator, DoubleScanner scanner);
+
+    DoubleStream stream(IntIterator iterator);
   }
 }

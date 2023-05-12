@@ -27,6 +27,7 @@ import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Comparator;
 
@@ -39,6 +40,8 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
   );
 
   static final BinaryFn.Identical<Number> COMBINER = (param1, param2) -> param1.doubleValue() + param2.doubleValue();
+
+  static abstract class ScanSupport extends DoubleSumAggregator implements Aggregator.DoubleScannable { }
 
   @Override
   public Double get(MutableDouble current)
@@ -53,7 +56,7 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
     return true;
   }
 
-  public static DoubleSumAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
+  public static Aggregator.FromMutableDouble create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector instanceof Expr.FloatOptimized) {
       return new DoubleSumAggregator()
@@ -74,9 +77,21 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
         }
       };
     }
-    return new DoubleSumAggregator()
+    return new DoubleSumAggregator.ScanSupport()
     {
       private final MutableFloat handover = new MutableFloat();
+
+      @Override
+      public boolean supports()
+      {
+        return selector instanceof FloatColumnSelector.Scannable;
+      }
+
+      @Override
+      public Object aggregate(IntIterator iterator)
+      {
+        return ((FloatColumnSelector.Scannable) selector).stream(iterator).sum();
+      }
 
       @Override
       public MutableDouble aggregate(final MutableDouble current)
@@ -113,9 +128,21 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
         }
       };
     }
-    return new DoubleSumAggregator()
+    return new DoubleSumAggregator.ScanSupport()
     {
       private final MutableDouble handover = new MutableDouble();
+
+      @Override
+      public boolean supports()
+      {
+        return selector instanceof DoubleColumnSelector.Scannable;
+      }
+
+      @Override
+      public Object aggregate(IntIterator iterator)
+      {
+        return ((DoubleColumnSelector.Scannable) selector).stream(iterator).sum();
+      }
 
       @Override
       public MutableDouble aggregate(final MutableDouble current)

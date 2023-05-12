@@ -34,6 +34,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DictionaryID;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.OrderedPriorityQueueItems;
@@ -145,14 +146,14 @@ public class StreamQueryEngine
           final DimensionSelector[] orders = GuavaUtils.collect(dimensions, indices).toArray(new DimensionSelector[0]);
 
           final int[] cardinalities = Arrays.stream(orders).mapToInt(DimensionSelector::getValueCardinality).toArray();
-          final int[] shifts = toShifts(cardinalities);
-          if (size > 0 && shifts != null) {
-            final int keyBits = Arrays.stream(shifts).sum();
-            final int rowBits = bitsRequired(size);
+          final int[] bits = DictionaryID.bitsRequired(cardinalities);
+          if (size > 0 && bits != null) {
+            final int keyBits = Arrays.stream(bits).sum();
+            final int rowBits = DictionaryID.bitsRequired(size);
             if (rowBits < Integer.SIZE && keyBits + rowBits < Long.SIZE) {
               final long[] keys = new long[size];
               final List<Object[]> values = Lists.newArrayList();
-              final LongSupplier supplier = keys(orders, directions, cardinalities, shifts);
+              final LongSupplier supplier = keys(orders, directions, cardinalities, DictionaryID.bitsToShifts(bits));
               int ix = 0;
               for (; !cursor.isDone(); cursor.advance(), ix++) {
                 keys[ix] = (supplier.getAsLong() << rowBits) + ix;
@@ -161,9 +162,9 @@ public class StreamQueryEngine
               Arrays.sort(keys, 0, ix);
 
               final int valid = ix;
-              Sequence<Object[]> sequence = Sequences.once(query.getColumns(), new Iterator<Object[]>()
+              final Sequence<Object[]> sequence = Sequences.once(query.getColumns(), new Iterator<Object[]>()
               {
-                private final int mask = (1 << rowBits) - 1;
+                private final int mask = DictionaryID.bitToMask(rowBits);
                 private int index;
 
                 @Override
@@ -297,27 +298,5 @@ public class StreamQueryEngine
       }
       return keys;
     };
-  }
-
-  private static int[] toShifts(int[] cardinalities)
-  {
-    final int[] masks = new int[cardinalities.length];
-    for (int i = 0; i < cardinalities.length; i++) {
-      if (cardinalities[i] < 0) {
-        return null;
-      }
-      masks[i] = bitsRequired(cardinalities[i]);
-    }
-    int[] shifts = new int[masks.length];
-    for (int i = masks.length - 2; i >= 0; i--) {
-      shifts[i] = shifts[i + 1] + masks[i + 1];
-    }
-    return shifts;
-  }
-
-  private static int bitsRequired(int cardinality)
-  {
-    double v = Math.log(cardinality) / Math.log(2);
-    return v == (int) v ? (int) v : (int) v + 1;
   }
 }

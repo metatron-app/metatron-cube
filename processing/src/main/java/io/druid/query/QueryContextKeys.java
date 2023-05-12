@@ -56,6 +56,7 @@ public interface QueryContextKeys
   String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
   String GBY_MAX_MULTIVALUE_DIMENSIONS = "groupByMaxMultivalueDimensions";
   String GBY_STREAMING = "groupByStreaming";
+  String GBY_BATCH_SIZE = "groupByBatch";
 
   // select.stream
   String STREAM_USE_BULK_ROW = "streamUseBulkRow";

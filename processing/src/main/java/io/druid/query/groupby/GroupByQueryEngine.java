@@ -37,9 +37,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
-import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
@@ -66,7 +64,6 @@ import io.druid.segment.Cuboids;
 import io.druid.segment.Cursor;
 import io.druid.segment.Cursors;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.IndexProvidingSelector;
 import io.druid.segment.Rowboat;
 import io.druid.segment.Segment;
@@ -253,8 +250,6 @@ public class GroupByQueryEngine
         }
       }
 
-      // value can be negative with key indexed vc (see MVIteratingSelector#augment).. seemed to be deprecated
-      final boolean keyFiltered = providers.stream().anyMatch(p -> p.hasFilter());
       final KeyPool pool = new KeyPool(dimensions.length);
       if (mvDimensions.isEmpty()) {
         this.rowUpdater = new RowUpdater(pool)
@@ -344,17 +339,7 @@ public class GroupByQueryEngine
 
     public Sequence<Object[]> asArray()
     {
-      final IntFunction[] rawAccess = new IntFunction[dimensions.length];
-      for (int x = 0; x < rawAccess.length; x++) {
-        final DimensionSelector selector = dimensions[x];
-        if (useRawUTF8 && dimensionTypes[x].isStringOrDimension()) {
-          rawAccess[x] = selector instanceof WithRawAccess ?
-                         ix -> UTF8Bytes.of(((WithRawAccess) selector).getAsRaw(ix)) :
-                         ix -> UTF8Bytes.of((String) selector.lookupName(ix));
-        } else {
-          rawAccess[x] = ix -> StringUtils.emptyToNull(selector.lookupName(ix));
-        }
-      }
+      final IntFunction[] rawAccess = DimensionSelector.convert(dimensions, dimensionTypes, useRawUTF8);
 
       return Sequences.once(GuavaUtils.map(this, new Function<KeyValue, Object[]>()
       {

@@ -60,6 +60,15 @@ public final class IntIterators
     };
   }
 
+  public static int count(IntIterator iterator)
+  {
+    int c = 0;
+    for (;iterator.hasNext(); iterator.next()) {
+      c++;
+    }
+    return c;
+  }
+
   public static abstract class Abstract implements IntIterator
   {
     @Override

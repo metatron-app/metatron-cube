@@ -30,7 +30,7 @@ import java.util.Comparator;
  */
 public class DoubleSumAggregatorTest
 {
-  private MutableDouble aggregate(TestFloatColumnSelector selector, DoubleSumAggregator agg, MutableDouble aggregate)
+  private MutableDouble aggregate(TestFloatColumnSelector selector, Aggregator.FromMutableDouble agg, MutableDouble aggregate)
   {
     aggregate = agg.aggregate(aggregate);
     selector.increment();
@@ -42,7 +42,7 @@ public class DoubleSumAggregatorTest
   {
     final float[] values = {0.15f, 0.27f};
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
-    DoubleSumAggregator agg = DoubleSumAggregator.create(selector, ValueMatcher.TRUE);
+    Aggregator.FromMutableDouble agg = DoubleSumAggregator.create(selector, ValueMatcher.TRUE);
 
     Double expectedFirst = new Double(values[0]).doubleValue();
     Double expectedSecond = new Double(values[1]).doubleValue() + expectedFirst;
@@ -65,7 +65,7 @@ public class DoubleSumAggregatorTest
   public void testComparator()
   {
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(new float[]{0.15f, 0.27f});
-    DoubleSumAggregator agg = DoubleSumAggregator.create(selector, ValueMatcher.TRUE);
+    Aggregator.FromMutableDouble agg = DoubleSumAggregator.create(selector, ValueMatcher.TRUE);
 
     MutableDouble aggregate = null;
     Object first = agg.get(aggregate);

@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
 import org.apache.commons.lang.mutable.MutableLong;
+import org.roaringbitmap.IntIterator;
 
 /**
  * An Aggregator is an object that can aggregate metrics.  Its aggregation-related methods (namely, aggregate() and get())
@@ -58,6 +59,13 @@ public interface Aggregator<T>
     int estimateOccupation(T current);
   }
 
+  interface Scannable<T> extends Aggregator<T>
+  {
+    boolean supports();
+
+    Object aggregate(IntIterator iterator);
+  }
+
   interface LongType<T> extends Aggregator<T>
   {
     Long get(T current);
@@ -82,6 +90,10 @@ public interface Aggregator<T>
       }
       return false;
     }
+  }
+
+  interface LongScannable extends LongType<MutableLong>, Scannable<MutableLong>
+  {
   }
 
   interface FloatType<T> extends Aggregator<T>
@@ -110,6 +122,10 @@ public interface Aggregator<T>
     }
   }
 
+  interface FloatScannable extends FloatType<MutableFloat>, Scannable<MutableFloat>
+  {
+  }
+
   interface DoubleType<T> extends Aggregator<T>
   {
     Double get(T current);
@@ -134,6 +150,10 @@ public interface Aggregator<T>
       }
       return false;
     }
+  }
+
+  interface DoubleScannable extends DoubleType<MutableDouble>, Scannable<MutableDouble>
+  {
   }
 
   interface StreamingSupport<T> extends Aggregator<T>

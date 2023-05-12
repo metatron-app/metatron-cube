@@ -24,12 +24,14 @@ import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
+import org.roaringbitmap.IntIterator;
 
 import java.util.Comparator;
+import java.util.OptionalDouble;
 
 /**
  */
-public abstract class DoubleMaxAggregator implements Aggregator.FromMutableDouble
+public abstract class DoubleMaxAggregator implements Aggregator.FromMutableDouble, Aggregator.DoubleScannable
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 
@@ -38,6 +40,19 @@ public abstract class DoubleMaxAggregator implements Aggregator.FromMutableDoubl
     return new DoubleMaxAggregator()
     {
       private final MutableFloat handover = new MutableFloat();
+
+      @Override
+      public boolean supports()
+      {
+        return predicate == ValueMatcher.TRUE && selector instanceof FloatColumnSelector.Scannable;
+      }
+
+      @Override
+      public Object aggregate(IntIterator iterator)
+      {
+        OptionalDouble max = ((FloatColumnSelector.Scannable) selector).stream(iterator).max();
+        return max.isPresent() ? (float) max.getAsDouble() : null;
+      }
 
       @Override
       public MutableDouble aggregate(final MutableDouble current)
@@ -58,6 +73,19 @@ public abstract class DoubleMaxAggregator implements Aggregator.FromMutableDoubl
     return new DoubleMaxAggregator()
     {
       private final MutableDouble handover = new MutableDouble();
+
+      @Override
+      public boolean supports()
+      {
+        return predicate == ValueMatcher.TRUE && selector instanceof DoubleColumnSelector.Scannable;
+      }
+
+      @Override
+      public Object aggregate(IntIterator iterator)
+      {
+        OptionalDouble max = ((DoubleColumnSelector.Scannable) selector).stream(iterator).max();
+        return max.isPresent() ? max.getAsDouble() : null;
+      }
 
       @Override
       public MutableDouble aggregate(final MutableDouble current)

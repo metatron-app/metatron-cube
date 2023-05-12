@@ -59,6 +59,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
  *
@@ -784,6 +786,12 @@ public class ColumnSelectors
         }
 
         @Override
+        public LongStream stream(IntIterator iterator)
+        {
+          return ((GenericColumn.LongType) column).stream(iterator);
+        }
+
+        @Override
         public Long get()
         {
           final int current = offset.getOffset();
@@ -879,6 +887,12 @@ public class ColumnSelectors
         }
 
         @Override
+        public DoubleStream stream(IntIterator iterator)
+        {
+          return ((GenericColumn.DoubleType) column).stream(iterator);
+        }
+
+        @Override
         public Double get()
         {
           final int current = offset.getOffset();
@@ -971,6 +985,12 @@ public class ColumnSelectors
         public void scan(IntIterator iterator, FloatScanner scanner)
         {
           ((GenericColumn.FloatType) column).scan(iterator, scanner);
+        }
+
+        @Override
+        public DoubleStream stream(IntIterator iterator)
+        {
+          return ((GenericColumn.FloatType) column).stream(iterator);
         }
 
         @Override
