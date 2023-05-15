@@ -84,7 +84,7 @@ public class BitSetVirtualColumn implements VirtualColumn
     if (access == null || access < 0) {
       throw new IAE("expects index attached in %s", column);
     }
-    final ValueDesc indexed = factory.resolve(columnName);
+    final ValueDesc indexed = factory.resolve(columnName, ValueDesc.UNKNOWN);
     if (indexed.isBitSet()) {
       final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
       if (selector instanceof ObjectColumnSelector.WithRawAccess) {

@@ -32,6 +32,7 @@ import io.druid.data.ValueDesc;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  *
@@ -111,7 +112,6 @@ public class ExplodeMapSpec implements LateralViewSpec, RowSignature.Evolving
       private final List<Map<String, Object>> events = Lists.newArrayList();
 
       @Override
-      @SuppressWarnings("unchecked")
       public Iterable<Map<String, Object>> apply(final Map<String, Object> input)
       {
         events.clear();
@@ -158,7 +158,7 @@ public class ExplodeMapSpec implements LateralViewSpec, RowSignature.Evolving
     }
     if (valueAlias != null) {
       columnNames.add(valueAlias);
-      columnTypes.add(merged);
+      columnTypes.add(Optional.ofNullable(merged).orElse(ValueDesc.UNKNOWN));
     }
     return RowSignature.of(columnNames, columnTypes);
   }

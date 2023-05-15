@@ -480,7 +480,6 @@ public class DruidBaseQuery implements DruidQuery
       }
       final RexInputRef ref = (RexInputRef) sortExpression;
       final String fieldName = rowSignature.getColumnNames().get(ref.getIndex());
-      final ValueDesc type = rowSignature.resolve(fieldName);
 
       final Direction direction;
 
@@ -492,38 +491,10 @@ public class DruidBaseQuery implements DruidQuery
         throw new UOE("not supported direction [%s]", collation.getDirection());
       }
 
-      // use natural ordering.. what so ever
+      // use natural ordering.. whatsoever
       orderBys.add(new OrderByColumnSpec(fieldName, direction));
     }
     return orderBys;
-  }
-
-  /**
-   * Returns true if a post-aggregation "expression" can be realized as a direct field access. This is true if it's
-   * a direct column access that doesn't require an implicit cast.
-   *
-   * @param aggregateRowSignature signature of the aggregation
-   * @param expression            post-aggregation expression
-   * @param rexNode               RexNode for the post-aggregation expression
-   *
-   * @return yes or no
-   */
-  private static boolean postAggregatorDirectColumnIsOk(
-      final RowSignature aggregateRowSignature,
-      final DruidExpression expression,
-      final RexNode rexNode
-  )
-  {
-    if (!expression.isDirectColumnAccess()) {
-      return false;
-    }
-
-    // Check if a cast is necessary.
-    final ValueDesc toExprType = aggregateRowSignature.resolve(expression.getDirectColumn());
-
-    final ValueDesc fromExprType = Calcites.asValueDesc(rexNode);
-
-    return toExprType.equals(fromExprType);
   }
 
   @Override

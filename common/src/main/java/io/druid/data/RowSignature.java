@@ -92,7 +92,7 @@ public interface RowSignature extends TypeResolver
 
   default Iterable<Pair<String, ValueDesc>> columnAndTypes(Iterable<String> columns)
   {
-    return Iterables.transform(columns, c -> Pair.of(c, resolve(c)));
+    return Iterables.transform(columns, c -> Pair.of(c, resolve(c, ValueDesc.UNKNOWN)));
   }
 
   default Map<String, IntTagged<ValueDesc>> columnToIndexAndType()

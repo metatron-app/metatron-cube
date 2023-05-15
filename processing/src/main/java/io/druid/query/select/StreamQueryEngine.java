@@ -122,7 +122,7 @@ public class StreamQueryEngine
                 } else {
                   selectors[i] = ColumnSelectors.asSingleRaw((SingleValued) selector);
                 }
-                } else {
+              } else {
                 selectors[i] = ColumnSelectors.asSingleValued((SingleValued) selector);
               }
             } else if (concatString != null) {

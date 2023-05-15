@@ -390,7 +390,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     }
   }
 
-  public StreamQuery toStreaming()
+  public StreamQuery toStreaming(Long fixedTimestamp)
   {
     List<OrderByColumnSpec> orderings = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : getDimensions()) {
@@ -407,7 +407,8 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     for (AggregatorFactory factory : aggregatorSpecs) {
       required.addAll(factory.requiredFields());
     }
-    List<String> columns = GuavaUtils.concat(Column.TIME_COLUMN_NAME, DimensionSpecs.toInputNames(getDimensions()));
+    String timestamp = fixedTimestamp == null ? Column.TIME_COLUMN_NAME : "DUMMY";
+    List<String> columns = GuavaUtils.concat(timestamp, DimensionSpecs.toInputNames(getDimensions()));
     columns.addAll(required);
     return new StreamQuery(
         getDataSource(),

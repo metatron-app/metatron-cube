@@ -221,7 +221,7 @@ public class RowResolver implements io.druid.data.RowSignature
   {
     List<String> names = query.getColumns();
     List<ValueDesc> types = names.stream()
-                                 .map(this::resolve)
+                                 .map(c -> resolve(c, ValueDesc.UNKNOWN))
                                  .map(desc -> desc.unwrapDimension())
                                  .collect(Collectors.toList());
     return new RowResolver(RowSignature.of(names, types), virtualColumns);
