@@ -66,7 +66,7 @@ public class StreamHandlerFactory
 
   public StreamHandler create(Query query, URL url, int queueSize)
   {
-    return new BaseHandler(query, url.getHost() + ":" + url.getPort(), queueSize, new StopWatch(60_000));
+    return new BaseHandler(query, url.getHost() + ":" + url.getPort(), null, queueSize, new StopWatch(60_000));
   }
 
   private class BaseHandler implements StreamHandler
@@ -74,6 +74,7 @@ public class StreamHandlerFactory
     private final Query query;
     private final boolean disableLog;
     private final String host;
+    private final String type;
     private final StopWatch watch;
 
     private final long requestStartTimeNs = System.nanoTime();
@@ -83,11 +84,12 @@ public class StreamHandlerFactory
     private final AtomicLong byteCount = new AtomicLong(0);
     private final AtomicBoolean done = new AtomicBoolean(false);
 
-    private BaseHandler(Query query, String host, int queueSize, StopWatch watch)
+    private BaseHandler(Query query, String host, String type, int queueSize, StopWatch watch)
     {
       this.query = query;
       this.disableLog = query.getContextBoolean(Query.DISABLE_LOG, false);
       this.host = host;
+      this.type = type;
       this.queue = new LinkedBlockingDeque<InputStream>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize);
       this.watch = watch;
     }
@@ -126,13 +128,25 @@ public class StreamHandlerFactory
               @Override
               public int read() throws IOException
               {
-                throw QueryException.read(binary, mapper);
+                throw readException(status.getCode(), binary);
               }
 
               @Override
               public int available() throws IOException
               {
-                throw QueryException.read(binary, mapper);
+                throw readException(status.getCode(), binary);
+              }
+
+              private QueryException readException(int code, byte[] binary)
+              {
+                QueryException exception = QueryException.read(binary, mapper);
+                if (exception != null) {
+                  return exception;
+                }
+                String error = String.format(
+                    "Unexpected reply [%d:%s] from [%s] in query[%s]", status.getCode(), status.getReasonPhrase(), host, query.getId()
+                );
+                return QueryException.wrapIfNeeded(new Exception(error), host, type);
               }
             }
         );
@@ -290,13 +304,15 @@ public class StreamHandlerFactory
   public static class WithEmitter extends StreamHandlerFactory
   {
     private final String host;
+    private final String type;
     private final BrokerIOConfig config;
     private final ServiceEmitter emitter;
 
-    public WithEmitter(String host, BrokerIOConfig config, ServiceEmitter emitter, ObjectMapper mapper)
+    public WithEmitter(String host, String type, BrokerIOConfig config, ServiceEmitter emitter, ObjectMapper mapper)
     {
       super(mapper);
       this.host = host;
+      this.type = type;
       this.config = config;
       this.emitter = emitter;
     }
@@ -309,7 +325,7 @@ public class StreamHandlerFactory
         final Map<String, Object> context
     )
     {
-      return new BaseHandler(query, host, config.getQueueSize(), watch)
+      return new BaseHandler(query, host, type, config.getQueueSize(), watch)
       {
         @Override
         public void writeCompleted(long writeStart)

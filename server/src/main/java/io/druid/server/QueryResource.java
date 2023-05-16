@@ -290,7 +290,7 @@ public class QueryResource
       if (toolChest != null) {
         sequence = toolChest.serializeSequence(prepared, sequence, segmentWalker);
       }
-      final ObjectWriter jsonWriter = context.getOutputWriter(
+      final ObjectWriter jsonWriter = context.outputWriter(
           prepared.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false), decorator
       );
 
@@ -453,7 +453,7 @@ public class QueryResource
              isSmile ? smileMapper : jsonMapper;
     }
 
-    ObjectWriter getOutputWriter(final boolean useCustomSerdeForDateTime, final OutputDecorator decorator)
+    ObjectWriter outputWriter(final boolean useCustomSerdeForDateTime, final OutputDecorator decorator)
     {
       ObjectMapper mapper;
       if (isSmileOut) {
@@ -487,22 +487,20 @@ public class QueryResource
       return isPretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
     }
 
-    ObjectWriter getOutputWriter()
+    ObjectWriter outputWriter()
     {
-      return getOutputWriter(false, null);
+      return outputWriter(false, null);
     }
 
     Response ok(Object object) throws IOException
     {
-      return Response.ok(getOutputWriter().writeValueAsString(object), contentType).build();
+      return Response.ok(outputWriter().writeValueAsString(object), contentType).build();
     }
 
     Response gotError(Throwable e) throws IOException
     {
-      return Response.serverError()
-                     .type(contentType)
-                     .entity(getOutputWriter().writeValueAsBytes(QueryException.wrapIfNeeded(e, node)))
-                     .build();
+      // contents seemed not delivered with serverError
+      return Response.ok(outputWriter().writeValueAsBytes(QueryException.wrapIfNeeded(e, node)), contentType).build();
     }
   }
 

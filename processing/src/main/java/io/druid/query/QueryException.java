@@ -24,14 +24,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.ExceptionUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.DruidNode;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -222,16 +220,14 @@ public class QueryException extends RuntimeException
     return new QueryException(e, hostPort, serviceName);
   }
 
-  public static IOException read(byte[] contents, ObjectMapper mapper) throws IOException
+  public static QueryException read(byte[] contents, ObjectMapper mapper)
   {
-    QueryException qie;
     try {
-      qie = mapper.readValue(contents, QueryException.class);
+      return contents.length == 0 ? null : mapper.readValue(contents, QueryException.class);
     }
     catch (Exception e) {
-      throw new IOException(new String(contents, Charsets.ISO_8859_1));
+      return null;
     }
-    throw qie;
   }
 
   public static void warn(Logger log, Throwable t, String message, Object... params)

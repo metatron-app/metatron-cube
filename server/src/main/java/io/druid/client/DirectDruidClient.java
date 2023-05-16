@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -112,7 +111,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                        ? SmileMediaTypes.APPLICATION_JACKSON_SMILE
                        : MediaType.APPLICATION_JSON;
     this.openConnections = new AtomicInteger();
-    this.handlerFactory = new StreamHandlerFactory.WithEmitter(host, ioConfig, emitter, objectMapper);
+    this.handlerFactory = new StreamHandlerFactory.WithEmitter(host, type, ioConfig, emitter, objectMapper);
   }
 
   public int getNumOpenConnections()
