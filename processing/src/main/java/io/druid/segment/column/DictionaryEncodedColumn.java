@@ -28,6 +28,7 @@ import org.roaringbitmap.IntIterator;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.BitSet;
 
 /**
  *
@@ -81,7 +82,19 @@ public final class DictionaryEncodedColumn implements Closeable
 
   public void scan(final IntIterator iterator, final IntScanner scanner)
   {
-    column.scan(iterator, scanner);
+    if (column != null) {
+      column.scan(iterator, scanner);
+    } else {
+      multiValueColumn.scan(iterator, scanner); // not sure
+    }
+  }
+
+  // collects dictionary IDs
+  public BitSet collect(final IntIterator iterator)
+  {
+    BitSet set = new BitSet();
+    scan(iterator, (x, v) -> set.set(v.applyAsInt(x)));
+    return set;
   }
 
   private IndexedInts cached;
@@ -150,11 +163,18 @@ public final class DictionaryEncodedColumn implements Closeable
   }
 
   private static final int ID_CACHE_SIZE = 128;
-  private static final float MINIMUM_SELECTIVITY = 0.33f;
+  private static final float MINIMUM_SELECTIVITY = 0.25f;
 
   public static interface RowSuppler
   {
     int row(int x);
+
+    default void scan(IntIterator iterator, IntScanner scanner)
+    {
+      while (iterator.hasNext()) {
+        scanner.apply(iterator.next(), this::row);
+      }
+    }
   }
 
   public static RowSuppler rowSupplier(DictionaryEncodedColumn column, float selectivity)

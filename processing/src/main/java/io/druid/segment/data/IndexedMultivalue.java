@@ -19,8 +19,33 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.column.IntScanner;
+import org.roaringbitmap.IntIterator;
+
 import java.io.Closeable;
 
 public interface IndexedMultivalue<T extends IndexedInts> extends Indexed<T>, Closeable
 {
+  default void scan(IntIterator iterator, IntScanner scanner)
+  {
+    if (iterator == null) {
+      final int size = size();
+      for (int index = 0; index < size; index++) {
+        IndexedInts indexed = get(index);
+        for (int i = 0; i < indexed.size(); i++) {
+          int v = indexed.get(i);
+          scanner.apply(index, x -> v);
+        }
+      }
+    } else {
+      while (iterator.hasNext()) {
+        int index = iterator.next();
+        IndexedInts indexed = get(index);
+        for (int i = 0; i < indexed.size(); i++) {
+          int v = indexed.get(i);
+          scanner.apply(index, x -> v);
+        }
+      }
+    }
+  }
 }

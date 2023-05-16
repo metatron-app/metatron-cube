@@ -36,6 +36,11 @@ import java.util.Optional;
  */
 public interface CursorFactory extends SchemaProvider
 {
+  default Sequence<Cursor> makeCursors(Query<?> query)
+  {
+    return makeCursors(query, null);
+  }
+
   default Sequence<Cursor> makeCursors(Query<?> query, SessionCache cache)
   {
     return makeCursors(

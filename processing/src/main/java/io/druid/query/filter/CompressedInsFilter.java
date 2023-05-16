@@ -149,10 +149,9 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   @Override
   public String toString()
   {
-    int[] lengths = Arrays.stream(values).mapToInt(value -> value.length).toArray();
     return "CompressedInFilter{" +
            "dimensions=" + dimensions +
-           ", sourceLens=" + Arrays.toString(lengths) +
+           ", valueLen=" + valueLen +
            ", destLens=" + Arrays.toString(destLens) +
            '}';
   }

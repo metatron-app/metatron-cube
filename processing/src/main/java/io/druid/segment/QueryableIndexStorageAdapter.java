@@ -48,6 +48,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
@@ -683,7 +684,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public void scan(IntIterator iterator, IntScanner scanner)
                             {
-                              column.scan(iterator, scanner);
+                              supplier.scan(iterator == null ? IntIterators.to(size()) : iterator, scanner);
                             }
                           };
                         }

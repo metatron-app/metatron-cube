@@ -21,8 +21,10 @@ package io.druid.data;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.parsers.ParseException;
 import org.apache.commons.lang.mutable.MutableDouble;
@@ -32,6 +34,8 @@ import org.joda.time.DateTime;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -451,5 +455,18 @@ public class Rows
       }
     }
     return builder.toString();
+  }
+
+  // TIME_COLUMN_NAME exists in row, required or not
+  public static boolean isEquivalent(List<String> current, List<String> expected)
+  {
+    if (current == null || expected == null) {
+      return false;
+    }
+    Set<String> c = Sets.newHashSet(current);
+    c.remove(Row.TIME_COLUMN_NAME);
+    Set<String> e = Sets.newHashSet(expected);
+    e.remove(Row.TIME_COLUMN_NAME);
+    return c.equals(e);
   }
 }

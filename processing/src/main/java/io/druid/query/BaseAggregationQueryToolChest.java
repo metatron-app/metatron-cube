@@ -349,12 +349,11 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
 
     final List<String> outputColumns = aggregation.getOutputColumns();
     if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-      sequence = Sequences.map(
-          outputColumns, sequence, new Function<Row, Row>()
-          {
-            @Override
-            public Row apply(Row input)
-            {
+      if (Rows.isEquivalent(sequence.columns(), outputColumns)) {
+        sequence = Sequences.map(outputColumns, sequence, Functions.identity());  // just change column-names
+      } else {
+        sequence = Sequences.map(
+            outputColumns, sequence, input -> {
               DateTime timestamp = input.getTimestamp();
               Map<String, Object> retained = Maps.newHashMapWithExpectedSize(outputColumns.size());
               for (String retain : outputColumns) {
@@ -362,8 +361,8 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
               }
               return new MapBasedRow(timestamp, retained);
             }
-          }
-      );
+        );
+      }
     }
     final LateralViewSpec lateralViewSpec = aggregation.getLateralView();
     return lateralViewSpec != null ? toLateralView(sequence, lateralViewSpec) : sequence;

@@ -19,7 +19,22 @@
 
 package io.druid.query.dimension;
 
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Murmur3;
+import io.druid.common.utils.Sequences;
+import io.druid.segment.Cursor;
+import io.druid.segment.DimensionSelector.Scannable;
+import io.druid.segment.Scanning;
+import io.druid.segment.bitmap.BitSets;
+import io.druid.segment.bitmap.IntIterators;
+import io.druid.segment.filter.FilterContext;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import org.roaringbitmap.IntIterator;
+
 import java.util.Arrays;
+import java.util.BitSet;
+import java.util.List;
+import java.util.stream.LongStream;
 
 public interface DictionaryID
 {
@@ -61,5 +76,78 @@ public interface DictionaryID
     }
     final double v = Math.log(cardinality) / Math.log(2);
     return v == (int) v ? (int) v : (int) v + 1;
+  }
+
+  // do things inside of cursors
+  static LongStream collect(Sequence<Cursor> cursors, List<DimensionSpec> dimensions)
+  {
+    return Sequences.only(Sequences.map(cursors, cursor -> {
+
+      Scanning scanning = cursor.scanContext();
+      FilterContext context = cursor.filterContext();
+      Scannable scannable = (Scannable) cursor.makeDimensionSelector(dimensions.get(0));
+      long[] dictHash0 = new long[scannable.getValueCardinality()];
+
+      BitSet rowIds;
+      BitSet dictId = new BitSet();
+      if (scanning == Scanning.FULL) {
+        rowIds = null;
+        scannable.getDictionary().scan(null, (x, b, o, l) -> dictHash0[x] = Murmur3.hash64(b, o, l));
+      } else {
+        if (scanning == Scanning.BITMAP) {
+          rowIds = null;
+          scannable.scan(context.rowIterator(), (x, v) -> dictId.set(v.applyAsInt(x)));
+        } else {
+          rowIds = new BitSet(context.numRows());
+          scannable.scan(IntIterators.wrap(cursor), (x, v) -> {rowIds.set(x);dictId.set(v.applyAsInt(x));});
+        }
+        scannable.getDictionary().scan(BitSets.iterator(dictId), (x, b, o, l) -> dictHash0[x] = Murmur3.hash64(b, o, l));
+      }
+      Hashes hash = new Hashes(cursor.size());
+      scannable.scan(BitSets.iterator(rowIds), (x, v) -> hash.add(dictHash0[v.applyAsInt(x)]));
+
+      long[] prev = dictHash0;
+      for (int i = 1; i < dimensions.size(); i++, hash.next()) {
+        scannable = (Scannable) cursor.makeDimensionSelector(dimensions.get(i));
+        long[] dictHash = BitSets.ensureCapacity(prev, scannable.getValueCardinality());
+        if (scanning == Scanning.FULL) {
+          scannable.getDictionary().scan(null, (x, b, o, l) -> dictHash[x] = Murmur3.hash64(b, o, l));
+        } else {
+          dictId.clear();
+          IntIterator iterator = scanning == Scanning.BITMAP ? context.rowIterator() : BitSets.iterator(rowIds);
+          scannable.scan(iterator, (x, v) -> dictId.set(v.applyAsInt(x)));
+          scannable.getDictionary().scan(BitSets.iterator(dictId), (x, b, o, l) -> dictHash[x] = Murmur3.hash64(b, o, l));
+        }
+        scannable.scan(BitSets.iterator(rowIds), (x, v) -> hash.append(dictHash[v.applyAsInt(x)]));
+        prev = dictHash;
+      }
+      return hash.toStream();
+    }));
+  }
+
+  static class Hashes extends LongArrayList
+  {
+    private int offset;
+
+    private Hashes(int size)
+    {
+      super(size);
+    }
+
+    private LongStream toStream()
+    {
+      return Arrays.stream(a, 0, size).filter(v -> v != 0);
+    }
+
+    private void next()
+    {
+      offset = 0;
+    }
+
+    private void append(long hash)
+    {
+      a[offset] = a[offset] * 31 + hash;
+      offset++;
+    }
   }
 }

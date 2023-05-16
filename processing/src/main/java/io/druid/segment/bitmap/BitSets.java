@@ -34,7 +34,21 @@ public class BitSets
 
   public static IntIterator iterator(BitSet bitmap)
   {
-    return new BatchIterator(bitmap);
+    return bitmap == null ? null : new BatchIterator(bitmap);
+  }
+
+  public static long[] ensureCapacity(long[] prev, int capacity)
+  {
+    return prev.length < capacity ? new long[capacity] : prev;
+  }
+
+  public static BitSet collect(IntIterator iterator)
+  {
+    BitSet bits = new BitSet();
+    while (iterator.hasNext()) {
+      bits.set(iterator.next());
+    }
+    return bits;
   }
 
   public static BitSet flip(BitSet indices, int from, int to)

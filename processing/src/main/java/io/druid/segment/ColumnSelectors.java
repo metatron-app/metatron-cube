@@ -539,9 +539,9 @@ public class ColumnSelectors
     ImmutableBitmap ref = context.dictionaryRef(column);
     int sizeOfCache = ref == null ? dictionary.size() : ref.size();
     long estimation = dictionary.getSerializedSize() * sizeOfCache / dictionary.size();
-    if (estimation < THRESHOLD && context.targetNumRows() > sizeOfCache) {
+    if (estimation < THRESHOLD && context.targetNumRows() > sizeOfCache >> 1) {
       IntIterator iterator = ref == null ? null : ref.iterator();
-      if (dictionary.size() > sizeOfCache << 2) {
+      if (dictionary.size() > sizeOfCache << 3) {
         Int2ObjectMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>(sizeOfCache);
         if (dictionary instanceof GenericIndexed) {
           GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();

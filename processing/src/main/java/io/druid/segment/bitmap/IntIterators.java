@@ -118,6 +118,11 @@ public final class IntIterators
     return new IntIterators.FromArray(array, start, limit);
   }
 
+  public static IntIterator to(int end)
+  {
+    return fromTo(0, end);
+  }
+
   public static IntIterator fromTo(int start, int end)
   {
     return start >= end ? EMPTY : new Range(start, end);

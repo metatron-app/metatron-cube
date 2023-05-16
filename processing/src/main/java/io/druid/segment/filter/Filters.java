@@ -77,7 +77,6 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.bitmap.BitSets;
-import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.column.BitmapIndex;
@@ -95,8 +94,6 @@ import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
 import it.unimi.dsi.fastutil.doubles.DoubleSet;
 import it.unimi.dsi.fastutil.floats.FloatOpenHashSet;
 import it.unimi.dsi.fastutil.floats.FloatSet;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import org.roaringbitmap.IntIterator;
@@ -436,9 +433,7 @@ public class Filters
       if (encoded.hasMultipleValues() || !context.bitmapFiltered() || cardinality < context.targetNumRows()) {
         iterator = context.dictionaryIterator(dimension);
       } else {
-        final IntSet set = new IntOpenHashSet();
-        encoded.scan(context.rowIterator(), (x, v) -> set.add(v.applyAsInt(x)));
-        iterator = IntIterators.from(IntList.of(set.toIntArray()).sort());
+        iterator = BitSets.iterator(encoded.collect(context.rowIterator()));
       }
       final IntIterator cursor = matcher.wrap(dictionary, iterator);
       if (cursor != null && !cursor.hasNext()) {

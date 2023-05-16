@@ -57,6 +57,7 @@ public interface Segment extends SchemaProvider, Closeable
   }
 
   QueryableIndex asQueryableIndex(boolean forQuery);
+
   StorageAdapter asStorageAdapter(boolean forQuery);
 
   class Delegated implements Segment

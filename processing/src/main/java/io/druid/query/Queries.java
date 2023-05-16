@@ -55,6 +55,7 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DictionaryID;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
@@ -527,7 +528,7 @@ public class Queries
       long minCardinality
   )
   {
-    final int numRows = segments.stream().mapToInt(Segment::getNumRows).sum();
+    int numRows = segments.stream().mapToInt(Segment::getNumRows).sum();
     if (numRows <= minCardinality) {
       return numRows;
     }
@@ -536,21 +537,20 @@ public class Queries
       return estimate;
     }
     List<DimensionSpec> dimensions = query.getDimensions();
-    if (dimensions.size() == 1 && allQueryableIndex(segments) && dimensions.get(0).resolve(resolver).isDimension()) {
-      if (query.getFilter() == null) {
-        return estimateByDictionaryScan(segments, dimensions.get(0));
+    if (allQueryableIndex(segments) && dimensions.stream().allMatch(d -> d.resolve(resolver).isDimension())) {
+      HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
+      if (dimensions.size() == 1 && query.getFilter() == null) {
+        String dimension = dimensions.get(0).getDimension();
+        segments.stream().map(s -> s.asQueryableIndex(false).getColumn(dimension).getDictionary())
+                .forEach(dictionary -> dictionary.scan(null, (x, b, o, l) -> collector.add(Murmur3.hash64(b, o, l))));
+      } else {
+        segments.stream().map(s -> s.asStorageAdapter(false).makeCursors(query.withQuerySegmentSpec(s.asSpec())))
+                .flatMapToLong(c -> DictionaryID.collect(c, dimensions))    // valid only in here (do not merge)
+                .forEach(collector::add);
       }
+      return collector.estimateCardinalityRound();
     }
     return estimateCardinality(query, segmentWalker)[0];
-  }
-
-  private static long estimateByDictionaryScan(List<Segment> segments, DimensionSpec dimension)
-  {
-    HyperLogLogCollector c = HyperLogLogCollector.makeLatestCollector();
-    segments.stream().map(s -> s.asQueryableIndex(false).getColumn(dimension.getDimension()).getDictionary()).forEach(
-        dictionary -> dictionary.scan(null, (x, b, o, l) -> c.add(Murmur3.hash64(b, o, l))
-    ));
-    return c.estimateCardinalityRound();
   }
 
   private static long[] estimateCardinality(GroupByQuery query, QuerySegmentWalker segmentWalker)
