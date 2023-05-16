@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.StringUtils;
-import io.druid.query.RowSignature;
+import org.apache.calcite.rel.type.RelDataType;
 
 import javax.ws.rs.core.MediaType;
 import java.io.Closeable;
@@ -38,6 +38,7 @@ import java.io.OutputStream;
     @JsonSubTypes.Type(value = ResultFormat.ARRAYLINES.class, name = "arraylines"),
     @JsonSubTypes.Type(value = ResultFormat.OBJECT.class, name = "object"),
     @JsonSubTypes.Type(value = ResultFormat.OBJECTLINES.class, name = "objectlines"),
+    @JsonSubTypes.Type(value = ResultFormat.NULL.class, name = "null"),
 })
 public interface ResultFormat
 {
@@ -62,15 +63,17 @@ public interface ResultFormat
           return OBJECT.INSTANCE;
         case "objectlines":
           return OBJECTLINES.INSTANCE;
+        case "null":
+          return NULL.INSTANCE;
       }
       throw new IAE("Not supported type [%s]", type);
     }
 
     @Override
-    public Writer createFormatter(OutputStream outputStream, ObjectMapper jsonMapper, RowSignature signature)
+    public Writer createFormatter(OutputStream output, ObjectMapper mapper, RelDataType rowType)
         throws IOException
     {
-      return type.createFormatter(outputStream, jsonMapper, signature);
+      return type.createFormatter(output, mapper, rowType);
     }
 
     @Override
@@ -85,11 +88,9 @@ public interface ResultFormat
     public static final ARRAY INSTANCE = new ARRAY();
 
     @Override
-    public Writer createFormatter(
-        OutputStream outputStream, com.fasterxml.jackson.databind.ObjectMapper jsonMapper, RowSignature signature
-    ) throws IOException
+    public Writer createFormatter(OutputStream output, ObjectMapper mapper, RelDataType rowType) throws IOException
     {
-      return new ArrayWriter(outputStream, jsonMapper, signature);
+      return new ArrayWriter(output, mapper, rowType);
     }
   }
 
@@ -98,11 +99,9 @@ public interface ResultFormat
     public static final ARRAYLINES INSTANCE = new ARRAYLINES();
 
     @Override
-    public Writer createFormatter(
-        OutputStream outputStream, com.fasterxml.jackson.databind.ObjectMapper jsonMapper, RowSignature signature
-    ) throws IOException
+    public Writer createFormatter(OutputStream output, ObjectMapper mapper, RelDataType rowType) throws IOException
     {
-      return new ArrayLinesWriter(outputStream, jsonMapper, signature);
+      return new ArrayLinesWriter(output, mapper, rowType);
     }
   }
 
@@ -111,11 +110,9 @@ public interface ResultFormat
     public static final OBJECT INSTANCE = new OBJECT();
 
     @Override
-    public Writer createFormatter(
-        OutputStream outputStream, com.fasterxml.jackson.databind.ObjectMapper jsonMapper, RowSignature signature
-    ) throws IOException
+    public Writer createFormatter(OutputStream output, ObjectMapper mapper, RelDataType rowType) throws IOException
     {
-      return new ObjectWriter(outputStream, jsonMapper, signature);
+      return new ObjectWriter(output, mapper, rowType);
     }
   }
 
@@ -124,11 +121,20 @@ public interface ResultFormat
     public static final OBJECTLINES INSTANCE = new OBJECTLINES();
 
     @Override
-    public Writer createFormatter(
-        OutputStream outputStream, com.fasterxml.jackson.databind.ObjectMapper jsonMapper, RowSignature signature
-    ) throws IOException
+    public Writer createFormatter(OutputStream output, ObjectMapper mapper, RelDataType rowType) throws IOException
     {
-      return new ObjectLinesWriter(outputStream, jsonMapper, signature);
+      return new ObjectLinesWriter(output, mapper, rowType);
+    }
+  }
+
+  class NULL implements ResultFormat
+  {
+    public static final ResultFormat INSTANCE = new NULL();
+
+    @Override
+    public Writer createFormatter(OutputStream output, ObjectMapper mapper, RelDataType rowType) throws IOException
+    {
+      return Writer.NULL;
     }
   }
 
@@ -137,7 +143,7 @@ public interface ResultFormat
     return MediaType.APPLICATION_JSON;
   }
 
-  Writer createFormatter(OutputStream outputStream, ObjectMapper jsonMapper, RowSignature signature) throws IOException;
+  Writer createFormatter(OutputStream output, ObjectMapper mapper, RelDataType rowType) throws IOException;
 
   interface Text extends ResultFormat
   {
@@ -147,6 +153,8 @@ public interface ResultFormat
 
   interface Writer extends Closeable
   {
+    Writer NULL = new Writer() {};
+
     /**
      * Start of the response, called once per writer.
      */
@@ -157,12 +165,12 @@ public interface ResultFormat
     /**
      * Field within a row.
      */
-    void writeRow(Object[] row) throws IOException;
+    default void writeRow(Object[] row) throws IOException {}
 
     /**
      * End of the response. Must allow the user to know that they have read all data successfully.
      */
-    void end() throws IOException;
+    default void end() throws IOException {}
 
     default void close() throws IOException {}
   }

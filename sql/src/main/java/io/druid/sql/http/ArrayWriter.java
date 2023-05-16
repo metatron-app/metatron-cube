@@ -21,22 +21,24 @@ package io.druid.sql.http;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.druid.query.RowSignature;
+import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rel.type.RelDataType;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.List;
 
 public class ArrayWriter implements ResultFormat.Writer
 {
   final JsonGenerator jsonGenerator;
   final OutputStream outputStream;
-  final RowSignature signature;
+  final List<String> columnNames;
 
-  ArrayWriter(OutputStream outputStream, ObjectMapper jsonMapper, RowSignature signature) throws IOException
+  ArrayWriter(OutputStream outputStream, ObjectMapper jsonMapper, RelDataType dataType) throws IOException
   {
     this.jsonGenerator = jsonMapper.getFactory().createGenerator(outputStream);
     this.outputStream = outputStream;
-    this.signature = signature;
+    this.columnNames = RowSignature.columnNames(dataType);
   }
 
   @Override
@@ -48,7 +50,7 @@ public class ArrayWriter implements ResultFormat.Writer
   @Override
   public void writeHeader() throws IOException
   {
-    jsonGenerator.writeObject(signature.getColumnNames());
+    jsonGenerator.writeObject(columnNames);
   }
 
   @Override

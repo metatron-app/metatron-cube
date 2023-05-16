@@ -22,16 +22,22 @@ package io.druid.sql.http;
 import com.fasterxml.jackson.core.io.SerializedString;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.query.RowSignature;
+import org.apache.calcite.rel.type.RelDataType;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
 public class ObjectLinesWriter extends ObjectWriter
 {
-  ObjectLinesWriter(OutputStream outputStream, ObjectMapper jsonMapper, RowSignature signature) throws IOException
+  ObjectLinesWriter(OutputStream outputStream, ObjectMapper jsonMapper, RelDataType dataType) throws IOException
   {
-    super(outputStream, jsonMapper, signature);
+    super(outputStream, jsonMapper, dataType);
     jsonGenerator.setRootValueSeparator(new SerializedString("\n"));
+  }
+
+  @Override
+  public void start() throws IOException
+  {
   }
 
   @Override

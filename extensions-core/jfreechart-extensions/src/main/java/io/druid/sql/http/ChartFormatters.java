@@ -26,7 +26,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.query.RowSignature;
+import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rel.type.RelDataType;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
@@ -80,10 +81,11 @@ public interface ChartFormatters
     @Override
     public Writer createFormatter(
         final OutputStream os,
-        final ObjectMapper jsonMapper,
-        RowSignature signature
+        final ObjectMapper mapper,
+        final RelDataType rowType
     ) throws IOException
     {
+      final List<String> columnNames = RowSignature.columnNames(rowType);
       return new Writer()
       {
         private final DefaultPieDataset dataset = new DefaultPieDataset();
@@ -91,12 +93,12 @@ public interface ChartFormatters
         @Override
         public void writeRow(Object[] row) throws IOException
         {
-          if (signature.size() == 2 && row[1] instanceof Number) {
+          if (columnNames.size() == 2 && row[1] instanceof Number) {
             dataset.setValue(Objects.toString(row[0], null), (Number) row[1]);
           } else {
             for (int i = 0; i < row.length; i++) {
               if (row[i] instanceof Number) {
-                dataset.setValue(signature.columnName(i), (Number) row[i]);
+                dataset.setValue(columnNames.get(i), (Number) row[i]);
               }
             }
           }
@@ -152,11 +154,11 @@ public interface ChartFormatters
     @Override
     public Writer createFormatter(
         final OutputStream os,
-        final ObjectMapper jsonMapper,
-        final RowSignature signature
+        final ObjectMapper mapper,
+        final RelDataType rowType
     ) throws IOException
     {
-      final List<String> columnNames = signature.getColumnNames();
+      final List<String> columnNames = RowSignature.columnNames(rowType);
       final String xAxis;
       final String yAxis;
       final int ix;
@@ -231,11 +233,11 @@ public interface ChartFormatters
     @Override
     public Writer createFormatter(
         final OutputStream os,
-        final ObjectMapper jsonMapper,
-        final RowSignature signature
+        final ObjectMapper mapper,
+        final RelDataType rowType
     ) throws IOException
     {
-      final List<String> columnNames = signature.getColumnNames();
+      final List<String> columnNames = RowSignature.columnNames(rowType);
       final String xAxis;
       final String yAxis;
       final int ix;

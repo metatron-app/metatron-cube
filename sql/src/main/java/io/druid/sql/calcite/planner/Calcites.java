@@ -175,6 +175,22 @@ public class Calcites
     return dataType.getSqlTypeName();
   }
 
+  public static ValueDesc toCoercedType(RelDataType dataType)
+  {
+    if (dataType instanceof DruidType) {
+      ValueDesc druidType = ((DruidType) dataType).getDruidType();
+      if (druidType.isDimension() || druidType.isMultiValued()) {
+        return ValueDesc.STRING;
+      }
+      return druidType;
+    }
+    final SqlTypeName sqlTypeName = dataType.getSqlTypeName();
+    if (SqlTypeName.TIMESTAMP == sqlTypeName || SqlTypeName.DATE == sqlTypeName) {
+      return ValueDesc.STRING;  // I cannot understand this.. see SqlResource.execute
+    }
+    return asValueDesc(dataType);
+  }
+
   public static ValueDesc asValueDesc(RexNode rexNode)
   {
     return asValueDesc(rexNode.getType());

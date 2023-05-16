@@ -59,12 +59,10 @@ import org.joda.time.format.ISODateTimeFormat;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -137,12 +135,10 @@ public class SqlResource
     return execute(new SqlQuery(sqlQuery, format, false, QueryResource.contextFromParam(req)), req);
   }
 
-  @GET
+  @POST
   @Path("/custom")
-  public Response getCustom(
-      @QueryParam("query")  String query,
-      @Context HttpServletRequest req
-  ) throws SQLException, IOException
+  @Consumes(MediaType.TEXT_PLAIN)
+  public Response getCustom(String query, @Context HttpServletRequest req) throws SQLException, IOException
   {
     Map<String, Object> output = QueryResource.contextFromParam(req, "output.");
     ResultFormat format = jsonMapper.convertValue(output, ResultFormat.class);
@@ -254,8 +250,7 @@ public class SqlResource
                 final MutableInt counter = new MutableInt();
                 final CountingOutputStream os = new CountingOutputStream(outputStream);
 
-                final RowSignature signature = RowSignature.from(result.rowType());
-                try (final ResultFormat.Writer writer = getWriter(os, signature)) {
+                try (final ResultFormat.Writer writer = getWriter(os, result.rowType())) {
                   writer.start();
                   if (sqlQuery.includeHeader()) {
                     writer.writeHeader();
@@ -278,11 +273,12 @@ public class SqlResource
               }
 
               @SuppressWarnings("unchecked")
-              private ResultFormat.Writer getWriter(CountingOutputStream os, RowSignature signature) throws IOException
+              private ResultFormat.Writer getWriter(CountingOutputStream os, RelDataType rowType) throws IOException
               {
                 if (req.getAttribute(QueryResource.GET_FEATURE) == null) {
-                  return format.createFormatter(os, jsonMapper, signature);
+                  return format.createFormatter(os, jsonMapper, rowType);
                 }
+                final RowSignature signature = RowSignature.from(result.rowType());
                 int geomIndex = signature.getColumnTypes().indexOf(ValueDesc.GEOMETRY);
                 OutputDecorator<Object[]> decorator = jsonMapper.convertValue(
                     ImmutableMap.of(

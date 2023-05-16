@@ -40,10 +40,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Type signature for a row in a Druid dataSource ("DruidTable") or query result. Rows have an ordering and every
- * column has a defined type. This is a little bit of a fiction in the Druid world (where rows do not _actually_ have
+ * column has a defined type. This is a little of a fiction in the Druid world (where rows do not _actually_ have
  * well-defined types) but we do impose types for the SQL layer.
  */
 public class RowSignature extends io.druid.query.RowSignature
@@ -66,6 +67,11 @@ public class RowSignature extends io.druid.query.RowSignature
       rowSignatureBuilder.add(columnName, valueType);
     }
     return rowSignatureBuilder.build();
+  }
+
+  public static List<String> columnNames(RelDataType rowType)
+  {
+    return rowType.getFieldList().stream().map(RelDataTypeField::getName).collect(Collectors.toList());
   }
 
   public static RowSignature fromTypeString(String typeString, ValueDesc defaultType)
