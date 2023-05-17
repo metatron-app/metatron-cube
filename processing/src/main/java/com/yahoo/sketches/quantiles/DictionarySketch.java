@@ -186,6 +186,8 @@ public class DictionarySketch
         x -> ((WithRawAccess) selector).getAsWrap(x) :
         x -> UTF8Bytes.of(StringUtils.toUtf8(Objects.toString(selector.lookupName(x), "")));
 
+    Arrays.sort(sketch, 0, index);
+
     for (int i = 0; i < index; i++) {
       qs.combinedBuffer_[i] = handler.apply(sketch[i]);
     }

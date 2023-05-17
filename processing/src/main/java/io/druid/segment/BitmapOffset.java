@@ -37,7 +37,7 @@ public class BitmapOffset implements Offset
   private final boolean descending;
   private final int numRows;
 
-  private volatile int val;
+  private int val;  // volatile seemed overkill because cursor is single threaded
 
   public BitmapOffset(BitmapFactory bitmapFactory, int numRows, ImmutableBitmap bitmapIndex, boolean descending)
   {
@@ -64,11 +64,12 @@ public class BitmapOffset implements Offset
   {
     if (itr.hasNext()) {
       val = itr.next();
-      return val > INVALID_VALUE && val < numRows;
-    } else {
-      val = INVALID_VALUE;
-      return false;
+      if (val < numRows) {
+        return true;
+      }
     }
+    val = INVALID_VALUE;
+    return false;
   }
 
   @Override
@@ -99,6 +100,6 @@ public class BitmapOffset implements Offset
   @Override
   public int getOffset()
   {
-    return val < numRows ? val : INVALID_VALUE;
+    return val;
   }
 }

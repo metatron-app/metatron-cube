@@ -42,7 +42,7 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
 
   public static UTF8Bytes of(String value)
   {
-    return value == null ? EMPTY :of(StringUtils.toUtf8(value));
+    return value == null ? EMPTY : of(StringUtils.toUtf8(value));
   }
 
   public static UTF8Bytes read(ByteBuffer buffer, int offset, int length)

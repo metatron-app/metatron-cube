@@ -34,8 +34,11 @@ import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
+import io.druid.segment.bitmap.WrappedBitSetBitmap;
 import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DoubleScanner;
@@ -533,59 +536,71 @@ public class ColumnSelectors
 
   private static final int THRESHOLD = 4194304;
 
-  public static ObjectColumnSelector asRawAccess(WithRawAccess selector, String column, FilterContext context)
+  // ignores value matcher
+  public static ObjectColumnSelector withRawAccess(Scannable scannable, String column, FilterContext context)
   {
-    Dictionary dictionary = selector.getDictionary();
-    ImmutableBitmap ref = context.dictionaryRef(column);
-    int sizeOfCache = ref == null ? dictionary.size() : ref.size();
-    long estimation = dictionary.getSerializedSize() * sizeOfCache / dictionary.size();
-    if (estimation < THRESHOLD && context.targetNumRows() > sizeOfCache >> 1) {
-      IntIterator iterator = ref == null ? null : ref.iterator();
-      if (dictionary.size() > sizeOfCache << 3) {
-        Int2ObjectMap<UTF8Bytes> map = new Int2ObjectOpenHashMap<>(sizeOfCache);
+    ImmutableBitmap caching = context.dictionaryRef(column);
+    if (caching != null && caching.isEmpty()) {
+      return ObjectColumnSelector.string(() -> UTF8Bytes.EMPTY);
+    }
+    int targetRows = context.targetNumRows();
+    ObjectColumnSelector cached = asCachingSelector(scannable, caching, targetRows);
+    if (cached == null && caching == null && targetRows << 1 < context.numRows()) {
+      ImmutableBitmap bitmap = new WrappedBitSetBitmap(scannable.collect(context.rowIterator()));
+      if (bitmap.isEmpty()) {
+        return ObjectColumnSelector.string(() -> UTF8Bytes.EMPTY);
+      }
+      cached = asCachingSelector(scannable, bitmap, targetRows);
+    }
+    if (cached != null) {
+      return cached;
+    }
+    return ObjectColumnSelector.string(() -> UTF8Bytes.of(scannable.getAsRaw(scannable.getRow().get(0))));
+  }
+
+  private static ObjectColumnSelector asCachingSelector(Scannable scannable, ImmutableBitmap bitmap, int targetRows)
+  {
+    Dictionary dictionary = scannable.getDictionary();
+
+    int cardinality = bitmap == null ? dictionary.size() : bitmap.size();
+    int first = bitmap == null ? 0 : RoaringBitmapFactory.firstOf(bitmap);
+    int last = bitmap == null ? dictionary.size() : RoaringBitmapFactory.lastOf(bitmap);
+    int range = last - first + 1;
+
+    long estimation = dictionary.getSerializedSize() * cardinality / dictionary.size();
+    if (estimation < THRESHOLD && targetRows > cardinality >> 1) {
+      IntIterator iterator = bitmap == null ? null : bitmap.iterator();
+      if (range > cardinality << 3) {
+        Int2ObjectMap<UTF8Bytes> cached = new Int2ObjectOpenHashMap<>(cardinality);
         if (dictionary instanceof GenericIndexed) {
-          GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
-          indexed.scan(iterator, (ix, buffer, offset, length) -> map.put(ix, UTF8Bytes.read(buffer, offset, length)));
+          GenericIndexed dedicated = ((GenericIndexed) dictionary).asSingleThreaded();
+          dedicated.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b, o, l)));
         } else {
-          dictionary.scan(iterator, (ix, buffer, offset, length) -> map.put(ix, UTF8Bytes.read(buffer.duplicate(), offset, length)));
+          dictionary.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b.duplicate(), o, l)));
         }
-        return ObjectColumnSelector.string(() -> map.get(selector.getRow().get(0)));
+        return ObjectColumnSelector.string(() -> cached.get(scannable.getRow().get(0)));
       } else {
-        UTF8Bytes[] cached = new UTF8Bytes[dictionary.size()];
+        UTF8Bytes[] cached = new UTF8Bytes[range];
         if (dictionary instanceof GenericIndexed) {
-          GenericIndexed indexed = ((GenericIndexed) dictionary).asSingleThreaded();
-          indexed.scan(iterator, (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer, offset, length));
+          GenericIndexed dedicated = ((GenericIndexed) dictionary).asSingleThreaded();
+          dedicated.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b, o, l));
         } else {
-          dictionary.scan(iterator, (ix, buffer, offset, length) -> cached[ix] = UTF8Bytes.read(buffer.duplicate(), offset, length));
+          dictionary.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b.duplicate(), o, l));
         }
-        return ObjectColumnSelector.string(() -> cached[selector.getRow().get(0)]);
+        return ObjectColumnSelector.string(() -> cached[scannable.getRow().get(0) - first]);
       }
     }
-    return ObjectColumnSelector.string(() -> UTF8Bytes.of(selector.getAsRaw(selector.getRow().get(0))));
+    return null;
   }
 
   public static ObjectColumnSelector<UTF8Bytes> asSingleRaw(final SingleValued selector)
   {
-    return new ObjectColumnSelector.Typed<UTF8Bytes>(ValueDesc.STRING)
-    {
-      @Override
-      public UTF8Bytes get()
-      {
-        return UTF8Bytes.of((String) selector.lookupName(selector.getRow().get(0)));
-      }
-    };
+    return ObjectColumnSelector.string(() -> UTF8Bytes.of((String) selector.lookupName(selector.getRow().get(0))));
   }
 
-  public static ObjectColumnSelector<String> asSingleValued(final SingleValued selector)
+  public static ObjectColumnSelector<String> asSingleString(final SingleValued selector)
   {
-    return new ObjectColumnSelector.Typed<String>(ValueDesc.STRING)
-    {
-      @Override
-      public String get()
-      {
-        return (String) selector.lookupName(selector.getRow().get(0));
-      }
-    };
+    return ObjectColumnSelector.string(() -> (String) selector.lookupName(selector.getRow().get(0)));
   }
 
   public static ObjectColumnSelector asMultiValued(final DimensionSelector selector)

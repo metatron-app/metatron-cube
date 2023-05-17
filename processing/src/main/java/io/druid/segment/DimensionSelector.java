@@ -19,16 +19,17 @@
 
 package io.druid.segment;
 
-import io.druid.collections.IntList;
 import io.druid.common.guava.BufferRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
+import io.druid.segment.bitmap.BitSets;
 import io.druid.segment.column.IntScanner;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import org.roaringbitmap.IntIterator;
 
+import java.util.BitSet;
 import java.util.function.IntFunction;
 
 /**
@@ -128,17 +129,22 @@ public interface DimensionSelector
   {
     void scan(IntIterator iterator, IntScanner scanner);    // rowID to dictId
 
-    default void scan(IntIterator iterator, Tools.Scanner scanner)
-    {
-      IntList rows = new IntList();
-      Dictionary dictionary = getDictionary();
-      scan(iterator, (x, v) -> rows.add(v.applyAsInt(x)));
-      rows.sort().stream().forEach(x -> dictionary.scan(x, scanner));
-    }
-
     void scan(Tools.Scanner scanner);         // on current
 
     <T> T apply(Tools.Function<T> function);  // on current
+
+    // no duplication (if it's needed, use IntList)
+    default void scan(IntIterator iterator, Tools.Scanner scanner)
+    {
+      getDictionary().scan(BitSets.iterator(collect(iterator)), scanner);
+    }
+
+    default BitSet collect(IntIterator iterator)
+    {
+      BitSet dictIds = new BitSet(getDictionary().size());
+      scan(iterator, (x, v) -> dictIds.set(v.applyAsInt(x)));
+      return dictIds;
+    }
   }
 
   interface Mimic extends DimensionSelector, ObjectColumnSelector

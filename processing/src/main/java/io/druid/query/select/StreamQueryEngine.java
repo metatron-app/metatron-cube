@@ -44,8 +44,8 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.Cursors;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.DimensionSelector.SingleValued;
-import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
 import it.unimi.dsi.fastutil.ints.IntComparator;
@@ -117,13 +117,13 @@ public class StreamQueryEngine
                 dimensions[i] = selector;
               }
               if (useRawUTF8 && columnType.isStringOrDimension()) {
-                if (selector instanceof WithRawAccess) {
-                  selectors[i] = ColumnSelectors.asRawAccess((WithRawAccess) selector, column, cursor.filterContext());
+                if (selector instanceof Scannable) {
+                  selectors[i] = ColumnSelectors.withRawAccess((Scannable) selector, column, cursor.filterContext());
                 } else {
                   selectors[i] = ColumnSelectors.asSingleRaw((SingleValued) selector);
                 }
               } else {
-                selectors[i] = ColumnSelectors.asSingleValued((SingleValued) selector);
+                selectors[i] = ColumnSelectors.asSingleString((SingleValued) selector);
               }
             } else if (concatString != null) {
               selectors[i] = ColumnSelectors.asConcatValued(selector, concatString);
