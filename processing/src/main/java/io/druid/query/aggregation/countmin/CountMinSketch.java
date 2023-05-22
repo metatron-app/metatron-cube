@@ -23,13 +23,11 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Ints;
-import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Murmur3;
 import io.druid.data.VLongUtils;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.HashCollector;
-import io.druid.segment.DimensionSelector;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
@@ -37,7 +35,7 @@ import net.jpountz.lz4.LZ4FastDecompressor;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector.ScanSupport
+public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
 {
   private final int w;
   private final int d;
@@ -58,25 +56,6 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
   }
 
   @Override
-  public void collect(BytesRef[] values, BytesRef key)
-  {
-    // We use the trick mentioned in "Less Hashing, Same Performance: Building a Better Bloom Filter"
-    // by Kirsch et.al. From abstract 'only two hash functions are necessary to effectively
-    // implement a Bloom filter without any loss in the asymptotic false positive probability'
-    // The paper also proves that the same technique (using just 2 pairwise independent hash functions)
-    // can be used for Count-Min sketch.
-
-    // Lets split up 64-bit hashcode into two 32-bit hashcodes and employ the technique mentioned
-    // in the above paper
-    collect(Murmur3.hash64(key));
-  }
-
-  @Override
-  public void collect(DimensionSelector.Scannable scannable)
-  {
-    scannable.scan((ix, buffer, offset, length) -> collect(Murmur3.hash64(buffer, offset, length)));
-  }
-
   public void collect(long hash64)
   {
     final int hash1 = (int) hash64;

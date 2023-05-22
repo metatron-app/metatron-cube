@@ -37,8 +37,8 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
-import io.druid.query.aggregation.HashAggregator;
-import io.druid.query.aggregation.HashCollector;
+import io.druid.query.aggregation.RowAggregator;
+import io.druid.query.aggregation.RowCollector;
 import io.druid.query.aggregation.countmin.CountMinSketch;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.Cursor;
@@ -110,7 +110,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
       public Sequence<Object[]> apply(final Cursor cursor)
       {
         final TreeMap<Integer, Map<ObjectArray, MutableInt>> sortedMap = new TreeMap<>();
-        final HashCollector collector = new HashCollector()
+        final RowCollector collector = new RowCollector()
         {
           @Override
           public void collect(BytesRef[] values, BytesRef bytes)
@@ -136,7 +136,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
           selectors.add(cursor.makeDimensionSelector(dimension));
         }
         final int[][] groupings = query.getGroupings();
-        final HashAggregator aggregator = new HashAggregator(selectors, groupings, true)
+        final RowAggregator aggregator = new RowAggregator(selectors, groupings)
         {
           @Override
           protected Class collectorClass() {return collector.getClass();}

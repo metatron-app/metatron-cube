@@ -19,15 +19,16 @@
 
 package io.druid.query.aggregation;
 
-import io.druid.java.util.common.ISE;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
-public abstract class HashAggregator<T extends HashCollector> extends HashIterator<T> implements Aggregator<T>
+public abstract class RowBufferAggregator<T extends RowCollector> extends RowIterator<T>
+    implements BufferAggregator
 {
-  public HashAggregator(
+  public RowBufferAggregator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
@@ -37,28 +38,18 @@ public abstract class HashAggregator<T extends HashCollector> extends HashIterat
     super(predicate, selectorList, groupings, byRow);
   }
 
-  public HashAggregator(List<DimensionSelector> selectorList, int[][] groupings)
+  public RowBufferAggregator(List<DimensionSelector> selectorList, int[][] groupings, boolean needValue)
   {
     this(null, selectorList, groupings, true);
   }
 
   @Override
-  public T aggregate(T current)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     if (predicate.matches()) {
-      consumer.accept(current == null ? current = newCollector() : current);
+      consumer.accept(toCollector(buf, position1));
     }
-    return current;
   }
 
-  @Override
-  public Object get(T current)
-  {
-    return current;
-  }
-
-  protected T newCollector()
-  {
-    throw new ISE("implement this");
-  }
+  protected abstract T toCollector(ByteBuffer buf, int position);
 }

@@ -146,8 +146,8 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
   {
     List<Row> rows = Sequences.toList(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
     if (query instanceof GroupByQuery && query.getDataSource() instanceof TableDataSource && checkCount) {
-      int sum = count((GroupByQuery) query);
-      Assert.assertEquals(sum, rows.size());
+      int estimated = count((GroupByQuery) query);
+      Assert.assertEquals(rows.size(), estimated);
     }
     return rows;
   }

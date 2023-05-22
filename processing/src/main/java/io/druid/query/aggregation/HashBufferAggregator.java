@@ -32,16 +32,15 @@ public abstract class HashBufferAggregator<T extends HashCollector> extends Hash
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
-      boolean byRow,
-      boolean needValue
+      boolean byRow
   )
   {
-    super(predicate, selectorList, groupings, byRow, needValue);
+    super(predicate, selectorList, groupings, byRow);
   }
 
-  public HashBufferAggregator(List<DimensionSelector> selectorList, int[][] groupings, boolean needValue)
+  public HashBufferAggregator(List<DimensionSelector> selectorList, int[][] groupings)
   {
-    this(null, selectorList, groupings, true, needValue);
+    this(null, selectorList, groupings, true);
   }
 
   @Override

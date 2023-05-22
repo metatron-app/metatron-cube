@@ -19,7 +19,9 @@
 
 package io.druid.query.aggregation;
 
-public interface HashCollector
+import io.druid.common.guava.BytesRef;
+
+public interface RowCollector
 {
-  void collect(long hash64);
+  void collect(BytesRef[] values, BytesRef bytes);
 }

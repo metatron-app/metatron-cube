@@ -21,267 +21,242 @@ package io.druid.query.aggregation;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
-import io.druid.common.guava.BytesRef;
-import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.data.input.BytesOutputStream;
-import io.druid.query.aggregation.HashCollector.ScanSupport;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.IndexedInts;
 
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.IntFunction;
+import java.util.function.IntToLongFunction;
+import java.util.function.LongSupplier;
+import java.util.stream.IntStream;
 
 public abstract class HashIterator<T extends HashCollector>
 {
-  // aggregator can be shared by multi threads
-  protected static final ThreadLocal<BytesOutputStream> BUFFERS = new ThreadLocal<BytesOutputStream>()
-  {
-    @Override
-    protected BytesOutputStream initialValue()
-    {
-      return new BytesOutputStream();
-    }
-  };
-
-  protected static final byte NULL_VALUE = (byte) 0x00;    // HLL seemingly expects this to be zero
-  protected static final byte COLUMN_SEPARATOR = (byte) 0x01;
-  protected static final byte MULTIVALUE_SEPARATOR = (byte) 0x02;
-
-  protected static final BytesRef NULL_REF = BytesRef.of(new byte[]{NULL_VALUE});
+  protected static final long NULL_HASH = Murmur3.hash64(0);
 
   protected final ValueMatcher predicate;
   protected final List<DimensionSelector> selectorList;
   protected final int[][] groupings;
   protected final boolean byRow;
-  protected final boolean needValue;
 
   protected final Consumer<T> consumer;
 
-  public HashIterator(
-      ValueMatcher predicate,
-      List<DimensionSelector> selectorList,
-      int[][] groupings,
-      boolean byRow,
-      boolean needValue
-  )
+  public HashIterator(ValueMatcher predicate, List<DimensionSelector> selectorList, int[][] groupings, boolean byRow)
   {
     this.predicate = predicate == null ? ValueMatcher.TRUE : predicate;
     this.selectorList = selectorList;
     this.groupings = groupings;
     this.byRow = byRow;
-    this.needValue = needValue;
     this.consumer = toConsumer(selectorList);
-  }
-
-  public boolean useScanning()
-  {
-    return ScanSupport.class.isAssignableFrom(collectorClass()) &&
-           selectorList.size() == 1 && selectorList.get(0) instanceof Scannable;
   }
 
   // class of collector
   protected abstract Class<T> collectorClass();
 
-  private Consumer<T> toConsumer(List<DimensionSelector> selectors)
+  private Consumer<T> toConsumer(List<DimensionSelector> source)
   {
-    if (selectors.isEmpty()) {
-      return collector -> collector.collect(new BytesRef[] {NULL_REF}, NULL_REF);
-    } else if (useScanning()) {
-      final Scannable selector = (Scannable) selectors.get(0);
-      return collector -> ((ScanSupport) collector).collect(selector);
+    if (source.isEmpty()) {
+      return collector -> collector.collect(NULL_HASH);
     }
-    final BytesOutputStream buffer = BUFFERS.get();
-    final BytesRef[] values = new BytesRef[selectors.size()];
-    if (Iterables.all(selectors, s -> s instanceof SingleValued)) {
-      if (selectors.size() == 1) {
-        Supplier<byte[]> supplier = toSingleValueSupplier(selectors.get(0));
-        return collector -> collector.collect(values, values[0] = BytesRef.of(supplier.get()));
-      } else if (groupings == null || groupings.length == 0) {
-        final List<Supplier<byte[]>> suppliers = GuavaUtils.transform(selectors, s -> toSingleValueSupplier(s));
+    DimensionSelector[] selectors = source.toArray(new DimensionSelector[0]);
+    IntToLongFunction[] lookups = source.stream().map(HashIterator::toLookup).toArray(IntToLongFunction[]::new);
+
+    LongSupplier[] svs = IntStream.range(0, selectors.length)
+                                     .mapToObj(x -> toValueSupplier(selectors[x], lookups[x], groupings == null))
+                                     .toArray(LongSupplier[]::new);
+
+    if (Iterables.all(source, s -> s instanceof SingleValued)) {
+      if (selectors.length == 1) {
+        return collector -> collector.collect(svs[0].getAsLong());
+      }
+      if (byRow) {
+        if (groupings == null || groupings.length == 0) {
+          return collector -> collector.collect(hash(svs));
+        }
+        long[] hashes = new long[selectors.length];   // not needed when groupings.length == 1
         return collector -> {
-          buffer.clear();
-          buffer.write(suppliers.get(0).get());
-          values[0] = buffer.asRef();
-          for (int i = 1; i < suppliers.size(); i++) {
-            final int prev = buffer.size();
-            buffer.write(COLUMN_SEPARATOR);
-            buffer.write(suppliers.get(i).get());
-            values[i] = buffer.asRef(prev + 1);
+          for (int i = 0; i < selectors.length; i++) {
+            hashes[i] = svs[i].getAsLong();
           }
-          collector.collect(values, buffer.asRef());
+          for (int[] grouping : groupings) {
+            if (grouping.length == 0) {
+              collector.collect(NULL_HASH);
+            } else {
+              long hash = svs[grouping[0]].getAsLong();
+              for (int i = 1; i < grouping.length; i++) {
+                hash = _hash(hash, svs[grouping[i]].getAsLong());
+              }
+              collector.collect(hash);
+            }
+          }
         };
       }
-      // todo: test case for this ?
+      return collector -> {
+        for (LongSupplier supplier : svs) {
+          collector.collect(supplier.getAsLong());
+        }
+      };
     }
     if (byRow) {
-      final List<Supplier<byte[]>> svs = GuavaUtils.transform(selectors, s -> toSingleValueSupplier(s));
-      final List<IntFunction<byte[]>> lookups = GuavaUtils.transform(selectors, s -> toLookupFunction(s));
-      final byte[][][] source = new byte[selectorList.size()][][];
-      final Supplier<byte[][][]> supplier = () -> {
-        for (int i = 0; i < source.length; i++) {
-          source[i] = _toValues(selectors.get(i).getRow(), svs.get(i), lookups.get(i), groupings == null);
-        }
-        return source;
-      };
       if (groupings == null) {
-        return collector -> collectConcat(supplier.get(), values, collector, buffer.clear());
-      } else {
-        return collector -> collectExploded(supplier.get(), values, groupings, collector, buffer.clear());
+        return colector -> colector.collect(hash(svs));
       }
+      long[][] hashes = new long[selectors.length][];
+      Supplier<long[][]> mvs = () -> {
+        for (int i = 0; i < hashes.length; i++) {
+          hashes[i] = toHashArray(selectors[i].getRow(), svs[i], lookups[i]);
+        }
+        return hashes;
+      };
+      if (groupings.length == 0) {
+        return collector -> collectExploded(mvs.get(), collector);
+      }
+      return collector -> collectExploded(mvs.get(), collector, groupings);
     }
-    return collector -> hashValues(collector);
+    return collector -> {
+      for (int i = 0; i < selectors.length; i++) {
+        collectAll(selectors[i].getRow(), svs[i], lookups[i], collector);
+      }
+    };
+  }
+
+  private static IntToLongFunction toLookup(DimensionSelector selector)
+  {
+    if (selector instanceof WithRawAccess) {
+      return x -> Murmur3.hash64(((WithRawAccess) selector).getAsRef(x));
+    } else {
+      return x -> Murmur3.hash64(StringUtils.toUtf8WithNullToEmpty(selector.lookupName(x)));
+    }
+  }
+
+  private static LongSupplier toValueSupplier(DimensionSelector selector, IntToLongFunction lookup, boolean concat)
+  {
+    if (concat) {
+      return toConcatSupplier(selector, lookup);
+    } else {
+      return toFirstValueSupplier(selector, lookup);
+    }
   }
 
   // called only when size == 1
-  private static Supplier<byte[]> toSingleValueSupplier(DimensionSelector selector)
+  private static LongSupplier toFirstValueSupplier(DimensionSelector selector, IntToLongFunction lookup)
   {
     if (selector instanceof ObjectColumnSelector) {
       ValueDesc type = ((ObjectColumnSelector) selector).type();
       ValueType serializer = type.isDimension() || type.isMultiValued() ? ValueType.STRING : type.type();
-      return () -> serializer.toBytes(((ObjectColumnSelector) selector).get());
+      return () -> Murmur3.hash64(serializer.toBytes(((ObjectColumnSelector) selector).get()));
     }
-    if (selector instanceof WithRawAccess) {
-      return () -> ((WithRawAccess) selector).getAsRaw(selector.getRow().get(0));
-    } else {
-      return () -> StringUtils.toUtf8WithNullToEmpty(selector.lookupName(selector.getRow().get(0)));
-    }
+    return () -> lookup.applyAsLong(selector.getRow().get(0));
   }
 
-  @Nullable
-  private static IntFunction<byte[]> toLookupFunction(DimensionSelector selector)
+  private static LongSupplier toConcatSupplier(DimensionSelector selector, IntToLongFunction lookup)
   {
-    if (selector instanceof WithRawAccess) {
-      return x -> ((WithRawAccess) selector).getAsRaw(x);
-    } else {
-      return x -> StringUtils.toUtf8WithNullToEmpty(selector.lookupName(x));
+    if (selector instanceof ObjectColumnSelector || selector instanceof SingleValued) {
+      return toFirstValueSupplier(selector, lookup);
     }
+    return () -> {
+      IndexedInts row = selector.getRow();
+      int size = row.size();
+      if (size == 0) {
+        return NULL_HASH;
+      }
+      if (size == 1) {
+        return lookup.applyAsLong(row.get(0));
+      }
+      int[] array = row.toArray();
+      Arrays.sort(array);
+      long hash = lookup.applyAsLong(array[0]);
+      for (int x = 1; x < size; x++) {
+        hash = _hash(hash, lookup.applyAsLong(array[x]));
+      }
+      return hash;
+    };
   }
 
-  private static byte[] lookup(DimensionSelector selector, int x)
+  private static long[] toHashArray(IndexedInts row, LongSupplier sv, IntToLongFunction lookup)
   {
-    if (selector instanceof WithRawAccess) {
-      return ((WithRawAccess) selector).getAsRaw(x);
-    } else {
-      return StringUtils.toUtf8WithNullToEmpty(selector.lookupName(x));
+    final int size = row.size();
+    if (size == 0) {
+      return new long[]{NULL_HASH};
     }
-  }
-
-  @Nullable
-  private static byte[][] _toValues(IndexedInts row, Supplier<byte[]> sv, IntFunction<byte[]> lookup, boolean sort)
-  {
-    final int length = row.size();
-    if (length == 1) {
-      return new byte[][]{sv.get()};
+    if (size == 1) {
+      return new long[]{sv.getAsLong()};
     }
-    final byte[][] mvs = new byte[length][];
+    final long[] mvs = new long[size];
     for (int i = 0; i < mvs.length; i++) {
-      mvs[i] = lookup.apply(row.get(i));
-    }
-    // Values need to be sorted to ensure consistent multi-value ordering across different segments
-    if (sort) {
-      Arrays.sort(mvs, UTF8Bytes.COMPARATOR_NF);
+      mvs[i] = lookup.applyAsLong(row.get(i));
     }
     return mvs;
   }
 
-  // concat multi-valued dimension
-  private static void collectConcat(
-      byte[][][] source,
-      BytesRef[] values,
-      HashCollector collector,
-      BytesOutputStream buffer
-  )
+  private static void collectAll(IndexedInts row, LongSupplier sv, IntToLongFunction lookup, HashCollector collector)
   {
-    buffer.clear();
-    buffer.write(source[0], MULTIVALUE_SEPARATOR);
-    values[0] = buffer.asRef();
-    for (int i = 1; i < source.length; i++) {
-      final int prev = buffer.size();
-      buffer.write(COLUMN_SEPARATOR);
-      buffer.write(source[i], MULTIVALUE_SEPARATOR);
-      values[i] = buffer.asRef(prev + 1);
+    final int size = row.size();
+    if (size == 0) {
+      collector.collect(NULL_HASH);
+    } else if (size == 1) {
+      collector.collect(sv.getAsLong());
+    } else {
+      for (int i = 0; i < size; i++) {
+        collector.collect(lookup.applyAsLong(row.get(i)));
+      }
     }
-    collector.collect(values, buffer.asRef());
+  }
+
+  private static void collectExploded(long[][] source, HashCollector collector)
+  {
+    collectExploded(collector, source, 0, 0);
   }
 
   // mimics group-by like population of multi-valued dimension
-  private static void collectExploded(
-      final byte[][][] source,
-      final BytesRef[] values,
-      final int[][] groupings,
-      final HashCollector collector,
-      final BytesOutputStream buffer
-  )
+  private static void collectExploded(long[][] source, HashCollector collector, int[][] groupings)
   {
-    if (groupings.length == 0) {
-      collectExploded(source, values, 0, collector, buffer);
-    } else {
-      for (int[] grouping : groupings) {
-        final byte[][][] copy = new byte[source.length][][];
-        for (int index : grouping) {
-          copy[index] = source[index];
-        }
-        collectExploded(copy, values, 0, collector, buffer);
+    for (int[] grouping : groupings) {
+      long[][] copy = new long[source.length][];
+      for (int index : grouping) {
+        copy[index] = source[index];
       }
+      collectExploded(collector, copy, 0, 0);
     }
   }
 
-  private static void collectExploded(
-      final byte[][][] source,
-      final BytesRef[] values,
-      final int index,
-      final HashCollector collector,
-      final BytesOutputStream buffer
-  )
+  private static void collectExploded(HashCollector collector, long[][] source, int index, long hash)
   {
-    if (values.length == index) {
-      collector.collect(values, buffer.asRef());
+    if (source.length == index) {
+      collector.collect(hash);
       return;
     }
-    if (index > 0) {
-      buffer.write(COLUMN_SEPARATOR);
-    }
-    final int mark = buffer.size();
-    if (source[index] == null) {
-      buffer.write(NULL_VALUE);
-      values[index] = NULL_REF;
-      collectExploded(source, values, index + 1, collector, buffer);
+    if (source[index] == null || source[index].length == 0) {
+      collectExploded(collector, source, index + 1, _hash(hash, NULL_HASH));
     } else if (source[index].length == 1) {
-      buffer.write(source[index][0]);
-      values[index] = BytesRef.of(source[index][0]);
-      collectExploded(source, values, index + 1, collector, buffer);
+      collectExploded(collector, source, index + 1, _hash(hash, source[index][0]));
     } else {
-      for (byte[] element : source[index]) {
-        buffer.write(element);
-        values[index] = BytesRef.of(element);
-        collectExploded(source, values, index + 1, collector, buffer);
-        buffer.position(mark);
+      for (long element : source[index]) {
+        collectExploded(collector, source, index + 1, _hash(hash, element));
       }
     }
-    buffer.position(mark);
   }
 
-  private void hashValues(final HashCollector collector)
+  private static long hash(LongSupplier[] suppliers)
   {
-    final BytesRef[] values = new BytesRef[1];
-    for (final DimensionSelector selector : selectorList) {
-      final IndexedInts row = selector.getRow();
-      final int size = row.size();
-      for (int i = 0; i < size; i++) {
-        collector.collect(values, values[0] = BytesRef.of(lookup(selector, row.get(i))));
-      }
+    long hash = suppliers[0].getAsLong();
+    for (int i = 1; i < suppliers.length; i++) {
+      hash = _hash(hash, suppliers[i].getAsLong());
     }
+    return hash;
+  }
+
+  private static long _hash(long prev, long current)
+  {
+    return prev * 31 + current;
   }
 }

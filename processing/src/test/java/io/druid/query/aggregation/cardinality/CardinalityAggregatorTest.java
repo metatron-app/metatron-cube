@@ -253,7 +253,7 @@ public class CardinalityAggregatorTest
 
     rowAggregatorFactory = new CardinalityAggregatorFactory("billy", Lists.newArrayList("dim1", "dim2"), true);
 
-    valueAggregatorFactory = new CardinalityAggregatorFactory("billy", Lists.newArrayList("dim1", "dim2"), true);
+    valueAggregatorFactory = new CardinalityAggregatorFactory("billy", Lists.newArrayList("dim1", "dim2"), false);
 
     String superJsFn = "function(str) { return 'super-' + str; }";
     ExtractionFn superFn = new JavaScriptExtractionFn(superJsFn, false, JavaScriptConfig.getDefault());

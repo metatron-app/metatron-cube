@@ -34,7 +34,6 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.Scannable.BufferBacked;
-import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.IOUtils;
 import io.druid.common.utils.Murmur3;
@@ -245,7 +244,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
   {
     public BloomTestAggregator(List<DimensionSelector> selectorList, int[][] groupings)
     {
-      super(null, selectorList, groupings, false, false);
+      super(null, selectorList, groupings, false);
     }
 
     @Override
@@ -255,7 +254,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
     }
   }
 
-  private static class BloomTest implements HashCollector.ScanSupport
+  private static class BloomTest implements HashCollector
   {
     private final BloomKFilter filter;
     private boolean status;
@@ -263,15 +262,9 @@ public class BloomDimFilter implements LogProvider, BestEffort
     private BloomTest(BloomKFilter filter) {this.filter = filter;}
 
     @Override
-    public void collect(BytesRef[] values, BytesRef bytes)
+    public void collect(long hash64)
     {
-      status = filter.test(bytes);
-    }
-
-    @Override
-    public void collect(DimensionSelector.Scannable scannable)
-    {
-      status = filter.test(scannable);
+      status = filter.testHash(hash64);
     }
   }
 

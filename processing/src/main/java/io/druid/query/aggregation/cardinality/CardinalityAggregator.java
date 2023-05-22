@@ -43,7 +43,7 @@ public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
       int b
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.b = b;
   }
 

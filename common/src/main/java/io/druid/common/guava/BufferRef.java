@@ -41,6 +41,16 @@ public class BufferRef implements BinaryRef
     this.length = length;
   }
 
+  public ByteBuffer unwrap()
+  {
+    return buffer;
+  }
+
+  public int offset()
+  {
+    return offset;
+  }
+
   @Override
   public int length()
   {

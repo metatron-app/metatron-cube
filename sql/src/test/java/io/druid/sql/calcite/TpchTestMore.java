@@ -296,13 +296,15 @@ public class TpchTestMore extends CalciteQueryTestHelper
   @Test
   public void test4007() throws Exception
   {
-    testQuery("SELECT COUNT(DISTINCT L_LINENUMBER,L_RETURNFLAG,L_SHIPMODE) FROM lineitem", new Object[]{150L});
+    // exact: 147
+    testQuery("SELECT COUNT(DISTINCT L_LINENUMBER,L_RETURNFLAG,L_SHIPMODE) FROM lineitem", new Object[]{147L});
     hook.verifyHooked(
         "eQeBskc9KTlzE1vYMYPdrA==",
         "TimeseriesQuery{dataSource='lineitem', aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fieldNames=[L_LINENUMBER, L_RETURNFLAG, L_SHIPMODE], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[a0]}"
     );
 
-    testQuery("SELECT COUNT(DISTINCT L_LINENUMBER,L_RETURNFLAG,L_SHIPMODE) FROM lineitem WHERE L_SHIPMODE < 'T' ", new Object[]{128L});
+    // exact: 126
+    testQuery("SELECT COUNT(DISTINCT L_LINENUMBER,L_RETURNFLAG,L_SHIPMODE) FROM lineitem WHERE L_SHIPMODE < 'T' ", new Object[]{129L});
     hook.verifyHooked(
         "v0D5JV07F6+I3eY3uG423Q==",
         "TimeseriesQuery{dataSource='lineitem', filter=BoundDimFilter{L_SHIPMODE < T}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fieldNames=[L_LINENUMBER, L_RETURNFLAG, L_SHIPMODE], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[a0]}"

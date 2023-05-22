@@ -60,7 +60,7 @@ import java.util.Arrays;
  *
  * This implementation has much lesser L1 data cache misses than {@link org.apache.hive.common.util.BloomFilter}.
  */
-public class BloomKFilter implements HashCollector.ScanSupport
+public class BloomKFilter implements HashCollector
 {
   public static final float DEFAULT_FPP = 0.05f;
   // Given a byte array consisting of a serialized BloomKFilter, gives the offset (from 0)
@@ -365,20 +365,19 @@ public class BloomKFilter implements HashCollector.ScanSupport
   }
 
   @Override
-  public void collect(BytesRef[] values, BytesRef key)
+  public void collect(long hash)
   {
-    addHash(Murmur3.hash64(key));
-  }
-
-  @Override
-  public void collect(DimensionSelector.Scannable scannable)
-  {
-    scannable.scan((ix, buffer, offset, length) -> addHash(Murmur3.hash64(buffer, offset, length)));
+    addHash(hash);
   }
 
   public static void collect(ByteBuffer collector, int position, BytesRef key)
   {
     addHash(collector, position, Murmur3.hash64(key));
+  }
+
+  public static void collect(ByteBuffer collector, int position, long hash64)
+  {
+    addHash(collector, position, hash64);
   }
 
   public static void collect(ByteBuffer collector, int position, DimensionSelector.Scannable scannable)

@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation.bloomfilter;
 
-import io.druid.common.guava.BytesRef;
 import io.druid.query.aggregation.HashBufferAggregator;
 import io.druid.query.aggregation.HashCollector;
 import io.druid.query.filter.ValueMatcher;
@@ -40,7 +39,7 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilte
       final int maxNumEntries
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.maxNumEntries = maxNumEntries;
   }
 
@@ -68,7 +67,7 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilte
     return BloomKFilter.deserialize(buf, position1);
   }
 
-  static class Collector implements HashCollector.ScanSupport
+  static class Collector implements HashCollector
   {
     private final ByteBuffer byteBuffer;
     private final int position;
@@ -80,15 +79,9 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilte
     }
 
     @Override
-    public void collect(BytesRef[] values, BytesRef bytes)
+    public void collect(long hash64)
     {
-      BloomKFilter.collect(byteBuffer, position, bytes);
-    }
-
-    @Override
-    public void collect(DimensionSelector.Scannable scannable)
-    {
-      BloomKFilter.collect(byteBuffer, position, scannable);
+      BloomKFilter.collect(byteBuffer, position, hash64);
     }
   }
 }

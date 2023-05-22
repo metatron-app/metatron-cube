@@ -139,6 +139,15 @@ public interface IndexedInts extends IntIterable, Closeable
     }
   }
 
+  default int[] toArray()
+  {
+    final int[] array = new int[size()];
+    for (int i = 0; i < array.length; i++) {
+      array[i] = get(i);
+    }
+    return array;
+  }
+
   default void close() throws IOException {}
 
   interface Shared

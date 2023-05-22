@@ -68,7 +68,7 @@ public class BloomFilterAggregator extends HashAggregator<BloomKFilter> implemen
       long maxNumEntries
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.maxNumEntries = maxNumEntries;
   }
 

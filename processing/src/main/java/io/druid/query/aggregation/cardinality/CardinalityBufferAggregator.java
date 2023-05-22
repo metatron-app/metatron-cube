@@ -39,7 +39,7 @@ public class CardinalityBufferAggregator extends HashBufferAggregator<HyperLogLo
       int b
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.context = HyperLogLogCollector.getContext(b);
   }
 

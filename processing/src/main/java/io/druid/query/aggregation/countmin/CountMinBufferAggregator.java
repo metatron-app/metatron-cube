@@ -42,7 +42,7 @@ public class CountMinBufferAggregator extends HashBufferAggregator<CountMinSketc
       final int depth
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.width = width;
     this.depth = depth;
   }

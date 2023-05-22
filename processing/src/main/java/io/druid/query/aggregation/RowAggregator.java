@@ -17,64 +17,48 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.countmin;
+package io.druid.query.aggregation;
 
-import io.druid.query.aggregation.Aggregator.StreamingSupport;
-import io.druid.query.aggregation.HashAggregator;
+import io.druid.java.util.common.ISE;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
 import java.util.List;
 
-public class CountMinAggregator extends HashAggregator<CountMinSketch> implements StreamingSupport<CountMinSketch>
+public abstract class RowAggregator<T extends RowCollector> extends RowIterator<T> implements Aggregator<T>
 {
-  private final int width;
-  private final int depth;
-
-  public CountMinAggregator(
+  public RowAggregator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
-      boolean byRow,
-      int width,
-      int depth
+      boolean byRow
   )
   {
     super(predicate, selectorList, groupings, byRow);
-    this.width = width;
-    this.depth = depth;
+  }
+
+  public RowAggregator(List<DimensionSelector> selectorList, int[][] groupings)
+  {
+    this(null, selectorList, groupings, true);
   }
 
   @Override
-  protected Class<CountMinSketch> collectorClass()
+  public T aggregate(T current)
   {
-    return CountMinSketch.class;
+    if (predicate.matches()) {
+      consumer.accept(current == null ? current = newCollector() : current);
+    }
+    return current;
   }
 
   @Override
-  protected CountMinSketch newCollector()
+  public Object get(T current)
   {
-    return new CountMinSketch(width, depth);
+    return current;
   }
 
-  @Override
-  public CountMinAggregator streaming()
+  protected T newCollector()
   {
-    return new CountMinAggregator(predicate, selectorList, groupings, byRow, width, depth)
-    {
-      private final CountMinSketch collector = new CountMinSketch(width, depth);
-
-      @Override
-      protected CountMinSketch newCollector()
-      {
-        return collector.clear();
-      }
-
-      @Override
-      public byte[] get(CountMinSketch current)
-      {
-        return current == null ? null : current.toBytes();
-      }
-    };
+    throw new ISE("implement this");
   }
 }

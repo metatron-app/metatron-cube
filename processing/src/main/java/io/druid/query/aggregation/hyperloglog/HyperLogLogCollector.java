@@ -23,15 +23,12 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.UnsignedBytes;
-import io.druid.common.guava.BytesRef;
-import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.HashCollector;
-import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -55,7 +52,7 @@ import java.util.Arrays;
  *
  * If you have multiple threads calling methods on this concurrently, I hope you manage to get correct behavior
  */
-public final class HyperLogLogCollector implements Comparable<HyperLogLogCollector>, HashCollector.ScanSupport
+public final class HyperLogLogCollector implements Comparable<HyperLogLogCollector>, HashCollector
 {
   public static final String HLL_TYPE_NAME = "hyperUnique";
   public static final ValueDesc HLL_TYPE = ValueDesc.of(HLL_TYPE_NAME, HyperLogLogCollector.class);
@@ -994,15 +991,9 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
   }
 
   @Override
-  public void collect(BytesRef[] values, BytesRef bytes)
+  public void collect(long hash64)
   {
-    add(Murmur3.hash64(bytes));
-  }
-
-  @Override
-  public void collect(DimensionSelector.Scannable scannable)
-  {
-    scannable.scan((ix, buffer, offset, length) -> add(Murmur3.hash64(buffer, offset, length)));
+    add(hash64);
   }
 
   public static int getUnsignedShort(ByteBuffer bb)
