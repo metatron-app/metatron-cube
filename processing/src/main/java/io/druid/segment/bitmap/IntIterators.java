@@ -22,7 +22,6 @@ package io.druid.segment.bitmap;
 import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
-import io.druid.query.aggregation.IntPredicate;
 import io.druid.segment.Cursor;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
@@ -36,6 +35,7 @@ import java.util.PrimitiveIterator;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.IntFunction;
+import java.util.function.IntPredicate;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
@@ -134,7 +134,7 @@ public final class IntIterators
       return iterator;
     }
     final Peekable peekable = new Peekable(iterator);
-    for (; !predicate.apply(peekable.peek()); peekable.next()) ;
+    for (; predicate.test(peekable.peek()); peekable.next()) ;
     return peekable;
   }
 
@@ -617,11 +617,11 @@ public final class IntIterators
   // iterator return >= 0
   public static IntIterator filter(IntIterator iterator, ImmutableBitmap skip, int size)
   {
-    if (iterator == null) {
-      return skip == null ? null : not(skip.iterator(), size);
-    }
     if (skip == null || skip.isEmpty()) {
       return iterator;
+    }
+    if (iterator == null) {
+      return not(skip.iterator(), size);
     }
     return new Abstract()
     {
@@ -650,6 +650,26 @@ public final class IntIterators
           }
         }
         return -1;
+      }
+    };
+  }
+
+  public static IntIterator filter(IntIterator iterator, IntPredicate predicate)
+  {
+    return new IntIterators.Abstract()
+    {
+      private final Peekable peekable = new Peekable(iterator);
+
+      @Override
+      public boolean hasNext()
+      {
+        return peekable.hasNext() && predicate.test(peekable.peek());
+      }
+
+      @Override
+      public int next()
+      {
+        return peekable.next();
       }
     };
   }

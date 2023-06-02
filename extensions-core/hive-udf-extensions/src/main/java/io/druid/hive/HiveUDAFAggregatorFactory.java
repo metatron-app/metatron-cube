@@ -62,7 +62,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @JsonTypeName("hive.udaf")
-public class HiveUDAFAggregatorFactory extends TypeResolving implements SQLSupport
+public class HiveUDAFAggregatorFactory extends AggregatorFactory implements TypeResolving, SQLSupport
 {
   private static final Logger LOG = new Logger(HiveUDAFAggregatorFactory.class);
 

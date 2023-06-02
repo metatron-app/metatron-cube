@@ -21,15 +21,14 @@ package io.druid.query.topn;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryRunners;
 import io.druid.query.Result;
 import io.druid.query.TestQueryRunners;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -65,14 +64,10 @@ public class TopNUnionQueryTest
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
-            Lists.<AggregatorFactory>newArrayList(
-                Iterables.concat(
-                    QueryRunnerTestHelper.commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                QueryRunnerTestHelper.commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(

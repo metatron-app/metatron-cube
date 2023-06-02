@@ -32,8 +32,8 @@ import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.ExtractionDimensionSpec;
 import io.druid.query.dimension.LegacyDimensionSpec;
-import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.extraction.MapLookupExtractor;
+import io.druid.query.lookup.LookupExtractionFn;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -66,7 +66,7 @@ public class TopNQueryTest
             Lists.<AggregatorFactory>newArrayList(
                 Iterables.concat(
                     commonAggregators,
-                    Lists.newArrayList(
+                    Lists.<AggregatorFactory>newArrayList(
                         new DoubleMaxAggregatorFactory("maxIndex", "index"),
                         new DoubleMinAggregatorFactory("minIndex", "index")
                     )
@@ -104,7 +104,7 @@ public class TopNQueryTest
             Lists.<AggregatorFactory>newArrayList(
                 Iterables.concat(
                     commonAggregators,
-                    Lists.newArrayList(
+                    Lists.<AggregatorFactory>newArrayList(
                         new DoubleMaxAggregatorFactory("maxIndex", "index"),
                         new DoubleMinAggregatorFactory("minIndex", "index")
                     )

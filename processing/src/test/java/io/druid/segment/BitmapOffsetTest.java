@@ -26,9 +26,9 @@ import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.bitmap.BitSetBitmapFactory;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
-import io.druid.segment.data.Offset;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,7 +51,7 @@ public class BitmapOffsetTest
     return Iterables.transform(
         Sets.cartesianProduct(
             ImmutableSet.of(new ConciseBitmapFactory(), new RoaringBitmapFactory(), new BitSetBitmapFactory()),
-            ImmutableSet.of(false, true)
+            ImmutableSet.of(Direction.ASCENDING, Direction.DESCENDING)
         ),
         new Function<List<?>, Object[]>()
         {
@@ -65,12 +65,12 @@ public class BitmapOffsetTest
   }
 
   private final BitmapFactory factory;
-  private final boolean descending;
+  private final Direction direction;
 
-  public BitmapOffsetTest(BitmapFactory factory, boolean descending)
+  public BitmapOffsetTest(BitmapFactory factory, Direction direction)
   {
     this.factory = factory;
-    this.descending = descending;
+    this.direction = direction;
   }
 
   @Test
@@ -81,20 +81,20 @@ public class BitmapOffsetTest
       mutable.add(val);
     }
 
-    final BitmapOffset offset = new BitmapOffset(factory, 2412101 + 1, factory.makeImmutableBitmap(mutable), descending);
-    final int[] expected = descending ? TEST_VALS_FLIP : TEST_VALS;
+    final BitmapOffset offset = new BitmapOffset(factory.makeImmutableBitmap(mutable), direction, new int[] {0, 2412101});
+    final int[] expected = direction == Direction.ASCENDING ? TEST_VALS : TEST_VALS_FLIP;
 
     int count = 0;
     while (offset.withinBounds()) {
-      Assert.assertEquals(expected[count], offset.getOffset());
+      Assert.assertEquals(expected[count], offset.get());
 
       int cloneCount = count;
-      Offset clonedOffset = offset.clone();
-      while (clonedOffset.withinBounds()) {
-        Assert.assertEquals(expected[cloneCount], clonedOffset.getOffset());
+      offset.reset();
+      while (offset.withinBounds()) {
+        Assert.assertEquals(expected[cloneCount], offset.get());
 
         ++cloneCount;
-        clonedOffset.increment();
+        offset.increment();
       }
 
       ++count;

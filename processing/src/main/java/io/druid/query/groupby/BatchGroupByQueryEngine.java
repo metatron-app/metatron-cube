@@ -22,21 +22,26 @@ package io.druid.query.groupby;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterators;
+import io.druid.cache.SessionCache;
 import io.druid.collections.IntList;
 import io.druid.common.Counter;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.Row;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.dimension.DictionaryID;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.Segment;
 import io.druid.segment.bitmap.IntIterators;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -50,20 +55,22 @@ import java.util.function.LongSupplier;
 
 public class BatchGroupByQueryEngine
 {
-  private final GroupByQuery query;
-  private final QueryConfig config;
-  private final Cursor cursor;
-
   private static final long EOF = Long.MAX_VALUE;
 
-  public BatchGroupByQueryEngine(GroupByQuery query, QueryConfig config, Cursor cursor)
+  public Sequence<Row> process(
+      GroupByQuery query,
+      QueryConfig config,
+      Segment segment,
+      boolean compact,
+      SessionCache cache
+  )
   {
-    this.query = query;
-    this.config = config;
-    this.cursor = cursor;
+    return QueryRunnerHelper.makeCursorBasedQueryConcat(
+        segment, query, cache, cursor -> process(cursor, query, config)
+    );
   }
 
-  public Sequence<Object[]> process()
+  private Sequence<Row> process(Cursor cursor, GroupByQuery query, QueryConfig config)
   {
     int batchSize = query.getContextInt(Query.GBY_BATCH_SIZE, -1);
     if (batchSize < 0 || query.getGroupings().length != 0) {
@@ -111,7 +118,7 @@ public class BatchGroupByQueryEngine
 
       final IntFunction[] rawAccess = DimensionSelector.convert(dimensions, dimensionTypes, useRawUTF8);
 
-      return Sequences.withBaggage(Sequences.once(Iterators.concat(new Iterator<Iterator<Object[]>>()
+      return Sequences.withBaggage(Sequences.once(Iterators.concat(new Iterator<Iterator<Row>>()
       {
         @Override
         public boolean hasNext()
@@ -120,7 +127,7 @@ public class BatchGroupByQueryEngine
         }
 
         @Override
-        public Iterator<Object[]> next()
+        public Iterator<Row> next()
         {
           counter.reset();
           keyToBatch.clear();
@@ -135,7 +142,7 @@ public class BatchGroupByQueryEngine
             );
             batch[batchId].add(cursor.offset());
           }
-          return new Iterator<Object[]>()
+          return new Iterator<Row>()
           {
             int ix;
             final int limit = counter.intValue();
@@ -147,7 +154,7 @@ public class BatchGroupByQueryEngine
             }
 
             @Override
-            public Object[] next()
+            public Row next()
             {
               int i = 0;
               Object[] row = new Object[numColumns];
@@ -160,7 +167,7 @@ public class BatchGroupByQueryEngine
                 row[i++] = aggregators[x].aggregate(IntIterators.from(batch[ix]));
               }
               batch[ix++].clear();
-              return row;
+              return CompactRow.of(row);
             }
           };
         }

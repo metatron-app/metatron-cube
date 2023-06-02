@@ -49,6 +49,8 @@ public class FilterContext implements Closeable
   protected final BitmapFactory factory;
 
   private ImmutableBitmap baseBitmap;
+  private DimFilter matcher;
+
   private final Map<String, IntFunction> attached;    // vc from filter (like lucene)
   private final Map<Object, ImmutableBitmap> possibles;
   private final Map<String, ImmutableBitmap> ranges;  // range on dictionary
@@ -116,6 +118,11 @@ public class FilterContext implements Closeable
     return baseBitmap;
   }
 
+  public DimFilter matcher()
+  {
+    return matcher;
+  }
+
   public IntIterator rowIterator()
   {
     return baseBitmap == null ? null : baseBitmap.iterator();
@@ -124,6 +131,11 @@ public class FilterContext implements Closeable
   public void andBaseBitmap(ImmutableBitmap bitmap)
   {
     baseBitmap = baseBitmap == null ? bitmap : DimFilters.intersection(factory, baseBitmap, bitmap);
+  }
+
+  public void matcher(DimFilter matcher)
+  {
+    this.matcher = matcher;
   }
 
   public int difference(ImmutableBitmap bitmap)
@@ -197,6 +209,11 @@ public class FilterContext implements Closeable
   public boolean isAll(ImmutableBitmap bitmap)
   {
     return bitmap.size() == selector.getNumRows();
+  }
+
+  public Map<String, ImmutableBitmap> ranges()
+  {
+    return ranges;
   }
 
   @Override

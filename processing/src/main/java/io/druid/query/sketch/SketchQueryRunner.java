@@ -27,7 +27,6 @@ import io.druid.cache.SessionCache;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.java.util.common.ISE;
@@ -121,12 +120,12 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
     OUT:
     if (queryable != null && metrics.isEmpty() && !sketchOp.isCardinalitySensitive()) {
       final BitmapIndexSelector selector = new QueryableIndexSelector(queryable, resolver);
-      final Pair<ImmutableBitmap, DimFilter> extracted = extractBitmaps(selector, segment.namespace(), filter);
-      if (extracted.getValue() != null) {
+      final FilterContext context = extractBitmaps(selector, segment.namespace(), filter);
+      if (context.matcher() != null) {
         break OUT;
       }
       // Closing this will cause segfaults in unit tests.
-      final ImmutableBitmap filterBitmap = extracted.getKey();
+      final ImmutableBitmap filterBitmap = context.baseBitmap();
       for (DimensionSpec spec : dimensions) {
         if (spec == null) {
           continue;
@@ -177,16 +176,13 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
     return Sequences.simple(sketches);
   }
 
-  private Pair<ImmutableBitmap, DimFilter> extractBitmaps(
+  private FilterContext extractBitmaps(
       final BitmapIndexSelector selector,
       final String namespace,
       final DimFilter filter
   )
   {
-    if (filter == null) {
-      return Pair.<ImmutableBitmap, DimFilter>of(null, null);
-    }
-    try (FilterContext context = Filters.createFilterContext(selector, cache, namespace)) {
+    try (FilterContext context = Filters.createContext(selector, cache, namespace)) {
       return DimFilters.extractBitmaps(filter, context);
     }
   }

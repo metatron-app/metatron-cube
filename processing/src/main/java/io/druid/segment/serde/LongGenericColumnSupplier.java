@@ -32,11 +32,17 @@ public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColu
 {
   private final CompressedLongsIndexedSupplier column;
   private final Supplier<ImmutableBitmap> nulls;
+  private final boolean timestamp;
 
-  public LongGenericColumnSupplier(CompressedLongsIndexedSupplier column, Supplier<ImmutableBitmap> nulls)
+  public LongGenericColumnSupplier(
+      CompressedLongsIndexedSupplier column,
+      Supplier<ImmutableBitmap> nulls,
+      boolean timestamp
+  )
   {
     this.column = column;
     this.nulls = nulls;
+    this.timestamp = timestamp;
   }
 
   @Override
@@ -60,6 +66,9 @@ public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColu
   @Override
   public GenericColumn get()
   {
+    if (timestamp) {
+      return IndexedLongsGenericColumn.timestamp(column.get(), column.compressionType(), nulls.get());
+    }
     return new IndexedLongsGenericColumn(column.get(), column.compressionType(), nulls.get());
   }
 }

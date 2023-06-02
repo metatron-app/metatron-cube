@@ -31,9 +31,13 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.Pair;
 import io.druid.math.expr.Parser;
+import io.druid.query.aggregation.AggregatorFactory.NumericEvalSupport;
 import io.druid.segment.ColumnSelectorFactories.VariableArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnStats;
+import io.druid.segment.Cursor;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -42,12 +46,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import static io.druid.query.aggregation.AggregatorFactory.*;
+import static io.druid.query.aggregation.AggregatorFactory.CubeSupport;
+import static io.druid.query.aggregation.AggregatorFactory.FieldExpressionSupport;
+import static io.druid.query.aggregation.AggregatorFactory.PredicateSupport;
+import static io.druid.query.aggregation.AggregatorFactory.TypeResolving;
 
 /**
  */
-public abstract class GenericAggregatorFactory extends TypeResolving
-    implements CubeSupport, PredicateSupport, FieldExpressionSupport
+public abstract class GenericAggregatorFactory extends NumericEvalSupport
+    implements TypeResolving, CubeSupport, PredicateSupport, FieldExpressionSupport
 {
   protected final String fieldName;
   protected final String name;
@@ -111,6 +118,38 @@ public abstract class GenericAggregatorFactory extends TypeResolving
   protected ValueDesc toOutputType(ValueDesc inputType)
   {
     return inputType.isArray() ? inputType.subElement(ValueDesc.UNKNOWN) : inputType;
+  }
+
+  @Override
+  public AggregatorFactory optimize(Cursor cursor)
+  {
+    String statKey = statKey();
+    if (statKey != null && fieldName != null && predicate == null && inputType.isPrimitiveNumeric()) {
+      Object constant = ColumnStats.get(cursor.getStats(fieldName), inputType.type(), statKey);
+      if (constant != null) {
+        return AggregatorFactory.constant(this, constant);
+      }
+    }
+    return this;
+  }
+
+  protected String statKey()
+  {
+    return null;
+  }
+
+  @Override
+  protected Pair<String, Object> evaluateOn()
+  {
+    if (fieldName != null && predicate == null && inputType.isPrimitiveNumeric()) {
+      return Pair.of(fieldName, nullValue());
+    }
+    return null;
+  }
+
+  protected Object nullValue()
+  {
+    return null;
   }
 
   @Override
@@ -249,11 +288,17 @@ public abstract class GenericAggregatorFactory extends TypeResolving
   @Override
   public List<String> requiredFields()
   {
+    if (fieldName != null && predicate == null) {
+      return Lists.newArrayList(fieldName);
+    }
     Set<String> required = Sets.newLinkedHashSet();
     if (fieldName != null) {
       required.add(fieldName);
     } else {
       required.addAll(Parser.findRequiredBindings(fieldExpression));
+    }
+    if (predicate != null) {
+      required.addAll(Parser.findRequiredBindings(predicate));
     }
     return Lists.newArrayList(required);
   }

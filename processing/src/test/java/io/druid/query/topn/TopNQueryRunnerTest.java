@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.DateTimes;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -158,14 +159,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
-            Lists.<AggregatorFactory>newArrayList(
-                Iterables.concat(
-                    QueryRunnerTestHelper.commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                QueryRunnerTestHelper.commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
@@ -220,14 +217,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
-            Lists.<AggregatorFactory>newArrayList(
-                Iterables.concat(
-                    QueryRunnerTestHelper.commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                QueryRunnerTestHelper.commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
@@ -261,14 +254,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .threshold(3)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
-            Lists.<AggregatorFactory>newArrayList(
-                Iterables.concat(
-                    QueryRunnerTestHelper.commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                QueryRunnerTestHelper.commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
@@ -2738,14 +2727,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
-            Lists.<AggregatorFactory>newArrayList(
-                Iterables.concat(
-                    QueryRunnerTestHelper.commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                QueryRunnerTestHelper.commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(
@@ -2822,14 +2807,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
-            Lists.<AggregatorFactory>newArrayList(
-                Iterables.concat(
-                    QueryRunnerTestHelper.commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                QueryRunnerTestHelper.commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(
@@ -3052,14 +3033,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
-            Lists.newArrayList(
-                Iterables.concat(
-                    QueryRunnerTestHelper.commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                QueryRunnerTestHelper.commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
@@ -3100,14 +3077,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .threshold(4)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
-            Lists.newArrayList(
-                Iterables.concat(
-                    QueryRunnerTestHelper.commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                QueryRunnerTestHelper.commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))

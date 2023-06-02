@@ -118,7 +118,7 @@ public class StreamQueryEngine
               }
               if (useRawUTF8 && columnType.isStringOrDimension()) {
                 if (selector instanceof Scannable) {
-                  selectors[i] = ColumnSelectors.withRawAccess((Scannable) selector, column, cursor.filterContext());
+                  selectors[i] = ColumnSelectors.withRawAccess((Scannable) selector, cursor.scanContext(), column);
                 } else {
                   selectors[i] = ColumnSelectors.asSingleRaw((SingleValued) selector);
                 }

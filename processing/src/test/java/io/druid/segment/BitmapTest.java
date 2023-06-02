@@ -182,15 +182,10 @@ public class BitmapTest
   @Test
   public void testOptimized()
   {
-    IntIterable set1 = new IntIterable.Range(1, 7);
-    IntIterable set2 = new IntIterable.FromArray(new int[] {2, 4, 6, 8});
-    IntIterable set3 = new IntIterable.Range(3, 8);
-    IntIterable set4 = new IntIterable.FromArray(new int[] {3, 4, 9});
-
-    ImmutableBitmap map1 = RoaringBitmapFactory.from(6, set1);
-    ImmutableBitmap map2 = RoaringBitmapFactory.from(4, set2);
-    ImmutableBitmap map3 = RoaringBitmapFactory.from(5, set3);
-    ImmutableBitmap map4 = RoaringBitmapFactory.from(3, set4);
+    ImmutableBitmap map1 = RoaringBitmapFactory.from(1, 7);
+    ImmutableBitmap map2 = RoaringBitmapFactory.from(new int[] {2, 4, 6, 8});
+    ImmutableBitmap map3 = RoaringBitmapFactory.from(3, 8);
+    ImmutableBitmap map4 = RoaringBitmapFactory.from(new int[] {3, 4, 9});
 
     check(F.union(Arrays.asList(map1, map2)), new int[]{1, 2, 3, 4, 5, 6, 8});
     check(F.union(Arrays.asList(map1, map3)), new int[]{1, 2, 3, 4, 5, 6, 7});

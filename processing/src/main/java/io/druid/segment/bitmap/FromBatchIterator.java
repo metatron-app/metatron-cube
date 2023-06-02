@@ -30,6 +30,11 @@ public class FromBatchIterator implements IntIterator
     return bitmap.isEmpty() ? IntIterators.EMPTY : new FromBatchIterator(RoaringUtils.getBatchIterator(bitmap));
   }
 
+  public static IntIterator of(ImmutableRoaringBitmap bitmap, int offset)
+  {
+    return bitmap.isEmpty() ? IntIterators.EMPTY : new FromBatchIterator(RoaringUtils.getBatchIterator(bitmap, offset));
+  }
+
   private final BatchIterator iterator;
   private final int[] batch;
   private int valid;

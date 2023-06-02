@@ -21,10 +21,11 @@ import io.druid.data.input.BytesOutputStream;
 import io.druid.query.QueryException;
 import org.roaringbitmap.IntIterator;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
+import org.roaringbitmap.buffer.RoaringUtils;
 
 import java.nio.ByteBuffer;
 
-public class WrappedImmutableRoaringBitmap implements ImmutableBitmap
+public class WrappedImmutableRoaringBitmap implements ExtendedBitmap
 {
   /**
    * Underlying bitmap.
@@ -107,6 +108,36 @@ public class WrappedImmutableRoaringBitmap implements ImmutableBitmap
   public IntIterator iterator()
   {
     return FromBatchIterator.of(bitmap);
+  }
+
+  @Override
+  public int first()
+  {
+    return bitmap.first();
+  }
+
+  @Override
+  public int last()
+  {
+    return bitmap.last();
+  }
+
+  @Override
+  public IntIterator iterator(int offset)
+  {
+    return FromBatchIterator.of(bitmap, offset);
+  }
+
+  @Override
+  public IntIterator iterator(int[] range)
+  {
+    return IntIterators.filter(FromBatchIterator.of(bitmap, range[0]), x -> x <= range[1]);
+  }
+
+  @Override
+  public int cardinality(int[] range)
+  {
+    return RoaringUtils.cardinality(bitmap, range);
   }
 
   @Override

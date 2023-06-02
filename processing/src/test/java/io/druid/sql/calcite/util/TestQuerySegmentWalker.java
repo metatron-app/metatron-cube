@@ -782,7 +782,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     List<QueryRunner<T>> missingSegments = Lists.newArrayList();
     for (Pair<SegmentDescriptor, Segment> segment : segments) {
       if (segment.rhs != null) {
-        targets.add(Segments.withLimt(segment.rhs, segment.lhs));
+        targets.add(Segments.withLimit(segment.rhs, segment.lhs));
       } else {
         missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<T>(segment.lhs));
       }

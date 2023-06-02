@@ -1058,6 +1058,68 @@ public class GuavaUtils
     };
   }
 
+  public static <T> Iterable<IntTagged<T>> withCounter(final Iterable<T> iterable)
+  {
+    return withCounter(iterable, 0);
+  }
+
+  public static <T> Iterable<IntTagged<T>> withCounter(final Iterable<T> iterable, final int offset)
+  {
+    return new Iterable<IntTagged<T>>()
+    {
+      private int counter = offset;
+
+      @Override
+      public Iterator<IntTagged<T>> iterator()
+      {
+        return new Iterator<IntTagged<T>>()
+        {
+          private final Iterator<T> iterator = iterable.iterator();
+
+          @Override
+          public boolean hasNext()
+          {
+            return iterator.hasNext();
+          }
+
+          @Override
+          public IntTagged<T> next()
+          {
+            return IntTagged.of(counter++, iterator.next());
+          }
+        };
+      }
+    };
+  }
+
+  public static <S, V> Iterable<io.druid.data.Pair<S, V>> withState(Iterable<V> iterable, Accumulator<S, V> accumulator)
+  {
+    return new Iterable<io.druid.data.Pair<S, V>>()
+    {
+      @Override
+      public Iterator<io.druid.data.Pair<S, V>> iterator()
+      {
+        return new Iterator<io.druid.data.Pair<S, V>>()
+        {
+          private S current;
+          private final PeekingIterator<V> iterator = Iterators.peekingIterator(iterable.iterator());
+
+          @Override
+          public boolean hasNext()
+          {
+            return iterator.hasNext();
+          }
+
+          @Override
+          public io.druid.data.Pair<S, V> next()
+          {
+            return io.druid.data.Pair.of(accumulator.accumulate(current, iterator.peek()), iterator.next());
+          }
+        };
+      }
+    };
+  }
+
   public static void swap(final Object[] x)
   {
     Preconditions.checkArgument(x.length == 2);

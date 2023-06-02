@@ -27,18 +27,13 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
-import io.druid.segment.column.Column;
-import io.druid.segment.column.GenericColumn;
-import io.druid.segment.column.GenericColumn.DoubleType;
-import io.druid.segment.column.GenericColumn.FloatType;
-import io.druid.segment.column.GenericColumn.LongType;
-import io.druid.segment.filter.FilterContext;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.math.BigDecimal;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
  */
@@ -90,27 +85,21 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  public AggregatorFactory evaluate(FilterContext context)
+  protected Object nullValue()
   {
-    if (fieldName != null && inputType.isPrimitiveNumeric()) {
-      BitmapIndexSelector selector = context.indexSelector();
-      Column column = selector.getColumn(fieldName);
-      if (column == null) {
-        return this;  // todo: handle virual column
-      }
-      if (!column.hasGenericColumn()) {
-        return AggregatorFactory.constant(this, inputType.type().cast(0L));
-      }
-      GenericColumn generic = column.getGenericColumn();
-      if (generic instanceof LongType) {
-        return AggregatorFactory.constant(this, ((LongType) generic).stream(context.rowIterator()).sum());
-      } else if (generic instanceof FloatType) {
-        return AggregatorFactory.constant(this, ((FloatType) generic).stream(context.rowIterator()).sum());
-      } else if (generic instanceof DoubleType) {
-        return AggregatorFactory.constant(this, ((DoubleType) generic).stream(context.rowIterator()).sum());
-      }
-    }
-    return this;
+    return inputType.type().cast(0L);
+  }
+
+  @Override
+  protected Object evaluate(LongStream stream)
+  {
+    return stream.sum();
+  }
+
+  @Override
+  protected Object evaluate(DoubleStream stream)
+  {
+    return stream.sum();
   }
 
   @Override

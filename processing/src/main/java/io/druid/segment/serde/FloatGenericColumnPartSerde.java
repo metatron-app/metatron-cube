@@ -126,7 +126,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                      Integer.BYTES +  // elements num
                      Integer.BYTES +  // sizePer
                      1 +              // compression id
-                     Float.BYTES * numRows;
+                     (long) Float.BYTES * numRows;
             }
 
             @Override

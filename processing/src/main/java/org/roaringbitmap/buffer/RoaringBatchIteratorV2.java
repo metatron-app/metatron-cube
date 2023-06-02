@@ -19,11 +19,15 @@ package org.roaringbitmap.buffer;
 import org.roaringbitmap.BatchIterator;
 import org.roaringbitmap.ContainerBatchIterator;
 
+import java.util.Arrays;
+
 /**
  * copied to fix bug in clone (shared reference to iterator, causing premature cleanup of it)
  */
-public final class RoaringBatchIterator implements BatchIterator {
+public final class RoaringBatchIteratorV2 implements BatchIterator {
 
+  private final int initKey;
+  private final int offset;
   private MappeableContainerPointer containerPointer;
   private int key;
   private ContainerBatchIterator iterator;
@@ -31,8 +35,14 @@ public final class RoaringBatchIterator implements BatchIterator {
   private BitmapBatchIterator bitmapBatchIterator;
   private RunBatchIterator runBatchIterator;
 
-  public RoaringBatchIterator(MappeableContainerPointer containerPointer) {
+  public RoaringBatchIteratorV2(MappeableContainerPointer containerPointer) {
+    this(containerPointer, 0);
+  }
+
+  public RoaringBatchIteratorV2(MappeableContainerPointer containerPointer, int offset) {
     this.containerPointer = containerPointer;
+    this.initKey = containerPointer.hasContainer() ? containerPointer.key() << 16 : -1;
+    this.offset = offset;
     nextIterator();
   }
 
@@ -41,6 +51,19 @@ public final class RoaringBatchIterator implements BatchIterator {
     int consumed = 0;
     if (iterator.hasNext()) {
       consumed += iterator.next(key, buffer);
+      while (key == initKey && offset > 0) {
+        if (buffer[consumed - 1] < offset) {
+          consumed = iterator.next(key, buffer);
+          continue;
+        }
+        int ix = Arrays.binarySearch(buffer, 0, consumed, offset);
+        int skip = ix < 0 ? -ix - 1 : ix;
+        consumed -= skip;
+        if (skip > 0) {
+          System.arraycopy(buffer, skip, buffer, 0, consumed);
+        }
+        break;
+      }
       if (consumed > 0) {
         return consumed;
       }
@@ -61,13 +84,14 @@ public final class RoaringBatchIterator implements BatchIterator {
   @Override
   public BatchIterator clone() {
     try {
-      RoaringBatchIterator it = (RoaringBatchIterator)super.clone();
+      RoaringBatchIteratorV2 it = (RoaringBatchIteratorV2)super.clone();
       if (null != iterator) {
         it.iterator = iterator.clone();
       }
       if (null != containerPointer) {
         it.containerPointer = containerPointer.clone();
       }
+      // these are should be cleared
       it.arrayBatchIterator = null;
       it.bitmapBatchIterator = null;
       it.runBatchIterator = null;

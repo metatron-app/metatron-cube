@@ -31,6 +31,7 @@ import io.druid.common.Cacheable;
 import io.druid.common.guava.CombineFn;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.IOUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.CompactRow;
@@ -44,8 +45,14 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.Metadata;
+import io.druid.segment.ScanContext;
+import io.druid.segment.Scanning;
 import io.druid.segment.Segment;
-import io.druid.segment.filter.FilterContext;
+import io.druid.segment.column.Column;
+import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.GenericColumn.DoubleType;
+import io.druid.segment.column.GenericColumn.FloatType;
+import io.druid.segment.column.GenericColumn.LongType;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
@@ -55,6 +62,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
  * Processing related interface
@@ -131,20 +140,15 @@ public abstract class AggregatorFactory implements Cacheable
     return list == null ? factories : list;
   }
 
-  public AggregatorFactory optimize(Cursor cursor)
-  {
-    return this;
-  }
-
   public static List<AggregatorFactory> optimize(List<AggregatorFactory> factories, Cursor cursor)
   {
-    FilterContext context = cursor.scanContext().awareTargetRows() ? cursor.filterContext() : null;
+    ScanContext context = cursor.scanContext();
     List<AggregatorFactory> list = null;
     for (int i = 0; i < factories.size(); i++) {
       AggregatorFactory origin = factories.get(i);
-      AggregatorFactory optimized = origin.optimize(cursor);
-      if (context != null) {
-        optimized = optimized.evaluate(context);
+      AggregatorFactory optimized = context.is(Scanning.FULL) ? origin.optimize(cursor) : origin;
+      if (context.awareTargetRows()) {
+        optimized = optimized.evaluate(cursor, context);
       }
       if (origin == optimized) {
         continue;
@@ -157,8 +161,14 @@ public abstract class AggregatorFactory implements Cacheable
     return list == null ? factories : list;
   }
 
-  // called only when Scanning.FULL or Scanning.BITMAP
-  public AggregatorFactory evaluate(FilterContext context)
+  // called only when Scanning.FULL
+  public AggregatorFactory optimize(Cursor cursor)
+  {
+    return this;
+  }
+
+  // called only when Scanning.FULL, Scanning.RANGE, Scanning.BITMAP
+  public AggregatorFactory evaluate(Cursor cursor, ScanContext context)
   {
     return this;
   }
@@ -287,11 +297,11 @@ public abstract class AggregatorFactory implements Cacheable
   }
 
   // this is possible only when intermediate type conveys resolved-type back to broker
-  public static abstract class TypeResolving extends AggregatorFactory
+  public static interface TypeResolving
   {
-    public abstract boolean needResolving();
+    boolean needResolving();
 
-    public abstract AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver);
+    AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver);
   }
 
   public AggregatorFactory resolveIfNeeded(Supplier<? extends TypeResolver> resolver)
@@ -560,14 +570,14 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static AggregatorFactory constant(AggregatorFactory source, Object value)
   {
-    return new ContantFactory(source, value);
+    return new ConstantFactory(source, value);
   }
 
-  public static class ContantFactory extends DelegatedAggregatorFactory
+  public static class ConstantFactory extends DelegatedAggregatorFactory
   {
     private final Object value;
 
-    public ContantFactory(AggregatorFactory delegate, Object value)
+    public ConstantFactory(AggregatorFactory delegate, Object value)
     {
       super(delegate);
       this.value = value;
@@ -588,14 +598,14 @@ public abstract class AggregatorFactory implements Cacheable
     if (compact) {
       Object[] values = new Object[constants.size() + 1];
       for (int i = 0; i < constants.size(); i++) {
-        values[i + 1] = ((ContantFactory) constants.get(i)).value;
+        values[i + 1] = ((ConstantFactory) constants.get(i)).value;
       }
       values[0] = new MutableLong(timestamp);
       return new CompactRow(values);
     }
     Map<String, Object> values = Maps.newHashMapWithExpectedSize(constants.size());
     for (AggregatorFactory factory : constants) {
-      values.put(factory.getName(), ((ContantFactory) factory).value);
+      values.put(factory.getName(), ((ConstantFactory) factory).value);
     }
     return new MapBasedRow(timestamp, values);
   }
@@ -603,7 +613,7 @@ public abstract class AggregatorFactory implements Cacheable
   public static boolean isAllConstant(List<AggregatorFactory> factories)
   {
     for (AggregatorFactory factory : factories) {
-      if (!(factory instanceof ContantFactory)) {
+      if (!(factory instanceof ConstantFactory)) {
         return false;
       }
     }
@@ -617,6 +627,44 @@ public abstract class AggregatorFactory implements Cacheable
     String getFieldExpression();
 
     AggregatorFactory withFieldExpression(String fieldExpression);
+  }
+
+  public static abstract class NumericEvalSupport extends AggregatorFactory
+  {
+    protected abstract Pair<String, Object> evaluateOn();    // column, null-value pair
+
+    @Override
+    public AggregatorFactory evaluate(Cursor cursor, ScanContext context)
+    {
+      Pair<String, Object> target = evaluateOn();
+      if (target != null) {
+        Column column = cursor.getColumn(target.lhs);
+        if (column == null) {
+          return this;  // todo: handle virual column
+        }
+        if (!column.hasGenericColumn()) {
+          return AggregatorFactory.constant(this, target.rhs);
+        }
+        GenericColumn generic = column.getGenericColumn();
+        try {
+          if (generic instanceof LongType) {
+            return AggregatorFactory.constant(this, evaluate(((LongType) generic).stream(context.iterator())));
+          } else if (generic instanceof FloatType) {
+            return AggregatorFactory.constant(this, evaluate(((FloatType) generic).stream(context.iterator())));
+          } else if (generic instanceof DoubleType) {
+            return AggregatorFactory.constant(this, evaluate(((DoubleType) generic).stream(context.iterator())));
+          }
+        }
+        finally {
+          IOUtils.closeQuietly(generic);
+        }
+      }
+      return this;
+    }
+
+    protected abstract Object evaluate(LongStream stream);
+
+    protected abstract Object evaluate(DoubleStream stream);
   }
 
   public static PostAggregator asFinalizer(final String outputName, final AggregatorFactory factory)

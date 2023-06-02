@@ -34,6 +34,7 @@ import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
+import io.druid.segment.ScanContext;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import org.joda.time.Interval;
@@ -98,8 +99,9 @@ public class SelectMetaQueryEngine
 
           private int countNumRows(Cursor cursor)
           {
-            if (offset.startDelta() == 0 && cursor.scanContext().awareTargetRows()) {
-              return cursor.targetNumRows();
+            ScanContext context = cursor.scanContext();
+            if (offset.startDelta() == 0 && context.awareTargetRows()) {
+              return context.count();
             }
             int row = 0;
             for (cursor.advanceN(offset.startDelta()); !cursor.isDone(); cursor.advance(), row++) {}

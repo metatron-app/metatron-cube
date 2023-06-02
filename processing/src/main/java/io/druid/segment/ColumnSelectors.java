@@ -37,7 +37,7 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
-import io.druid.segment.bitmap.RoaringBitmapFactory;
+import io.druid.segment.bitmap.Bitmaps;
 import io.druid.segment.bitmap.WrappedBitSetBitmap;
 import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ComplexColumn;
@@ -50,7 +50,6 @@ import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
-import io.druid.segment.filter.FilterContext;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.commons.lang.mutable.MutableDouble;
@@ -113,6 +112,12 @@ public class ColumnSelectors
     {
       return false;
     }
+  };
+
+  public static final ObjectColumnSelector UNKNOWN = new ObjectColumnSelector.Typed(ValueDesc.UNKNOWN)
+  {
+    @Override
+    public Object get() {return null;}
   };
 
   public static FloatColumnSelector asFloat(final ObjectColumnSelector selector)
@@ -537,16 +542,16 @@ public class ColumnSelectors
   private static final int THRESHOLD = 4194304;
 
   // ignores value matcher
-  public static ObjectColumnSelector withRawAccess(Scannable scannable, String column, FilterContext context)
+  public static ObjectColumnSelector withRawAccess(Scannable scannable, ScanContext context, String column)
   {
     ImmutableBitmap caching = context.dictionaryRef(column);
     if (caching != null && caching.isEmpty()) {
       return ObjectColumnSelector.string(() -> UTF8Bytes.EMPTY);
     }
-    int targetRows = context.targetNumRows();
+    int targetRows = context.count();
     ObjectColumnSelector cached = asCachingSelector(scannable, caching, targetRows);
     if (cached == null && caching == null && targetRows << 1 < context.numRows()) {
-      ImmutableBitmap bitmap = new WrappedBitSetBitmap(scannable.collect(context.rowIterator()));
+      ImmutableBitmap bitmap = new WrappedBitSetBitmap(scannable.collect(context.iterator()));
       if (bitmap.isEmpty()) {
         return ObjectColumnSelector.string(() -> UTF8Bytes.EMPTY);
       }
@@ -563,12 +568,12 @@ public class ColumnSelectors
     Dictionary dictionary = scannable.getDictionary();
 
     int cardinality = bitmap == null ? dictionary.size() : bitmap.size();
-    int first = bitmap == null ? 0 : RoaringBitmapFactory.firstOf(bitmap);
-    int last = bitmap == null ? dictionary.size() : RoaringBitmapFactory.lastOf(bitmap);
-    int range = last - first + 1;
-
     long estimation = dictionary.getSerializedSize() * cardinality / dictionary.size();
     if (estimation < THRESHOLD && targetRows > cardinality >> 1) {
+      int first = Bitmaps.firstOf(bitmap, 0);
+      int last = Bitmaps.lastOf(bitmap, dictionary.size());
+      int range = last - first + 1;
+
       IntIterator iterator = bitmap == null ? null : bitmap.iterator();
       if (range > cardinality << 3) {
         Int2ObjectMap<UTF8Bytes> cached = new Int2ObjectOpenHashMap<>(cardinality);
@@ -630,7 +635,7 @@ public class ColumnSelectors
   public static ObjectColumnSelector asConcatValued(final DimensionSelector selector, final String separator)
   {
     Preconditions.checkNotNull(separator, "separator should not be null");
-    return new ObjectColumnSelector.Typed<String>(ValueDesc.STRING)
+    return new ObjectColumnSelector.StringType()
     {
       @Override
       public String get()
@@ -762,6 +767,9 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector asSelector(GenericColumn column, Offset offset)
   {
+    if (column == null) {
+      return UNKNOWN;
+    }
     switch (column.getType().type()) {
       case FLOAT:
         return ColumnSelectors.asFloat(column, offset);
@@ -809,7 +817,7 @@ public class ColumnSelectors
         @Override
         public Long get()
         {
-          final int current = offset.getOffset();
+          final int current = offset.get();
           if (current == cache.ix) {
             return cache.get();
           }
@@ -824,7 +832,7 @@ public class ColumnSelectors
         @Override
         public boolean getLong(MutableLong handover)
         {
-          final int current = offset.getOffset();
+          final int current = offset.get();
           if (current == cache.ix) {
             return cache.get(handover);
           }
@@ -847,13 +855,13 @@ public class ColumnSelectors
       @Override
       public Long get()
       {
-        return column.getLong(offset.getOffset());
+        return column.getLong(offset.get());
       }
 
       @Override
       public boolean getLong(MutableLong handover)
       {
-        return column.getLong(offset.getOffset(), handover);
+        return column.getLong(offset.get(), handover);
       }
     };
   }
@@ -910,7 +918,7 @@ public class ColumnSelectors
         @Override
         public Double get()
         {
-          final int current = offset.getOffset();
+          final int current = offset.get();
           if (current == cache.ix) {
             return cache.get();
           }
@@ -925,7 +933,7 @@ public class ColumnSelectors
         @Override
         public boolean getDouble(MutableDouble handover)
         {
-          final int current = offset.getOffset();
+          final int current = offset.get();
           if (current == cache.ix) {
             return cache.get(handover);
           }
@@ -948,13 +956,13 @@ public class ColumnSelectors
       @Override
       public Double get()
       {
-        return column.getDouble(offset.getOffset());
+        return column.getDouble(offset.get());
       }
 
       @Override
       public boolean getDouble(MutableDouble handover)
       {
-        return column.getDouble(offset.getOffset(), handover);
+        return column.getDouble(offset.get(), handover);
       }
     };
   }
@@ -1011,7 +1019,7 @@ public class ColumnSelectors
         @Override
         public Float get()
         {
-          final int current = offset.getOffset();
+          final int current = offset.get();
           if (current == cache.ix) {
             return cache.get();
           }
@@ -1026,7 +1034,7 @@ public class ColumnSelectors
         @Override
         public boolean getFloat(MutableFloat handover)
         {
-          final int current = offset.getOffset();
+          final int current = offset.get();
           if (current == cache.ix) {
             return cache.get(handover);
           }
@@ -1049,13 +1057,13 @@ public class ColumnSelectors
       @Override
       public Float get()
       {
-        return column.getFloat(offset.getOffset());
+        return column.getFloat(offset.get());
       }
 
       @Override
       public boolean getFloat(MutableFloat handover)
       {
-        return column.getFloat(offset.getOffset(), handover);
+        return column.getFloat(offset.get(), handover);
       }
     };
   }
@@ -1081,7 +1089,7 @@ public class ColumnSelectors
     }
   }
 
-  public static ObjectColumnSelector asString(GenericColumn column, Offset offset)
+  private static ObjectColumnSelector asString(GenericColumn column, Offset offset)
   {
     if (column instanceof io.druid.common.Scannable) {
       return new ObjectColumnSelector.Scannable<String>()
@@ -1093,15 +1101,9 @@ public class ColumnSelectors
         }
 
         @Override
-        public void close() throws IOException
-        {
-          column.close();
-        }
-
-        @Override
         public String get()
         {
-          return column.getString(offset.getOffset());
+          return column.getString(offset.get());
         }
 
         @Override
@@ -1112,31 +1114,19 @@ public class ColumnSelectors
         }
       };
     }
-    return new ObjectColumnSelector.WithBaggage<String>()
+    return new ObjectColumnSelector.StringType()
     {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.STRING;
-      }
-
-      @Override
-      public void close() throws IOException
-      {
-        column.close();
-      }
-
       @Override
       public String get()
       {
-        return column.getString(offset.getOffset());
+        return column.getString(offset.get());
       }
     };
   }
 
-  public static ObjectColumnSelector asBoolean(GenericColumn column, Offset offset)
+  private static ObjectColumnSelector asBoolean(GenericColumn column, Offset offset)
   {
-    return new ObjectColumnSelector.WithBaggage<Boolean>()
+    return new ObjectColumnSelector<Boolean>()
     {
       @Override
       public ValueDesc type()
@@ -1145,21 +1135,18 @@ public class ColumnSelectors
       }
 
       @Override
-      public void close() throws IOException
-      {
-        column.close();
-      }
-
-      @Override
       public Boolean get()
       {
-        return column.getBoolean(offset.getOffset());
+        return column.getBoolean(offset.get());
       }
     };
   }
 
   public static ObjectColumnSelector asSelector(ComplexColumn column, Offset offset)
   {
+    if (column == null) {
+      return UNKNOWN;
+    }
     if (column instanceof ColumnAccess.WithRawAccess) {
       return new ObjectColumnSelector.WithRawAccess<Object>()
       {
@@ -1174,42 +1161,30 @@ public class ColumnSelectors
         @Override
         public Object get()
         {
-          return rawAccess.getValue(offset.getOffset());
+          return rawAccess.getValue(offset.get());
         }
 
         @Override
         public byte[] getAsRaw()
         {
-          return rawAccess.getAsRaw(offset.getOffset());
+          return rawAccess.getAsRaw(offset.get());
         }
 
         @Override
         public BufferRef getAsRef()
         {
-          return rawAccess.getAsRef(offset.getOffset());
+          return rawAccess.getAsRef(offset.get());
         }
 
         @Override
         public <R> R apply(Tools.Function<R> function)
         {
-          return rawAccess.apply(offset.getOffset(), function);
-        }
-
-        @Override
-        public void close() throws IOException
-        {
-          rawAccess.close();
+          return rawAccess.apply(offset.get(), function);
         }
       };
     }
-    return new ObjectColumnSelector.WithBaggage()
+    return new ObjectColumnSelector()
     {
-      @Override
-      public void close() throws IOException
-      {
-        column.close();
-      }
-
       @Override
       public ValueDesc type()
       {
@@ -1219,7 +1194,7 @@ public class ColumnSelectors
       @Override
       public Object get()
       {
-        return column.getValue(offset.getOffset());
+        return column.getValue(offset.get());
       }
     };
   }

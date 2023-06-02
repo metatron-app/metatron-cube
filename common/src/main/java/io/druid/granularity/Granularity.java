@@ -21,6 +21,7 @@ package io.druid.granularity;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -226,6 +227,12 @@ public abstract class Granularity implements Cacheable
       );
       }
     };
+  }
+
+  public Iterable<Interval> getIterable(Interval input, boolean descending)
+  {
+    Iterable<Interval> iterable = getIterable(input);
+    return descending ? Lists.reverse(ImmutableList.copyOf(iterable)) : iterable;
   }
 
   public Iterable<DateTime> getStartIterable(final Interval input)

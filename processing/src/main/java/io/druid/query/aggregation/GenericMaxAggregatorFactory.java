@@ -28,11 +28,11 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ColumnStats;
-import io.druid.segment.Cursor;
-import io.druid.segment.Scanning;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.math.BigDecimal;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
  */
@@ -84,15 +84,21 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  public AggregatorFactory optimize(Cursor cursor)
+  protected String statKey()
   {
-    if (fieldName != null && inputType.isPrimitiveNumeric() && cursor.scanContext() == Scanning.FULL) {
-      Object constant = ColumnStats.get(cursor.getStats(fieldName), inputType.type(), ColumnStats.MAX);
-      if (constant != null) {
-        return AggregatorFactory.constant(this, constant);
-      }
-    }
-    return this;
+    return ColumnStats.MAX;
+  }
+
+  @Override
+  protected Object evaluate(LongStream stream)
+  {
+    return stream.max();
+  }
+
+  @Override
+  protected Object evaluate(DoubleStream stream)
+  {
+    return stream.max();
   }
 
   @Override

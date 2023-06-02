@@ -435,7 +435,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     for (Pair<SegmentDescriptor, ReferenceCountingSegment> segment : segments) {
       Segment target = segment.rhs == null ? null : segment.rhs.getBaseSegment();
       if (target != null) {
-        targets.add(Segments.withLimt(segment.rhs, segment.lhs));
+        targets.add(Segments.withLimit(segment.rhs, segment.lhs));
       } else {
         missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<T>(segment.lhs));
       }

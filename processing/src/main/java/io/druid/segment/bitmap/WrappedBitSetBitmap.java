@@ -16,9 +16,11 @@
 
 package io.druid.segment.bitmap;
 
+import org.roaringbitmap.IntIterator;
+
 import java.util.BitSet;
 
-public class WrappedBitSetBitmap extends com.metamx.collections.bitmap.WrappedBitSetBitmap
+public class WrappedBitSetBitmap extends com.metamx.collections.bitmap.WrappedBitSetBitmap implements ExtendedBitmap
 {
   public WrappedBitSetBitmap()
   {
@@ -33,5 +35,41 @@ public class WrappedBitSetBitmap extends com.metamx.collections.bitmap.WrappedBi
   public BitSet bitset()
   {
     return bitmap;
+  }
+
+  @Override
+  public int first()
+  {
+    return bitmap.nextSetBit(0);
+  }
+
+  @Override
+  public int last()
+  {
+    return bitmap.previousSetBit(bitmap.size());
+  }
+
+  @Override
+  public IntIterator iterator(int offset)
+  {
+    return BitSets.iterator(bitmap, offset);
+  }
+
+  @Override
+  public IntIterator iterator(int[] range)
+  {
+    if (range[0] > range[1]) {
+      return IntIterators.EMPTY;
+    }
+    return BitSets.iterator(bitmap, range[0], range[1] + 1);
+  }
+
+  @Override
+  public int cardinality(int[] range)
+  {
+    if (range[0] > range[1]) {
+      return 0;
+    }
+    return bitmap.get(range[0], range[1]).cardinality();
   }
 }

@@ -27,21 +27,23 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
+import io.druid.common.utils.IOUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.query.aggregation.AggregatorFactory.SQLSupport;
+import io.druid.query.aggregation.AggregatorFactory.TypeResolving;
 import io.druid.query.aggregation.Aggregators.RelayType;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnStats;
 import io.druid.segment.Cursor;
-import io.druid.segment.Scanning;
+import io.druid.segment.ScanContext;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.GenericColumn.DoubleType;
 import io.druid.segment.column.GenericColumn.FloatType;
 import io.druid.segment.column.GenericColumn.LongType;
 import io.druid.segment.data.Dictionary;
-import io.druid.segment.filter.FilterContext;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -55,7 +57,7 @@ import java.util.stream.LongStream;
 /**
  */
 @JsonTypeName("relay")
-public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving implements AggregatorFactory.SQLSupport
+public class RelayAggregatorFactory extends AggregatorFactory implements TypeResolving, SQLSupport
 {
   private static final byte CACHE_TYPE_ID = 0x11;
 
@@ -185,32 +187,33 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   @Override
   public AggregatorFactory optimize(Cursor cursor)
   {
-    if ((relayType == RelayType.MIN || relayType == RelayType.MAX) && cursor.scanContext() == Scanning.FULL) {
-      if (cursor.getColumnCapabilities(columnName) == null) {
-        return this;
-      }
-      ValueDesc desc = ValueDesc.of(typeName);
-      if (desc != null && desc.isPrimitive()) {
-        Object constant = ColumnStats.get(cursor.getStats(columnName), desc.type(), relayType.toStatKey());
-        if (constant != null) {
-          return AggregatorFactory.constant(this, constant);
-        }
+    if (relayType != RelayType.MIN && relayType != RelayType.MAX) {
+      return this;  // todo
+    }
+    if (cursor.getColumnCapabilities(columnName) == null) {
+      return this;
+    }
+    ValueDesc desc = ValueDesc.of(typeName);
+    if (desc != null && desc.isPrimitive()) {
+      Object constant = ColumnStats.get(cursor.getStats(columnName), desc.type(), relayType.toStatKey());
+      if (constant != null) {
+        return AggregatorFactory.constant(this, constant);
       }
     }
     return this;
   }
 
   @Override
-  public AggregatorFactory evaluate(FilterContext context)
+  public AggregatorFactory evaluate(Cursor cursor, ScanContext context)
   {
-    if (relayType != RelayType.MAX && relayType != RelayType.MIN) {
-      return this;  // todo
+    if (relayType != RelayType.MIN && relayType != RelayType.MAX) {
+      return this;    // todo
     }
-    Column column = context.indexSelector().getColumn(columnName);
+    Column column = cursor.getColumn(columnName);
     if (column == null) {
       return this;    // vc?
     }
-    if (context.targetNumRows() == 0) {
+    if (context.count() == 0) {
       return AggregatorFactory.constant(this, null);
     }
     Dictionary<String> dictionary = column.getDictionary();
@@ -230,18 +233,22 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
       }
     } else if (column.hasGenericColumn()) {
       GenericColumn generic = column.getGenericColumn();
-      if (generic instanceof LongType) {
-        LongStream stream = ((LongType) generic).stream(context.rowIterator());
-        OptionalLong max = relayType == RelayType.MAX ? stream.max() : stream.min();
-        return AggregatorFactory.constant(this, max.isPresent() ? max.getAsLong() : null);
-      } else if (generic instanceof FloatType) {
-        DoubleStream stream = ((FloatType) generic).stream(context.rowIterator());
-        OptionalDouble max = relayType == RelayType.MAX ? stream.max() : stream.min();
-        return AggregatorFactory.constant(this, max.isPresent() ? max.getAsDouble() : null);
-      } else if (generic instanceof DoubleType) {
-        DoubleStream stream = ((DoubleType) generic).stream(context.rowIterator());
-        OptionalDouble max = relayType == RelayType.MAX ? stream.max() : stream.min();
-        return AggregatorFactory.constant(this, max.isPresent() ? max.getAsDouble() : null);
+      try {
+        if (generic instanceof LongType) {
+          LongStream stream = ((LongType) generic).stream(context.iterator());
+          OptionalLong max = relayType == RelayType.MAX ? stream.max() : stream.min();
+          return AggregatorFactory.constant(this, max.isPresent() ? max.getAsLong() : null);
+        } else if (generic instanceof FloatType) {
+          DoubleStream stream = ((FloatType) generic).stream(context.iterator());
+          OptionalDouble max = relayType == RelayType.MAX ? stream.max() : stream.min();
+          return AggregatorFactory.constant(this, max.isPresent() ? max.getAsDouble() : null);
+        } else if (generic instanceof DoubleType) {
+          DoubleStream stream = ((DoubleType) generic).stream(context.iterator());
+          OptionalDouble max = relayType == RelayType.MAX ? stream.max() : stream.min();
+          return AggregatorFactory.constant(this, max.isPresent() ? max.getAsDouble() : null);
+        }
+      } finally {
+        IOUtils.closeQuietly(generic);
       }
       // todo: handle IndexedStringsGenericColumn
     }

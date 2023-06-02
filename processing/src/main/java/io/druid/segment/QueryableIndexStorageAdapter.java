@@ -21,9 +21,6 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.cache.SessionCache;
@@ -32,7 +29,6 @@ import io.druid.common.guava.BufferRef;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -48,6 +44,8 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.ordering.Direction;
+import io.druid.segment.bitmap.Bitmaps;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
@@ -64,14 +62,15 @@ import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import io.druid.timeline.DataSegment;
-import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Map;
 import java.util.function.IntFunction;
+
+import static io.druid.query.ordering.Direction.ASCENDING;
+import static io.druid.query.ordering.Direction.DESCENDING;
 
 /**
  */
@@ -194,42 +193,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return Sequences.empty();
     }
 
-    final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver);
-    final FilterContext context = Filters.createFilterContext(selector, cache, namespace);
-
-    final long start = System.currentTimeMillis();
-    final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);
-
-    final ImmutableBitmap baseBitmap = extracted.getKey();
-    final Offset offset;
-    if (baseBitmap == null) {
-      offset = descending ? new DescNoFilter(0, context.numRows()) : new AscNoFilter(0, context.numRows());
-    } else {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("%,d / %,d (%d msec)", baseBitmap.size(), context.numRows(), System.currentTimeMillis() - start);
-      }
-      offset = new BitmapOffset(selector.getBitmapFactory(), context.numRows(), baseBitmap, descending);
-    }
-
-    final Filter matcher = Filters.toFilter(extracted.getValue(), resolver);
-
-    return Sequences.withBaggage(
-        Sequences.filter(
-            new CursorSequenceBuilder(
-                index,
-                actualInterval,
-                timeMinMax,
-                resolver,
-                granularity,
-                offset,
-                descending,
-                matcher,
-                context
-            ).build(),
-            Predicates.<Cursor>notNull()
-        ),
-        context
+    final FilterContext context = DimFilters.extractBitmaps(
+        filter, Filters.createContext(new QueryableIndexSelector(index, resolver), cache, namespace)
     );
+
+    return new CursorSequenceBuilder(
+        index,
+        actualInterval,
+        timeMinMax,
+        resolver,
+        granularity,
+        descending,
+        context
+    ).build();
   }
 
   @Override
@@ -253,17 +229,17 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   private static class CursorSequenceBuilder
   {
     private final QueryableIndex index;
-    private final Interval actualInterval;
+    private final Interval actualInterval;    // granular(min, max) & query.interval
+    private final Interval timeMinMax;
     private final RowResolver resolver;
     private final Granularity granularity;
-    private final Offset offset;
-    private final long minDataTimestamp;
-    private final long maxDataTimestamp;
-    private final boolean descending;
+    private final Direction direction;
 
-    private final Filter filter;
     private final FilterContext context;
-    private final boolean swipping;
+    private final ImmutableBitmap bitmap;
+    private final Filter filter;
+
+    private final Scanning scanning;
 
     public CursorSequenceBuilder(
         QueryableIndex index,
@@ -271,78 +247,106 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         Interval timeMinMax,
         RowResolver resolver,
         Granularity granularity,
-        Offset offset,
         boolean descending,
-        Filter filter,
         FilterContext context
     )
     {
       this.index = index;
       this.actualInterval = interval;
+      this.timeMinMax = timeMinMax;
       this.resolver = resolver;
       this.granularity = granularity;
-      this.offset = offset;
-      this.minDataTimestamp = timeMinMax.getStartMillis();
-      this.maxDataTimestamp = timeMinMax.getEndMillis();
-      this.descending = descending;
-      this.filter = filter;
+      this.direction = descending ? DESCENDING : ASCENDING;
       this.context = context;
-      this.swipping = Granularities.isAll(granularity) && actualInterval.contains(timeMinMax);
+      this.bitmap = context.baseBitmap();
+      this.filter = Filters.toFilter(context.matcher(), resolver);
+      this.scanning = !Filters.matchAll(filter) ? Scanning.MATCHER :
+                      !Granularities.isAll(granularity) ? Scanning.GRANULAR :
+                      context.bitmapFiltered() ? Scanning.BITMAP :
+                      !actualInterval.contains(timeMinMax) ? Scanning.RANGE : Scanning.FULL;
     }
 
     public Sequence<Cursor> build()
     {
       final Map<String, DictionaryEncodedColumn> dictionaryColumnCache = Maps.newHashMap();
-      final Map<String, GenericColumn> numericColumnCache = Maps.newHashMap();
+      final Map<String, GenericColumn> genericColumnCache = Maps.newHashMap();
+      final Map<String, ComplexColumn> complexColumnCache = Maps.newHashMap();
       final Map<String, ObjectColumnSelector> objectSelectorsCache = Maps.newHashMap();
 
-      final GenericColumn timestamps = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
+      final GenericColumn.TimestampType timestamps = index.getTimestamp();
+      final Iterable<Interval> iterable = granularity.getIterable(actualInterval, direction == DESCENDING);
 
-      Iterable<Interval> iterable = granularity.getIterable(actualInterval);
-      if (descending) {
-        iterable = Lists.reverse(ImmutableList.copyOf(iterable));
-      }
+      final int[] range = Bitmaps.range(bitmap, index.getNumRows());  // inclusive ~ inclusive
 
       return Sequences.withBaggage(
           Sequences.map(
               Sequences.simple(iterable),
               new Function<Interval, Cursor>()
               {
-                @Override
-                public Cursor apply(final Interval interval)
-                {
-                  final long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
-                  final long timeEnd = Math.min(interval.getEndMillis(), actualInterval.getEndMillis());
+                private final int[] span = range.clone();
+                private Offset prev;
 
-                  // do not skip cursor with empty offset
-                  final Offset baseOffset = toBaseOffset(timeStart, timeEnd);
+                private Offset advance(Offset prev, Interval interval)
+                {
+                  if (prev != null) {
+                    if (direction == ASCENDING) {
+                      span[0] = span[1] + 1;
+                      span[1] = timestamps.ascend(interval.getEndMillis(), span[0]) - 1;
+                    } else {
+                      span[1] = span[0] - 1;
+                      span[0] = timestamps.descend(interval.getStartMillis(), span[1]) + 1;
+                    }
+                    return prev.nextSpan();
+                  }
+                  long start = interval.getStartMillis();   // inclusive
+                  long end = interval.getEndMillis();       // exclusive
+                  if (direction == ASCENDING) {
+                    if (start > timeMinMax.getStartMillis()) {
+                      span[0] = timestamps.ascend(start, span[0]);
+                    }
+                    if (end <= timeMinMax.getEndMillis()) {
+                      if (Granularities.isAll(granularity)) {
+                        span[1] = timestamps.descend(end, span[1]);
+                      } else {
+                        span[1] = timestamps.ascend(end, span[0]) - 1;
+                      }
+                    }
+                  } else {
+                    if (end <= timeMinMax.getEndMillis()) {
+                      span[1] = timestamps.descend(end, span[1]);
+                    }
+                    if (start > timeMinMax.getStartMillis()) {
+                      if (Granularities.isAll(granularity)) {
+                        span[0] = timestamps.ascend(start, span[0]);
+                      } else {
+                        span[0] = timestamps.descend(start, span[1]) + 1;
+                      }
+                    }
+                  }
+                  return Offset.of(bitmap, direction, span);
+                }
+
+                @Override
+                public Cursor apply(Interval interval)
+                {
+                  prev = advance(prev, actualInterval.overlap(interval));
 
                   return new Cursor.ExprSupport()
                   {
-                    private final Offset.Holder cursorOffset = new Offset.Holder(baseOffset);
-                    private final ValueMatcher filterMatcher =
-                        !cursorOffset.withinBounds() || Filters.matchAll(filter)
-                        ? ValueMatcher.TRUE : filter.makeMatcher(context.matcher(this), this);  // matcher can be heavy
-
+                    private final Offset offset = prev;
+                    private final ValueMatcher matcher =
+                        offset.withinBounds() && !Filters.matchAll(filter) ?
+                        filter.makeMatcher(context.matcher(this), this) : ValueMatcher.TRUE;  // matcher can be heavy
                     {
-                      if (cursorOffset.withinBounds()) {
-                        while (!filterMatcher.matches() && cursorOffset.increment()) {
-                        }
+                      if (offset.withinBounds()) {
+                        while (!matcher.matches() && offset.increment()) {}
                       }
                     }
 
                     @Override
-                    public Scanning scanContext()
+                    public ScanContext scanContext()
                     {
-                      return !swipping ? Scanning.OTHER :
-                             filterMatcher != ValueMatcher.TRUE ? Scanning.MATCHER :
-                             context.bitmapFiltered() ? Scanning.BITMAP : Scanning.FULL;
-                    }
-
-                    @Override
-                    public FilterContext filterContext()
-                    {
-                      return context;
+                      return new ScanContext(scanning, bitmap, context.ranges(), span, index.getNumRows());
                     }
 
                     @Override
@@ -366,20 +370,20 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public long getRowTimestamp()
                     {
-                      return timestamps.getLong(offset());
+                      return timestamps.timestamp(offset());
                     }
 
                     @Override
                     public int offset()
                     {
-                      return cursorOffset.getOffset();
+                      return offset.get();
                     }
 
                     @Override
                     public void advance()
                     {
                       int advanced = 0;
-                      while (cursorOffset.increment() && !filterMatcher.matches()) {
+                      while (offset.increment() && !matcher.matches()) {
                         if (++advanced % 10000 == 0 && Thread.interrupted()) {
                           throw new QueryException(new InterruptedException("interrupted"));
                         }
@@ -389,25 +393,29 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public void advanceWithoutMatcher()
                     {
-                      cursorOffset.increment();
+                      offset.increment();
                     }
 
                     @Override
                     public int advanceNWithoutMatcher(int n)
                     {
-                      return cursorOffset.incrementN(n);
+                      return offset.incrementN(n);
                     }
 
                     @Override
                     public boolean isDone()
                     {
-                      return !cursorOffset.withinBounds();
+                      return !offset.withinBounds();
                     }
 
                     @Override
                     public void reset()
                     {
-                      cursorOffset.reset();
+                      if (offset != null) {
+                        span[0] = range[0];
+                        span[1] = range[1];
+                        offset.reset();
+                      }
                     }
 
                     @Override
@@ -430,50 +438,43 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (dimension.equals(Column.TIME_COLUMN_NAME)) {
                         LongColumnSelector selector = makeLongColumnSelector(Column.TIME_COLUMN_NAME);
                         if (extractionFn != null) {
-                          return new SingleScanTimeDimSelector(selector, extractionFn, descending);
+                          return new SingleScanTimeDimSelector(selector, extractionFn, direction);
                         }
                         return VirtualColumns.toDimensionSelector(selector);
                       }
 
-                      final ValueDesc type = resolver.resolve(dimension, ValueDesc.UNKNOWN);
-                      if (VirtualColumns.needImplicitVC(type)) {
-                        VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
-                        if (virtualColumn != null) {
-                          return virtualColumn.asDimension(dimension, extractionFn, this);
-                        }
-                      }
-
-                      final Column columnDesc = index.getColumn(dimension);
-                      if (columnDesc == null) {
+                      final Column holder = index.getColumn(dimension);
+                      if (holder == null) {
                         VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
                         if (virtualColumn != null) {
                           return virtualColumn.asDimension(dimension, extractionFn, this);
                         }
                         return NullDimensionSelector.STRING_TYPE;
                       }
-
-                      DictionaryEncodedColumn cachedColumn = dictionaryColumnCache.get(dimension);
-                      if (cachedColumn == null) {
-                        cachedColumn = columnDesc.getDictionaryEncoded();
-                        if (cachedColumn != null) {
-                          dictionaryColumnCache.put(dimension, cachedColumn);
+                      if (VirtualColumns.needImplicitVC(holder.getType())) {
+                        VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
+                        if (virtualColumn != null) {
+                          return virtualColumn.asDimension(dimension, extractionFn, this);
                         }
                       }
-                      if (cachedColumn == null) {
+
+                      final DictionaryEncodedColumn encoded = dictionaryColumnCache.computeIfAbsent(
+                          dimension, c -> holder.getDictionaryEncoded()
+                      );
+                      if (encoded == null) {
                         // todo: group-by columns are converted to string
                         return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension), extractionFn);
                       }
 
-                      final DictionaryEncodedColumn column = cachedColumn;
-                      final Dictionary<String> dictionary = column.dictionary();
-                      if (columnDesc.getCapabilities().hasMultipleValues()) {
+                      final Dictionary<String> dictionary = encoded.dictionary();
+                      if (holder.getCapabilities().hasMultipleValues()) {
                         if (extractionFn != null) {
                           return new DimensionSelector()
                           {
                             @Override
                             public IndexedInts getRow()
                             {
-                              return column.getMultiValueRow(offset());
+                              return encoded.getMultiValueRow(offset());
                             }
 
                             @Override
@@ -520,7 +521,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public IndexedInts getRow()
                             {
-                              return column.getMultiValueRow(offset());
+                              return encoded.getMultiValueRow(offset());
                             }
 
                             @Override
@@ -568,7 +569,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       } else {
                         // using an anonymous class is faster than creating a class that stores a copy of the value
-                        final RowSuppler supplier = DictionaryEncodedColumn.rowSupplier(column, context.selectivity());
+                        final RowSuppler supplier = DictionaryEncodedColumn.rowSupplier(encoded, context.selectivity());
                         final IndexedInts row = IndexedInts.from(() -> supplier.row(offset()));
                         if (extractionFn != null) {
                           return new DimensionSelector()
@@ -683,7 +684,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public void scan(IntIterator iterator, IntScanner scanner)
                             {
-                              column.scan(iterator, scanner);
+                              encoded.scan(iterator, scanner);
                             }
                           };
                         }
@@ -693,61 +694,49 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public FloatColumnSelector makeFloatColumnSelector(String columnName)
                     {
-                      GenericColumn column = numericColumnCache.get(columnName);
-
-                      if (column == null) {
-                        Column holder = index.getColumn(columnName);
-                        if (holder == null) {
-                          VirtualColumn vc = resolver.getVirtualColumn(columnName);
-                          if (vc != null) {
-                            return vc.asFloatMetric(columnName, this);
-                          }
+                      Column holder = index.getColumn(columnName);
+                      if (holder == null) {
+                        VirtualColumn vc = resolver.getVirtualColumn(columnName);
+                        if (vc != null) {
+                          return vc.asFloatMetric(columnName, this);
                         }
-                        if (holder != null && holder.getCapabilities().getType().isNumeric()) {
-                          numericColumnCache.put(columnName, column = holder.getGenericColumn());
-                        }
+                        return ColumnSelectors.FLOAT_NULL;
                       }
-                      return ColumnSelectors.asFloat(column, cursorOffset);
+                      return ColumnSelectors.asFloat(
+                          genericColumnCache.computeIfAbsent(columnName, c -> holder.getGenericColumn()), offset
+                      );
                     }
 
                     @Override
                     public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
                     {
-                      GenericColumn column = numericColumnCache.get(columnName);
-
-                      if (column == null) {
-                        Column holder = index.getColumn(columnName);
-                        if (holder == null) {
-                          VirtualColumn vc = resolver.getVirtualColumn(columnName);
-                          if (vc != null) {
-                            return vc.asDoubleMetric(columnName, this);
-                          }
+                      Column holder = index.getColumn(columnName);
+                      if (holder == null) {
+                        VirtualColumn vc = resolver.getVirtualColumn(columnName);
+                        if (vc != null) {
+                          return vc.asDoubleMetric(columnName, this);
                         }
-                        if (holder != null && holder.getCapabilities().getType().isNumeric()) {
-                          numericColumnCache.put(columnName, column = holder.getGenericColumn());
-                        }
+                        return ColumnSelectors.DOUBLE_NULL;
                       }
-                      return ColumnSelectors.asDouble(column, cursorOffset);
+                      return ColumnSelectors.asDouble(
+                          genericColumnCache.computeIfAbsent(columnName, c -> holder.getGenericColumn()), offset
+                      );
                     }
 
                     @Override
                     public LongColumnSelector makeLongColumnSelector(String columnName)
                     {
-                      GenericColumn column = numericColumnCache.get(columnName);
-
-                      if (column == null) {
-                        Column holder = index.getColumn(columnName);
-                        if (holder == null) {
-                          VirtualColumn vc = resolver.getVirtualColumn(columnName);
-                          if (vc != null) {
-                            return vc.asLongMetric(columnName, this);
-                          }
+                      Column holder = index.getColumn(columnName);
+                      if (holder == null) {
+                        VirtualColumn vc = resolver.getVirtualColumn(columnName);
+                        if (vc != null) {
+                          return vc.asLongMetric(columnName, this);
                         }
-                        if (holder != null && holder.getCapabilities().getType().isNumeric()) {
-                          numericColumnCache.put(columnName, column = holder.getGenericColumn());
-                        }
+                        return ColumnSelectors.LONG_NULL;
                       }
-                      return ColumnSelectors.asLong(column, cursorOffset);
+                      return ColumnSelectors.asLong(
+                          genericColumnCache.computeIfAbsent(columnName, c -> holder.getGenericColumn()), offset
+                      );
                     }
 
                     @Override
@@ -772,39 +761,23 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
 
                       if (holder.hasDictionaryEncodedColumn()) {
-                        final DictionaryEncodedColumn column = holder.getDictionaryEncoded();
-                        if (column.hasMultipleValues()) {
-                          selector = new ObjectColumnSelector.WithBaggage<Object>()
+                        DictionaryEncodedColumn encoded = dictionaryColumnCache.computeIfAbsent(
+                            columnName, c -> holder.getDictionaryEncoded()
+                        );
+                        if (encoded.hasMultipleValues()) {
+                          return new ObjectColumnSelector.Typed<Object>(ValueDesc.MV_STRING)
                           {
-                            @Override
-                            public void close() throws IOException
-                            {
-                              column.close();
-                            }
-
-                            @Override
-                            public ValueDesc type()
-                            {
-                              return ValueDesc.MV_STRING;
-                            }
-
                             @Override
                             public Object get()
                             {
-                              return column.getMultiValued(offset());
+                              return encoded.getMultiValued(offset());
                             }
                           };
                         } else {
-                          selector = new ObjectColumnSelector.WithRawAccess<String>()
+                          return new ObjectColumnSelector.WithRawAccess<String>()
                           {
-                            private final Dictionary<String> dictionary = column.dictionary();
-                            private final RowSuppler row = DictionaryEncodedColumn.rowSupplier(column, context.selectivity());
-
-                            @Override
-                            public void close() throws IOException
-                            {
-                              column.close();
-                            }
+                            private final Dictionary<String> dictionary = encoded.dictionary();
+                            private final RowSuppler row = DictionaryEncodedColumn.rowSupplier(encoded, context.selectivity());
 
                             @Override
                             public ValueDesc type()
@@ -827,7 +800,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public BufferRef getAsRef()
                             {
-                              return dictionary.getAsRef(column.getSingleValueRow(offset()));
+                              return dictionary.getAsRef(encoded.getSingleValueRow(offset()));
                             }
 
                             @Override
@@ -838,20 +811,15 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           };
                         }
                       } else if (holder.hasGenericColumn()) {
-                        GenericColumn generic = holder.getGenericColumn();
-                        if (generic != null) {
-                          selector = ColumnSelectors.asSelector(generic, cursorOffset);
-                        }
+                        return ColumnSelectors.asSelector(
+                            genericColumnCache.computeIfAbsent(columnName, c-> holder.getGenericColumn()), offset
+                        );
                       } else if (holder.hasComplexColumn()) {
-                        ComplexColumn complex = holder.getComplexColumn();
-                        if (complex != null) {
-                          selector = ColumnSelectors.asSelector(complex, cursorOffset);
-                        }
+                        return ColumnSelectors.asSelector(
+                            complexColumnCache.computeIfAbsent(columnName, c-> holder.getComplexColumn()), offset
+                        );
                       }
-                      if (selector != null) {
-                        objectSelectorsCache.put(columnName, selector);
-                      }
-                      return selector;
+                      return null;
                     }
 
                     @Override
@@ -868,12 +836,18 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (holder.exact() && bitmap.isEmpty()) {
                         return ValueMatcher.FALSE;
                       }
-                      final IntPredicate predicate = Filters.toMatcher(bitmap, descending);
+                      final IntPredicate predicate = Filters.toMatcher(bitmap, direction);
                       if (holder.exact()) {
                         return () -> predicate.apply(offset());
                       }
-                      final ValueMatcher valueMatcher = super.makePredicateMatcher(filter);
-                      return () -> predicate.apply(offset()) && valueMatcher.matches();
+                      final ValueMatcher matcher = super.makePredicateMatcher(filter);
+                      return () -> predicate.apply(offset()) && matcher.matches();
+                    }
+
+                    @Override
+                    public Column getColumn(String columnName)
+                    {
+                      return index.getColumn(columnName);
                     }
 
                     @Override
@@ -910,245 +884,31 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
                   };
                 }
-
-                private Offset toBaseOffset(final long timeStart, final long timeEnd)
-                {
-                  if (!offset.withinBounds() || Filters.matchNone(filter)) {
-                    return Offset.EMPTY;
-                  }
-                  final MutableLong handover = new MutableLong();
-                  if (descending) {
-                    for (; offset.withinBounds(); offset.increment()) {
-                      if (timestamps.getLong(offset.getOffset(), handover) && handover.longValue() < timeEnd) {
-                        break;
-                      }
-                    }
-                  } else {
-                    for (; offset.withinBounds(); offset.increment()) {
-                      if (timestamps.getLong(offset.getOffset(), handover) && handover.longValue() >= timeStart) {
-                        break;
-                      }
-                    }
-                  }
-                  return descending ?
-                         minDataTimestamp >= timeStart ? offset : new DescTimestampCheck(offset, timestamps, timeStart) :
-                         maxDataTimestamp < timeEnd ? offset : new AscTimestampCheck(offset, timestamps, timeEnd);
-                }
               }
           ),
           () -> {
+            CloseQuietly.close(context);
             CloseQuietly.close(timestamps);
             for (DictionaryEncodedColumn column : dictionaryColumnCache.values()) {
               CloseQuietly.close(column);
             }
-            for (GenericColumn column : numericColumnCache.values()) {
+            for (GenericColumn column : genericColumnCache.values()) {
               CloseQuietly.close(column);
             }
-            for (Object column : objectSelectorsCache.values()) {
+            for (ComplexColumn column : complexColumnCache.values()) {
+              CloseQuietly.close(column);
+            }
+            for (ObjectColumnSelector column : objectSelectorsCache.values()) {
               if (column instanceof Closeable) {
                 CloseQuietly.close((Closeable) column);
               }
             }
             dictionaryColumnCache.clear();
-            numericColumnCache.clear();
+            genericColumnCache.clear();
+            complexColumnCache.clear();
             objectSelectorsCache.clear();
           }
       );
-    }
-  }
-
-  private abstract static class TimestampCheckingOffset implements Offset
-  {
-    protected final Offset baseOffset;
-    protected final GenericColumn timestamps;
-    protected final long timeLimit;
-    protected final MutableLong handover = new MutableLong();
-
-    public TimestampCheckingOffset(Offset baseOffset, GenericColumn timestamps, long timeLimit)
-    {
-      this.baseOffset = baseOffset;
-      this.timestamps = timestamps;
-      this.timeLimit = timeLimit;
-    }
-
-    @Override
-    public int getOffset()
-    {
-      return baseOffset.getOffset();
-    }
-
-    @Override
-    public boolean increment()
-    {
-      return baseOffset.increment();
-    }
-
-    @Override
-    public int incrementN(int n)
-    {
-      return baseOffset.incrementN(n);
-    }
-
-    @Override
-    public abstract Offset clone();
-  }
-
-  private static final class AscTimestampCheck extends TimestampCheckingOffset
-  {
-    public AscTimestampCheck(Offset baseOffset, GenericColumn timestamps, long timeLimit)
-    {
-      super(baseOffset, timestamps, timeLimit);
-    }
-
-    @Override
-    public boolean withinBounds()
-    {
-      return baseOffset.withinBounds() &&
-             timestamps.getLong(baseOffset.getOffset(), handover) &&
-             handover.longValue() < timeLimit;
-    }
-
-    @Override
-    public String toString()
-    {
-      return (baseOffset.withinBounds() ? timestamps.getLong(baseOffset.getOffset()) : "OOB") +
-             "<" + timeLimit + "::" + baseOffset;
-    }
-
-    @Override
-    public Offset clone()
-    {
-      return new AscTimestampCheck(baseOffset.clone(), timestamps, timeLimit);
-    }
-  }
-
-  private static final class DescTimestampCheck extends TimestampCheckingOffset
-  {
-    public DescTimestampCheck(Offset baseOffset, GenericColumn timestamps, long timeLimit)
-    {
-      super(baseOffset, timestamps, timeLimit);
-    }
-
-    @Override
-    public boolean withinBounds()
-    {
-      return baseOffset.withinBounds() &&
-             timestamps.getLong(baseOffset.getOffset(), handover) &&
-             handover.longValue() >= timeLimit;
-    }
-
-    @Override
-    public String toString()
-    {
-      return timeLimit + ">=" +
-             (baseOffset.withinBounds() ? timestamps.getLong(baseOffset.getOffset()) : "OOB") +
-             "::" + baseOffset;
-    }
-
-    @Override
-    public Offset clone()
-    {
-      return new DescTimestampCheck(baseOffset.clone(), timestamps, timeLimit);
-    }
-  }
-
-  private static final class AscNoFilter implements Offset
-  {
-    private final int rowCount;
-    private int currentOffset;
-
-    AscNoFilter(int currentOffset, int rowCount)
-    {
-      this.currentOffset = currentOffset;
-      this.rowCount = rowCount;
-    }
-
-    @Override
-    public boolean increment()
-    {
-      return ++currentOffset < rowCount;
-    }
-
-    @Override
-    public int incrementN(int n)
-    {
-      final int delta = Math.min(rowCount - currentOffset, n);
-      currentOffset+= delta;
-      return n - delta;
-    }
-
-    @Override
-    public boolean withinBounds()
-    {
-      return currentOffset < rowCount;
-    }
-
-    @Override
-    public Offset clone()
-    {
-      return new AscNoFilter(currentOffset, rowCount);
-    }
-
-    @Override
-    public int getOffset()
-    {
-      return currentOffset;
-    }
-
-    @Override
-    public String toString()
-    {
-      return currentOffset + "/" + rowCount;
-    }
-  }
-
-  private static final class DescNoFilter implements Offset
-  {
-    private final int rowCount;
-    private int currentOffset;
-
-    DescNoFilter(int currentOffset, int rowCount)
-    {
-      this.currentOffset = currentOffset;
-      this.rowCount = rowCount;
-    }
-
-    @Override
-    public boolean increment()
-    {
-      return ++currentOffset < rowCount;
-    }
-
-    @Override
-    public int incrementN(int n)
-    {
-      final int delta = Math.min(rowCount - currentOffset, n);
-      currentOffset+= delta;
-      return n - delta;
-    }
-
-    @Override
-    public boolean withinBounds()
-    {
-      return currentOffset < rowCount;
-    }
-
-    @Override
-    public Offset clone()
-    {
-      return new DescNoFilter(currentOffset, rowCount);
-    }
-
-    @Override
-    public int getOffset()
-    {
-      return rowCount - currentOffset - 1;
-    }
-
-    @Override
-    public String toString()
-    {
-      return currentOffset + "/" + rowCount + "(DSC)";
     }
   }
 }

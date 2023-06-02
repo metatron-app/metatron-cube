@@ -27,13 +27,32 @@ import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
-import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 /**
  */
-public final class IndexedLongsGenericColumn extends GenericColumn.LongType
+public class IndexedLongsGenericColumn extends GenericColumn.LongType
 {
+  public static IndexedLongsGenericColumn timestamp(
+      IndexedLongs column,
+      CompressionStrategy compressionType,
+      ImmutableBitmap nulls
+  )
+  {
+    return new IndexedLongsGenericColumn.Timestamp(column, compressionType, nulls)
+    {
+      @Override
+      public long timestamp(int offset) {return column.get(offset);}
+
+      @Override
+      public boolean getLong(int rowNum, MutableLong handover)
+      {
+        handover.setValue(column.get(rowNum));
+        return true;
+      }
+    };
+  }
+
   private final IndexedLongs column;
   private final CompressionStrategy compressionType;
   private final ImmutableBitmap nulls;
@@ -112,5 +131,13 @@ public final class IndexedLongsGenericColumn extends GenericColumn.LongType
   public void close() throws IOException
   {
     column.close();
+  }
+
+  private static abstract class Timestamp extends IndexedLongsGenericColumn implements TimestampType
+  {
+    public Timestamp(IndexedLongs column, CompressionStrategy compressionType, ImmutableBitmap nulls)
+    {
+      super(column, compressionType, nulls);
+    }
   }
 }

@@ -600,8 +600,8 @@ public class VirtualColumnTest
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
                 new LongSumAggregatorFactory("sumOf", null, "array + m1", null),
-                new LongMinAggregatorFactory("minOf", null, "array + m2"),
-                new LongMaxAggregatorFactory("maxOf", null, "array + m3")
+                new LongMinAggregatorFactory("minOf", null, "array + m2", null),
+                new LongMaxAggregatorFactory("maxOf", null, "array + m3", null)
             )
         )
         .build();
@@ -811,8 +811,8 @@ public class VirtualColumnTest
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
                 new LongSumAggregatorFactory("sumOf", null, "if(M >= 100, M, M * 2)", null),
-                new LongMinAggregatorFactory("minOf", null, "if(M >= 100, M, M * 2)"),
-                new LongMaxAggregatorFactory("maxOf", null, "if(M >= 100, M, M * 2)")
+                new LongMinAggregatorFactory("minOf", null, "if(M >= 100, M, M * 2)", null),
+                new LongMaxAggregatorFactory("maxOf", null, "if(M >= 100, M, M * 2)", null)
             )
         ).build();
 

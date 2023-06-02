@@ -35,9 +35,9 @@ import io.druid.query.filter.ValueMatchers;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
+import io.druid.segment.ScanContext;
 import io.druid.segment.Segment;
 import io.druid.segment.column.ColumnMeta;
-import io.druid.segment.filter.FilterContext;
 
 import java.util.Comparator;
 import java.util.List;
@@ -89,9 +89,9 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   @Override
   public AggregatorFactory optimize(Segment segment)
   {
-    if (fieldName != null) {
+    if (fieldName != null && predicate == null) {
       ColumnMeta meta = segment.asStorageAdapter(false).getColumnMeta(fieldName);
-      if (meta != null && predicate == null && GuavaUtils.isFalse(meta.hasNull())) {
+      if (meta != null && GuavaUtils.isFalse(meta.hasNull())) {
         return CountAggregatorFactory.of(name);
       }
     }
@@ -99,25 +99,19 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   }
 
   @Override
-  public AggregatorFactory optimize(Cursor cursor)
+  public AggregatorFactory evaluate(Cursor cursor, ScanContext context)
   {
-    if (cursor.scanContext().awareTargetRows()) {
-      if (fieldName == null) {
-        return AggregatorFactory.constant(this, cursor.targetNumRows());
-      }
-      ColumnMeta meta = cursor.getMeta(fieldName);
-      if (meta != null) {
-        ImmutableBitmap nulls = meta.getNulls();
-        if (nulls != null) {
-          if (nulls.isEmpty()) {
-            return AggregatorFactory.constant(this, cursor.targetNumRows());
-          }
-          FilterContext context = cursor.filterContext();
-          if (context != null) {
-            return AggregatorFactory.constant(this, (long) context.difference(nulls));
-          }
-          return AggregatorFactory.constant(this, (long) context.numRows() - nulls.size());
-        }
+    if (predicate != null) {
+      return this;
+    }
+    if (fieldName == null) {
+      return AggregatorFactory.constant(this, context.count());
+    }
+    ColumnMeta meta = cursor.getMeta(fieldName);
+    if (meta != null) {
+      ImmutableBitmap nulls = meta.getNulls();
+      if (nulls != null) {
+        return AggregatorFactory.constant(this, (long) context.count() - nulls.size());
       }
     }
     return this;

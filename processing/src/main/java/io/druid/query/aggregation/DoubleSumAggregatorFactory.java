@@ -20,34 +20,20 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.druid.common.KeyBuilder;
-import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ColumnSelectors;
-import io.druid.segment.FloatColumnSelector;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
+ *
  */
-public class DoubleSumAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class DoubleSumAggregatorFactory extends NumericAggregatorFactory.DoubleType
+    implements AggregatorFactory.CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 0x2;
-
-  private final String name;
-  private final String fieldName;
-  private final String fieldExpression;
-  private final String predicate;
 
   @JsonCreator
   public DoubleSumAggregatorFactory(
@@ -57,16 +43,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory implements Agg
       @JsonProperty("predicate") String predicate
   )
   {
-    Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
-    Preconditions.checkArgument(
-        fieldName == null ^ fieldExpression == null,
-        "Must have a valid, non-null fieldName or fieldExpression"
-    );
-
-    this.name = name;
-    this.fieldName = fieldName;
-    this.fieldExpression = fieldExpression;
-    this.predicate = predicate;
+    super(name, fieldName, fieldExpression, predicate);
   }
 
   public DoubleSumAggregatorFactory(String name, String fieldName)
@@ -75,32 +52,51 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  public Aggregator factorize(ColumnSelectorFactory metricFactory)
+  protected Object evaluate(LongStream stream)
   {
-    return DoubleSumAggregator.create(
-        getFloatColumnSelector(metricFactory),
-        ColumnSelectors.toMatcher(predicate, metricFactory)
-    );
+    return stream.sum();
   }
 
   @Override
-  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
+  protected Object evaluate(DoubleStream stream)
   {
-    return DoubleSumBufferAggregator.create(
-        getFloatColumnSelector(metricFactory),
-        ColumnSelectors.toMatcher(predicate, metricFactory)
-    );
-  }
-
-  private FloatColumnSelector getFloatColumnSelector(ColumnSelectorFactory metricFactory)
-  {
-    return ColumnSelectors.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
+    return stream.sum();
   }
 
   @Override
-  public Comparator getComparator()
+  protected Object nullValue()
   {
-    return DoubleSumAggregator.COMPARATOR;
+    return 0D;
+  }
+
+  @Override
+  protected byte cacheKey()
+  {
+    return CACHE_TYPE_ID;
+  }
+
+  @Override
+  public String getCubeName()
+  {
+    return "doubleSum";
+  }
+
+  @Override
+  public int getMaxIntermediateSize()
+  {
+    return Double.BYTES;
+  }
+
+  @Override
+  public Aggregator factorize(ColumnSelectorFactory factory)
+  {
+    return DoubleSumAggregator.create(toFloatColumnSelector(factory), predicateToMatcher(factory));
+  }
+
+  @Override
+  public BufferAggregator factorizeBuffered(ColumnSelectorFactory factory)
+  {
+    return DoubleSumBufferAggregator.create(toFloatColumnSelector(factory), predicateToMatcher(factory));
   }
 
   @Override
@@ -116,134 +112,8 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory implements Agg
   }
 
   @Override
-  public Object deserialize(Object object)
-  {
-    // handle "NaN" / "Infinity" values serialized as strings in JSON
-    if (object instanceof String) {
-      return Double.parseDouble((String) object);
-    }
-    return object;
-  }
-
-  @Override
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getFieldName()
-  {
-    return fieldName;
-  }
-
-  @Override
   public AggregatorFactory getCombiningFactory(String inputField)
   {
     return new DoubleSumAggregatorFactory(name, inputField);
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getFieldExpression()
-  {
-    return fieldExpression;
-  }
-
-  @Override
-  public String getCubeName()
-  {
-    return "doubleSum";
-  }
-
-  @Override
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getPredicate()
-  {
-    return predicate;
-  }
-
-  @Override
-  @JsonProperty
-  public String getName()
-  {
-    return name;
-  }
-
-  @Override
-  public List<String> requiredFields()
-  {
-    Set<String> required = Sets.newHashSet();
-    if (fieldName != null) {
-      required.add(fieldName);
-    } else {
-      required.addAll(Parser.findRequiredBindings(fieldExpression));
-    }
-    return Lists.newArrayList(required);
-  }
-
-  @Override
-  public KeyBuilder getCacheKey(KeyBuilder builder)
-  {
-    return builder.append(CACHE_TYPE_ID)
-                  .append(fieldName, fieldExpression, predicate);
-  }
-
-  @Override
-  public ValueDesc getOutputType()
-  {
-    return ValueDesc.DOUBLE;
-  }
-
-  @Override
-  public int getMaxIntermediateSize()
-  {
-    return Double.BYTES;
-  }
-
-  @Override
-  public String toString()
-  {
-    return "DoubleSumAggregatorFactory{" +
-           "name='" + name + '\'' +
-           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
-           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
-           (predicate == null ? "": ", predicate='" + predicate + '\'') +
-           '}';
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    DoubleSumAggregatorFactory that = (DoubleSumAggregatorFactory) o;
-
-    if (!Objects.equals(fieldName, that.fieldName)) {
-      return false;
-    }
-    if (!Objects.equals(fieldExpression, that.fieldExpression)) {
-      return false;
-    }
-    if (!Objects.equals(predicate, that.predicate)) {
-      return false;
-    }
-    if (!Objects.equals(name, that.name)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  @Override
-  public int hashCode()
-  {
-    int result = fieldName != null ? fieldName.hashCode() : 0;
-    result = 31 * result + (fieldExpression != null ? fieldExpression.hashCode() : 0);
-    result = 31 * result + (predicate != null ? predicate.hashCode() : 0);
-    result = 31 * result + (name != null ? name.hashCode() : 0);
-    return result;
   }
 }

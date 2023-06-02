@@ -851,9 +851,17 @@ public class TestHelper
       TestHelper.validate(String.valueOf(i), Arrays.asList(e), Arrays.asList(r));
     }
     if (expected.size() > result.size()) {
+      System.out.println("need more..");
+      for (Object[] row : expected.subList(result.size(), expected.size())) {
+        System.out.println(Arrays.toString(row));
+      }
       Assert.fail("need more");
     }
     if (expected.size() < result.size()) {
+      System.out.println("need less..");
+      for (Object[] row : result.subList(expected.size(), result.size())) {
+        System.out.println(Arrays.toString(row));
+      }
       Assert.fail("need less");
     }
   }

@@ -23,19 +23,13 @@ import com.google.common.base.Supplier;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.ValueDesc;
 
-import java.io.Closeable;
-
 public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
 {
-  interface WithBaggage<T> extends ObjectColumnSelector<T>, Closeable
+  interface Scannable<T> extends ObjectColumnSelector<T>, io.druid.common.Scannable<T>
   {
   }
 
-  interface Scannable<T> extends WithBaggage<T>, io.druid.common.Scannable<T>
-  {
-  }
-
-  interface WithRawAccess<T> extends WithBaggage<T>, DSuppliers.WithRawAccess<T>
+  interface WithRawAccess<T> extends ObjectColumnSelector<T>, DSuppliers.WithRawAccess<T>
   {
   }
 
@@ -50,12 +44,19 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
     {
       return type;
     }
-
   }
 
-  public static <T> Typed<T> with(ValueDesc type, Supplier<T> supplier)
+  abstract class StringType extends Typed<String>
   {
-    return new Typed<T>(type)
+    protected StringType()
+    {
+      super(ValueDesc.STRING);
+    }
+  }
+
+  public static <T> Typed<T> string(Supplier<T> supplier)
+  {
+    return new Typed<T>(ValueDesc.STRING)
     {
       @Override
       public T get()
@@ -63,10 +64,5 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
         return supplier.get();
       }
     };
-  }
-
-  public static <T> Typed<T> string(Supplier<T> supplier)
-  {
-    return with(ValueDesc.STRING, supplier);
   }
 }

@@ -25,6 +25,7 @@ import io.druid.cache.SessionCache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.filter.DimFilter;
+import io.druid.segment.ScanContext;
 import io.druid.segment.Segment;
 import io.druid.segment.SegmentMissingException;
 import io.druid.segment.StorageAdapter;
@@ -53,8 +54,9 @@ public class FilterMetaQueryEngine
         query,
         cache,
         cursor -> {
-          if (cursor.scanContext().awareTargetRows()) {
-            return new long[]{cursor.targetNumRows(), totalRow};
+          ScanContext context = cursor.scanContext();
+          if (context.awareTargetRows()) {
+            return new long[]{context.count(), totalRow};
           }
           int row = 0;
           for (; !cursor.isDone(); cursor.advance(), row++) { }

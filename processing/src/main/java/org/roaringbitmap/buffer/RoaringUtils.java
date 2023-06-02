@@ -48,6 +48,12 @@ public class RoaringUtils
     return bitmap.highLowContainer.getContainerPointer();
   }
 
+  public static MappeableContainerPointer getContainerPointer(ImmutableRoaringBitmap bitmap, int offset)
+  {
+    int ix = bitmap.highLowContainer.getIndex(highbits(offset));
+    return bitmap.highLowContainer.getContainerPointer(ix < 0 ? -ix - 1 : ix);
+  }
+
   public static void addContainer(MutableRoaringArray array, char key, BitSet values)
   {
     addContainer(array, key, values, values.cardinality());
@@ -88,6 +94,39 @@ public class RoaringUtils
 
   public static BatchIterator getBatchIterator(ImmutableRoaringBitmap bitmap)
   {
-    return new RoaringBatchIterator(null == bitmap.highLowContainer ? null : bitmap.getContainerPointer());
+    return new RoaringBatchIteratorV2(getContainerPointer(bitmap));
+  }
+
+  public static BatchIterator getBatchIterator(ImmutableRoaringBitmap bitmap, int offset)
+  {
+    return new RoaringBatchIteratorV2(getContainerPointer(bitmap, offset), lowbits(offset));
+  }
+
+  public static int cardinality(ImmutableRoaringBitmap bitmap, int[] range)
+  {
+    MappeableContainerPointer pointer = getContainerPointer(bitmap, range[0]);
+    if (!pointer.hasContainer()) {
+      return 0;
+    }
+    char hb1 = highbits(range[0]);
+    char hb2 = highbits(range[1]);
+
+    int cardinality = 0;
+    for (; pointer.hasContainer() && pointer.key() <= hb2; pointer.advance()) {
+      int s;
+      if (pointer.key() == hb1 && lowbits(range[0]) > 0) {
+        s = pointer.getContainer().rank(lowbits(range[0] - 1));
+      } else {
+        s = 0;
+      }
+      int e;
+      if (pointer.key() == hb2) {
+        e = pointer.getContainer().rank(lowbits(range[1]));
+      } else {
+        e = pointer.getCardinality();
+      }
+      cardinality += e - s;
+    }
+    return cardinality;
   }
 }

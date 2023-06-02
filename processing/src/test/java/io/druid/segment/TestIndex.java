@@ -98,7 +98,7 @@ public class TestIndex
   public static final AggregatorFactory[] METRIC_AGGS = new AggregatorFactory[]{
       new GenericSumAggregatorFactory("index", "index", ValueDesc.FLOAT),
       new GenericMinAggregatorFactory("indexMin", "index", ValueDesc.FLOAT),
-      new DoubleMaxAggregatorFactory("indexMaxPlusTen", null, "index + 10"),
+      new DoubleMaxAggregatorFactory("indexMaxPlusTen", null, "index + 10", null),
       new HyperUniquesAggregatorFactory("quality_uniques", "quality"),
       new GenericSumAggregatorFactory("indexDecimal", "index", ValueDesc.DECIMAL)
   };

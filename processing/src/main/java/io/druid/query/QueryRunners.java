@@ -54,26 +54,11 @@ public class QueryRunners
 
   private static final Logger LOG = new Logger(QueryRunners.class);
 
-  public static <T> QueryRunner<T> concat(final Iterable<QueryRunner<T>> runners)
+  public static <T> QueryRunner<T> concat(Iterable<QueryRunner<T>> runners)
   {
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
-      {
-        return Sequences.concat(
-            query.estimatedOutputColumns(),
-            Iterables.transform(runners, new Function<QueryRunner<T>, Sequence<T>>()
-            {
-              @Override
-              public Sequence<T> apply(QueryRunner<T> runner)
-              {
-                return runner.run(query, responseContext);
-              }
-            })
-        );
-      }
-    };
+    return (query, response) -> Sequences.concat(
+        query.estimatedOutputColumns(), Iterables.transform(runners, runner -> runner.run(query, response))
+    );
   }
 
   public static <T> QueryRunner<T> concat(

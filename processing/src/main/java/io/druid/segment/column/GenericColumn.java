@@ -32,6 +32,7 @@ import org.apache.commons.lang.mutable.MutableFloat;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
@@ -157,6 +158,34 @@ public interface GenericColumn extends ComplexColumn
         scan(iterator, (x, f) -> { if (!nulls.get(x) && predicate.test(f.get(x))) { bitmap.add(x); } });
       }
       return factory.makeImmutableBitmap(bitmap);
+    }
+  }
+
+  interface TimestampType extends Closeable
+  {
+    int size();
+
+    long timestamp(int offset);
+
+    default int ascend(long timestamp, int offset)
+    {
+      final int numRows = size();
+      for (int i = offset; i < numRows; i++) {
+        if (timestamp(i) >= timestamp) {
+          return i;
+        }
+      }
+      return numRows;
+    }
+
+    default int descend(long timestamp, int offset)
+    {
+      for (int i = offset; i >= 0; i--) {
+        if (timestamp(i) < timestamp) {
+          return i;
+        }
+      }
+      return -1;
     }
   }
 

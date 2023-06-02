@@ -50,6 +50,8 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -127,9 +129,33 @@ public class ColumnSelectorFactories
     }
 
     @Override
+    public Column getColumn(String columnName)
+    {
+      return delegate.getColumn(columnName);
+    }
+
+    @Override
+    public ColumnMeta getMeta(String columnName)
+    {
+      return delegate.getMeta(columnName);
+    }
+
+    @Override
+    public ColumnCapabilities getColumnCapabilities(String columnName)
+    {
+      return delegate.getColumnCapabilities(columnName);
+    }
+
+    @Override
     public Map<String, String> getDescriptor(String columnName)
     {
       return delegate.getDescriptor(columnName);
+    }
+
+    @Override
+    public Map<String, Object> getStats(String columnName)
+    {
+      return delegate.getStats(columnName);
     }
 
     @Override
@@ -803,9 +829,9 @@ public class ColumnSelectorFactories
               }
 
               @Override
-              public Scanning scanContext()
+              public ScanContext scanContext()
               {
-                return Scanning.OTHER;
+                return new ScanContext(Scanning.OTHER, null, null, null, -1);
               }
             };
           }

@@ -42,7 +42,9 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
@@ -53,6 +55,7 @@ import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
 import io.druid.segment.NullDimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.ScanContext;
 import io.druid.segment.Scanning;
 import io.druid.segment.SingleScanTimeDimSelector;
 import io.druid.segment.StorageAdapter;
@@ -64,6 +67,7 @@ import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
+import io.druid.segment.filter.Filters;
 import io.druid.segment.incremental.IncrementalIndex.TimeAndDims;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.lang.mutable.MutableDouble;
@@ -200,7 +204,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
   @Override
   public Sequence<Cursor> makeCursors(
-      final DimFilter filter,
+      final DimFilter dimFilter,
       final Interval interval,
       final RowResolver resolver,
       final Granularity granularity,
@@ -225,13 +229,19 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     if (descending) {
       iterable = Lists.reverse(ImmutableList.copyOf(iterable));
     }
+    final Direction direction = descending ? Direction.DESCENDING : Direction.ASCENDING;
+
+    final Filter filter = Filters.toFilter(dimFilter, resolver);
+    final boolean swipping = Granularities.isAll(granularity) && actualInterval.contains(timeMinMax);
+
+    final Scanning scanning = !actualInterval.contains(timeMinMax) ? Scanning.OTHER :
+                              !Filters.matchAll(filter) ? Scanning.MATCHER :
+                              !Granularities.isAll(granularity) ? Scanning.GRANULAR : Scanning.FULL;
 
     return Sequences.map(
         Sequences.simple(iterable),
         new Function<Interval, Cursor>()
         {
-          private final boolean swipping = Granularities.isAll(granularity) && actualInterval.contains(timeMinMax);
-
           private final EntryHolder currEntry = new EntryHolder();
 
           @Override
@@ -248,9 +258,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               private int offset;
               private boolean done;
 
-              private final ValueMatcher filterMatcher;
+              private final ValueMatcher matcher;
               {
-                filterMatcher = filter == null ? ValueMatcher.TRUE : filter.toFilter(resolver).makeMatcher(null, this);
+                matcher = Filters.matchAll(filter) ? ValueMatcher.TRUE : filter.makeMatcher(null, this);
                 reset();
               }
 
@@ -273,10 +283,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
-              public Scanning scanContext()
+              public ScanContext scanContext()
               {
-                return !swipping ? Scanning.OTHER :
-                       filterMatcher != ValueMatcher.TRUE ? Scanning.MATCHER : Scanning.FULL;
+                return new ScanContext(scanning, null, null, new int[] {0, size() - 1}, size());
               }
 
               @Override
@@ -292,7 +301,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 while (baseIter.hasNext()) {
                   offset++;
                   currEntry.set(baseIter.next());
-                  if (filterMatcher.matches()) {
+                  if (matcher.matches()) {
                     return;
                   }
                   if (++advanced % 10000 == 0 && Thread.interrupted()) {
@@ -349,7 +358,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (dimension.equals(Column.TIME_COLUMN_NAME)) {
                   LongColumnSelector selector = makeTimeSelector();
                   if (extractionFn != null) {
-                    return new SingleScanTimeDimSelector(selector, extractionFn, descending);
+                    return new SingleScanTimeDimSelector(selector, extractionFn, direction);
                   }
                   return VirtualColumns.toDimensionSelector(selector);
                 }

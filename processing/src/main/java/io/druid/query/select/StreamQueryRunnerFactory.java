@@ -23,10 +23,8 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.FilterMetaQuery;
 import io.druid.query.FilterMetaQueryEngine;
@@ -83,18 +81,6 @@ public class StreamQueryRunnerFactory
   )
   {
     return Suppliers.ofInstance(new MutableInt(0));
-  }
-
-  @Override
-  public List<List<Segment>> splitSegments(
-      Query<Object[]> query,
-      List<Segment> targets,
-      Supplier<Object> optimizer,
-      Supplier<RowResolver> resolver,
-      QuerySegmentWalker segmentWalker
-  )
-  {
-    return null;
   }
 
   private static final int SPLIT_MIN_ROWS = 8192;
@@ -177,10 +163,11 @@ public class StreamQueryRunnerFactory
       final QueryableIndex index = segment.asQueryableIndex(false);
       if (index != null) {
         final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver.get());
-        final FilterContext context = Filters.createFilterContext(selector, cache, segment.namespace());
-        final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(optimized, context);
-        if (extracted.rhs == null) {
-          counter.add(extracted.lhs == null ? segment.getNumRows() : extracted.lhs.size());
+        final FilterContext context = DimFilters.extractBitmaps(
+            optimized, Filters.createContext(selector, cache, segment.namespace())
+        );
+        if (context.matcher() == null) {
+          counter.add(context.targetNumRows());
           continue;
         }
       }

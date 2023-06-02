@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.data.IndexedInts;
 
 import java.util.Map;
@@ -30,7 +31,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
 {
   private final ExtractionFn extractionFn;
   private final LongColumnSelector selector;
-  private final boolean descending;
+  private final Direction direction;
 
   private final Map<Integer, String> timeValues = Maps.newHashMap();
   private String currentValue = null;
@@ -42,7 +43,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
   // - it assumes time values are scanned once and values are grouped together
   //   (i.e. we never revisit a timestamp we have seen before, unless it is the same as the last accessed one)
   // - it also applies and caches extraction function values at the DimSelector level to speed things up
-  public SingleScanTimeDimSelector(LongColumnSelector selector, ExtractionFn extractionFn, boolean descending)
+  public SingleScanTimeDimSelector(LongColumnSelector selector, ExtractionFn extractionFn, Direction direction)
   {
     if (extractionFn == null) {
       throw new UnsupportedOperationException("time dimension must provide an extraction function");
@@ -50,7 +51,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
 
     this.extractionFn = extractionFn;
     this.selector = selector;
-    this.descending = descending;
+    this.direction = direction;
   }
 
   @Override
@@ -72,7 +73,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
     // we can also avoid creating a dimension value and corresponding index
     // and use the current one
     else if (timestamp != currentTimestamp) {
-      if (descending ? timestamp > currentTimestamp : timestamp < currentTimestamp) {
+      if (direction == Direction.ASCENDING ? timestamp < currentTimestamp : timestamp > currentTimestamp) {
         // re-using this selector for multiple scans would cause the same rows to return different IDs
         // we might want to re-visit if we ever need to do multiple scans with this dimension selector
         throw new IllegalStateException("cannot re-use time dimension selector for multiple scans");

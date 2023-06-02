@@ -1007,7 +1007,7 @@ public class IndexIO
           Column.TIME_COLUMN_NAME, Suppliers.ofInstance(
               new ColumnBuilder(Column.TIME_COLUMN_NAME)
                   .setType(ValueDesc.LONG)
-                  .setGenericColumn(new LongGenericColumnSupplier(index.timestamps, NO_NULLS))
+                  .setGenericColumn(new LongGenericColumnSupplier(index.timestamps, NO_NULLS, true))
                   .build()
           )
       );

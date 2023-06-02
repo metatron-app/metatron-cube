@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -1392,14 +1393,10 @@ public class SchemalessTestFull
                                   .granularity(allGran)
                                   .intervals(fullOnInterval)
                                   .aggregators(
-                                      Lists.<AggregatorFactory>newArrayList(
-                                          Iterables.concat(
-                                              commonAggregators,
-                                              Lists.newArrayList(
-                                                  new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                                                  new DoubleMinAggregatorFactory("minIndex", "index")
-                                              )
-                                          )
+                                      GuavaUtils.concat(
+                                          commonAggregators,
+                                          new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                                          new DoubleMinAggregatorFactory("minIndex", "index")
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(addRowsIndexConstant))
@@ -1422,14 +1419,10 @@ public class SchemalessTestFull
                                   .intervals(fullOnInterval)
                                   .filters(marketDimension, "spot")
                                   .aggregators(
-                                      Lists.<AggregatorFactory>newArrayList(
-                                          Iterables.concat(
-                                              commonAggregators,
-                                              Lists.newArrayList(
-                                                  new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                                                  new DoubleMinAggregatorFactory("minIndex", "index")
-                                              )
-                                          )
+                                      GuavaUtils.concat(
+                                          commonAggregators,
+                                          new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                                          new DoubleMinAggregatorFactory("minIndex", "index")
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(addRowsIndexConstant))
@@ -1455,14 +1448,10 @@ public class SchemalessTestFull
         .threshold(3)
         .intervals(fullOnInterval)
         .aggregators(
-            Lists.<AggregatorFactory>newArrayList(
-                Iterables.concat(
-                    commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(addRowsIndexConstant))
@@ -1489,14 +1478,10 @@ public class SchemalessTestFull
         .threshold(3)
         .intervals(fullOnInterval)
         .aggregators(
-            Lists.<AggregatorFactory>newArrayList(
-                Iterables.concat(
-                    commonAggregators,
-                    Lists.newArrayList(
-                        new DoubleMaxAggregatorFactory("maxIndex", "index"),
-                        new DoubleMinAggregatorFactory("minIndex", "index")
-                    )
-                )
+            GuavaUtils.concat(
+                commonAggregators,
+                new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                new DoubleMinAggregatorFactory("minIndex", "index")
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(addRowsIndexConstant))

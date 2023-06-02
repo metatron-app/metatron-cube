@@ -61,7 +61,7 @@ import java.util.List;
 import java.util.Objects;
 
 @JsonTypeName("sketch")
-public class GenericSketchAggregatorFactory extends TypeResolving implements CubeSupport
+public class GenericSketchAggregatorFactory extends AggregatorFactory implements TypeResolving, CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 24;
 

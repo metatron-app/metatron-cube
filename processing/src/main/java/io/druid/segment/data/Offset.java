@@ -19,14 +19,18 @@
 
 package io.druid.segment.data;
 
-import io.druid.java.util.common.ISE;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.query.ordering.Direction;
+import io.druid.segment.BitmapOffset;
 
 /**
  * The "mutable" version of a ReadableOffset.  Introduces "increment()" and "withinBounds()" methods, which are
  * very similar to "next()" and "hasNext()" on the Iterator interface except increment() does not return a value.
  */
-public interface Offset extends ReadableOffset
+public interface Offset
 {
+  int get();
+
   boolean increment();
 
   default int incrementN(int n)
@@ -37,84 +41,89 @@ public interface Offset extends ReadableOffset
 
   boolean withinBounds();
 
-  Offset clone();
+  Offset nextSpan();
+
+  void reset();
 
   Offset EMPTY = new Offset()
   {
     @Override
-    public boolean increment()
-    {
-      return false;
-    }
+    public int get() {return -1;}
 
     @Override
-    public boolean withinBounds()
-    {
-      return false;
-    }
+    public boolean increment() {return false;}
 
     @Override
-    public Offset clone()
+    public boolean withinBounds() {return false;}
+
+    @Override
+    public Offset nextSpan()
     {
       return this;
     }
 
     @Override
-    public int getOffset()
-    {
-      return -1;
-    }
+    public void reset() {}
   };
 
-  class Holder implements Offset
+  static Offset of(ImmutableBitmap bitmap, Direction direction, int[] range)
   {
-    private final Offset initial;
-    private Offset offset;
-
-    public Holder(Offset initial)
-    {
-      this.initial = initial.clone();
-      this.offset = initial;
+    if (bitmap == null) {
+      return new Range(direction, range);
     }
-
-    public Offset unwrap()
-    {
-      return offset;
+    if (bitmap.isEmpty()) {
+      return EMPTY;
     }
+    return new BitmapOffset(bitmap, direction, range);
+  }
 
-    public void reset()
+  final class Range implements Offset
+  {
+    private final int[] range;
+    private final Direction direction;
+    private int val;
+
+    public Range(Direction direction, int[] range)
     {
-      this.offset = initial.clone();
+      this.direction = direction;
+      this.range = range;
+      reset();
     }
 
     @Override
-    public int getOffset()
+    public int get()
     {
-      return offset.getOffset();
+      return val;
     }
 
     @Override
     public boolean increment()
     {
-      return offset.increment();
-    }
-
-    @Override
-    public int incrementN(int n)
-    {
-      return offset.incrementN(n);
+      return inBounds(val = direction == Direction.ASCENDING ? val + 1 : val - 1);
     }
 
     @Override
     public boolean withinBounds()
     {
-      return offset.withinBounds();
+      return inBounds(val);
     }
 
     @Override
-    public Offset clone()
+    public Offset nextSpan()
     {
-      throw new ISE("clone");
+      this.val = direction == Direction.ASCENDING ? range[0] : range[1];
+      return this;
+    }
+
+    @Override
+    public void reset()
+    {
+      this.val = direction == Direction.ASCENDING ? range[0] : range[1];
+    }
+
+    private boolean inBounds(int val)
+    {
+      return range[0] <= val && val <= range[1];
     }
   }
 }

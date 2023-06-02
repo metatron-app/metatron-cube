@@ -19,8 +19,6 @@
 
 package io.druid.segment;
 
-import io.druid.segment.filter.FilterContext;
-
 import java.util.function.IntFunction;
 
 /**
@@ -39,16 +37,8 @@ public interface Cursor extends ColumnSelectorFactory
   boolean isDone();
   void reset();
 
-  Scanning scanContext();
+  ScanContext scanContext();
 
-  // target number of rows for segment (valid when Scanning.FULL or Scanning.BITMAP_SCAN)
-  default int targetNumRows()
-  {
-    FilterContext context = filterContext();
-    return context == null ? size() : context.targetNumRows();
-  }
-
-  default FilterContext filterContext() { return null;}
   default IntFunction attachment(String name) { return null;}
 
   abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor { }

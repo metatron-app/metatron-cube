@@ -29,6 +29,7 @@ import io.druid.query.RowResolver;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import org.junit.Assert;
@@ -100,7 +101,7 @@ public class FiltersTest
     int c2 = 0;
     s = System.currentTimeMillis();
     for (int k = 0; k < 20; k++) {
-      IntPredicate predicate = Filters.toMatcher(l, false);
+      IntPredicate predicate = Filters.toMatcher(l, Direction.ASCENDING);
       for (int i = 0; i < 2000000; i++) {
         if (predicate.apply(i)) {
           c2++;
@@ -113,7 +114,7 @@ public class FiltersTest
     int c3 = 0;
     s = System.currentTimeMillis();
     for (int k = 0; k < 20; k++) {
-      IntPredicate predicate = Filters.toMatcher(l, true);
+      IntPredicate predicate = Filters.toMatcher(l, Direction.ASCENDING);
       for (int i = 2000000 - 1; i >= 0; i--) {
         if (predicate.apply(i)) {
           c3++;

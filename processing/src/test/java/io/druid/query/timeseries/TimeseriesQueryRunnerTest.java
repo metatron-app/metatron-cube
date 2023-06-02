@@ -614,9 +614,6 @@ public class TimeseriesQueryRunnerTest
                                    .descending(descending)
                                    .build();
 
-    final Iterable<Interval> iterable = QueryGranularities.HOUR.getIterable(
-        new Interval(DateTimes.utc("2011-04-14T01"), DateTimes.utc("2011-04-15"))
-    );
     List<Row> expectedResults1 = Lists.newArrayList(
         Iterables.concat(
             Arrays.<Row>asList(

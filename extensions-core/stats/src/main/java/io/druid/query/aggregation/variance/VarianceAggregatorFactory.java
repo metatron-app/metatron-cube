@@ -41,6 +41,8 @@ import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
  */
@@ -87,6 +89,22 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   {
     ValueDesc variance = ValueDesc.of("variance", VarianceAggregatorCollector.class);
     return inputType.isArray() ? variance.subElement(ValueDesc.UNKNOWN) : variance;
+  }
+
+  @Override
+  protected Object evaluate(LongStream stream)
+  {
+    VarianceAggregatorCollector collector = new VarianceAggregatorCollector();
+    stream.forEach(v -> collector.add(v));
+    return collector.count == 0 ? null : collector;
+  }
+
+  @Override
+  protected Object evaluate(DoubleStream stream)
+  {
+    VarianceAggregatorCollector collector = new VarianceAggregatorCollector();
+    stream.forEach(v -> collector.add(v));
+    return collector.count == 0 ? null : collector;
   }
 
   @Override

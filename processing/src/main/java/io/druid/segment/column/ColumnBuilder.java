@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
@@ -61,6 +62,11 @@ public class ColumnBuilder
   public ColumnBuilder(String name)
   {
     this.name = Preconditions.checkNotNull(name, "name must be set");
+  }
+
+  public boolean isTimestamp()
+  {
+    return Row.TIME_COLUMN_NAME.equalsIgnoreCase(name);
   }
 
   public ColumnBuilder setType(ValueDesc type)

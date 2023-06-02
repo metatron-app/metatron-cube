@@ -21,13 +21,15 @@ package io.druid.segment;
 
 public enum Scanning
 {
-  FULL {@Override public boolean awareTargetRows() {return true;}},
-  BITMAP {@Override public boolean awareTargetRows() {return true;}},
-  MATCHER,
-  OTHER;
+  FULL,
+  RANGE,
+  BITMAP,
+  GRANULAR {@Override public boolean awareTargetRows() {return false;}},
+  MATCHER {@Override public boolean awareTargetRows() {return false;}},
+  OTHER {@Override public boolean awareTargetRows() {return false;}};
 
   public boolean awareTargetRows()
   {
-    return false;
+    return true;
   }
 }

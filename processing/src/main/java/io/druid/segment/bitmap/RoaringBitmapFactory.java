@@ -40,6 +40,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Iterator;
 
@@ -95,34 +96,6 @@ public final class RoaringBitmapFactory implements BitmapFactory
   public ImmutableBitmap makeEmptyImmutableBitmap()
   {
     return EMPTY_IMMUTABLE_BITMAP;
-  }
-
-  // first set bit
-  public static int firstOf(ImmutableBitmap b)
-  {
-    Preconditions.checkArgument(!b.isEmpty());
-    if (b instanceof WrappedImmutableRoaringBitmap) {
-      return unwrap(b).first();
-    } else if (b instanceof LazyImmutableBitmap) {
-      return ((LazyImmutableBitmap) b).first();
-    } else if (b instanceof WrappedBitSetBitmap) {
-      return ((WrappedBitSetBitmap) b).bitset().nextSetBit(0);
-    }
-    return -1;
-  }
-
-  // last set bit
-  public static int lastOf(ImmutableBitmap b)
-  {
-    Preconditions.checkArgument(!b.isEmpty());
-    if (b instanceof WrappedImmutableRoaringBitmap) {
-      return unwrap(b).last();
-    } else if (b instanceof LazyImmutableBitmap) {
-      return ((LazyImmutableBitmap) b).last();
-    } else if (b instanceof WrappedBitSetBitmap) {
-      return ((WrappedBitSetBitmap) b).bitset().length() - 1;
-    }
-    return -1;
   }
 
   private static ImmutableRoaringBitmap unwrap(ImmutableBitmap b)
@@ -185,7 +158,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
     }
     Iterator<ImmutableBitmap> it = bitmaps.iterator();
     if (!it.hasNext()) {
-      return makeEmptyImmutableBitmap();
+      return EMPTY_IMMUTABLE_BITMAP;
     }
     final ImmutableBitmap first = it.next();
     if (!it.hasNext()) {
@@ -238,6 +211,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
   }
 
   // seemed not effective for small number of large bitmaps
+  @Deprecated
   public ImmutableBitmap _intersection(Iterable<ImmutableBitmap> bitmaps)
   {
     final Iterator<ImmutableBitmap> iterator = bitmaps.iterator();
@@ -438,45 +412,24 @@ public final class RoaringBitmapFactory implements BitmapFactory
   public static LazyImmutableBitmap from(int from, int to)
   {
     Preconditions.checkArgument(from <= to, "invalid range %d ~ %d", from, to);
-    if (from == to) {
-      return from(0, IntIterable.EMPTY);
-    }
-    return from(to - from, new IntIterable.Range(from, to));
+    return from == to ? from(new int[0]) : _from(from, to);
   }
 
   public static LazyImmutableBitmap of(int index)
   {
-    return index < 0 ? from(0, IntIterable.EMPTY) : from(new int[]{index});
+    return index < 0 ? from(new int[0]) : from(new int[]{index});
   }
 
   public static LazyImmutableBitmap from(int[] indices)
   {
-    return indices.length == 0 ? from(0, IntIterable.EMPTY) : from(indices.length, new IntIterable.FromArray(indices));
-  }
-
-  public static LazyImmutableBitmap from(final int cardinality, final IntIterable iterable)
-  {
-    return new LazyImmutableBitmap(cardinality)
+    return new LazyImmutableBitmap(indices.length)
     {
-      @Override
-      public IntIterator iterator()
-      {
-        return iterable.iterator();
-      }
-
       @Override
       public BitSet toBitSet()
       {
-        final BitSet bitSet;
-        if (iterable instanceof IntIterable.MinMaxAware) {
-          bitSet = new BitSet(((IntIterable.MinMaxAware) iterable).max());
-        } else {
-          bitSet = new BitSet();
-        }
-        if (iterable instanceof IntIterable.Range) {
-          ((IntIterable.Range) iterable).or(bitSet);
-        } else {
-          RoaringBitmapFactory._union(bitSet, iterator());
+        BitSet bitSet = new BitSet(indices[indices.length - 1]);
+        for (int i = 0; i < indices.length; i++) {
+          bitSet.set(indices[i]);
         }
         return bitSet;
       }
@@ -484,60 +437,80 @@ public final class RoaringBitmapFactory implements BitmapFactory
       @Override
       public boolean get(int index)
       {
-        if (iterable instanceof IntIterable.Range) {
-          return ((IntIterable.Range) iterable).get(index);
-        } else if (iterable instanceof IntIterable.FromArray) {
-          return ((IntIterable.FromArray) iterable).get(index);
-        }
-        return super.get(index);
+        return Arrays.binarySearch(indices, index) >= 0;
       }
 
       @Override
-      public int first()
+      public IntIterator iterator()
       {
-        if (iterable instanceof IntIterable.MinMaxAware) {
-          return ((IntIterable.MinMaxAware) iterable).min();
-        }
-        return -1;
+        return IntIterators.from(indices);
       }
 
       @Override
-      public int last()
+      public IntIterator iterator(int offset)
       {
-        if (iterable instanceof IntIterable.MinMaxAware) {
-          return ((IntIterable.MinMaxAware) iterable).max();
+        int x = Arrays.binarySearch(indices, offset);
+        return IntIterators.from(indices, x < 0 ? -x - 1 : x, indices.length);
+      }
+
+      @Override
+      public IntIterator iterator(int[] range)
+      {
+        if (range[0] > range[1]) {
+          return IntIterators.EMPTY;
         }
-        return -1;
+        int ix1 = Arrays.binarySearch(indices, range[0]);
+        int ix2 = Arrays.binarySearch(indices, range[1] + 1);
+        ix1 = ix1 < 0 ? -ix1 - 1 : ix1;
+        ix2 = ix2 < 0 ? -ix2 - 1 : ix2;
+        return IntIterators.from(indices, ix1, ix2);
+      }
+
+      @Override
+      public int cardinality(int[] range)
+      {
+        if (range[0] > range[1]) {
+          return 0;
+        }
+        int ix1 = Arrays.binarySearch(indices, range[0]);
+        int ix2 = Arrays.binarySearch(indices, range[1] + 1);
+        ix1 = ix1 < 0 ? -ix1 - 1 : ix1;
+        ix2 = ix2 < 0 ? -ix2 - 1 : ix2;
+        return ix2 - ix1;
       }
 
       @Override
       public void or(BitSet target)
       {
-        if (iterable instanceof IntIterable.Range) {
-          ((IntIterable.Range) iterable).or(target);
-        } else {
-          super.or(target);
+        for (int i = 0; i < indices.length; i++) {
+          target.set(indices[i]);
         }
       }
 
       @Override
       public void and(BitSet target)
       {
-        if (iterable instanceof IntIterable.Range) {
-          ((IntIterable.Range) iterable).and(target);
-        } else {
-          super.and(target);
-        }
+        super.and(target);
       }
 
       @Override
       public void andNot(BitSet target)
       {
-        if (iterable instanceof IntIterable.Range) {
-          ((IntIterable.Range) iterable).andNot(target);
-        } else {
-          super.andNot(target);
+        for (int i = 0; i < indices.length; i++) {
+          target.clear(indices[i]);
         }
+      }
+
+      @Override
+      public int first()
+      {
+        return indices[0];
+      }
+
+      @Override
+      public int last()
+      {
+        return indices[indices.length - 1];
       }
     };
   }
@@ -546,12 +519,6 @@ public final class RoaringBitmapFactory implements BitmapFactory
   {
     return new LazyImmutableBitmap(bitSet.cardinality())
     {
-      @Override
-      public IntIterator iterator()
-      {
-        return BitSets.iterator(bitSet);
-      }
-
       @Override
       public BitSet toBitSet()
       {
@@ -565,6 +532,33 @@ public final class RoaringBitmapFactory implements BitmapFactory
       }
 
       @Override
+      public IntIterator iterator()
+      {
+        return BitSets.iterator(bitSet);
+      }
+
+      @Override
+      public IntIterator iterator(int offset)
+      {
+        return BitSets.iterator(bitSet, offset);
+      }
+
+      @Override
+      public IntIterator iterator(int[] range)
+      {
+        if (range[0] > range[1]) {
+          return IntIterators.EMPTY;
+        }
+        return BitSets.iterator(bitSet, range[0], range[1] + 1);
+      }
+
+      @Override
+      public int cardinality(int[] range)
+      {
+        return range[0] > range[1] ? 0 : bitSet.get(range[0], range[1] + 1).cardinality();
+      }
+
+      @Override
       public int first()
       {
         return bitSet.nextSetBit(0);
@@ -573,7 +567,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
       @Override
       public int last()
       {
-        return bitSet.length() - 1;
+        return bitSet.previousSetBit(bitSet.size());
       }
 
       @Override
@@ -596,7 +590,95 @@ public final class RoaringBitmapFactory implements BitmapFactory
     };
   }
 
-  public static abstract class LazyImmutableBitmap implements ImmutableBitmap
+  private static LazyImmutableBitmap _from(int from, int to)
+  {
+    return new LazyImmutableBitmap(to - from)
+    {
+      @Override
+      public BitSet toBitSet()
+      {
+        BitSet bitSet = new BitSet(to);
+        bitSet.set(from, to);
+        return bitSet;
+      }
+
+      @Override
+      public boolean get(int index)
+      {
+        return from <= index && index < to;
+      }
+
+      @Override
+      public IntIterator iterator()
+      {
+        return new IntIterators.Range(from, to);
+      }
+
+      @Override
+      public IntIterator iterator(int offset)
+      {
+        return new IntIterators.Range(Math.max(from, offset), to);
+      }
+
+      @Override
+      public IntIterator iterator(int[] range)
+      {
+        if (range[0] > range[1]) {
+          return IntIterators.EMPTY;
+        }
+        int s = Math.max(from, range[0]);
+        int e = Math.min(to, range[1] + 1);
+        if (e - s == 0) {
+          return IntIterators.EMPTY;
+        }
+        return new IntIterators.Range(s, e);
+      }
+
+      @Override
+      public int cardinality(int[] range)
+      {
+        if (range[0] > range[1]) {
+          return 0;
+        }
+        int s = Math.max(from, range[0]);
+        int e = Math.min(to, range[1] + 1);
+        return e - s;
+      }
+
+      @Override
+      public void or(BitSet target)
+      {
+        target.set(from, to);
+      }
+
+      @Override
+      public void and(BitSet target)
+      {
+        target.clear(0, from);
+        target.clear(to, Math.max(to, target.length()));
+      }
+
+      @Override
+      public void andNot(BitSet target)
+      {
+        target.clear(from, to);
+      }
+
+      @Override
+      public int first()
+      {
+        return from;
+      }
+
+      @Override
+      public int last()
+      {
+        return to - 1;
+      }
+    };
+  }
+
+  public static abstract class LazyImmutableBitmap implements ExtendedBitmap
   {
     private final int cardinality;
     private final Supplier<WrappedImmutableRoaringBitmap> materializer;
@@ -605,6 +687,12 @@ public final class RoaringBitmapFactory implements BitmapFactory
     {
       this.cardinality = cardinality;
       this.materializer = Suppliers.memoize(() -> copyToBitmap(iterator()));
+    }
+
+    @Override
+    public int compareTo(ImmutableBitmap other)
+    {
+      throw new UOE("compareTo");
     }
 
     @Override
@@ -620,26 +708,10 @@ public final class RoaringBitmapFactory implements BitmapFactory
     }
 
     @Override
-    public int compareTo(ImmutableBitmap other)
-    {
-      return materializer.get().compareTo(other);
-    }
-
-    @Override
     public boolean isEmpty()
     {
       return cardinality == 0;
     }
-
-    @Override
-    public boolean get(int value)
-    {
-      return materializer.get().get(value);
-    }
-
-    public abstract int first();
-
-    public abstract int last();
 
     @Override
     public ImmutableBitmap union(ImmutableBitmap otherBitmap)

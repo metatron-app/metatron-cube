@@ -20,92 +20,84 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
-import io.druid.common.KeyBuilder;
-import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.math.expr.Parser;
-import io.druid.query.filter.ValueMatcher;
+import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ColumnStats;
-import io.druid.segment.Cursor;
-import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.Scanning;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
  */
-public class DoubleMinAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class DoubleMinAggregatorFactory extends NumericAggregatorFactory.DoubleType implements CubeSupport
 {
   private static final byte CACHE_TYPE_ID = 0x4;
-
-  private final String name;
-  private final String fieldName;
-  private final String fieldExpression;
 
   @JsonCreator
   public DoubleMinAggregatorFactory(
       @JsonProperty("name") String name,
-      @JsonProperty("fieldName") final String fieldName,
-      @JsonProperty("fieldExpression") String fieldExpression
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("fieldExpression") String fieldExpression,
+      @JsonProperty("predicate") String predicate
   )
   {
-    Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
-    Preconditions.checkArgument(
-        fieldName == null ^ fieldExpression == null,
-        "Must have a valid, non-null fieldName or fieldExpression"
-    );
-
-    this.name = name;
-    this.fieldName = fieldName;
-    this.fieldExpression = fieldExpression;
+    super(name, fieldName, fieldExpression, predicate);
   }
 
   public DoubleMinAggregatorFactory(String name, String fieldName)
   {
-    this(name, fieldName, null);
+    this(name, fieldName, null, null);
   }
 
   @Override
-  public AggregatorFactory optimize(Cursor cursor)
+  protected String statKey()
   {
-    if (fieldName != null && cursor.scanContext() == Scanning.FULL) {
-      Double constant = ColumnStats.getDouble(cursor.getStats(fieldName), ColumnStats.MIN);
-      if (constant != null) {
-        return AggregatorFactory.constant(this, constant);
-      }
-    }
-    return this;
+    return ColumnStats.MIN;
   }
 
   @Override
-  public Aggregator factorize(ColumnSelectorFactory metricFactory)
+  protected Object evaluate(LongStream stream)
   {
-    return DoubleMinAggregator.create(getDoubleColumnSelector(metricFactory), ValueMatcher.TRUE);
+    return stream.min();
   }
 
   @Override
-  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
+  protected Object evaluate(DoubleStream stream)
   {
-    return DoubleMinBufferAggregator.create(getDoubleColumnSelector(metricFactory), ValueMatcher.TRUE);
-  }
-
-  private DoubleColumnSelector getDoubleColumnSelector(ColumnSelectorFactory metricFactory)
-  {
-    return ColumnSelectors.getDoubleColumnSelector(metricFactory, fieldName, fieldExpression);
+    return stream.min();
   }
 
   @Override
-  public Comparator getComparator()
+  protected byte cacheKey()
   {
-    return DoubleMinAggregator.COMPARATOR;
+    return CACHE_TYPE_ID;
+  }
+
+  @Override
+  public String getCubeName()
+  {
+    return "doubleMin";
+  }
+
+  @Override
+  public int getMaxIntermediateSize()
+  {
+    return Byte.BYTES + Double.BYTES;
+  }
+
+  @Override
+  public Aggregator factorize(ColumnSelectorFactory factory)
+  {
+    return DoubleMinAggregator.create(toDoubleColumnSelector(factory), predicateToMatcher(factory));
+  }
+
+  @Override
+  public BufferAggregator factorizeBuffered(ColumnSelectorFactory factory)
+  {
+    return DoubleMinBufferAggregator.create(toDoubleColumnSelector(factory), predicateToMatcher(factory));
   }
 
   @Override
@@ -117,125 +109,12 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new DoubleMinAggregatorFactory(name, name, null);
-  }
-
-  @Override
-  public Object deserialize(Object object)
-  {
-    // handle "NaN" / "Infinity" values serialized as strings in JSON
-    if (object instanceof String) {
-      return Double.parseDouble((String) object);
-    }
-    return object;
-  }
-
-  @Override
-  public String getCubeName()
-  {
-    return "doubleMin";
-  }
-
-  @Override
-  public String getPredicate()
-  {
-    return null;
-  }
-
-  @Override
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getFieldName()
-  {
-    return fieldName;
+    return new DoubleMinAggregatorFactory(name, name);
   }
 
   @Override
   public AggregatorFactory getCombiningFactory(String inputField)
   {
-    return new DoubleMinAggregatorFactory(name, inputField, null);
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getFieldExpression()
-  {
-    return fieldExpression;
-  }
-
-  @Override
-  @JsonProperty
-  public String getName()
-  {
-    return name;
-  }
-
-  @Override
-  public List<String> requiredFields()
-  {
-    return fieldName != null ? Arrays.asList(fieldName) : Parser.findRequiredBindings(fieldExpression);
-  }
-
-  @Override
-  public KeyBuilder getCacheKey(KeyBuilder builder)
-  {
-    return builder.append(CACHE_TYPE_ID)
-                  .append(fieldName, fieldExpression);
-  }
-
-  @Override
-  public ValueDesc getOutputType()
-  {
-    return ValueDesc.DOUBLE;
-  }
-
-  @Override
-  public int getMaxIntermediateSize()
-  {
-    return Byte.BYTES + Double.BYTES;
-  }
-
-  @Override
-  public String toString()
-  {
-    return "DoubleMinAggregatorFactory{" +
-           "name='" + name + '\'' +
-           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
-           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
-           '}';
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    DoubleMinAggregatorFactory that = (DoubleMinAggregatorFactory) o;
-
-    if (!Objects.equals(fieldName, that.fieldName)) {
-      return false;
-    }
-    if (!Objects.equals(fieldExpression, that.fieldExpression)) {
-      return false;
-    }
-    if (!Objects.equals(name, that.name)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  @Override
-  public int hashCode()
-  {
-    int result = fieldName != null ? fieldName.hashCode() : 0;
-    result = 31 * result + (fieldExpression != null ? fieldExpression.hashCode() : 0);
-    result = 31 * result + (name != null ? name.hashCode() : 0);
-    return result;
+    return new DoubleMinAggregatorFactory(name, inputField);
   }
 }

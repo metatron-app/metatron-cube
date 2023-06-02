@@ -82,7 +82,7 @@ public class TimeseriesQueryEngine
         }
         long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
         List<AggregatorFactory> factories = AggregatorFactory.optimize(query.getAggregatorSpecs(), cursor);
-        if (factories.stream().allMatch(f -> f instanceof AggregatorFactory.ContantFactory)) {
+        if (factories.stream().allMatch(f -> f instanceof AggregatorFactory.ConstantFactory)) {
           Row row = AggregatorFactory.constansToRow(timestamp, factories, compact);
           return Sequences.simple(columns, Arrays.asList(row));
         }

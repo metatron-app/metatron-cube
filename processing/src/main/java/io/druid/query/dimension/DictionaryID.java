@@ -24,10 +24,10 @@ import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.Sequences;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector.Scannable;
+import io.druid.segment.ScanContext;
 import io.druid.segment.Scanning;
 import io.druid.segment.bitmap.BitSets;
 import io.druid.segment.bitmap.IntIterators;
-import io.druid.segment.filter.FilterContext;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.roaringbitmap.IntIterator;
 
@@ -83,22 +83,21 @@ public interface DictionaryID
   {
     return Sequences.only(Sequences.map(cursors, cursor -> {
 
-      Scanning scanning = cursor.scanContext();
-      FilterContext context = cursor.filterContext();
+      ScanContext context = cursor.scanContext();
       Scannable scannable = (Scannable) cursor.makeDimensionSelector(dimensions.get(0));
       long[] dictHash0 = new long[scannable.getValueCardinality()];
 
       BitSet rowIds;
       BitSet dictId = new BitSet();
-      if (scanning == Scanning.FULL) {
+      if (context.is(Scanning.FULL)) {
         rowIds = null;
         scannable.getDictionary().scan(null, (x, b, o, l) -> dictHash0[x] = Murmur3.hash64(b, o, l));
       } else {
-        if (scanning == Scanning.BITMAP) {
+        if (context.awareTargetRows()) {
           rowIds = null;
-          scannable.scan(context.rowIterator(), (x, v) -> dictId.set(v.applyAsInt(x)));
+          scannable.scan(context.iterator(), (x, v) -> dictId.set(v.applyAsInt(x)));
         } else {
-          rowIds = new BitSet(context.numRows());
+          rowIds = new BitSet(context.count());
           scannable.scan(IntIterators.wrap(cursor), (x, v) -> {rowIds.set(x);dictId.set(v.applyAsInt(x));});
         }
         scannable.getDictionary().scan(BitSets.iterator(dictId), (x, b, o, l) -> dictHash0[x] = Murmur3.hash64(b, o, l));
@@ -110,11 +109,11 @@ public interface DictionaryID
       for (int i = 1; i < dimensions.size(); i++, hash.next()) {
         scannable = (Scannable) cursor.makeDimensionSelector(dimensions.get(i));
         long[] dictHash = BitSets.ensureCapacity(prev, scannable.getValueCardinality());
-        if (scanning == Scanning.FULL) {
+        if (context.is(Scanning.FULL)) {
           scannable.getDictionary().scan(null, (x, b, o, l) -> dictHash[x] = Murmur3.hash64(b, o, l));
         } else {
           dictId.clear();
-          IntIterator iterator = scanning == Scanning.BITMAP ? context.rowIterator() : BitSets.iterator(rowIds);
+          IntIterator iterator = context.awareTargetRows() ? context.iterator() : BitSets.iterator(rowIds);
           scannable.scan(iterator, (x, v) -> dictId.set(v.applyAsInt(x)));
           scannable.getDictionary().scan(BitSets.iterator(dictId), (x, b, o, l) -> dictHash[x] = Murmur3.hash64(b, o, l));
         }

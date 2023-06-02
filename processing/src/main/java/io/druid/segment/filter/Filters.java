@@ -70,6 +70,7 @@ import io.druid.query.filter.Filter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DelegatedDimensionSelector;
@@ -77,6 +78,7 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.bitmap.BitSets;
+import io.druid.segment.bitmap.ExtendedBitmap;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.column.BitmapIndex;
@@ -465,7 +467,7 @@ public class Filters
     return handler;
   }
 
-  public static FilterContext createFilterContext(
+  public static FilterContext createContext(
       final BitmapIndexSelector selector,
       final SessionCache cache,
       final String namespace
@@ -1110,13 +1112,13 @@ public class Filters
     return Expressions.convertToCNF(current, FACTORY);
   }
 
-  public static IntPredicate toMatcher(ImmutableBitmap bitmapIndex, boolean descending)
+  public static IntPredicate toMatcher(ImmutableBitmap bitmapIndex, Direction direction)
   {
-    final IntIterator iterator = newIterator(bitmapIndex, descending);
+    final IntIterator iterator = newIterator(bitmapIndex, direction, -1);
     if (!iterator.hasNext()) {
       return IntPredicate.FALSE;
     }
-    if (!descending) {
+    if (direction == Direction.ASCENDING) {
       return new IntPredicate()
       {
         private int peek = iterator.next();
@@ -1159,11 +1161,16 @@ public class Filters
     }
   }
 
-  public static IntIterator newIterator(ImmutableBitmap bitmapIndex, boolean descending)
+  // offset : best effort
+  public static IntIterator newIterator(ImmutableBitmap bitmapIndex, Direction direction, int offset)
   {
-    if (!descending) {
+    if (direction == Direction.ASCENDING) {
+      if (offset > 0 && bitmapIndex instanceof ExtendedBitmap) {
+        return ((ExtendedBitmap) bitmapIndex).iterator(offset);
+      }
       return bitmapIndex.iterator();
     }
+    // todo: offset
     ImmutableBitmap roaringBitmap = bitmapIndex;
     if (!(bitmapIndex instanceof WrappedImmutableRoaringBitmap)) {
       final BitmapFactory factory = RoaringBitmapSerdeFactory.bitmapFactory;

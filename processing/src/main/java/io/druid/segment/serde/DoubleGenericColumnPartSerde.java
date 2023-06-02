@@ -126,7 +126,7 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
                      Integer.BYTES +  // elements num
                      Integer.BYTES +  // sizePer
                      1 +              // compression id
-                     Double.BYTES * numRows;
+                     (long) Double.BYTES * numRows;
             }
 
             @Override

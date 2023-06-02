@@ -19,54 +19,44 @@
 
 package io.druid.segment;
 
-import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.data.Offset;
 import io.druid.segment.filter.Filters;
 import org.roaringbitmap.IntIterator;
 
 /**
  */
-public class BitmapOffset implements Offset
+public final class BitmapOffset implements Offset
 {
   private static final int INVALID_VALUE = -1;
 
-  private final IntIterator itr;
-  private final BitmapFactory bitmapFactory;
-  private final ImmutableBitmap bitmapIndex;
-  private final boolean descending;
-  private final int numRows;
+  private IntIterator itr;
+  private final ImmutableBitmap bitmap;
+  private final Direction direction;
+  private final int[] range;    // inclusive ~ inclusive
 
   private int val;  // volatile seemed overkill because cursor is single threaded
 
-  public BitmapOffset(BitmapFactory bitmapFactory, int numRows, ImmutableBitmap bitmapIndex, boolean descending)
+  public BitmapOffset(ImmutableBitmap bitmap, Direction direction, int[] range)
   {
-    this.bitmapFactory = bitmapFactory;
-    this.bitmapIndex = bitmapIndex;
-    this.descending = descending;
-    this.numRows = numRows;
-    this.itr = Filters.newIterator(bitmapIndex, descending);
-    increment();
+    this.bitmap = bitmap;
+    this.direction = direction;
+    this.range = range;
+    reset();
   }
 
-  private BitmapOffset(BitmapOffset otherOffset)
+  @Override
+  public int get()
   {
-    this.bitmapFactory = otherOffset.bitmapFactory;
-    this.bitmapIndex = otherOffset.bitmapIndex;
-    this.descending = otherOffset.descending;
-    this.numRows = otherOffset.numRows;
-    this.itr = otherOffset.itr.clone();
-    this.val = otherOffset.val;
+    return val;
   }
 
   @Override
   public boolean increment()
   {
     if (itr.hasNext()) {
-      val = itr.next();
-      if (val < numRows) {
-        return true;
-      }
+      return inBounds(val = itr.next());
     }
     val = INVALID_VALUE;
     return false;
@@ -76,7 +66,9 @@ public class BitmapOffset implements Offset
   public int incrementN(int n)
   {
     for (; n > 0 && itr.hasNext(); n--) {
-      val = itr.next();
+      if (!inBounds(val = itr.next())) {
+        break;
+      }
     }
     return n;
   }
@@ -84,22 +76,38 @@ public class BitmapOffset implements Offset
   @Override
   public boolean withinBounds()
   {
-    return val > INVALID_VALUE && val < numRows;
+    return inBounds(val);
   }
 
   @Override
-  public Offset clone()
+  public Offset nextSpan()
   {
-    if (bitmapIndex == null || bitmapIndex.isEmpty()) {
-      return new BitmapOffset(bitmapFactory, numRows, bitmapFactory.makeEmptyImmutableBitmap(), descending);
+    if (direction == Direction.ASCENDING) {
+      for (; val < range[0] && itr.hasNext(); val = itr.next()) {
+      }
+    } else {
+      for (; val > range[1] && itr.hasNext(); val = itr.next()) {
+      }
     }
-
-    return new BitmapOffset(this);
+    if (!withinBounds() && !itr.hasNext()) {
+      val = INVALID_VALUE;
+    }
+    return this;
   }
 
   @Override
-  public int getOffset()
+  public void reset()
   {
-    return val;
+    this.itr = Filters.newIterator(bitmap, direction, direction == Direction.ASCENDING ? range[0] : range[1]);
+    for (val = itr.next(); !withinBounds() && itr.hasNext(); val = itr.next()) {
+    }
+    if (!withinBounds() && !itr.hasNext()) {
+      val = INVALID_VALUE;
+    }
+  }
+
+  private boolean inBounds(int val)
+  {
+    return range[0] <= val && val <= range[1];
   }
 }

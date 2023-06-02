@@ -102,13 +102,15 @@ public interface QueryRunnerFactory<T>
 
   interface Splitable<T> extends QueryRunnerFactory<T>
   {
-    List<List<Segment>> splitSegments(
+    default List<List<Segment>> splitSegments(
         Query<T> query,
         List<Segment> targets,
         Supplier<Object> optimizer,
         Supplier<RowResolver> resolver,
         QuerySegmentWalker segmentWalker
-    );
+    ) {
+      return null;
+    }
 
     List<Query<T>> splitQuery(
         Query<T> query,

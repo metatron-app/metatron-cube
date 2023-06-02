@@ -62,7 +62,7 @@ public interface DictionaryMatcher
       if (sx > 0) {
         iterator = iterator == null
                    ? IntIterators.fromTo(sx, dictionary.size())
-                   : IntIterators.advanceTo(iterator, x -> x >= sx);
+                   : IntIterators.advanceTo(iterator, x -> x < sx);
       }
       return new IntIterators.Delegated(iterator)
       {

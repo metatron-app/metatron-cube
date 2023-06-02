@@ -28,13 +28,11 @@ import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.collections.bitmap.WrappedConciseBitmap;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
-import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Expression;
@@ -49,8 +47,6 @@ import io.druid.query.filter.DimFilter.Discardable;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
-import io.druid.segment.bitmap.WrappedBitSetBitmap;
-import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
@@ -222,34 +218,38 @@ next:
     return current == null ? null : Expressions.convertToCNF(current, FACTORY);
   }
 
-  public static Pair<ImmutableBitmap, DimFilter> extractBitmaps(DimFilter current, FilterContext context)
+  public static FilterContext extractBitmaps(DimFilter filter, FilterContext context)
   {
-    if (current == null) {
-      return Pair.<ImmutableBitmap, DimFilter>of(null, null);
+    if (filter == null) {
+      return context;
     }
-    if (current instanceof AndDimFilter) {
-      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+    final long start = System.currentTimeMillis();
+    if (filter instanceof AndDimFilter) {
       List<DimFilter> remainings = Lists.newArrayList();
-      for (DimFilter child : ((AndDimFilter) current).getChildren()) {
+      for (DimFilter child : ((AndDimFilter) filter).getChildren()) {
         BitmapHolder holder = Filters.toBitmapHolder(child, context.root(child));
         if (holder != null) {
-          bitmaps.add(holder.bitmap());
           context.andBaseBitmap(holder.bitmap());   // for incremental access
         }
         if (holder == null || !holder.exact()) {
           remainings.add(child);
         }
       }
-      ImmutableBitmap extracted = bitmaps.isEmpty() ? null : intersection(context.bitmapFactory(), bitmaps);
-      return Pair.<ImmutableBitmap, DimFilter>of(extracted, and(remainings));
+      context.matcher(and(remainings));
     } else {
-      BitmapHolder holder = Filters.toBitmapHolder(current, context.root(current));
+      BitmapHolder holder = Filters.toBitmapHolder(filter, context.root(filter));
       if (holder != null) {
         context.andBaseBitmap(holder.bitmap());
-        return Pair.<ImmutableBitmap, DimFilter>of(holder.bitmap(), holder.exact() ? null : current);
       }
-      return Pair.<ImmutableBitmap, DimFilter>of(null, current);
+      if (holder == null || !holder.exact()) {
+        context.matcher(filter);
+      }
     }
+    final ImmutableBitmap bitmap = context.baseBitmap();
+    if (bitmap != null && LOG.isDebugEnabled()) {
+      LOG.debug("%,d / %,d (%d msec)", bitmap.size(), context.numRows(), System.currentTimeMillis() - start);
+    }
+    return context;
   }
 
   // should be string type
@@ -570,21 +570,6 @@ next:
     } else {
       return bitmap1.difference(bitmap2);
     }
-  }
-
-  private static int lastOf(ImmutableBitmap bitmap, int limit)
-  {
-    if (bitmap.isEmpty()) {
-      return -1;
-    }
-    if (bitmap instanceof WrappedImmutableRoaringBitmap) {
-      return ((WrappedImmutableRoaringBitmap) bitmap).getBitmap().last();
-    } else if (bitmap instanceof WrappedBitSetBitmap) {
-      return ((WrappedBitSetBitmap) bitmap).bitset().previousSetBit(limit);
-    } else if (bitmap instanceof WrappedConciseBitmap) {
-//      return ((WrappedConciseBitmap) bitmap).getBitmap().last();
-    }
-    return limit;
   }
 
   // it's not serious

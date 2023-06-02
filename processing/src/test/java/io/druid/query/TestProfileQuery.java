@@ -99,7 +99,7 @@ public class TestProfileQuery extends TestHelper
         .setAggregatorSpecs(CountAggregatorFactory.of("count"))
         .build();
     String[] columnNames = {"__time", "st11_cat", "count"};
-    Iterable<Row> results = runQuery(query);
+    List<Row> results = runQuery(query);
 
     Object[][] objects = {
         array("2020-01-01", "1", 1),
@@ -115,6 +115,9 @@ public class TestProfileQuery extends TestHelper
         array("2020-01-01", "9", 1)
     };
     List<Row> expectedResults = createExpectedRows(columnNames, objects);
+    for (Row row : results) {
+      System.out.println(row);
+    }
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

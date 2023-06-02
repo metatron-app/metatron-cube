@@ -26,6 +26,17 @@ public class BitSets
 {
   public static final int ADDRESS_BITS_PER_WORD = 6;
   public static final int BITS_PER_WORD = 1 << ADDRESS_BITS_PER_WORD;
+  private final static int BIT_INDEX_MASK = BITS_PER_WORD - 1;
+
+  public static int wordIndex(int bitIndex)
+  {
+    return bitIndex >> ADDRESS_BITS_PER_WORD;
+  }
+
+  public static int indexInWord(int bitIndex)
+  {
+    return bitIndex & BIT_INDEX_MASK;
+  }
 
   public static <T> Iterable<T> transfrom(BitSet bitset, IntFunction<T> function)
   {
@@ -34,7 +45,17 @@ public class BitSets
 
   public static IntIterator iterator(BitSet bitmap)
   {
-    return bitmap == null ? null : new BatchIterator(bitmap);
+    return bitmap == null ? null : iterator(bitmap, 0, bitmap.length());
+  }
+
+  public static IntIterator iterator(BitSet bitmap, int offset)
+  {
+    return bitmap == null ? null : iterator(bitmap, offset, bitmap.length());
+  }
+
+  public static IntIterator iterator(BitSet bitmap, int offset, int limit)
+  {
+    return bitmap == null ? null : new BatchIterator(bitmap, offset, limit);
   }
 
   public static long[] ensureCapacity(long[] prev, int capacity)
@@ -61,29 +82,34 @@ public class BitSets
   private static class BatchIterator implements IntIterator
   {
     private final long[] words;
+    private final int limit;
 
-    private int u;
     private final int[] batch;
     private int index;
     private int valid;
 
-    private BatchIterator(BitSet bitmap)
+    private BatchIterator(BitSet bitmap, int offset, int limit)
     {
-      words = bitmap.toLongArray();
-      batch = new int[BITS_PER_WORD];
-      advance(0);
+      this.words = bitmap.toLongArray();
+      this.limit = limit;
+      this.batch = new int[BITS_PER_WORD];
+      int wx = wordIndex(offset);
+      if (advance(wx) == wx && indexInWord(offset) > 0) {
+        int ix = Arrays.binarySearch(batch, 0, valid, offset);
+        index = ix < 0 ? -ix - 1 : ix;
+      }
     }
 
-    private BatchIterator(long[] words, int u, int[] batch, int index, int valid)
+    private BatchIterator(long[] words, int[] batch, int index, int valid, int limit)
     {
       this.words = Arrays.copyOf(words, words.length);
-      this.u = u;
       this.batch = Arrays.copyOf(batch, batch.length);
       this.index = index;
       this.valid = valid;
+      this.limit = limit;
     }
 
-    private void advance(int wx)
+    private int advance(int wx)
     {
       index = valid = 0;
       for (; wx < words.length; wx++) {
@@ -100,15 +126,15 @@ public class BitSets
           }
         }
         valid = x;
-        u = wx;
         break;
       }
+      return wx;
     }
 
     @Override
     public boolean hasNext()
     {
-      return index < valid;
+      return index < valid && batch[index] < limit;
     }
 
     @Override
@@ -117,7 +143,7 @@ public class BitSets
       if (index < valid) {
         final int next = batch[index++];
         if (index == valid) {
-          advance(u + 1);
+          advance(wordIndex(next) + 1);
         }
         return next;
       }
@@ -127,7 +153,7 @@ public class BitSets
     @Override
     public IntIterator clone()
     {
-      return new BatchIterator(words, u, batch, index, valid);
+      return new BatchIterator(words, batch, index, valid, limit);
     }
   }
 }

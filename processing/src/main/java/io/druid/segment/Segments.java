@@ -26,7 +26,7 @@ import io.druid.query.spec.SpecificSegmentSpec;
 
 public class Segments
 {
-  public static Segment withLimt(Segment segment, SegmentDescriptor descriptor)
+  public static Segment withLimit(Segment segment, SegmentDescriptor descriptor)
   {
     if (descriptor.getInterval().contains(segment.getInterval())) {
       return segment;

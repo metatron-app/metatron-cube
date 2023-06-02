@@ -126,7 +126,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
                      Integer.BYTES +  // elements num
                      Integer.BYTES +  // sizePer
                      1 +              // compression id
-                     Long.BYTES * numRows;
+                     (long) Long.BYTES * numRows;
             }
 
             @Override
@@ -138,66 +138,14 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
             @Override
             public GenericColumn get()
             {
-              return new GenericColumn.LongType()
-              {
-                private final ImmutableBitmap bitmap = nulls.get();
-
-                @Override
-                public CompressionStrategy compressionType()
+              if (builder.isTimestamp()) {
+                return new LongTypeGenericColumn.Timestamp(numRows, bufferToUse, nulls.get())
                 {
-                  return CompressionStrategy.NONE;
-                }
-
-                @Override
-                public int size()
-                {
-                  return numRows;
-                }
-
-                @Override
-                public ImmutableBitmap getNulls()
-                {
-                  return bitmap;
-                }
-
-                @Override
-                public Long getValue(int rowNum)
-                {
-                  return bitmap.get(rowNum) ? null : bufferToUse.get(rowNum);
-                }
-
-                @Override
-                public boolean getLong(int rowNum, MutableLong handover)
-                {
-                  if (bitmap.get(rowNum)) {
-                    return false;
-                  } else {
-                    handover.setValue(bufferToUse.get(rowNum));
-                    return true;
-                  }
-                }
-
-                @Override
-                public void scan(IntIterator iterator, LongScanner scanner)
-                {
-                  final Int2LongFunction supplier = x -> bufferToUse.get(x);
-                  if (iterator == null) {
-                    for (int i = 0; i < numRows; i++) {
-                      scanner.apply(i, supplier);
-                    }
-                  } else {
-                    while (iterator.hasNext()) {
-                      scanner.apply(iterator.next(), supplier);
-                    }
-                  }
-                }
-
-                @Override
-                public LongStream stream(IntIterator iterator)
-                {
-                  return IntIterators.filteredStream(iterator, bitmap, size()).mapToLong(x -> bufferToUse.get(x));
-                }
-              };
+                  @Override
+                  public long timestamp(int offset) {return buffer.get(offset);}
+                };
+              }
+              return new LongTypeGenericColumn(numRows, bufferToUse, nulls.get());
             }
           });
         } else {
@@ -206,11 +154,90 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
           CompressedLongsIndexedSupplier column = new CompressedLongsIndexedSupplier(
               numRows, sizePer, GenericIndexed.read(buffer, strategy), compression
           );
+          Supplier<ImmutableBitmap> nulls = ComplexMetrics.readBitmap(buffer, serdeFactory);
           builder.setGenericColumn(
-              new LongGenericColumnSupplier(column, ComplexMetrics.readBitmap(buffer, serdeFactory))
+              new LongGenericColumnSupplier(column, nulls, builder.isTimestamp())
           );
         }
       }
     };
+  }
+
+  private static class LongTypeGenericColumn extends GenericColumn.LongType
+  {
+    private final int numRows;
+    private final LongBuffer buffer;
+    private final ImmutableBitmap nulls;
+
+    private LongTypeGenericColumn(int numRows, LongBuffer buffer, ImmutableBitmap nulls)
+    {
+      this.numRows = numRows;
+      this.buffer = buffer;
+      this.nulls = nulls;
+    }
+
+    @Override
+    public CompressionStrategy compressionType()
+    {
+      return CompressionStrategy.NONE;
+    }
+
+    @Override
+    public int size()
+    {
+      return numRows;
+    }
+
+    @Override
+    public ImmutableBitmap getNulls()
+    {
+      return nulls;
+    }
+
+    @Override
+    public Long getValue(int rowNum)
+    {
+      return nulls.get(rowNum) ? null : buffer.get(rowNum);
+    }
+
+    @Override
+    public boolean getLong(int rowNum, MutableLong handover)
+    {
+      if (nulls.get(rowNum)) {
+        return false;
+      } else {
+        handover.setValue(buffer.get(rowNum));
+        return true;
+      }
+    }
+
+    @Override
+    public void scan(IntIterator iterator, LongScanner scanner)
+    {
+      final Int2LongFunction supplier = x -> buffer.get(x);
+      if (iterator == null) {
+        for (int i = 0; i < numRows; i++) {
+          scanner.apply(i, supplier);
+        }
+      } else {
+        while (iterator.hasNext()) {
+          scanner.apply(iterator.next(), supplier);
+        }
+      }
+    }
+
+    @Override
+    public LongStream stream(IntIterator iterator)
+    {
+      return IntIterators.filteredStream(iterator, nulls, size()).mapToLong(x -> buffer.get(x));
+    }
+
+    private static abstract class Timestamp extends LongTypeGenericColumn implements TimestampType
+    {
+      private Timestamp(int numRows, LongBuffer buffer, ImmutableBitmap nulls)
+      {
+        super(numRows, buffer, nulls);
+      }
+    }
   }
 }
