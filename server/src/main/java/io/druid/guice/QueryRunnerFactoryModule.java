@@ -35,6 +35,7 @@ import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQueryRunnerFactory;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.frequency.FrequencyQueryRunnerFactory;
+import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -111,6 +112,7 @@ public class QueryRunnerFactoryModule extends QueryToolChestModule
     }
 
     binder.bind(GroupByQueryEngine.class).in(LazySingleton.class);
+    binder.bind(VectorizedGroupByQueryEngine.class).in(LazySingleton.class);
     binder.bind(TopNQueryEngine.class).in(LazySingleton.class);
   }
 }

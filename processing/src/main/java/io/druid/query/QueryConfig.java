@@ -144,9 +144,24 @@ public class QueryConfig
     return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
   }
 
+  public int getGroupByLocalSplit(Query<?> query)
+  {
+    return query.getContextInt(Query.GBY_LOCAL_SPLIT_CARDINALITY, getGroupBy().getLocalSplitCardinality());
+  }
+
   public boolean useParallelSort(Query<?> query)
   {
     return query.getContextBoolean(Query.GBY_USE_PARALLEL_SORT, getGroupBy().isUseParallelSort());
+  }
+
+  public boolean useStreamingAggregation(Query<?> query)
+  {
+    return query.getContextBoolean(Query.GBY_STREAMING, getGroupBy().isStreamingAggregation());
+  }
+
+  public boolean useVectorizedAggregation(Query<?> query)
+  {
+    return query.getContextBoolean(Query.GBY_VECTORIZE, getGroupBy().isVectorizedAggregation());
   }
 
   public boolean useCustomSerdeForDateTime(Query query)

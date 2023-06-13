@@ -19,9 +19,7 @@
 
 package io.druid.common.utils;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import io.druid.common.guava.BufferRef;
 import io.druid.common.guava.BytesRef;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -227,7 +225,6 @@ public class Murmur3
     // body
     data.position(offset);
     for (int i = 0; i < nblocks; i++) {
-      final int i8 = i << 3;
       data.get(b);
       long k = ((long) b[0] & 0xff)
                | (((long) b[1] & 0xff) << 8)
@@ -278,14 +275,23 @@ public class Murmur3
     return hash;
   }
 
-  @VisibleForTesting
   public static long hash64(long x) {
-    return hash64(Longs.toByteArray(x), 0, Long.BYTES, 0);
+    return hash64(x, DEFAULT_SEED);
   }
 
-  @VisibleForTesting
-  public static long[] hash128(long x) {
-    return hash128(Longs.toByteArray(x), 0, Long.BYTES, 0);
+  public static long hash64(long x, long seed) {
+    long hash = seed;
+    long k = Long.reverseBytes(x);
+    k *= C1;
+    k = Long.rotateLeft(k, R1);
+    k *= C2;
+    hash ^= k;
+    hash = Long.rotateLeft(hash, R2) * M + N1;
+
+    hash ^= Long.BYTES;
+    hash = fmix64(hash);
+
+    return hash;
   }
 
   /**

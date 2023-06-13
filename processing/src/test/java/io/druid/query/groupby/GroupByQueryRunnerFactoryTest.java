@@ -22,7 +22,7 @@ package io.druid.query.groupby;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
@@ -52,7 +52,6 @@ import io.druid.timeline.DataSegment;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -150,17 +149,19 @@ public class GroupByQueryRunnerFactoryTest
   private GroupByQueryRunnerFactory createFactory()
   {
     QueryConfig config = new QueryConfig();
-    StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
+    BufferPool pool = BufferPool.heap(1024 * 1024);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    VectorizedGroupByQueryEngine batch = new VectorizedGroupByQueryEngine(pool);
+
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(config, engine, pool);
     return new GroupByQueryRunnerFactory(
         engine,
+        batch,
         new StreamQueryEngine(),
         NoopQueryWatcher.instance(),
         config,
-        toolchest,
-        pool
+        toolchest
     );
   }
 }

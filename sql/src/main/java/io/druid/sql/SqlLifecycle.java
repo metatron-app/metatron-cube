@@ -243,10 +243,10 @@ public class SqlLifecycle
         }
 
         final Map<String, Object> statsMap = new LinkedHashMap<>();
-        statsMap.put("query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs));
-        statsMap.put("query/bytes", bytesWritten);
-        statsMap.put("query/rows", rows);
         statsMap.put("success", success);
+        statsMap.put("query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs));
+        statsMap.put("query/rows", rows);
+        statsMap.put("query/bytes", bytesWritten);
         if (e != null) {
           statsMap.put("exception", e.toString());
           statsMap.put("interrupted", interrupted);

@@ -131,7 +131,7 @@ public class WrappedImmutableRoaringBitmap implements ExtendedBitmap
   @Override
   public IntIterator iterator(int[] range)
   {
-    return IntIterators.filter(FromBatchIterator.of(bitmap, range[0]), x -> x <= range[1]);
+    return IntIterators.except(FromBatchIterator.of(bitmap, range[0]), x -> x <= range[1]);
   }
 
   @Override

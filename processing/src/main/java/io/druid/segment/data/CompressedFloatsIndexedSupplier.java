@@ -26,8 +26,12 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.column.FloatScanner;
+import io.druid.segment.column.IntDoubleConsumer;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
+import it.unimi.dsi.fastutil.ints.Int2FloatFunction;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -127,7 +131,7 @@ public class CompressedFloatsIndexedSupplier implements ColumnPartProvider<Index
 
   private class CompressedIndexedFloats implements IndexedFloats
   {
-    private final GenericIndexed<ResourceHolder<FloatBuffer>> singleThreaded = baseFloatBuffers.asSingleThreaded();
+    private final GenericIndexed<ResourceHolder<FloatBuffer>> dedicated = baseFloatBuffers.dedicated();
 
     private int currIndex = -1;
     private ResourceHolder<FloatBuffer> holder;
@@ -173,13 +177,58 @@ public class CompressedFloatsIndexedSupplier implements ColumnPartProvider<Index
       return numToGet;
     }
 
+    @Override
+    public void scan(final IntIterator iterator, final FloatScanner scanner)
+    {
+      Int2FloatFunction f = x -> buffer.get(bufferPos + x % sizePer);
+      if (iterator == null) {
+        final int size = size();
+        for (int x = 0; x < size; x++) {
+          if (x / sizePer != currIndex) {
+            loadBuffer(x / sizePer);
+          }
+          scanner.apply(x, f);
+        }
+      } else {
+        while (iterator.hasNext()) {
+          final int x = iterator.next();
+          if (x / sizePer != currIndex) {
+            loadBuffer(x / sizePer);
+          }
+          scanner.apply(x, f);
+        }
+      }
+    }
+
+    @Override
+    public void consume(final IntIterator iterator, final IntDoubleConsumer consumer)
+    {
+      if (iterator == null) {
+        final int size = size();
+        for (int x = 0; x < size; x++) {
+          if (x / sizePer != currIndex) {
+            loadBuffer(x / sizePer);
+          }
+          consumer.apply(x, buffer.get(bufferPos + x % sizePer));
+        }
+      } else {
+        while (iterator.hasNext()) {
+          final int x = iterator.next();
+          if (x / sizePer != currIndex) {
+            loadBuffer(x / sizePer);
+          }
+          consumer.apply(x, buffer.get(bufferPos + x % sizePer));
+        }
+      }
+    }
+
     private void loadBuffer(int bufferNum)
     {
-      if (singleThreaded.isRecyclable()) {
-        holder = singleThreaded.get(bufferNum, holder);
+      if (dedicated.isRecyclable()) {
+        holder = dedicated.get(bufferNum, holder);
       } else {
         CloseQuietly.close(holder);
-        holder = singleThreaded.get(bufferNum);
+        holder = dedicated.get(bufferNum);
       }
       buffer = holder.get();
       bufferPos = buffer.position();
@@ -192,7 +241,7 @@ public class CompressedFloatsIndexedSupplier implements ColumnPartProvider<Index
       return "CompressedIndexedFloats{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
-             ", numChunks=" + singleThreaded.size() +
+             ", numChunks=" + dedicated.size() +
              ", numRows=" + numRows +
              '}';
     }
@@ -201,7 +250,7 @@ public class CompressedFloatsIndexedSupplier implements ColumnPartProvider<Index
     public void close() throws IOException
     {
       Closeables.close(holder, false);
-      Closeables.close(singleThreaded, false);
+      Closeables.close(dedicated, false);
     }
   }
 }

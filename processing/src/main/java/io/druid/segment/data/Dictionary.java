@@ -36,6 +36,8 @@ public interface Dictionary<T> extends Indexed.Searchable<T>
     return GenericIndexed.Feature.SORTED.isSet(flag());
   }
 
+  default Dictionary<T> dedicated() {return this;}
+
   Boolean containsNull();     // null for unknown
 
   long getSerializedSize();

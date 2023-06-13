@@ -21,6 +21,7 @@ package io.druid.segment.data;
 
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.FloatScanner;
+import io.druid.segment.column.IntDoubleConsumer;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
@@ -38,19 +39,9 @@ public interface IndexedFloats extends Closeable
 
   int fill(int index, float[] toFill);
 
-  default void scan(final IntIterator iterator, final FloatScanner scanner)
-  {
-    if (iterator == null) {
-      final int size = size();
-      for (int index = 0; index < size; index++) {
-        scanner.apply(index, this::get);
-      }
-    } else {
-      while (iterator.hasNext()) {
-        scanner.apply(iterator.next(), this::get);
-      }
-    }
-  }
+  void scan(final IntIterator iterator, final FloatScanner scanner);
+
+  void consume(final IntIterator iterator, final IntDoubleConsumer consumer);
 
   default DoubleStream stream(IntIterator iterator)
   {

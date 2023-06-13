@@ -40,7 +40,7 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.SerializerUtils;
@@ -243,7 +243,7 @@ public class IndexMergerV9 extends IndexMerger
         );
         QueryableIndexSegment segment = new QueryableIndexSegment(index, DataSegment.asKey(dataInterval.toString()));
 
-        StupidPool<ByteBuffer> heapPool = StupidPool.heap(Cuboids.BUFFER_SIZE, Cuboids.PAGES);
+        BufferPool heapPool = BufferPool.heap(Cuboids.BUFFER_SIZE, Cuboids.PAGES);
         GroupByQueryEngine engine = new GroupByQueryEngine(heapPool);
 
         for (CuboidSpec cuboidSpec : indexSpec.getCuboidSpecs()) {

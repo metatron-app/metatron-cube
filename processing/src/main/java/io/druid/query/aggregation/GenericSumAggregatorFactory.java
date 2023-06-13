@@ -26,9 +26,12 @@ import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
+import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.LongColumnSelector;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.math.BigDecimal;
@@ -37,7 +40,7 @@ import java.util.stream.LongStream;
 
 /**
  */
-public class GenericSumAggregatorFactory extends GenericAggregatorFactory
+public class GenericSumAggregatorFactory extends GenericAggregatorFactory implements AggregatorFactory.Vectorizable
 {
   public static GenericSumAggregatorFactory of(String name, String fieldName)
   {
@@ -270,5 +273,25 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   public String getCubeName()
   {
     return "sum";
+  }
+
+  @Override
+  public boolean supports(ColumnSelectorFactory factory)
+  {
+    return supportsStreaming(factory);
+  }
+
+  @Override
+  public Aggregator.Vectorized create(ColumnSelectorFactory factory)
+  {
+    switch (inputType.type()) {
+      case LONG:
+        return LongSumAggregator.vectorize((LongColumnSelector.Scannable) factory.makeLongColumnSelector(fieldName));
+      case FLOAT:
+      case DOUBLE:
+        return DoubleSumAggregator.vectorize((DoubleColumnSelector.Scannable) factory.makeDoubleColumnSelector(fieldName));
+      default:
+        throw new ISE("%s", inputType);
+    }
   }
 }

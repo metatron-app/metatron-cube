@@ -39,7 +39,8 @@ public interface QueryContextKeys
   String DISABLE_LOG = "#disableLog";
   String BROKER_SIDE = "#brokerSide";
   String OUTERMOST_JOIN = "#outermostJoin";
-  String STREAMING_GBY_SCHEMA = "#streamingGroupBySchema";
+  String STREAMING_GBY = "#streamingGroupBy";
+  String VECTORIZED_GBY = "#vectorizedGroupBy";
   String GROUPED_DIMENSIONS = "groupedDimensions";
 
   // group-by config.. overriding
@@ -56,7 +57,7 @@ public interface QueryContextKeys
   String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
   String GBY_MAX_MULTIVALUE_DIMENSIONS = "groupByMaxMultivalueDimensions";
   String GBY_STREAMING = "groupByStreaming";
-  String GBY_BATCH_SIZE = "groupByBatch";
+  String GBY_VECTORIZE = "groupByVectorize";
 
   // select.stream
   String STREAM_USE_BULK_ROW = "streamUseBulkRow";

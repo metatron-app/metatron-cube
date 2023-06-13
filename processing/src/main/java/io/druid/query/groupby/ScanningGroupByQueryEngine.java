@@ -78,7 +78,7 @@ public class ScanningGroupByQueryEngine
       }
       dimensionTypes[i] = dimensionSpec.resolve(resolver);
     }
-    Aggregator.Scannable[] aggregators = Aggregators.makeScannables(query.getAggregatorSpecs(), cursor);
+    Aggregator.Streaming[] aggregators = Aggregators.makeStreaming(query.getAggregatorSpecs(), cursor);
     if (aggregators == null) {
       return null;
     }
@@ -135,7 +135,7 @@ public class ScanningGroupByQueryEngine
           for (int x = 0; x < dimensions.length; x++) {
             row[i++] = rawAccess[x].apply(keyMask[x] & (int) (key >> shifts[x]));
           }
-          for (Aggregator.Scannable scannable : aggregators) {
+          for (Aggregator.Streaming scannable : aggregators) {
             row[i++] = scannable.aggregate(IntIterators.from(collect));
           }
           collect.clear();

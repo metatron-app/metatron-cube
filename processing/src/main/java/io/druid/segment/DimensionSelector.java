@@ -24,7 +24,9 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.segment.bitmap.BitSets;
+import io.druid.segment.column.IntIntConsumer;
 import io.druid.segment.column.IntScanner;
+import io.druid.segment.column.RowSupplier;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import org.roaringbitmap.IntIterator;
@@ -127,7 +129,11 @@ public interface DimensionSelector
   // aka. dictionary with single value without extract function
   interface Scannable extends SingleValued, WithRawAccess
   {
+    RowSupplier rows();
+
     void scan(IntIterator iterator, IntScanner scanner);    // rowID to dictId
+
+    void consume(IntIterator iterator, IntIntConsumer consumer);    // rowID to dictId
 
     void scan(Tools.Scanner scanner);         // on current
 
@@ -142,7 +148,7 @@ public interface DimensionSelector
     default BitSet collect(IntIterator iterator)
     {
       BitSet dictIds = new BitSet(getDictionary().size());
-      scan(iterator, (x, v) -> dictIds.set(v.applyAsInt(x)));
+      consume(iterator, (x, v) -> dictIds.set(v));
       return dictIds;
     }
   }
@@ -156,7 +162,7 @@ public interface DimensionSelector
     final IntFunction[] rawAccess = new IntFunction[dimensions.length];
     for (int x = 0; x < rawAccess.length; x++) {
       final DimensionSelector selector = dimensions[x];
-      if (useRawUTF8 && dimensionTypes[x].isStringOrDimension()) {
+      if (useRawUTF8 && (dimensionTypes == null || dimensionTypes[x].isStringOrDimension())) {
         rawAccess[x] = selector instanceof DimensionSelector.WithRawAccess ?
                        ix -> UTF8Bytes.of(((DimensionSelector.WithRawAccess) selector).getAsRaw(ix)) :
                        ix -> UTF8Bytes.of((String) selector.lookupName(ix));

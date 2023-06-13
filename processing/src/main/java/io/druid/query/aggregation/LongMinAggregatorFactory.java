@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnStats;
+import io.druid.segment.LongColumnSelector.Scannable;
 
 import java.util.stream.DoubleStream;
 import java.util.stream.LongStream;
@@ -115,5 +116,11 @@ public class LongMinAggregatorFactory extends NumericAggregatorFactory.LongType 
   public AggregatorFactory getCombiningFactory(String inputField)
   {
     return new LongMinAggregatorFactory(name, inputField);
+  }
+
+  @Override
+  public Aggregator.Vectorized create(ColumnSelectorFactory factory)
+  {
+    return LongMinAggregator.vectorize((Scannable) factory.makeLongColumnSelector(fieldName));
   }
 }

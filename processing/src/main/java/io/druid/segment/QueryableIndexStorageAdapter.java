@@ -51,9 +51,10 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.column.DictionaryEncodedColumn.RowSuppler;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.IntIntConsumer;
 import io.druid.segment.column.IntScanner;
+import io.druid.segment.column.RowSupplier;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
@@ -466,7 +467,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension), extractionFn);
                       }
 
-                      final Dictionary<String> dictionary = encoded.dictionary();
+                      final Dictionary<String> dictionary = encoded.dictionary().dedicated();
                       if (holder.getCapabilities().hasMultipleValues()) {
                         if (extractionFn != null) {
                           return new DimensionSelector()
@@ -569,7 +570,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       } else {
                         // using an anonymous class is faster than creating a class that stores a copy of the value
-                        final RowSuppler supplier = DictionaryEncodedColumn.rowSupplier(encoded, context.selectivity());
+                        final RowSupplier supplier = encoded.row(context.selectivity());
                         final IndexedInts row = IndexedInts.from(() -> supplier.row(offset()));
                         if (extractionFn != null) {
                           return new DimensionSelector()
@@ -615,6 +616,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         } else {
                           return new DimensionSelector.Scannable()
                           {
+                            @Override
+                            public RowSupplier rows()
+                            {
+                              return supplier;
+                            }
+
                             @Override
                             public Dictionary getDictionary()
                             {
@@ -685,6 +692,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             public void scan(IntIterator iterator, IntScanner scanner)
                             {
                               encoded.scan(iterator, scanner);
+                            }
+
+                            @Override
+                            public void consume(IntIterator iterator, IntIntConsumer consumer)
+                            {
+                              encoded.consume(iterator, consumer);
                             }
                           };
                         }
@@ -776,8 +789,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         } else {
                           return new ObjectColumnSelector.WithRawAccess<String>()
                           {
-                            private final Dictionary<String> dictionary = encoded.dictionary();
-                            private final RowSuppler row = DictionaryEncodedColumn.rowSupplier(encoded, context.selectivity());
+                            private final Dictionary<String> dictionary = encoded.dictionary().dedicated();
+                            private final RowSupplier row = encoded.row(context.selectivity());
 
                             @Override
                             public ValueDesc type()

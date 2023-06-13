@@ -26,7 +26,7 @@ import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.ProvisionException;
 import io.druid.client.cache.CacheConfig;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.utils.VMUtils;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
@@ -35,14 +35,12 @@ import io.druid.guice.annotations.Processing;
 import io.druid.java.util.common.concurrent.ExecutorServiceConfig;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.offheap.OffheapBufferPool;
 import io.druid.query.DruidProcessingConfig;
 import io.druid.query.ExecutorServiceMonitor;
 import io.druid.query.MetricsEmittingExecutorService;
 import io.druid.query.PrioritizedExecutorService;
 import io.druid.server.metrics.MetricsModule;
 
-import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -102,7 +100,7 @@ public class DruidProcessingModule implements Module
   @Provides
   @LazySingleton
   @Global
-  public StupidPool<ByteBuffer> getIntermediateResultsPool(DruidProcessingConfig config)
+  public BufferPool getIntermediateResultsPool(DruidProcessingConfig config)
   {
     try {
       long maxDirectMemory = VMUtils.getMaxDirectMemory();
@@ -131,8 +129,6 @@ public class DruidProcessingModule implements Module
       log.info(e.getMessage());
     }
 
-    return new OffheapBufferPool(config.intermediateComputeSizeBytes(), config.getNumThreads() + 1);
+    return BufferPool.direct(config.intermediateComputeSizeBytes(), config.getNumThreads() + 1);
   }
-
-
 }

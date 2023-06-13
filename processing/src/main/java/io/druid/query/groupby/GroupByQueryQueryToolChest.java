@@ -22,7 +22,7 @@ package io.druid.query.groupby;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.inject.Inject;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -54,7 +54,6 @@ import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +64,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
 {
   private final QueryConfig config;
 
-  private final StupidPool<ByteBuffer> bufferPool;
+  private final BufferPool bufferPool;
   private final GroupByQueryEngine engine; // For running the outer query around a subquery
   private final GroupByQueryMetricsFactory metricsFactory;
 
@@ -73,7 +72,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   public GroupByQueryQueryToolChest(
       QueryConfig config,
       GroupByQueryEngine engine,
-      @Global StupidPool<ByteBuffer> bufferPool
+      @Global BufferPool bufferPool
   )
   {
     this(config, engine, bufferPool, DefaultGroupByQueryMetricsFactory.instance());
@@ -83,7 +82,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   public GroupByQueryQueryToolChest(
       QueryConfig config,
       GroupByQueryEngine engine,
-      @Global StupidPool<ByteBuffer> bufferPool,
+      @Global BufferPool bufferPool,
       GroupByQueryMetricsFactory metricsFactory
   )
   {

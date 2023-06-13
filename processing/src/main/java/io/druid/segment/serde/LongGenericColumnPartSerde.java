@@ -29,6 +29,7 @@ import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.IntLongConsumer;
 import io.druid.segment.column.LongScanner;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
@@ -214,14 +215,31 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
     @Override
     public void scan(IntIterator iterator, LongScanner scanner)
     {
+      final IntIterator it = IntIterators.except(iterator, nulls, size());
       final Int2LongFunction supplier = x -> buffer.get(x);
-      if (iterator == null) {
+      if (it == null) {
         for (int i = 0; i < numRows; i++) {
           scanner.apply(i, supplier);
         }
       } else {
-        while (iterator.hasNext()) {
-          scanner.apply(iterator.next(), supplier);
+        while (it.hasNext()) {
+          scanner.apply(it.next(), supplier);
+        }
+      }
+    }
+
+    @Override
+    public void consume(IntIterator iterator, IntLongConsumer consumer)
+    {
+      final IntIterator it = IntIterators.except(iterator, nulls, size());
+      if (it == null) {
+        for (int i = 0; i < numRows; i++) {
+          consumer.apply(i, buffer.get(i));
+        }
+      } else {
+        while (it.hasNext()) {
+          int ix = it.next();
+          consumer.apply(ix, buffer.get(ix));
         }
       }
     }

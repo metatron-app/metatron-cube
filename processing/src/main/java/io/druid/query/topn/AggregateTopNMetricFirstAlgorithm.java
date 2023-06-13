@@ -19,9 +19,9 @@
 
 package io.druid.query.topn;
 
+import io.druid.collections.BufferPool;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
-import io.druid.collections.StupidPool;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.PostAggregator;
@@ -29,7 +29,6 @@ import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -40,12 +39,12 @@ public class AggregateTopNMetricFirstAlgorithm implements TopNAlgorithm<int[], T
 {
   private final Capabilities capabilities;
   private final TopNQuery query;
-  private final StupidPool<ByteBuffer> bufferPool;
+  private final BufferPool bufferPool;
 
   public AggregateTopNMetricFirstAlgorithm(
       Capabilities capabilities,
       TopNQuery query,
-      StupidPool<ByteBuffer> bufferPool
+      BufferPool bufferPool
   )
   {
     this.capabilities = capabilities;

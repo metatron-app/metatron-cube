@@ -216,6 +216,15 @@ public class FilterContext implements Closeable
     return ranges;
   }
 
+  public void clear()
+  {
+    baseBitmap = null;
+    matcher = null;
+    attached.clear();
+    possibles.clear();
+    ranges.clear();
+  }
+
   @Override
   public void close()
   {

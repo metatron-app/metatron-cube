@@ -31,7 +31,7 @@ import org.roaringbitmap.IntIterator;
 import java.util.List;
 
 public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
-    implements StreamingSupport<HyperLogLogCollector>, Aggregator.Scannable<HyperLogLogCollector>
+    implements StreamingSupport<HyperLogLogCollector>, Aggregator.Streaming<HyperLogLogCollector>
 {
   private final int b;
 

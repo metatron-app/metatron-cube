@@ -24,15 +24,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ColumnStats;
+import io.druid.segment.DoubleColumnSelector.Scannable;
 
 import java.util.stream.DoubleStream;
 import java.util.stream.LongStream;
 
 /**
  */
-public class DoubleMinAggregatorFactory extends NumericAggregatorFactory.DoubleType implements CubeSupport
+public class DoubleMinAggregatorFactory extends NumericAggregatorFactory.DoubleType
+    implements CubeSupport, AggregatorFactory.Vectorizable
 {
   private static final byte CACHE_TYPE_ID = 0x4;
 
@@ -116,5 +117,11 @@ public class DoubleMinAggregatorFactory extends NumericAggregatorFactory.DoubleT
   public AggregatorFactory getCombiningFactory(String inputField)
   {
     return new DoubleMinAggregatorFactory(name, inputField);
+  }
+
+  @Override
+  public Aggregator.Vectorized create(ColumnSelectorFactory factory)
+  {
+    return DoubleMinAggregator.vectorize((Scannable) factory.makeDoubleColumnSelector(fieldName));
   }
 }

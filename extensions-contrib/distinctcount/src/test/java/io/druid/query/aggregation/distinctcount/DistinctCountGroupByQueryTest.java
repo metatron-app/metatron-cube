@@ -22,7 +22,7 @@ package io.druid.query.aggregation.distinctcount;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -34,6 +34,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
@@ -51,7 +52,6 @@ import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.DataSegment;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -61,23 +61,25 @@ public class DistinctCountGroupByQueryTest
   public void testGroupByWithDistinctCountAgg() throws Exception
   {
     final ObjectMapper mapper = new DefaultObjectMapper();
-    final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
+    final BufferPool pool = BufferPool.heap(1024 * 1024);
 
     QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    final VectorizedGroupByQueryEngine batch = new VectorizedGroupByQueryEngine(pool);
+
     final StreamQueryEngine stream = new StreamQueryEngine();
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        batch,
         stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(
             config, engine, pool
-        ),
-        pool
+        )
     );
 
     IncrementalIndex index = new OnheapIncrementalIndex(

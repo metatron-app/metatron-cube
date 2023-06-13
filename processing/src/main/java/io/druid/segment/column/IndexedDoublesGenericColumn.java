@@ -92,13 +92,19 @@ public final class IndexedDoublesGenericColumn extends GenericColumn.DoubleType
   @Override
   public void scan(IntIterator iterator, DoubleScanner scanner)
   {
-    column.scan(iterator, scanner);
+    column.scan(IntIterators.except(iterator, nulls, size()), scanner);
+  }
+
+  @Override
+  public void consume(IntIterator iterator, IntDoubleConsumer consumer)
+  {
+    column.consume(IntIterators.except(iterator, nulls, size()), consumer);
   }
 
   @Override
   public DoubleStream stream(IntIterator iterator)
   {
-    return column.stream(IntIterators.filter(iterator, nulls, size()));
+    return column.stream(IntIterators.except(iterator, nulls, size()));
   }
 
   @Override

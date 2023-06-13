@@ -59,6 +59,6 @@ public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColu
   @Override
   public ComplexColumn get()
   {
-    return new IndexedComplexColumn(type, column.asSingleThreaded());
+    return new IndexedComplexColumn(type, column.dedicated());
   }
 }

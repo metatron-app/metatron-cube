@@ -21,14 +21,16 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.bitmap.IntIterators;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
+import java.io.IOException;
 import java.util.Comparator;
 
 /**
  */
-public class CountAggregator implements Aggregator.FromMutableLong, Aggregator.LongScannable
+public class CountAggregator implements Aggregator.FromMutableLong, Aggregator.LongStreaming
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -85,5 +87,34 @@ public class CountAggregator implements Aggregator.FromMutableLong, Aggregator.L
   public Object aggregate(IntIterator iterator)
   {
     return (long) IntIterators.count(iterator);
+  }
+
+  public static Vectorized create()
+  {
+    return new Vectorized<long[]>()
+    {
+      @Override
+      public void close() throws IOException {}
+
+      @Override
+      public long[] init(int length)
+      {
+        return new long[length];
+      }
+
+      @Override
+      public void aggregate(IntIterator iterator, long[] vector, Int2IntFunction offset)
+      {
+        while (iterator.hasNext()) {
+          vector[offset.applyAsInt(iterator.next())] += 1;
+        }
+      }
+
+      @Override
+      public Object get(long[] vector, int offset)
+      {
+        return new MutableLong(vector[offset]);
+      }
+    };
   }
 }

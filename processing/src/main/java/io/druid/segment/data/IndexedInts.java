@@ -21,6 +21,7 @@ package io.druid.segment.data;
 
 import io.druid.segment.bitmap.IntIterable;
 import io.druid.segment.bitmap.IntIterators;
+import io.druid.segment.column.IntIntConsumer;
 import io.druid.segment.column.IntScanner;
 import org.roaringbitmap.IntIterator;
 
@@ -135,6 +136,21 @@ public interface IndexedInts extends IntIterable, Closeable
     } else {
       while (iterator.hasNext()) {
         scanner.apply(iterator.next(), this::get);
+      }
+    }
+  }
+
+  default void consume(final IntIterator iterator, final IntIntConsumer consumer)
+  {
+    if (iterator == null) {
+      final int size = size();
+      for (int index = 0; index < size; index++) {
+        consumer.apply(index, get(index));
+      }
+    } else {
+      while (iterator.hasNext()) {
+        int index = iterator.next();
+        consumer.apply(index, get(index));
       }
     }
   }

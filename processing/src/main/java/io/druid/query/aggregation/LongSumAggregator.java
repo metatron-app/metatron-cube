@@ -24,9 +24,11 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.math.expr.Expr;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
+import java.io.IOException;
 import java.util.Comparator;
 
 /**
@@ -39,7 +41,7 @@ public abstract class LongSumAggregator implements Aggregator.FromMutableLong
 
   static final BinaryFn.Identical<Number> COMBINER = (lhs, rhs) -> lhs.longValue() + rhs.longValue();
 
-  static abstract class ScanSupport extends LongSumAggregator implements Aggregator.LongScannable { }
+  static abstract class ScanSupport extends LongSumAggregator implements LongStreaming { }
 
   @Override
   public Long get(MutableLong current)
@@ -94,13 +96,43 @@ public abstract class LongSumAggregator implements Aggregator.FromMutableLong
       @Override
       public MutableLong aggregate(final MutableLong current)
       {
-        if (predicate.matches() && selector.getLong(handover)) {
+        if (selector.getLong(handover)) {
           if (current == null) {
             return new MutableLong(handover.longValue());
           }
           current.add(handover.longValue());
         }
         return current;
+      }
+    };
+  }
+
+  public static Vectorized<long[]> vectorize(LongColumnSelector.Scannable selector)
+  {
+    return new Vectorized<long[]>()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        selector.close();
+      }
+
+      @Override
+      public long[] init(int length)
+      {
+        return new long[length];
+      }
+
+      @Override
+      public void aggregate(IntIterator iterator, long[] vector, Int2IntFunction offset)
+      {
+        selector.consume(iterator, (i, x) -> vector[offset.applyAsInt(i)] += x);
+      }
+
+      @Override
+      public Object get(long[] vector, int offset)
+      {
+        return new MutableLong(vector[offset]);
       }
     };
   }

@@ -219,6 +219,11 @@ public class QueryUtils
     return majorTypes;
   }
 
+  public static Iterable<DimFilter> toSplitter(DimensionSpec dimensionSpec, Object[] thresholds)
+  {
+    return toSplitter(dimensionSpec.getDimension(), DimensionSpecs.asOrderByColumnSpec(dimensionSpec), thresholds);
+  }
+
   public static Iterable<DimFilter> toSplitter(String column, OrderingSpec ordering, Object[] thresholds)
   {
     return () -> new Iterator<DimFilter>()

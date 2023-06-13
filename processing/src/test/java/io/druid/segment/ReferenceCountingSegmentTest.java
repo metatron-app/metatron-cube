@@ -67,12 +67,6 @@ public class ReferenceCountingSegmentTest
           }
 
           @Override
-          public boolean isIndexed()
-          {
-            return false;
-          }
-
-          @Override
           public int getNumRows()
           {
             return 0;

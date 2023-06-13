@@ -863,10 +863,7 @@ public class Filters
 
         final BitmapIndex bitmapIndex = selector.getBitmapIndex(columnName);
         if (bitmapIndex != null) {
-          Dictionary<String> dictionary = bitmapIndex.getDictionary();
-          if (dictionary instanceof GenericIndexed) {
-            dictionary = ((GenericIndexed) dictionary).asSingleThreaded();
-          }
+          Dictionary<String> dictionary = bitmapIndex.getDictionary().dedicated();
           IntList ids = new IntList();
           dictionary.scan(context.dictionaryIterator(columnName), (ix, v) -> {
             if (expr.eval(binding.bind(columnName, v)).asBoolean()) {ids.add(ix);}

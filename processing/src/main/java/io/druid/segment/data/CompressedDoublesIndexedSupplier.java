@@ -26,8 +26,12 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.column.DoubleScanner;
+import io.druid.segment.column.IntDoubleConsumer;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
+import it.unimi.dsi.fastutil.ints.Int2DoubleFunction;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -127,7 +131,7 @@ public class CompressedDoublesIndexedSupplier implements ColumnPartProvider<Inde
 
   private class CompressedIndexedDoubles implements IndexedDoubles
   {
-    private final GenericIndexed<ResourceHolder<DoubleBuffer>> singleThreaded = baseDoubleBuffers.asSingleThreaded();
+    private final GenericIndexed<ResourceHolder<DoubleBuffer>> singleThreaded = baseDoubleBuffers.dedicated();
 
     private int currIndex = -1;
     private ResourceHolder<DoubleBuffer> holder;
@@ -171,6 +175,51 @@ public class CompressedDoublesIndexedSupplier implements ColumnPartProvider<Inde
       buffer.reset();
 
       return numToGet;
+    }
+
+    @Override
+    public void scan(final IntIterator iterator, final DoubleScanner scanner)
+    {
+      Int2DoubleFunction f = x -> buffer.get(bufferPos + x % sizePer);
+      if (iterator == null) {
+        final int size = size();
+        for (int x = 0; x < size; x++) {
+          if (x / sizePer != currIndex) {
+            loadBuffer(x / sizePer);
+          }
+          scanner.apply(x, f);
+        }
+      } else {
+        while (iterator.hasNext()) {
+          final int x = iterator.next();
+          if (x / sizePer != currIndex) {
+            loadBuffer(x / sizePer);
+          }
+          scanner.apply(x, f);
+        }
+      }
+    }
+
+    @Override
+    public void consume(final IntIterator iterator, final IntDoubleConsumer consumer)
+    {
+      if (iterator == null) {
+        final int size = size();
+        for (int x = 0; x < size; x++) {
+          if (x / sizePer != currIndex) {
+            loadBuffer(x / sizePer);
+          }
+          consumer.apply(x, buffer.get(bufferPos + x % sizePer));
+        }
+      } else {
+        while (iterator.hasNext()) {
+          final int x = iterator.next();
+          if (x / sizePer != currIndex) {
+            loadBuffer(x / sizePer);
+          }
+          consumer.apply(x, buffer.get(bufferPos + x % sizePer));
+        }
+      }
     }
 
     private void loadBuffer(int bufferNum)

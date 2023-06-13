@@ -20,7 +20,7 @@
 package io.druid.query.topn;
 
 import com.google.common.collect.ImmutableMap;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
@@ -76,7 +76,7 @@ public class TopNVirtualColumnTest
         TestHelper.NOOP_QUERYWATCHER
     );
     TopNQueryRunnerFactory factory2 = new TopNQueryRunnerFactory(
-        StupidPool.heap(100),
+        BufferPool.heap(100),
         toolChest,
         TestHelper.NOOP_QUERYWATCHER
     );

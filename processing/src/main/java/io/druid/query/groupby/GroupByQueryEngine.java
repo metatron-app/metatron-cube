@@ -30,8 +30,8 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
+import io.druid.collections.BufferPool;
 import io.druid.collections.IntList;
-import io.druid.collections.StupidPool;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -95,12 +95,17 @@ public class GroupByQueryEngine
 {
   private static final Logger log = new Logger(GroupByQueryEngine.class);
 
-  private final StupidPool<ByteBuffer> intermediateResultsBufferPool;
+  private final BufferPool intermediateResultsBufferPool;
 
   @Inject
-  public GroupByQueryEngine(@Global StupidPool<ByteBuffer> intermediateResultsBufferPool)
+  public GroupByQueryEngine(@Global BufferPool intermediateResultsBufferPool)
   {
     this.intermediateResultsBufferPool = intermediateResultsBufferPool;
+  }
+
+  public int sizeOfBuffer()
+  {
+    return intermediateResultsBufferPool.getBufferSize();
   }
 
   public Sequence<Row> process(GroupByQuery query, QueryConfig config, Segment segment, boolean compact)
@@ -197,7 +202,7 @@ public class GroupByQueryEngine
     private final int[] increments;
     private final int increment;
 
-    private final StupidPool<ByteBuffer> bufferPool;
+    private final BufferPool bufferPool;
     private final Closer resources = Closer.create();
 
     private final ByteBuffer[] metricValues;
@@ -210,7 +215,7 @@ public class GroupByQueryEngine
         final GroupByQuery query,
         final QueryConfig config,
         final Cursor source,
-        final StupidPool<ByteBuffer> bufferPool,
+        final BufferPool bufferPool,
         final int maxPage
     )
     {

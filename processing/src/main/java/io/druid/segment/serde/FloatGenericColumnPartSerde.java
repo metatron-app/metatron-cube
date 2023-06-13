@@ -30,6 +30,7 @@ import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.FloatScanner;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.IntDoubleConsumer;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedFloatBufferObjectStrategy;
@@ -180,16 +181,23 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                 @Override
                 public void scan(IntIterator iterator, FloatScanner scanner)
                 {
+                  final IntIterator it = IntIterators.except(iterator, bitmap, size());
                   final Int2FloatFunction supplier = x -> bufferToUse.get(x);
-                  if (iterator == null) {
+                  if (it == null) {
                     for (int i = 0; i < numRows; i++) {
                       scanner.apply(i, supplier);
                     }
                   } else {
-                    while (iterator.hasNext()) {
-                      scanner.apply(iterator.next(), supplier);
+                    while (it.hasNext()) {
+                      scanner.apply(it.next(), supplier);
                     }
                   }
+                }
+
+                @Override
+                public void consume(IntIterator iterator, IntDoubleConsumer consumer)
+                {
+                  scan(iterator, consumer.asFloatScanner());
                 }
 
                 @Override

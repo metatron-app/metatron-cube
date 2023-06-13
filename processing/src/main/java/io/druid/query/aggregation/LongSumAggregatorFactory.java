@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.LongColumnSelector;
 
 import java.util.stream.DoubleStream;
 import java.util.stream.LongStream;
@@ -119,5 +120,11 @@ public class LongSumAggregatorFactory extends NumericAggregatorFactory.LongType 
   public AggregatorFactory getCombiningFactory(String inputField)
   {
     return new LongSumAggregatorFactory(name, inputField);
+  }
+
+  @Override
+  public Aggregator.Vectorized create(ColumnSelectorFactory factory)
+  {
+    return LongSumAggregator.vectorize((LongColumnSelector.Scannable) factory.makeLongColumnSelector(fieldName));
   }
 }

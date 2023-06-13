@@ -32,7 +32,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.Yielders;
 import io.druid.common.guava.Sequence;
 import io.druid.common.guava.Yielder;
@@ -54,6 +54,7 @@ import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
+import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -81,7 +82,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -133,18 +133,19 @@ public class AggregationTestHelper
     ObjectMapper mapper = TestHelper.JSON_MAPPER;
 
     QueryConfig config = new QueryConfig();
-    StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
+    BufferPool pool = BufferPool.heap(1024 * 1024);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    VectorizedGroupByQueryEngine batch = new VectorizedGroupByQueryEngine(pool);
     StreamQueryEngine stream = new StreamQueryEngine();
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(config, engine, pool);
     GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        batch,
         stream,
         NoopQueryWatcher.instance(),
         config,
-        toolchest,
-        pool
+        toolchest
     );
 
     IndexIO indexIO = new IndexIO(

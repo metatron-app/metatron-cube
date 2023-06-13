@@ -24,10 +24,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ColumnStats;
+import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.LongColumnSelector;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.math.BigDecimal;
@@ -36,7 +39,7 @@ import java.util.stream.LongStream;
 
 /**
  */
-public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
+public class GenericMaxAggregatorFactory extends GenericAggregatorFactory implements AggregatorFactory.Vectorizable
 {
   public static GenericMaxAggregatorFactory of(String name, String fieldName)
   {
@@ -254,5 +257,25 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   public String getCubeName()
   {
     return "max";
+  }
+
+  @Override
+  public boolean supports(ColumnSelectorFactory factory)
+  {
+    return supportsStreaming(factory);
+  }
+
+  @Override
+  public Aggregator.Vectorized create(ColumnSelectorFactory factory)
+  {
+    switch (inputType.type()) {
+      case LONG:
+        return LongMaxAggregator.vectorize((LongColumnSelector.Scannable) factory.makeLongColumnSelector(fieldName));
+      case FLOAT:
+      case DOUBLE:
+        return DoubleMaxAggregator.vectorize((DoubleColumnSelector.Scannable) factory.makeDoubleColumnSelector(fieldName));
+      default:
+        throw new ISE("%s", inputType);
+    }
   }
 }

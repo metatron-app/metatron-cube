@@ -25,7 +25,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.druid.common.Yielders;
 import io.druid.common.guava.Sequence;
+import io.druid.common.guava.Yielder;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
@@ -61,11 +63,11 @@ public class QueryRunners
     );
   }
 
-  public static <T> QueryRunner<T> concat(
-      final QueryRunner<T> runner,
-      final Iterable<Query<T>> queries
-  )
+  public static <T> QueryRunner<T> concat(final QueryRunner<T> runner, final List<Query<T>> queries)
   {
+    if (queries.size() == 1) {
+      return QueryRunners.runWith(queries.get(0), runner);
+    }
     return new QueryRunner<T>()
     {
       @Override
@@ -261,7 +263,7 @@ public class QueryRunners
     }
     final int priority = BaseQuery.getContextPriority(query, 0);
     final Execs.Semaphore semaphore = new Execs.Semaphore(parallelism);
-    if (parallelism == 1 || (ordering == null && !query.getContextBoolean(Query.FORCE_PARALLEL_MERGE, false))) {
+    if (ordering == null && !query.getContextBoolean(Query.FORCE_PARALLEL_MERGE, false)) {
       return new QueryRunner<T>()
       {
         @Override
@@ -282,24 +284,30 @@ public class QueryRunners
     }
     return new QueryRunner<T>()
     {
+      private <X> List<X> execute(Iterable<Callable<X>> works, Closeable resource)
+      {
+        StopWatch watch = new StopWatch(watcher.remainingTime(query.getId()));
+        List<ListenableFuture<X>> futures = Execs.execute(executor, works, semaphore, watch, priority);
+        return waitForCompletion(query, Futures.allAsList(futures), watcher, resource);
+      }
+
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        final Iterable<Callable<Sequence<T>>> works;
+        Closeable resource = () -> semaphore.destroy();
+        Sequence<T> sequence;
         if (StreamQuery.isSimpleTimeOrdered(query)) {
           Query<T> stream = StreamQuery.convertSimpleTimeOrdered(query);
-          works = Iterables.transform(runners, runner -> asCallable(runner, stream, responseContext, semaphore));
+          List<Sequence<T>> sequences = execute(
+              Iterables.transform(runners, runner -> asCallable(runner, stream, responseContext, semaphore)), resource
+          );
+          sequence = Sequences.mergeSort(columns, ordering, Sequences.simple(sequences));
         } else {
-          works = Iterables.transform(runners, runner -> asMaterialzer(runner, query, responseContext, semaphore));
+          sequence = Sequences.mergeSort(columns, ordering, execute(
+              Iterables.transform(runners, runner -> asYielders(runner, query, responseContext, semaphore)), resource
+          ));
         }
-        final StopWatch watch = new StopWatch(watcher.remainingTime(query.getId()));
-        final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(
-            Execs.execute(executor, works, semaphore, watch, priority)
-        );
-        final Closeable resource = () -> semaphore.destroy();
-        final List<Sequence<T>> sequences = waitForCompletion(query, future, watcher, resource);
-        return sequences == null ? Sequences.withBaggage(Sequences.empty(columns), resource) :
-               Sequences.withBaggage(QueryUtils.mergeSort(columns, ordering, sequences), resource);
+        return Sequences.withBaggage(sequence, resource);
       }
     };
   }
@@ -464,5 +472,22 @@ public class QueryRunners
   )
   {
     return () -> Sequences.materialize(Sequences.withBaggage(runner.run(query, responseContext), semaphore));
+  }
+
+  public static <T> PrioritizedCallable<Yielder<T>> asYielders(
+      final QueryRunner<T> runner,
+      final Query<T> query,
+      final Map<String, Object> responseContext,
+      final Execs.Semaphore semaphore
+  )
+  {
+    return () -> {
+      try {
+        return runner.run(query, responseContext).toYielder(null, new Yielders.Yielding<T>());
+      }
+      finally {
+        semaphore.close();
+      }
+    };
   }
 }

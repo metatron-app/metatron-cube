@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.DoubleScanner;
+import io.druid.segment.column.IntDoubleConsumer;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.roaringbitmap.IntIterator;
 
@@ -52,6 +53,8 @@ public interface DoubleColumnSelector extends ObjectColumnSelector<Double>
 
   interface Scannable extends WithBaggage
   {
+    void consume(IntIterator iterator, IntDoubleConsumer consumer);
+
     void scan(IntIterator iterator, DoubleScanner scanner);
 
     DoubleStream stream(IntIterator iterator);

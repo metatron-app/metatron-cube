@@ -110,15 +110,21 @@ public class IndexedLongsGenericColumn extends GenericColumn.LongType
   }
 
   @Override
-  public void scan(IntIterator include, LongScanner scanner)
+  public void scan(IntIterator iterator, LongScanner scanner)
   {
-    column.scan(include, scanner);
+    column.scan(IntIterators.except(iterator, nulls, size()), scanner);
+  }
+
+  @Override
+  public void consume(IntIterator iterator, IntLongConsumer consumer)
+  {
+    column.consume(IntIterators.except(iterator, nulls, size()), consumer);
   }
 
   @Override
   public LongStream stream(IntIterator iterator)
   {
-    return column.stream(IntIterators.filter(iterator, nulls, size()));
+    return column.stream(IntIterators.except(iterator, nulls, size()));
   }
 
   @Override

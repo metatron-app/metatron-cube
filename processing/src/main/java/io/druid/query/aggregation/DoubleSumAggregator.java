@@ -25,10 +25,12 @@ import io.druid.math.expr.Expr;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
 import org.roaringbitmap.IntIterator;
 
+import java.io.IOException;
 import java.util.Comparator;
 
 /**
@@ -41,7 +43,7 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
 
   static final BinaryFn.Identical<Number> COMBINER = (param1, param2) -> param1.doubleValue() + param2.doubleValue();
 
-  static abstract class ScanSupport extends DoubleSumAggregator implements Aggregator.DoubleScannable { }
+  static abstract class StreamingSupport extends DoubleSumAggregator implements DoubleStreaming { }
 
   @Override
   public Double get(MutableDouble current)
@@ -77,7 +79,7 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
         }
       };
     }
-    return new DoubleSumAggregator.ScanSupport()
+    return new StreamingSupport()
     {
       private final MutableFloat handover = new MutableFloat();
 
@@ -128,7 +130,7 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
         }
       };
     }
-    return new DoubleSumAggregator.ScanSupport()
+    return new StreamingSupport()
     {
       private final MutableDouble handover = new MutableDouble();
 
@@ -154,6 +156,36 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
           current.add(handover.doubleValue());
         }
         return current;
+      }
+    };
+  }
+
+  public static Vectorized<double[]> vectorize(DoubleColumnSelector.Scannable selector)
+  {
+    return new Vectorized<double[]>()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        selector.close();
+      }
+
+      @Override
+      public double[] init(int length)
+      {
+        return new double[length];
+      }
+
+      @Override
+      public void aggregate(IntIterator iterator, double[] vector, Int2IntFunction offset)
+      {
+        selector.consume(iterator, (i, x) -> vector[offset.applyAsInt(i)] += x);
+      }
+
+      @Override
+      public Object get(double[] vector, int offset)
+      {
+        return new MutableDouble(vector[offset]);
       }
     };
   }

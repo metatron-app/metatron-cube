@@ -22,7 +22,7 @@ package io.druid.query.topn;
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
 import com.google.common.collect.Maps;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
@@ -84,7 +84,7 @@ public class TopNQueryRunnerBenchmark extends AbstractBenchmark
     QueryRunnerFactory factory = new TopNQueryRunnerFactory(
         // See OffheapByteBufferPool
         // Instead of causing a circular dependency, we simply mimic its behavior
-        StupidPool.direct(2000),
+        BufferPool.direct(2000),
         new TopNQueryQueryToolChest(
             new TopNQueryConfig(),
             TestHelper.testTopNQueryEngine()

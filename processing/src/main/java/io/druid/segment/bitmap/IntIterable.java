@@ -19,10 +19,13 @@
 
 package io.druid.segment.bitmap;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.segment.Cursor;
 import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public interface IntIterable
 {
@@ -117,5 +120,36 @@ public interface IntIterable
     {
       return Arrays.binarySearch(array, index) >= 0;
     }
+  }
+
+  static IntIterable wrap(Cursor cursor)
+  {
+    if (cursor.isDone()) {
+      return EMPTY;
+    }
+    if (cursor.scanContext().awareTargetRows()) {
+      AtomicBoolean first = new AtomicBoolean(true);
+      return () -> {
+        if (!first.compareAndSet(true, false)) {
+          cursor.reset();
+        }
+        return IntIterators.wrap(cursor);
+      };
+    }
+    final BitSet rows = new BitSet();
+    for (; !cursor.isDone(); cursor.advance()) {
+      rows.set(cursor.offset());
+    }
+    return () -> BitSets.iterator(rows);
+  }
+
+  static IntIterable except(IntIterable cursor, ImmutableBitmap skip, int size)
+  {
+    return () -> IntIterators.except(cursor.iterator(), skip, size);
+  }
+
+  static IntIterable include(IntIterable cursor, ImmutableBitmap include)
+  {
+    return () -> IntIterators.include(cursor.iterator(), include);
   }
 }

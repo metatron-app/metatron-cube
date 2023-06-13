@@ -26,4 +26,9 @@ import it.unimi.dsi.fastutil.ints.Int2DoubleFunction;
 public interface DoubleScanner
 {
   void apply(int x, Int2DoubleFunction value);
+
+  default FloatScanner asFloatScanner()
+  {
+    return (i, x) -> apply(i, v -> x.applyAsDouble(i));
+  }
 }

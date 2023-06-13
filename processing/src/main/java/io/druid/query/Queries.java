@@ -520,11 +520,44 @@ public class Queries
   }
 
   // has some preconditions
+  public static int estimateNumRows(
+      StreamQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      SessionCache cache,
+      int minNumRows
+  )
+  {
+    final DimFilter filter = query.getFilter();
+    if (filter == null) {
+      final int numRows = segments.stream().mapToInt(Segment::getNumRows).sum();
+      if (numRows <= minNumRows) {
+        return numRows;
+      }
+    }
+    final MutableInt counter = new MutableInt();
+    final FilterMetaQuery base = FilterMetaQuery.of(query);
+    for (Segment segment : segments) {
+      FilterMetaQuery metaQuery = base;
+      if (filter != null) {
+        DimFilter specialized = filter.specialize(segment, metaQuery.getVirtualColumns());
+        if (filter != specialized) {
+          metaQuery = metaQuery.withFilter(specialized);
+        }
+      }
+      FilterMetaQueryEngine.process(metaQuery.withQuerySegmentSpec(segment.asSpec()), segment, cache)
+                           .accumulate(r -> counter.add(r[0]));
+    }
+    return counter.intValue();
+  }
+
+  // has some preconditions
   public static long estimateCardinality(
       GroupByQuery query,
       List<Segment> segments,
       QuerySegmentWalker segmentWalker,
       Supplier<RowResolver> resolver,
+      SessionCache cache,
       long minCardinality
   )
   {
@@ -544,7 +577,7 @@ public class Queries
         segments.stream().map(s -> s.asQueryableIndex(false).getColumn(dimension).getDictionary())
                 .forEach(dictionary -> dictionary.scan(null, (x, b, o, l) -> collector.add(Murmur3.hash64(b, o, l))));
       } else {
-        segments.stream().map(s -> s.asStorageAdapter(false).makeCursors(query.withQuerySegmentSpec(s.asSpec())))
+        segments.stream().map(s -> s.asStorageAdapter(false).makeCursors(query.withQuerySegmentSpec(s.asSpec()), cache))
                 .flatMapToLong(c -> DictionaryID.collect(c, dimensions))    // valid only in here (do not merge)
                 .forEach(collector::add);
       }
@@ -666,12 +699,15 @@ public class Queries
     for (Segment segment : segments) {
       HistogramQuery prepared = Segments.prepare(query, segment);
       union = segment.asStorageAdapter(true).makeCursors(prepared, cache).accumulate(union, (current, cursor) -> {
+        if (cursor.isDone()) {
+          return current;
+        }
         DictionarySketch sketch = DictionarySketch.newInstance();
         DimensionSelector selector = cursor.makeDimensionSelector(prepared.getDimensionSpec());
         ItemsSketch.rand.setSeed(0);
         if (selector instanceof DimensionSelector.Scannable) {
-          ((DimensionSelector.Scannable) selector).scan(
-              IntIterators.wrap(cursor), (x, v) -> sketch.update(v.applyAsInt(x))
+          ((DimensionSelector.Scannable) selector).consume(
+              IntIterators.wrap(cursor), (x, v) -> sketch.update(v)
           );
         } else if (selector instanceof DimensionSelector.SingleValued) {
           for (; !cursor.isDone(); cursor.advance()) {

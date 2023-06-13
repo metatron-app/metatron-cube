@@ -21,7 +21,7 @@ package io.druid.query.aggregation.distinctcount;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.Granularities;
@@ -52,7 +52,7 @@ public class DistinctCountTopNQueryTest
   @Test
   public void testTopNWithDistinctCountAgg() throws Exception
   {
-    TopNQueryEngine engine = new TopNQueryEngine(StupidPool.heap(1024 * 1024));
+    TopNQueryEngine engine = new TopNQueryEngine(BufferPool.heap(1024 * 1024));
 
     IncrementalIndex index = new OnheapIncrementalIndex(
         0, QueryGranularities.SECOND, new AggregatorFactory[]{new CountAggregatorFactory("cnt")}, 1000

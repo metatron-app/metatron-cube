@@ -89,6 +89,15 @@ public final class DictionaryEncodedColumn implements Closeable
     }
   }
 
+  public void consume(final IntIterator iterator, final IntIntConsumer consumer)
+  {
+    if (column != null) {
+      column.consume(iterator, consumer);
+    } else {
+      multiValueColumn.consume(iterator, consumer); // not sure
+    }
+  }
+
   // collects dictionary IDs
   public BitSet collect(final IntIterator iterator)
   {
@@ -165,26 +174,15 @@ public final class DictionaryEncodedColumn implements Closeable
   private static final int ID_CACHE_SIZE = 128;
   private static final float MINIMUM_SELECTIVITY = 0.25f;
 
-  public static interface RowSuppler
-  {
-    int row(int x);
-
-    default void scan(IntIterator iterator, IntScanner scanner)
-    {
-      while (iterator.hasNext()) {
-        scanner.apply(iterator.next(), this::row);
-      }
-    }
-  }
-
-  public static RowSuppler rowSupplier(DictionaryEncodedColumn column, float selectivity)
+  public RowSupplier row(float selectivity)
   {
     if (selectivity < MINIMUM_SELECTIVITY) {
-      return column.column::get;
+      return x -> column.get(x);
     }
-    final IndexedInts source = IndexedInts.prepare(column.column, ID_CACHE_SIZE);
+    final IndexedInts source = IndexedInts.prepare(column, ID_CACHE_SIZE);
     final int[] range = new int[]{-1, -1};
     final int[] cached = new int[ID_CACHE_SIZE];
+
     return x -> {
       if (x < range[0] || x >= range[1]) {
         final int valid = source.get(x, cached);

@@ -73,7 +73,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   public static <T> Indexed<T> asSingleThreaded(Indexed<T> indexed)
   {
-    return indexed instanceof GenericIndexed ? ((GenericIndexed<T>) indexed).asSingleThreaded() : indexed;
+    return indexed instanceof GenericIndexed ? ((GenericIndexed<T>) indexed).dedicated() : indexed;
   }
 
   public static final byte version = 0x1;   // don't change this
@@ -157,7 +157,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       @Override
       public Dictionary<T> get()
       {
-        return dictionary instanceof GenericIndexed ? ((GenericIndexed<T>) dictionary).asSingleThreaded() : dictionary;
+        return dictionary.dedicated();
       }
     };
   }
@@ -285,6 +285,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     this.indexOffset = indexOffset;
     this.valuesOffset = valuesOffset;
     this.bufferIndexed = bufferIndexed;
+  }
+
+  @Override
+  public GenericIndexed<T> dedicated()
+  {
+    return asSingleThreaded();
   }
 
   @Override
@@ -706,7 +712,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     return index;
   }
 
-  public GenericIndexed<T> asSingleThreaded()
+  private GenericIndexed<T> asSingleThreaded()
   {
     return new GenericIndexed<T>(
         theBuffer,

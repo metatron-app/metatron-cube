@@ -45,7 +45,8 @@ import java.util.Objects;
 
 /**
  */
-public class CountAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class CountAggregatorFactory extends AggregatorFactory
+    implements AggregatorFactory.CubeSupport, AggregatorFactory.Vectorizable
 {
   public static CountAggregatorFactory of(String name)
   {
@@ -258,5 +259,17 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   public int hashCode()
   {
     return Objects.hash(name, fieldName, predicate);
+  }
+
+  @Override
+  public boolean supports(ColumnSelectorFactory factory)
+  {
+    return fieldName == null && predicate == null;
+  }
+
+  @Override
+  public Aggregator.Vectorized create(ColumnSelectorFactory factory)
+  {
+    return CountAggregator.create();
   }
 }

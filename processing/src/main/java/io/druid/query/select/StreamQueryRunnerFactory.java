@@ -26,8 +26,6 @@ import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.FilterMetaQuery;
-import io.druid.query.FilterMetaQueryEngine;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -41,11 +39,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.segment.QueryableIndex;
-import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.Segment;
-import io.druid.segment.filter.FilterContext;
-import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
@@ -106,7 +100,7 @@ public class StreamQueryRunnerFactory
     if (numSplit < 2) {
       int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
       if (splitRows > SPLIT_MIN_ROWS) {
-        int numRows = getNumRows(stream, segments, resolver, splitRows, cache(query));
+        int numRows = Queries.estimateNumRows(stream, segments, resolver, cache(query), splitRows);
         if (numRows >= 0) {
           logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
           numSplit = numRows / splitRows;
@@ -143,39 +137,6 @@ public class StreamQueryRunnerFactory
     return splits;
   }
 
-  private int getNumRows(
-      StreamQuery query,
-      List<Segment> segments,
-      Supplier<RowResolver> resolver,
-      int splitRows,
-      SessionCache cache
-  )
-  {
-    final DimFilter filter = query.getFilter();
-    final int numRows = segments.stream().mapToInt(Segment::getNumRows).sum();
-    if (filter == null || numRows <= splitRows) {
-      return numRows;
-    }
-    final FilterMetaQuery meta = FilterMetaQuery.of(query);
-    final MutableInt counter = new MutableInt();
-    for (Segment segment : segments) {
-      final DimFilter optimized = filter.specialize(segment, query.getVirtualColumns());
-      final QueryableIndex index = segment.asQueryableIndex(false);
-      if (index != null) {
-        final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver.get());
-        final FilterContext context = DimFilters.extractBitmaps(
-            optimized, Filters.createContext(selector, cache, segment.namespace())
-        );
-        if (context.matcher() == null) {
-          counter.add(context.targetNumRows());
-          continue;
-        }
-      }
-      FilterMetaQueryEngine.process(meta.withFilter(optimized), segment, cache)
-                           .accumulate(r -> counter.add(r[0]));
-    }
-    return counter.intValue();
-  }
 
   @Override
   public QueryRunner<Object[]> _createRunner(Segment segment, Supplier<Object> optimizer, SessionCache cache)

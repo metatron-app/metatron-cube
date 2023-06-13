@@ -95,15 +95,15 @@ public interface DictionaryID
       } else {
         if (context.awareTargetRows()) {
           rowIds = null;
-          scannable.scan(context.iterator(), (x, v) -> dictId.set(v.applyAsInt(x)));
+          scannable.consume(context.iterator(), (x, v) -> dictId.set(v));
         } else {
           rowIds = new BitSet(context.count());
-          scannable.scan(IntIterators.wrap(cursor), (x, v) -> {rowIds.set(x);dictId.set(v.applyAsInt(x));});
+          scannable.consume(IntIterators.wrap(cursor), (x, v) -> {rowIds.set(x);dictId.set(v);});
         }
         scannable.getDictionary().scan(BitSets.iterator(dictId), (x, b, o, l) -> dictHash0[x] = Murmur3.hash64(b, o, l));
       }
       Hashes hash = new Hashes(cursor.size());
-      scannable.scan(BitSets.iterator(rowIds), (x, v) -> hash.add(dictHash0[v.applyAsInt(x)]));
+      scannable.consume(BitSets.iterator(rowIds), (x, v) -> hash.add(dictHash0[v]));
 
       long[] prev = dictHash0;
       for (int i = 1; i < dimensions.size(); i++, hash.next()) {
@@ -114,10 +114,10 @@ public interface DictionaryID
         } else {
           dictId.clear();
           IntIterator iterator = context.awareTargetRows() ? context.iterator() : BitSets.iterator(rowIds);
-          scannable.scan(iterator, (x, v) -> dictId.set(v.applyAsInt(x)));
+          scannable.consume(iterator, (x, v) -> dictId.set(v));
           scannable.getDictionary().scan(BitSets.iterator(dictId), (x, b, o, l) -> dictHash[x] = Murmur3.hash64(b, o, l));
         }
-        scannable.scan(BitSets.iterator(rowIds), (x, v) -> hash.append(dictHash[v.applyAsInt(x)]));
+        scannable.consume(BitSets.iterator(rowIds), (x, v) -> hash.append(dictHash[v]));
         prev = dictHash;
       }
       return hash.toStream();

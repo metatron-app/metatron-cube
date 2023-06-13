@@ -24,6 +24,8 @@ import io.druid.query.Query;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.spec.SpecificSegmentSpec;
 
+import java.util.List;
+
 public class Segments
 {
   public static Segment withLimit(Segment segment, SegmentDescriptor descriptor)
@@ -73,5 +75,18 @@ public class Segments
     {
       return descriptor.toString();
     }
+  }
+
+  public static boolean isAllIndexedSingleValuedDimensions(List<Segment> segments, List<String> dimensions)
+  {
+    if (segments.stream().allMatch(s -> s.isIndexed())) {
+      for (Segment segment : segments) {
+        StorageAdapter adapter = segment.asStorageAdapter(false);
+        return dimensions.stream().allMatch(
+            d -> adapter.getColumnCapabilities(d) != null && !adapter.getColumnCapabilities(d).hasMultipleValues()
+        );
+      }
+    }
+    return false;
   }
 }

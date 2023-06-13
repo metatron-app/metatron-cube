@@ -20,10 +20,11 @@
 package io.druid.segment;
 
 import com.google.common.base.Supplier;
-import io.druid.java.util.common.logger.Logger;
 import com.ning.compress.BufferRecycler;
+import io.druid.collections.BufferPool;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
+import io.druid.java.util.common.logger.Logger;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -78,19 +79,7 @@ public class CompressedPools
     return outputBytesPool.take();
   }
 
-  private static final StupidPool<ByteBuffer> bufPool = new StupidPool<ByteBuffer>(
-      new Supplier<ByteBuffer>()
-      {
-        private final AtomicLong counter = new AtomicLong(0);
-
-        @Override
-        public ByteBuffer get()
-        {
-          log.debug("Allocating new ByteBuf[%,d]", counter.incrementAndGet());
-          return ByteBuffer.allocateDirect(BUFFER_SIZE);
-        }
-      }
-  );
+  private static final BufferPool bufPool = BufferPool.direct(BUFFER_SIZE);
 
   public static ResourceHolder<ByteBuffer> getByteBuf(ByteOrder order)
   {

@@ -382,11 +382,11 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet
                 query,
                 new QueryStats(
                     ImmutableMap.<String, Object>of(
-                        "query/time",
-                        TimeUnit.NANOSECONDS.toMillis(requestTimeNs),
                         "success",
                         result.isSucceeded()
-                        && result.getResponse().getStatus() == javax.ws.rs.core.Response.Status.OK.getStatusCode()
+                        && result.getResponse().getStatus() == javax.ws.rs.core.Response.Status.OK.getStatusCode(),
+                        "query/time",
+                        TimeUnit.NANOSECONDS.toMillis(requestTimeNs)
                     )
                 )
             )

@@ -31,6 +31,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.java.util.common.Pair;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory.NumericEvalSupport;
@@ -38,6 +39,8 @@ import io.druid.segment.ColumnSelectorFactories.VariableArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnStats;
 import io.druid.segment.Cursor;
+import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -382,5 +385,16 @@ public abstract class GenericAggregatorFactory extends NumericEvalSupport
   public int hashCode()
   {
     return Objects.hash(fieldName, fieldExpression, predicate, inputType, name);
+  }
+
+  protected boolean supportsStreaming(ColumnSelectorFactory factory)
+  {
+    if (inputType.isPrimitiveNumeric() && fieldExpression == null && predicate == null) {
+      if (inputType.type() == ValueType.LONG) {
+        return factory.makeLongColumnSelector(fieldName) instanceof LongColumnSelector.Scannable;
+      }
+      return factory.makeDoubleColumnSelector(fieldName) instanceof DoubleColumnSelector.Scannable;
+    }
+    return false;
   }
 }

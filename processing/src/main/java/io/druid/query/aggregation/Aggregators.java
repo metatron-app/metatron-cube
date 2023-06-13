@@ -23,9 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.IOUtils;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.query.aggregation.Aggregator.Scannable;
+import io.druid.query.aggregation.Aggregator.Vectorized;
+import io.druid.query.aggregation.Aggregator.Streaming;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.LongColumnSelector;
@@ -77,15 +79,31 @@ public class Aggregators
     return aggregators;
   }
 
-  public static Scannable[] makeScannables(List<AggregatorFactory> factories, ColumnSelectorFactory factory)
+  public static Streaming[] makeStreaming(List<AggregatorFactory> factories, ColumnSelectorFactory factory)
   {
-    Scannable[] aggregators = new Scannable[factories.size()];
+    Streaming[] aggregators = new Streaming[factories.size()];
     for (int i = 0; i < aggregators.length; i++) {
       Aggregator aggregator = factories.get(i).factorize(factory);
-      if (!(aggregator instanceof Scannable) || !((Scannable) aggregator).supports()) {
+      if (!(aggregator instanceof Aggregator.Streaming) || !((Streaming) aggregator).supports()) {
         return null;
       }
-      aggregators[i] = (Scannable) aggregator;
+      aggregators[i] = (Streaming) aggregator;
+    }
+    return aggregators;
+  }
+
+  public static Vectorized[] vectorize(List<AggregatorFactory> factories, ColumnSelectorFactory factory)
+  {
+    Vectorized[] aggregators = new Vectorized[factories.size()];
+    for (int i = 0; i < aggregators.length; i++) {
+      if (!(factories.get(i) instanceof AggregatorFactory.Vectorizable)) {
+        return null;
+      }
+      AggregatorFactory.Vectorizable support = (AggregatorFactory.Vectorizable) factories.get(i);
+      if (!support.supports(factory)) {
+        return null;
+      }
+      aggregators[i] = support.create(factory);
     }
     return aggregators;
   }
@@ -117,6 +135,13 @@ public class Aggregators
   {
     for (int i = 0; i < aggregators.length; i++) {
       aggregators[i].clear(true);
+    }
+  }
+
+  public static void close(Vectorized[] aggregators)
+  {
+    for (int i = 0; i < aggregators.length; i++) {
+      IOUtils.closeQuietly(aggregators[i]);
     }
   }
 

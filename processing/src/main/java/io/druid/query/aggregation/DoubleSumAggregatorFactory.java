@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.DoubleColumnSelector;
 
 import java.util.stream.DoubleStream;
 import java.util.stream.LongStream;
@@ -31,7 +32,7 @@ import java.util.stream.LongStream;
  *
  */
 public class DoubleSumAggregatorFactory extends NumericAggregatorFactory.DoubleType
-    implements AggregatorFactory.CubeSupport
+    implements AggregatorFactory.CubeSupport, AggregatorFactory.Vectorizable
 {
   private static final byte CACHE_TYPE_ID = 0x2;
 
@@ -115,5 +116,11 @@ public class DoubleSumAggregatorFactory extends NumericAggregatorFactory.DoubleT
   public AggregatorFactory getCombiningFactory(String inputField)
   {
     return new DoubleSumAggregatorFactory(name, inputField);
+  }
+
+  @Override
+  public Aggregator.Vectorized create(ColumnSelectorFactory factory)
+  {
+    return DoubleSumAggregator.vectorize((DoubleColumnSelector.Scannable) factory.makeDoubleColumnSelector(fieldName));
   }
 }

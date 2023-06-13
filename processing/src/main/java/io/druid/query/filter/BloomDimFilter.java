@@ -63,8 +63,8 @@ import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.column.DictionaryEncodedColumn.RowSuppler;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.RowSupplier;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
@@ -193,7 +193,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
             iterator = context.dictionaryIterator(dimension);
           } else {
             final IntSet set = new IntOpenHashSet();
-            final RowSuppler supplier = DictionaryEncodedColumn.rowSupplier(encoded, context.selectivity());
+            final RowSupplier supplier = encoded.row(context.selectivity());
             encoded.scan(context.rowIterator(), (x, v) -> set.add(supplier.row(x)));
             iterator = IntIterators.from(IntList.of(set.toIntArray()).sort());
           }

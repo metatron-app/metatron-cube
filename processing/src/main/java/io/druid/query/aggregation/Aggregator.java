@@ -19,10 +19,13 @@
 
 package io.druid.query.aggregation;
 
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
+
+import java.io.Closeable;
 
 /**
  * An Aggregator is an object that can aggregate metrics.  Its aggregation-related methods (namely, aggregate() and get())
@@ -59,11 +62,20 @@ public interface Aggregator<T>
     int estimateOccupation(T current);
   }
 
-  interface Scannable<T> extends Aggregator<T>
+  interface Streaming<T> extends Aggregator<T>
   {
     boolean supports();
 
     Object aggregate(IntIterator iterator);
+  }
+
+  interface Vectorized<V> extends Closeable
+  {
+    V init(int length);
+
+    void aggregate(IntIterator iterator, V vector, Int2IntFunction offset);
+
+    Object get(V vector, int offset);
   }
 
   interface LongType<T> extends Aggregator<T>
@@ -92,7 +104,7 @@ public interface Aggregator<T>
     }
   }
 
-  interface LongScannable extends LongType<MutableLong>, Scannable<MutableLong>
+  interface LongStreaming extends LongType<MutableLong>, Streaming<MutableLong>
   {
   }
 
@@ -122,7 +134,7 @@ public interface Aggregator<T>
     }
   }
 
-  interface FloatScannable extends FloatType<MutableFloat>, Scannable<MutableFloat>
+  interface FloatStreaming extends FloatType<MutableFloat>, Streaming<MutableFloat>
   {
   }
 
@@ -152,7 +164,7 @@ public interface Aggregator<T>
     }
   }
 
-  interface DoubleScannable extends DoubleType<MutableDouble>, Scannable<MutableDouble>
+  interface DoubleStreaming extends DoubleType<MutableDouble>, Streaming<MutableDouble>
   {
   }
 

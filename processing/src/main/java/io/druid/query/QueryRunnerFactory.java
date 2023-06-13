@@ -47,6 +47,11 @@ public interface QueryRunnerFactory<T>
     return null;
   }
 
+  default Query<T> prepare(Query<T> query, Supplier<RowResolver> resolver)
+  {
+    return query;
+  }
+
   /**
    * Given a specific segment, this method will create a QueryRunner.
    *

@@ -848,8 +848,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
     if (splitable != null) {
       List<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
-      if (splits != null) {
-        return serde(QueryRunners.concat(runner, splits), this, toolChest);
+      if (!GuavaUtils.isNullOrEmpty(splits)) {
+        runner = QueryRunners.concat(runner, splits);
       }
     }
     return serde(runner, this, toolChest);

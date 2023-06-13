@@ -79,6 +79,9 @@ public class GroupByQueryConfig
   @JsonProperty
   private boolean streamingAggregation = false;
 
+  @JsonProperty
+  private boolean vectorizedAggregation = false;
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -242,5 +245,15 @@ public class GroupByQueryConfig
   public boolean isStreamingAggregation()
   {
     return streamingAggregation;
+  }
+
+  public void setVectorizedAggregation(boolean vectorizedAggregation)
+  {
+    this.vectorizedAggregation = vectorizedAggregation;
+  }
+
+  public boolean isVectorizedAggregation()
+  {
+    return vectorizedAggregation;
   }
 }

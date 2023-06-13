@@ -1082,7 +1082,7 @@ public class IndexIO
       }
 
       Map<String, Supplier<Column>> columns = Maps.newHashMap();
-      for (String columnName : Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), cols.asSingleThreaded())) {
+      for (String columnName : Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), cols.dedicated())) {
         columns.put(columnName, DSuppliers.memoize(() -> {
           final ByteBuffer mapped = smooshedFiles.mapFile(columnName);
           return readDescriptor(mapper, mapped).read(columnName, mapped, serdeFactory);

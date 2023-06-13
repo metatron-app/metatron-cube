@@ -68,7 +68,7 @@ public interface ColumnAccess extends Closeable
       this.strategy = strategy;
       this.mapping = mapping;
       this.offsets = offsets;
-      this.compressed = indexed.asSingleThreaded();
+      this.compressed = indexed.dedicated();
     }
 
     public int numRows()

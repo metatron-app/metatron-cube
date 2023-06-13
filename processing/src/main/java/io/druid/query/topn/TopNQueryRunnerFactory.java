@@ -22,7 +22,7 @@ package io.druid.query.topn;
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.query.Query;
@@ -34,7 +34,6 @@ import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumns;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -47,7 +46,7 @@ public class TopNQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<T
 
   @Inject
   public TopNQueryRunnerFactory(
-      @Global StupidPool<ByteBuffer> computationBufferPool,
+      @Global BufferPool computationBufferPool,
       TopNQueryQueryToolChest toolchest,
       QueryWatcher queryWatcher
   )

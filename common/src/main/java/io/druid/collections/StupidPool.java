@@ -23,7 +23,6 @@ import com.google.common.base.Supplier;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 
-import java.nio.ByteBuffer;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,21 +57,31 @@ public class StupidPool<T>
 
   public ResourceHolder<T> take()
   {
+    return take("");
+  }
+
+  public ResourceHolder<T> take(String source)
+  {
     T obj = objects.poll();
     if (obj != null) {
       counter.decrementAndGet();
     } else {
-      obj = generator.get();
+      obj = generate(source);
       if (++createdObjects > objectsCacheMaxCount) {
         log.warn("creating [%d] for max cache [%d].. leak?", createdObjects, objectsCacheMaxCount);
       }
     }
-    return asResourceHolder(obj);
+    return new ObjectResourceHolder(prepare(obj, source), source);
   }
 
-  protected ResourceHolder<T> asResourceHolder(T obj)
+  protected T generate(String source)
   {
-    return new ObjectResourceHolder(obj);
+    return generator.get();
+  }
+
+  protected T prepare(T object, String source)
+  {
+    return object;
   }
 
   public void clear()
@@ -85,10 +94,12 @@ public class StupidPool<T>
   {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final T object;
+    private final String source;
 
-    public ObjectResourceHolder(final T object)
+    public ObjectResourceHolder(T object, String source)
     {
       this.object = object;
+      this.source = source;
     }
 
     // WARNING: it is entirely possible for a caller to hold onto the object and call ObjectResourceHolder.close,
@@ -97,7 +108,7 @@ public class StupidPool<T>
     public T get()
     {
       if (closed.get()) {
-        throw new ISE("Already Closed!");
+        throw new ISE("Already Closed! [%s]", source);
       }
 
       return object;
@@ -107,7 +118,7 @@ public class StupidPool<T>
     public void close()
     {
       if (!closed.compareAndSet(false, true)) {
-        log.warn(new ISE("Already Closed!"), "Already closed");
+        log.warn(new ISE("Already Closed! [%s]", source), "Already closed [%s]", source);
         return;
       }
       if (counter.get() < objectsCacheMaxCount) {
@@ -124,59 +135,11 @@ public class StupidPool<T>
     {
       try {
         if (!closed.get()) {
-          log.warn("Not closed!  Object was[%s]. Allowing gc to prevent leak.", object);
+          log.warn("Not closed! Object was[%s:%s]. Allowing gc to prevent leak.", object, source);
         }
       }
       finally {
         super.finalize();
-      }
-    }
-  }
-
-  public static ByteBufferPool heap(final int bufferSize)
-  {
-    return heap(bufferSize, Integer.MAX_VALUE);
-  }
-
-  public static ByteBufferPool heap(final int bufferSize, int numObjects)
-  {
-    return new ByteBufferPool(() -> ByteBuffer.allocate(bufferSize), numObjects);
-  }
-
-  public static ByteBufferPool direct(final int bufferSize)
-  {
-    return direct(bufferSize, Integer.MAX_VALUE);
-  }
-
-  public static ByteBufferPool direct(final int bufferSize, int numObjects)
-  {
-    return new ByteBufferPool(() -> ByteBuffer.allocateDirect(bufferSize), numObjects);
-  }
-
-  public static class ByteBufferPool extends StupidPool<ByteBuffer>
-  {
-    public ByteBufferPool(Supplier<ByteBuffer> supplier, int numObjects)
-    {
-      super(supplier, numObjects);
-    }
-
-    @Override
-    protected ResourceHolder<ByteBuffer> asResourceHolder(ByteBuffer obj)
-    {
-      return new BufferHolder(obj);
-    }
-
-    private class BufferHolder extends ObjectResourceHolder
-    {
-      public BufferHolder(ByteBuffer object)
-      {
-        super(object);
-      }
-
-      @Override
-      public ByteBuffer get()
-      {
-        return (ByteBuffer) super.get().clear();
       }
     }
   }

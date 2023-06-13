@@ -88,7 +88,7 @@ public class CompressedGenericColumnPartSupplier implements ColumnPartProvider<G
   {
     ValueDesc type = ValueDesc.of(serde.getTypeName());
     ObjectStrategy strategy = ObjectStrategies.singleThreaded(serde.getObjectStrategy());
-    return new GenericColumn.Compressed(type, strategy, mapping, offsets, indexed.asSingleThreaded(), compressionType)
+    return new GenericColumn.Compressed(type, strategy, mapping, offsets, indexed.dedicated(), compressionType)
     {
       @Override
       public String getString(int rowNum)

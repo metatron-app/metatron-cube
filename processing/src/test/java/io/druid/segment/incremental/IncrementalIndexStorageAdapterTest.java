@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedInputRow;
@@ -216,7 +216,7 @@ public class IncrementalIndexStorageAdapterTest
 
   private static GroupByQueryEngine makeGroupByQueryEngine()
   {
-    return new GroupByQueryEngine(StupidPool.heap(50000));
+    return new GroupByQueryEngine(BufferPool.heap(50000));
   }
 
   @Test
@@ -288,7 +288,7 @@ public class IncrementalIndexStorageAdapterTest
         )
     );
 
-    TopNQueryEngine engine = new TopNQueryEngine(StupidPool.heap(50000));
+    TopNQueryEngine engine = new TopNQueryEngine(BufferPool.heap(50000));
 
     final Iterable<Result<TopNResultValue>> results = Sequences.toList(
         engine.query(

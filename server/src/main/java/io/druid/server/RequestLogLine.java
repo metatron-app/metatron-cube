@@ -22,16 +22,10 @@ package io.druid.server;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Joiner;
 import org.joda.time.DateTime;
-
-import java.util.Arrays;
-import java.util.Optional;
 
 public class RequestLogLine
 {
-  private static final Joiner JOINER = Joiner.on("\t");
-
   private final DateTime timestamp;
   private final String remoteAddr;
   private final Object query;
@@ -47,14 +41,7 @@ public class RequestLogLine
 
   public String getLine(ObjectMapper objectMapper) throws JsonProcessingException
   {
-    return JOINER.join(
-        Arrays.asList(
-            timestamp,
-            Optional.ofNullable(remoteAddr).orElse(""),
-            objectMapper.writeValueAsString(query),
-            objectMapper.writeValueAsString(queryStats)
-        )
-    );
+    return objectMapper.writeValueAsString(queryStats) + '\t' + objectMapper.writeValueAsString(query);
   }
 
   @JsonProperty("timestamp")

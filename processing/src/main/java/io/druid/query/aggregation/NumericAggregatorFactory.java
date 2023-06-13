@@ -30,6 +30,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory.CubeSupport;
 import io.druid.query.aggregation.AggregatorFactory.NumericEvalSupport;
+import io.druid.query.aggregation.AggregatorFactory.Vectorizable;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -47,7 +48,7 @@ import java.util.Set;
 /**
  *
  */
-public abstract class NumericAggregatorFactory extends NumericEvalSupport implements CubeSupport
+public abstract class NumericAggregatorFactory extends NumericEvalSupport implements CubeSupport, Vectorizable
 {
   protected final String name;
   protected final String fieldName;
@@ -247,6 +248,12 @@ public abstract class NumericAggregatorFactory extends NumericEvalSupport implem
       }
       return object;
     }
+
+    @Override
+    public boolean supports(ColumnSelectorFactory factory)
+    {
+      return predicate == null && fieldExpression == null && factory.makeDoubleColumnSelector(fieldName) instanceof DoubleColumnSelector.Scannable;
+    }
   }
 
   protected static abstract class LongType extends NumericAggregatorFactory
@@ -271,6 +278,12 @@ public abstract class NumericAggregatorFactory extends NumericEvalSupport implem
     public Comparator getComparator()
     {
       return LongSumAggregator.COMPARATOR;
+    }
+
+    @Override
+    public boolean supports(ColumnSelectorFactory factory)
+    {
+      return predicate == null && fieldExpression == null && factory.makeLongColumnSelector(fieldName) instanceof LongColumnSelector.Scannable;
     }
   }
 }

@@ -19,10 +19,15 @@
 
 package io.druid.segment;
 
+import io.druid.cache.SessionCache;
+import io.druid.query.BaseQuery;
 import io.druid.query.Query;
+import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.segment.filter.FilterContext;
+import io.druid.segment.filter.Filters;
 import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
@@ -38,7 +43,7 @@ public interface Segment extends SchemaProvider, Closeable
   DataSegment getDescriptor();
   Interval getInterval();
   long getLastAccessTime();
-  boolean isIndexed();
+  default boolean isIndexed() {return false;}
   int getNumRows();
 
   default String getIdentifier()
@@ -59,6 +64,14 @@ public interface Segment extends SchemaProvider, Closeable
   QueryableIndex asQueryableIndex(boolean forQuery);
 
   StorageAdapter asStorageAdapter(boolean forQuery);
+
+  default FilterContext createContext(Query<?> query, SessionCache cache)
+  {
+    RowResolver resolver = RowResolver.of(this, BaseQuery.getVirtualColumns(query));
+    return Filters.createContext(
+        new QueryableIndexSelector(asQueryableIndex(true), resolver), cache, namespace()
+    );
+  }
 
   class Delegated implements Segment
   {

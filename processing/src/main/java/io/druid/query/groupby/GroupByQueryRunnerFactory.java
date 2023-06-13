@@ -27,7 +27,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
-import io.druid.collections.StupidPool;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.Sequence;
@@ -37,7 +36,6 @@ import io.druid.data.ValueType;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
-import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
@@ -61,6 +59,7 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.Cuboids;
@@ -69,7 +68,6 @@ import io.druid.segment.Segments;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -83,24 +81,32 @@ public class GroupByQueryRunnerFactory
 {
   private static final Logger logger = new Logger(GroupByQueryRunnerFactory.class);
 
+  private static final float STREAMING_THRESHOLD = 0.4f;
+  private static final float STREAMING_THRESHOLD_PS = 0.65f;
+
+  private static final int VECTORIZE_BUFFER_LIMIT = 512;
+  private static final float VECTOR_STREAMING_LIMIT = 0.94f; // todo optimize stream aggregation and lower this threshold
+
   private static final int MAX_LOCAL_SPLIT = 64;
 
   private final GroupByQueryEngine engine;
+  private final VectorizedGroupByQueryEngine vector;
   private final StreamQueryEngine stream;
   private final QueryConfig config;
 
   @Inject
   public GroupByQueryRunnerFactory(
       GroupByQueryEngine engine,
+      VectorizedGroupByQueryEngine vector,
       StreamQueryEngine stream,
       QueryWatcher queryWatcher,
       QueryConfig config,
-      GroupByQueryQueryToolChest toolChest,
-      @Global StupidPool<ByteBuffer> computationBufferPool
+      GroupByQueryQueryToolChest toolChest
   )
   {
     super(toolChest, queryWatcher);
     this.engine = engine;
+    this.vector = vector;
     this.stream = stream;
     this.config = config;
   }
@@ -252,55 +258,66 @@ public class GroupByQueryRunnerFactory
     if (query.getLimitSpec().getNodeLimit() != null) {
       return null;  // todo
     }
-    List<DimensionSpec> dimensionSpecs = query.getDimensions();
-    if (dimensionSpecs.isEmpty()) {
+    List<DimensionSpec> dimensions = query.getDimensions();
+    if (dimensions.isEmpty()) {
       return null;  // use timeseries query
     }
+    SessionCache cache = cache(query);
     GroupByQueryConfig gbyConfig = config.getGroupBy();
     int maxResults = config.getMaxResults(query);
     int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, gbyConfig.getLocalSplitNum());
     if (numSplit < 0) {
-      int splitCardinality = query.getContextInt(Query.GBY_LOCAL_SPLIT_CARDINALITY, gbyConfig.getLocalSplitCardinality());
+      int splitCardinality = config.getGroupByLocalSplit(query);
       if (splitCardinality > 1) {
         splitCardinality = Math.min(splitCardinality, maxResults);
         long start = System.currentTimeMillis();
-        long cardinality = Queries.estimateCardinality(query, segments, segmentWalker, resolver, splitCardinality);
+        long cardinality = Queries.estimateCardinality(query, segments, segmentWalker, resolver, cache, splitCardinality);
         if (cardinality <= 0) {
           return null;    // failed ?
         }
         long elapsed = System.currentTimeMillis() - start;
-        numSplit = (int) Math.ceil(cardinality * 1.2 / splitCardinality);
+        numSplit = (int) Math.ceil(cardinality * 1.1 / splitCardinality);
         if (numSplit > 1) {
           logger.info("Expected cardinality %d, split into %d queries (%d msec)", cardinality, numSplit, elapsed);
         } else {
           logger.info("Expected cardinality %d. no split (%d msec)", cardinality, elapsed);
         }
-        if (query.isStreamingAggregatable() && cardinality > splitCardinality * 0.5 &&
-            query.getContextBoolean(Query.GBY_STREAMING, gbyConfig.isStreamingAggregation())) {
-          long[] selectivity = Queries.filterSelectivity(query, segmentWalker);
-          if (selectivity[0] > 0 && cardinality > selectivity[0] * 0.6) {
-            logger.info("Using streaming aggregation.. ratio = [%.2f]", Math.min(1, cardinality / (float) selectivity[0]));
-            query = query.withOverriddenContext(Query.STREAMING_GBY_SCHEMA, resolver.get().resolve(query.toStreaming(null)));
+        float streamThreshold = config.useParallelSort(query) ? STREAMING_THRESHOLD_PS : STREAMING_THRESHOLD;
+        if (config.useStreamingAggregation(query) && query.isStreamingAggregatable(segments)) {
+          StreamQuery stream = query.toStreaming();
+          int numRows = Queries.estimateNumRows(stream, segments, resolver, cache, splitCardinality);
+          float ratio = Math.min(1, cardinality / (float) numRows);
+          float vectorThreshold = streamThreshold / (0.5f * dimensions.size() + 1);
+          int requirements = AggregatorFactory.bufferNeeded(query.getAggregatorSpecs());
+          if (requirements < VECTORIZE_BUFFER_LIMIT && config.useVectorizedAggregation(query) &&
+              ratio >= vectorThreshold && ratio < VECTOR_STREAMING_LIMIT + 0.2f * (dimensions.size() - 1)) {
+            logger.info("Using vectorized aggregation.. ratio = [%.2f >= %.2f]", ratio, vectorThreshold);
+            query = query.withOverriddenContext(Query.VECTORIZED_GBY, true);
+          } else if (ratio >= streamThreshold) {
+            logger.info("Using streaming aggregation.. ratio = [%.2f >= %.2f]", ratio, streamThreshold);
+            query = query.withOverriddenContext(Query.STREAMING_GBY, resolver.get().resolve(stream));
+          } else {
+            logger.info("Using normal aggregation.. ratio = [%.2f < %.2f]", ratio, streamThreshold);
           }
         }
-      }
+     }
     }
     if (numSplit > MAX_LOCAL_SPLIT) {
       throw new ISE("Too many splits %,d", numSplit);
     } else if (numSplit < 2) {
-      return null;
+      return Arrays.asList(query);    // propagate possible context change
     }
 
     // can split on all dimensions but it seemed not cost-effective
-    DimensionSpec dimensionSpec = dimensionSpecs.get(0);
+    DimensionSpec dimensionSpec = dimensions.get(0);
 
     long start = System.currentTimeMillis();
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
-    if (query.getContextValue(Query.STREAMING_GBY_SCHEMA) != null) {
+    if (query.getContextBoolean(Query.VECTORIZED_GBY, false) || query.getContextValue(Query.STREAMING_GBY) != null) {
       strategy = "evenSpaced";
     }
     Object[] thresholds = Queries.makeColumnHistogramOn(
-        resolver, segments, segmentWalker, query, dimensionSpec, numSplit, strategy, maxResults, cache(query)
+        resolver, segments, segmentWalker, query, dimensionSpec, numSplit, strategy, maxResults, cache
     );
     if (thresholds == null || thresholds.length < 3) {
       return null;
@@ -327,13 +344,16 @@ public class GroupByQueryRunnerFactory
     return (query, response) ->
     {
       GroupByQuery groupBy = (GroupByQuery) query;
-      if (groupBy.getContextValue(Query.STREAMING_GBY_SCHEMA) != null) {
+      if (groupBy.getContextValue(Query.STREAMING_GBY) != null) {
         Long fixedTimestamp = BaseQuery.getUniversalTimestamp(query, null);
         Sequence<Object[]> sequence = stream.process(groupBy.toStreaming(fixedTimestamp), config, segment, null, cache);
         if (fixedTimestamp != null) {
           sequence = Sequences.peek(sequence, v -> v[0] = fixedTimestamp);
         }
         return Sequences.map(sequence, CompactRow::new);
+      }
+      if (query.getContextBoolean(Query.VECTORIZED_GBY, false)) {
+        return vector.process(groupBy, config, segment, true, cache);
       }
       if (groupBy.getContextBoolean(Query.USE_CUBOIDS, config.isUseCuboids())) {
         Segment cuboid = segment.cuboidFor(groupBy);
@@ -355,8 +375,9 @@ public class GroupByQueryRunnerFactory
   {
     return (query, response) ->
     {
-      RowResolver resolver = query.getContextValue(Query.STREAMING_GBY_SCHEMA);
-      if (resolver == null) {
+      RowResolver resolver = query.getContextValue(Query.STREAMING_GBY);
+      boolean vectorized = query.getContextBoolean(Query.VECTORIZED_GBY, false);
+      if (resolver == null && !vectorized) {
         // mergeRunners should take ListeningExecutorService at some point
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(exec);
         return new GroupByMergedQueryRunner(executor, config, queryWatcher, runners).run(query, response);
@@ -364,9 +385,12 @@ public class GroupByQueryRunnerFactory
       GroupByQuery groupBy = (GroupByQuery) query;
       Sequence<Row> sequence = QueryRunners.executeParallel(groupBy, exec, Lists.newArrayList(runners), queryWatcher)
                                            .run(query, response);
-      return CombiningSequence.create(
-          sequence, groupBy.getCompactRowOrdering(), StreamAggregationFn.of(groupBy, resolver)
-      );
+      if (vectorized) {
+        AggregationCombineFn combiner = AggregationCombineFn.of(groupBy, false);
+        return CombiningSequence.create(sequence, groupBy.getCompactRowOrdering(), combiner);
+      }
+      StreamAggregationFn combiner = StreamAggregationFn.of(groupBy, resolver);
+      return CombiningSequence.create(sequence, groupBy.getCompactRowOrdering(), combiner);
     };
   }
 }

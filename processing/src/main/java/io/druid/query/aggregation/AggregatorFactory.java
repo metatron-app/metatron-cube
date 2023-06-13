@@ -315,6 +315,13 @@ public abstract class AggregatorFactory implements Cacheable
     return this;
   }
 
+  public static interface Vectorizable
+  {
+    boolean supports(ColumnSelectorFactory factory);
+
+    Aggregator.Vectorized create(ColumnSelectorFactory factory);
+  }
+
   /**
    * Merges the list of AggregatorFactory[] (presumable from metadata of some segments being merged) and
    * returns merged AggregatorFactory[] (for the metadata for merged segment).
@@ -490,9 +497,9 @@ public abstract class AggregatorFactory implements Cacheable
     return relay;
   }
 
-  public static int getMaxIntermediateSize(List<AggregatorFactory> factories)
+  public static int bufferNeeded(List<AggregatorFactory> factories)
   {
-    return factories.stream().mapToInt(f -> f.getMaxIntermediateSize()).sum();
+    return Math.max(1, factories.stream().mapToInt(f -> f.getMaxIntermediateSize()).sum());
   }
 
   public static boolean isCountAll(AggregatorFactory factory)

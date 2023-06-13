@@ -19,6 +19,7 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.column.IntIntConsumer;
 import io.druid.segment.column.IntScanner;
 import org.roaringbitmap.IntIterator;
 
@@ -44,6 +45,27 @@ public interface IndexedMultivalue<T extends IndexedInts> extends Indexed<T>, Cl
         for (int i = 0; i < indexed.size(); i++) {
           int v = indexed.get(i);
           scanner.apply(index, x -> v);
+        }
+      }
+    }
+  }
+
+  default void consume(IntIterator iterator, IntIntConsumer consumer)
+  {
+    if (iterator == null) {
+      final int size = size();
+      for (int index = 0; index < size; index++) {
+        IndexedInts indexed = get(index);
+        for (int i = 0; i < indexed.size(); i++) {
+          consumer.apply(index, indexed.get(i));
+        }
+      }
+    } else {
+      while (iterator.hasNext()) {
+        int index = iterator.next();
+        IndexedInts indexed = get(index);
+        for (int i = 0; i < indexed.size(); i++) {
+          consumer.apply(index, indexed.get(i));
         }
       }
     }

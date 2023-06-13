@@ -19,8 +19,8 @@
 
 package io.druid.query.topn;
 
+import io.druid.collections.BufferPool;
 import io.druid.collections.ResourceHolder;
-import io.druid.collections.StupidPool;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -42,13 +42,13 @@ public class PooledTopNAlgorithm
 {
   private final Capabilities capabilities;
   private final TopNQuery query;
-  private final StupidPool<ByteBuffer> bufferPool;
+  private final BufferPool bufferPool;
   private static final int AGG_UNROLL_COUNT = 8; // Must be able to fit loop below
 
   public PooledTopNAlgorithm(
       Capabilities capabilities,
       TopNQuery query,
-      StupidPool<ByteBuffer> bufferPool
+      BufferPool bufferPool
   )
   {
     super(capabilities);

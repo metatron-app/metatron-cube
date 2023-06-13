@@ -24,7 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
@@ -44,7 +44,6 @@ import io.druid.segment.TestIndex;
 import org.junit.Assert;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
 
@@ -54,7 +53,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 {
   public static Collection<?> createRunners() throws IOException
   {
-    final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
+    final BufferPool pool = BufferPool.heap(1024 * 1024);
 
     QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);
@@ -62,15 +61,16 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
     config.getSelect().setUseRawUTF8(false);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    VectorizedGroupByQueryEngine batch = new VectorizedGroupByQueryEngine(pool);
     StreamQueryEngine stream = new StreamQueryEngine();
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        batch,
         stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
-        new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool),
-        TestQueryRunners.pool
+        new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool)
     );
 
     config = new QueryConfig();
@@ -81,11 +81,11 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
         engine,
+        batch,
         stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
-        new GroupByQueryQueryToolChest(config, engine, pool),
-        pool
+        new GroupByQueryQueryToolChest(config, engine, pool)
     );
 
     return Lists.newArrayList(

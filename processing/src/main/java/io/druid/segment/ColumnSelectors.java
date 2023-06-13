@@ -44,6 +44,8 @@ import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DoubleScanner;
 import io.druid.segment.column.FloatScanner;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.IntDoubleConsumer;
+import io.druid.segment.column.IntLongConsumer;
 import io.druid.segment.column.LongScanner;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
@@ -565,7 +567,7 @@ public class ColumnSelectors
 
   private static ObjectColumnSelector asCachingSelector(Scannable scannable, ImmutableBitmap bitmap, int targetRows)
   {
-    Dictionary dictionary = scannable.getDictionary();
+    Dictionary dictionary = scannable.getDictionary().dedicated();
 
     int cardinality = bitmap == null ? dictionary.size() : bitmap.size();
     long estimation = dictionary.getSerializedSize() * cardinality / dictionary.size();
@@ -578,8 +580,7 @@ public class ColumnSelectors
       if (range > cardinality << 3) {
         Int2ObjectMap<UTF8Bytes> cached = new Int2ObjectOpenHashMap<>(cardinality);
         if (dictionary instanceof GenericIndexed) {
-          GenericIndexed dedicated = ((GenericIndexed) dictionary).asSingleThreaded();
-          dedicated.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b, o, l)));
+          dictionary.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b, o, l)));
         } else {
           dictionary.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b.duplicate(), o, l)));
         }
@@ -587,8 +588,7 @@ public class ColumnSelectors
       } else {
         UTF8Bytes[] cached = new UTF8Bytes[range];
         if (dictionary instanceof GenericIndexed) {
-          GenericIndexed dedicated = ((GenericIndexed) dictionary).asSingleThreaded();
-          dedicated.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b, o, l));
+          dictionary.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b, o, l));
         } else {
           dictionary.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b.duplicate(), o, l));
         }
@@ -809,6 +809,12 @@ public class ColumnSelectors
         }
 
         @Override
+        public void consume(IntIterator iterator, IntLongConsumer consumer)
+        {
+          ((GenericColumn.LongType) column).consume(iterator, consumer);
+        }
+
+        @Override
         public LongStream stream(IntIterator iterator)
         {
           return ((GenericColumn.LongType) column).stream(iterator);
@@ -910,9 +916,74 @@ public class ColumnSelectors
         }
 
         @Override
+        public void consume(IntIterator iterator, IntDoubleConsumer consumer)
+        {
+          ((GenericColumn.DoubleType) column).consume(iterator, consumer);
+        }
+
+        @Override
         public DoubleStream stream(IntIterator iterator)
         {
           return ((GenericColumn.DoubleType) column).stream(iterator);
+        }
+
+        @Override
+        public Double get()
+        {
+          final int current = offset.get();
+          if (current == cache.ix) {
+            return cache.get();
+          }
+          final Double value = column.getDouble(cache.ix = current);
+          cache.valid = value != null;
+          if (cache.valid) {
+            cache.cached = value;
+          }
+          return value;
+        }
+
+        @Override
+        public boolean getDouble(MutableDouble handover)
+        {
+          final int current = offset.get();
+          if (current == cache.ix) {
+            return cache.get(handover);
+          }
+          cache.valid = column.getDouble(cache.ix = current, handover);
+          if (cache.valid) {
+            cache.cached = handover.doubleValue();
+          }
+          return cache.valid;
+        }
+      };
+    }
+    if (column instanceof GenericColumn.FloatType) {
+      return new DoubleColumnSelector.Scannable()
+      {
+        private final DoubleCache cache = new DoubleCache();
+
+        @Override
+        public void close() throws IOException
+        {
+          column.close();
+        }
+
+        @Override
+        public void scan(IntIterator iterator, DoubleScanner scanner)
+        {
+          ((GenericColumn.FloatType) column).scan(iterator, scanner.asFloatScanner());
+        }
+
+        @Override
+        public void consume(IntIterator iterator, IntDoubleConsumer consumer)
+        {
+          ((GenericColumn.FloatType) column).consume(iterator, consumer);
+        }
+
+        @Override
+        public DoubleStream stream(IntIterator iterator)
+        {
+          return ((GenericColumn.FloatType) column).stream(iterator);
         }
 
         @Override
@@ -1011,9 +1082,74 @@ public class ColumnSelectors
         }
 
         @Override
+        public void consume(IntIterator iterator, IntDoubleConsumer consumer)
+        {
+          ((GenericColumn.FloatType) column).consume(iterator, consumer);
+        }
+
+        @Override
         public DoubleStream stream(IntIterator iterator)
         {
           return ((GenericColumn.FloatType) column).stream(iterator);
+        }
+
+        @Override
+        public Float get()
+        {
+          final int current = offset.get();
+          if (current == cache.ix) {
+            return cache.get();
+          }
+          final Float value = column.getFloat(cache.ix = current);
+          cache.valid = value != null;
+          if (cache.valid) {
+            cache.cached = value;
+          }
+          return value;
+        }
+
+        @Override
+        public boolean getFloat(MutableFloat handover)
+        {
+          final int current = offset.get();
+          if (current == cache.ix) {
+            return cache.get(handover);
+          }
+          cache.valid = column.getFloat(cache.ix = current, handover);
+          if (cache.valid) {
+            cache.cached = handover.floatValue();
+          }
+          return cache.valid;
+        }
+      };
+    }
+    if (column instanceof GenericColumn.DoubleType) {
+      return new FloatColumnSelector.Scannable()
+      {
+        private final FloatCache cache = new FloatCache();
+
+        @Override
+        public void close() throws IOException
+        {
+          column.close();
+        }
+
+        @Override
+        public void scan(IntIterator iterator, FloatScanner scanner)
+        {
+          ((GenericColumn.DoubleType) column).scan(iterator, scanner.asDoubleScanner());
+        }
+
+        @Override
+        public void consume(IntIterator iterator, IntDoubleConsumer consumer)
+        {
+          ((GenericColumn.DoubleType) column).consume(iterator, consumer);
+        }
+
+        @Override
+        public DoubleStream stream(IntIterator iterator)
+        {
+          return ((GenericColumn.DoubleType) column).stream(iterator);
         }
 
         @Override

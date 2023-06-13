@@ -22,7 +22,7 @@ package io.druid.query.groupby;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -58,7 +58,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -81,21 +80,22 @@ public class GroupByQueryUnpivotTest
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     final ObjectMapper mapper = new DefaultObjectMapper();
-    final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
+    final BufferPool pool = BufferPool.heap(1024 * 1024);
 
     final QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    final VectorizedGroupByQueryEngine batch = new VectorizedGroupByQueryEngine(pool);
 
     final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool);
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
+        batch,
         new StreamQueryEngine(),
         TestHelper.NOOP_QUERYWATCHER,
         config,
-        toolChest,
-        TestQueryRunners.pool
+        toolChest
     );
 
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()

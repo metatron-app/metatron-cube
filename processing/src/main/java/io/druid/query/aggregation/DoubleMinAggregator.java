@@ -21,15 +21,17 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.roaringbitmap.IntIterator;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.OptionalDouble;
 
 /**
  */
-public abstract class DoubleMinAggregator implements Aggregator.FromMutableDouble, Aggregator.DoubleScannable
+public abstract class DoubleMinAggregator implements Aggregator.FromMutableDouble, Aggregator.DoubleStreaming
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 
@@ -62,6 +64,39 @@ public abstract class DoubleMinAggregator implements Aggregator.FromMutableDoubl
           current.setValue(Math.min(current.doubleValue(), handover.doubleValue()));
         }
         return current;
+      }
+    };
+  }
+
+  public static Vectorized<Double[]> vectorize(DoubleColumnSelector.Scannable selector)
+  {
+    return new Vectorized<Double[]>()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        selector.close();
+      }
+
+      @Override
+      public Double[] init(int length)
+      {
+        return new Double[length];
+      }
+
+      @Override
+      public void aggregate(IntIterator iterator, Double[] vector, Int2IntFunction offset)
+      {
+        selector.consume(iterator, (i, x) -> {
+          int ix = offset.applyAsInt(i);
+          vector[ix] = vector[ix] == null ? x : Math.min(vector[ix], x);
+        });
+      }
+
+      @Override
+      public Object get(Double[] vector, int offset)
+      {
+        return vector[offset];
       }
     };
   }

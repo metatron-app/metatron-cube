@@ -87,6 +87,8 @@ import io.druid.query.topn.NumericTopNMetricSpec;
 import io.druid.query.topn.TopNMetricSpec;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.VirtualColumn;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -765,9 +767,11 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return withFilter(DimFilters.and(filter, getFilter())).withOverriddenContext(GBY_LOCAL_SPLIT_NUM, -1);
   }
 
-  public boolean isStreamingAggregatable()
+  public boolean isStreamingAggregatable(List<Segment> segments)
   {
-    return DimensionSpecs.isAllDefault(dimensions) && groupingSets == null;
+    return getContextValue(Query.GROUPED_DIMENSIONS) == null &&
+           DimensionSpecs.isAllDefault(dimensions) && groupingSets == null &&
+           Segments.isAllIndexedSingleValuedDimensions(segments, DimensionSpecs.toInputNames(dimensions));
   }
 
   @JsonIgnore

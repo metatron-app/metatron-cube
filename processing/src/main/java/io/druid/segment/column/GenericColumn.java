@@ -140,7 +140,9 @@ public interface GenericColumn extends ComplexColumn
     @Override
     public abstract Long getValue(int rowNum);
 
-    public abstract void scan(IntIterator include, LongScanner scanner);
+    public abstract void scan(IntIterator iterator, LongScanner scanner);
+
+    public abstract void consume(IntIterator iterator, IntLongConsumer consumer);
 
     public abstract LongStream stream(IntIterator iterator);
 
@@ -235,6 +237,8 @@ public interface GenericColumn extends ComplexColumn
 
     public abstract void scan(IntIterator iterator, FloatScanner scanner);
 
+    public abstract void consume(IntIterator iterator, IntDoubleConsumer consumer);
+
     public abstract DoubleStream stream(IntIterator iterator);
 
     public ImmutableBitmap collect(
@@ -299,6 +303,8 @@ public interface GenericColumn extends ComplexColumn
     public abstract Double getValue(int rowNum);
 
     public abstract void scan(IntIterator iterator, DoubleScanner scanner);
+
+    public abstract void consume(IntIterator iterator, IntDoubleConsumer consumer);
 
     public abstract DoubleStream stream(IntIterator iterator);
 

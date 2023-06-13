@@ -73,12 +73,6 @@ public class CacheTestSegmentLoader implements SegmentLoader
       }
 
       @Override
-      public boolean isIndexed()
-      {
-        return false;
-      }
-
-      @Override
       public int getNumRows()
       {
         return 0;

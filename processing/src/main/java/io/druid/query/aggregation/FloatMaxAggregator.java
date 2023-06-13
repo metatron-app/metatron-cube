@@ -31,7 +31,7 @@ import java.util.OptionalDouble;
 /**
  *
  */
-public abstract class FloatMaxAggregator implements Aggregator.FromMutableFloat, Aggregator.FloatScannable
+public abstract class FloatMaxAggregator implements Aggregator.FromMutableFloat, Aggregator.FloatStreaming
 {
   static final Comparator COMPARATOR = Comparators.NULL_FIRST(
       (Object o1, Object o2) -> Float.compare(((Number) o1).floatValue(), ((Number) o2).floatValue())

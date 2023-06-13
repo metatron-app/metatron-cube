@@ -445,7 +445,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver, true);
+    final Query<T> resolved = factory.prepare(query.resolveQuery(resolver, true), resolver);
 
     final Supplier<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
@@ -481,8 +481,8 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
 
     QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
     if (splitable != null) {
-      Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
-      if (splits != null) {
+      List<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
+      if (!GuavaUtils.isNullOrEmpty(splits)) {
         return reporter.report(toConcatRunner(splits, runner));
       }
     }
@@ -490,10 +490,13 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   }
 
   private <T> QueryRunner<T> toConcatRunner(
-      final Iterable<Query<T>> queries,
+      final List<Query<T>> queries,
       final QueryRunner<T> runner
   )
   {
+    if (queries.size() == 1) {
+      return QueryRunners.runWith(queries.get(0), runner);
+    }
     return new QueryRunner<T>()
     {
       @Override

@@ -60,6 +60,6 @@ public class StringColumnPartSupplier implements ColumnPartProvider<GenericColum
   @Override
   public GenericColumn get()
   {
-    return new IndexedStringsGenericColumn(indexed.asSingleThreaded(), compressionType);
+    return new IndexedStringsGenericColumn(indexed.dedicated(), compressionType);
   }
 }

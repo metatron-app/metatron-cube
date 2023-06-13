@@ -29,7 +29,7 @@ import java.util.OptionalDouble;
 
 /**
  */
-public abstract class FloatMinAggregator implements Aggregator.FromMutableFloat, Aggregator.FloatScannable
+public abstract class FloatMinAggregator implements Aggregator.FromMutableFloat, Aggregator.FloatStreaming
 {
   static final Comparator COMPARATOR = FloatMaxAggregator.COMPARATOR;
 

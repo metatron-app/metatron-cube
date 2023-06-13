@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
+import io.druid.segment.column.IntLongConsumer;
 import io.druid.segment.column.LongScanner;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
@@ -53,6 +54,8 @@ public interface LongColumnSelector extends ObjectColumnSelector<Long>
   interface Scannable extends WithBaggage
   {
     void scan(IntIterator iterator, LongScanner scanner);
+
+    void consume(IntIterator iterator, IntLongConsumer consumer);
 
     LongStream stream(IntIterator iterator);
   }

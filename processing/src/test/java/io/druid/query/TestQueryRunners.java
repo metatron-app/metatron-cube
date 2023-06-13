@@ -19,7 +19,7 @@
 
 package io.druid.query;
 
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.data.input.Row;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
@@ -40,16 +40,14 @@ import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 
-import java.nio.ByteBuffer;
-
 /**
  */
 public class TestQueryRunners
 {
-  public static final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024 * 10);
+  public static final BufferPool pool = BufferPool.heap(1024 * 1024 * 10);
   public static final TopNQueryConfig topNConfig = new TopNQueryConfig();
 
-  public static StupidPool<ByteBuffer> getPool()
+  public static BufferPool getPool()
   {
     return pool;
   }

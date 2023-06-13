@@ -107,7 +107,7 @@ public class DictionarySketch
     max = max < 0 || max < x ? x : max;
     N++;
     if (index == 2 * K) {
-      Arrays.sort(sketch, 0, index);
+      Arrays.parallelSort(sketch, 0, index);
       maybeGrowLevels(N);
       inPlacePropagateCarry();
       index = 0;
@@ -204,6 +204,38 @@ public class DictionarySketch
 
     qs.minValue_ = handler.apply(min);
     qs.maxValue_ = handler.apply(max);
+
+    return qs;
+  }
+
+  // per segment split
+  public ItemsSketch<Integer> convert()
+  {
+    ItemsSketch<Integer> qs = ItemsSketch.getInstance(K, GuavaUtils.nullFirstNatural());
+    qs.n_ = N;
+    qs.combinedBufferItemCapacity_ = sketch.length;
+    qs.combinedBuffer_ = new Object[sketch.length];
+    qs.baseBufferCount_ = index;
+    qs.bitPattern_ = bitPattern;
+
+    Arrays.sort(sketch, 0, index);
+
+    for (int i = 0; i < index; i++) {
+      qs.combinedBuffer_[i] = sketch[i];
+    }
+    long current = bitPattern;
+    for (int level = 0; current != 0L; level++, current >>>= 1) {
+      if ((current & 1L) > 0L) {
+        final int position = offset(level);
+        final int limit = position + K;
+        for (int i = position; i < limit; i++) {
+          qs.combinedBuffer_[i] = sketch[i];
+        }
+      }
+    }
+
+    qs.minValue_ = min;
+    qs.maxValue_ = max;
 
     return qs;
   }

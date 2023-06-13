@@ -21,7 +21,7 @@ package io.druid.query.topn;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
@@ -50,7 +50,7 @@ public class TopNUnionQueryTest
       TestQueryRunners.getPool(), toolchest, TestHelper.NOOP_QUERYWATCHER
   );
   private final TopNQueryRunnerFactory factory2 = new TopNQueryRunnerFactory(
-      StupidPool.heap(2000), toolchest, TestHelper.NOOP_QUERYWATCHER
+      BufferPool.heap(2000), toolchest, TestHelper.NOOP_QUERYWATCHER
   );
 
   @Test

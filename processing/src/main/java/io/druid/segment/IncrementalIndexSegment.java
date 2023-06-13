@@ -69,12 +69,6 @@ public class IncrementalIndexSegment extends AbstractSegment
   }
 
   @Override
-  public boolean isIndexed()
-  {
-    return false;
-  }
-
-  @Override
   public int getNumRows()
   {
     return index.size();

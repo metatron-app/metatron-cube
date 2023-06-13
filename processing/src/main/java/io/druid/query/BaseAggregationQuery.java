@@ -361,7 +361,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
         public Row apply(Row input)
         {
           final Object[] values = ((CompactRow) input).getValues();
-          final Map<String, Object> event = Maps.newHashMap();
+          final Map<String, Object> event = Maps.newHashMapWithExpectedSize(columns.size());
           for (int i = 0; i < values.length; i++) {
             event.put(columns.get(i), values[i]);
           }
@@ -377,7 +377,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
         public Row apply(Row input)
         {
           final Object[] values = ((CompactRow) input).getValues();
-          final Map<String, Object> event = Maps.newHashMap();
+          final Map<String, Object> event = Maps.newHashMapWithExpectedSize(columns.size());
           for (int i = 0; i < values.length; i++) {
             if (i != timeIdx) {
               event.put(columns.get(i), values[i]);
@@ -388,6 +388,11 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
         }
       };
     }
+  }
+
+  public StreamQuery toStreaming()
+  {
+    return toStreaming(null);
   }
 
   public StreamQuery toStreaming(Long fixedTimestamp)

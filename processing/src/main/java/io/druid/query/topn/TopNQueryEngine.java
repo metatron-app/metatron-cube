@@ -22,7 +22,7 @@ package io.druid.query.topn;
 import com.google.common.base.Function;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.Sequence;
 import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.logger.Logger;
@@ -37,18 +37,16 @@ import io.druid.segment.SegmentMissingException;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.Column;
 
-import java.nio.ByteBuffer;
-
 /**
  */
 public class TopNQueryEngine
 {
   private static final Logger log = new Logger(TopNQueryEngine.class);
 
-  private final StupidPool<ByteBuffer> bufferPool;
+  private final BufferPool bufferPool;
 
   @Inject
-  public TopNQueryEngine(@Global StupidPool<ByteBuffer> bufferPool)
+  public TopNQueryEngine(@Global BufferPool bufferPool)
   {
     this.bufferPool = bufferPool;
   }

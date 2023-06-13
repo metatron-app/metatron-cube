@@ -21,16 +21,18 @@ package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.OptionalLong;
 
 /**
  *
  */
-public abstract class LongMinAggregator implements Aggregator.FromMutableLong, Aggregator.LongScannable
+public abstract class LongMinAggregator implements Aggregator.FromMutableLong, Aggregator.LongStreaming
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -63,6 +65,43 @@ public abstract class LongMinAggregator implements Aggregator.FromMutableLong, A
           current.setValue(Math.min(current.longValue(), handover.longValue()));
         }
         return current;
+      }
+    };
+  }
+
+  public static Vectorized<MutableLong[]> vectorize(LongColumnSelector.Scannable selector)
+  {
+    return new Vectorized<MutableLong[]>()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        selector.close();
+      }
+
+      @Override
+      public MutableLong[] init(int length)
+      {
+        return new MutableLong[length];
+      }
+
+      @Override
+      public void aggregate(IntIterator iterator, MutableLong[] vector, Int2IntFunction offset)
+      {
+        selector.consume(iterator, (i, x) -> {
+          int ix = offset.applyAsInt(i);
+          if (vector[ix] == null) {
+            vector[ix] = new MutableLong(x);
+          } else {
+            vector[ix].setValue(Math.min(vector[ix].longValue(), x));
+          }
+        });
+      }
+
+      @Override
+      public Object get(MutableLong[] vector, int offset)
+      {
+        return vector[offset];
       }
     };
   }

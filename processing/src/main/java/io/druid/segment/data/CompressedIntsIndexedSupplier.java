@@ -117,7 +117,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
 
   private class CompressedIndexedInts implements IndexedInts
   {
-    private final GenericIndexed<ResourceHolder<IntBuffer>> singleThreaded = baseIntBuffers.asSingleThreaded();
+    private final GenericIndexed<ResourceHolder<IntBuffer>> dedicated = baseIntBuffers.dedicated();
 
     private int currIndex = -1;
     private ResourceHolder<IntBuffer> holder;
@@ -145,11 +145,11 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
 
     private void loadBuffer(int bufferNum)
     {
-      if (singleThreaded.isRecyclable()) {
-        holder = singleThreaded.get(bufferNum, holder);
+      if (dedicated.isRecyclable()) {
+        holder = dedicated.get(bufferNum, holder);
       } else {
         CloseQuietly.close(holder);
-        holder = singleThreaded.get(bufferNum);
+        holder = dedicated.get(bufferNum);
       }
       buffer = holder.get();
       bufferPos = buffer.position();
@@ -162,7 +162,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
       return "CompressedIndexedInts{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
-             ", numChunks=" + singleThreaded.size() +
+             ", numChunks=" + dedicated.size() +
              ", numRows=" + numRows +
              '}';
     }
@@ -171,7 +171,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
     public void close() throws IOException
     {
       Closeables.close(holder, false);
-      Closeables.close(singleThreaded, false);
+      Closeables.close(dedicated, false);
     }
   }
 

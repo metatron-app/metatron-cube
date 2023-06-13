@@ -150,7 +150,7 @@ public class StreamQueryEngine
           if (size > 0 && bits != null) {
             final int keyBits = Arrays.stream(bits).sum();
             final int rowBits = DictionaryID.bitsRequired(size);
-            if (rowBits < Integer.SIZE && keyBits + rowBits < Long.SIZE) {
+            if (rowBits < Integer.SIZE && keyBits + rowBits < Long.SIZE - 1) {
               final long[] keys = new long[size];
               final List<Object[]> values = Lists.newArrayList();
               final LongSupplier supplier = keys(orders, directions, cardinalities, DictionaryID.bitsToShifts(bits));

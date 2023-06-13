@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Committer;
@@ -56,6 +56,7 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
@@ -89,7 +90,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -729,18 +729,19 @@ public class RealtimeManagerTest
   private static GroupByQueryRunnerFactory initFactory()
   {
     final ObjectMapper mapper = new DefaultObjectMapper();
-    final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
+    final BufferPool pool = BufferPool.heap(1024 * 1024);
     final QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
+    final VectorizedGroupByQueryEngine batch = new VectorizedGroupByQueryEngine(pool);
     final StreamQueryEngine stream = new StreamQueryEngine();
     return new GroupByQueryRunnerFactory(
         engine,
+        batch,
         stream,
         TestHelper.NOOP_QUERYWATCHER,
         config,
-        new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool),
-        TestQueryRunners.pool
+        new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool)
     );
   }
 

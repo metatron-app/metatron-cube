@@ -28,8 +28,11 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.bitmap.IntIterators;
+import io.druid.segment.column.IntIntConsumer;
+import io.druid.segment.column.IntScanner;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
@@ -356,7 +359,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
 
   private class CompressedVSizeIndexedInts implements IndexedInts
   {
-    private final GenericIndexed<ResourceHolder<ByteBuffer>> singleThreaded = baseBuffers.asSingleThreaded();
+    private final GenericIndexed<ResourceHolder<ByteBuffer>> dedicated = baseBuffers.dedicated();
 
     private final int div = Integer.numberOfTrailingZeros(sizePer);
     private final int rem = sizePer - 1;
@@ -399,6 +402,51 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       }
 
       return pvalue = _get((pindex = index) & rem);
+    }
+
+    @Override
+    public void scan(final IntIterator iterator, final IntScanner scanner)
+    {
+      Int2IntFunction f = x -> _get(x & rem);
+      if (iterator == null) {
+        final int size = size();
+        for (int x = 0; x < size; x++) {
+          if (x >> div != currIndex) {
+            loadBuffer(x >> div);
+          }
+          scanner.apply(x, f);
+        }
+      } else {
+        while (iterator.hasNext()) {
+          final int x = iterator.next();
+          if (x >> div != currIndex) {
+            loadBuffer(x >> div);
+          }
+          scanner.apply(x, f);
+        }
+      }
+    }
+
+    @Override
+    public void consume(IntIterator iterator, IntIntConsumer consumer)
+    {
+      if (iterator == null) {
+        final int size = size();
+        for (int x = 0; x < size; x++) {
+          if (x >> div != currIndex) {
+            loadBuffer(x >> div);
+          }
+          consumer.apply(x, _get(x & rem));
+        }
+      } else {
+        while (iterator.hasNext()) {
+          final int x = iterator.next();
+          if (x >> div != currIndex) {
+            loadBuffer(x >> div);
+          }
+          consumer.apply(x, _get(x & rem));
+        }
+      }
     }
 
     @Override
@@ -477,11 +525,11 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
 
     protected void loadBuffer(int bufferNum)
     {
-      if (singleThreaded.isRecyclable()) {
-        holder = singleThreaded.get(bufferNum, holder);
+      if (dedicated.isRecyclable()) {
+        holder = dedicated.get(bufferNum, holder);
       } else {
         CloseQuietly.close(holder);
-        holder = singleThreaded.get(bufferNum);
+        holder = dedicated.get(bufferNum);
       }
       buffer = holder.get();
       currIndex = bufferNum;
@@ -494,7 +542,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       return "CompressedVSizeIndexedInts{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
-             ", numChunks=" + singleThreaded.size() +
+             ", numChunks=" + dedicated.size() +
              ", numRows=" + numRows +
              '}';
     }
@@ -503,7 +551,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     public void close() throws IOException
     {
       Closeables.close(holder, false);
-      Closeables.close(singleThreaded, false);
+      Closeables.close(dedicated, false);
     }
   }
 }

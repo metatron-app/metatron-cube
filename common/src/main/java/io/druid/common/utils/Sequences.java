@@ -46,6 +46,7 @@ import io.druid.common.guava.ParallelInitMergeSequence;
 import io.druid.common.guava.ResourceClosingSequence;
 import io.druid.common.guava.Sequence;
 import io.druid.common.guava.Yielder;
+import io.druid.common.guava.YielderMergeSequence;
 import io.druid.common.guava.YieldingAccumulator;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.guava.nary.BinaryFn;
@@ -245,13 +246,51 @@ public class Sequences
     return new LazySequence<>(columns, supplier);
   }
 
-  public static <T> Sequence<T> mergeSort(
-      List<String> columns,
-      Comparator<T> ordering,
-      Sequence<Sequence<T>> sequences
-  )
+  public static <T> List<Yielder<T>> toYielders(Sequence<Sequence<T>> sequences)
+  {
+    return sequences.accumulate(
+        Lists.newArrayList(), new Accumulator<List<Yielder<T>>, Sequence<T>>()
+        {
+          @Override
+          public List<Yielder<T>> accumulate(List<Yielder<T>> yielders, Sequence<T> sequence)
+          {
+            try {
+              final Yielder<T> yielder = Yielders.each(sequence);
+              if (yielder.isDone()) {
+                Yielders.close(yielder);
+              } else {
+                yielders.add(yielder);
+              }
+              return yielders;
+            }
+            catch (Exception e) {
+              for (Yielder<T> yielder : yielders) {
+                Yielders.close(yielder);
+              }
+              yielders.clear();
+              throw Throwables.propagate(e);
+            }
+          }
+        }
+    );
+  }
+
+  public static <T> Sequence<T> mergeSort(List<String> columns, Comparator<T> ordering, Sequence<Sequence<T>> sequences)
   {
     return new MergeSequence<T>(columns, ordering, sequences);
+  }
+
+  public static <T> Sequence<T> mergeSort(List<String> columns, Comparator<T> ordering, List<Yielder<T>> yielders)
+  {
+    List<Yielder<T>> prepared = Lists.newArrayList();
+    for (Yielder<T> yielder : yielders) {
+      if (yielder.isDone()) {
+        Yielders.close(yielder);
+      } else {
+        prepared.add(yielder);
+      }
+    }
+    return new YielderMergeSequence<T>(columns, ordering, prepared);
   }
 
   public static <T> Sequence<T> mergeSort(

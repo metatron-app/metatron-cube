@@ -22,7 +22,7 @@ package io.druid.query.aggregation.histogram;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -70,7 +70,7 @@ public class ApproximateHistogramTopNQueryTest
             ),
             QueryRunnerTestHelper.makeQueryRunners(
                 new TopNQueryRunnerFactory(
-                    StupidPool.heap(2000),
+                    BufferPool.heap(2000),
                     new TopNQueryQueryToolChest(
                         new TopNQueryConfig(),
                         TestHelper.testTopNQueryEngine()

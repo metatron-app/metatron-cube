@@ -24,6 +24,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.segment.Cursor;
 import it.unimi.dsi.fastutil.PriorityQueue;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.roaringbitmap.IntIterator;
 
@@ -185,6 +186,15 @@ public final class IntIterators
     return new IntIterators.Mapped(iterator, mapping);
   }
 
+  public static IntIterator map(IntIterator iterator, Int2IntFunction mapping)
+  {
+    return new IntIterators.Delegated(iterator)
+    {
+      @Override
+      public int next() {return mapping.applyAsInt(delegate.next());}
+    };
+  }
+
   // inclusive ~ exclusive
   public static final class Range implements IntIterator
   {
@@ -284,7 +294,12 @@ public final class IntIterators
     return list.array();
   }
 
-  private static final class Peekable extends Abstract
+  public static PeekableIntIterator peek(IntIterator iterator)
+  {
+    return new Peekable(iterator);
+  }
+
+  private static final class Peekable extends Abstract implements PeekableIntIterator
   {
     private final IntIterator iterator;
     private boolean hasPeeked;
@@ -292,6 +307,7 @@ public final class IntIterators
 
     public Peekable(IntIterator iterator) {this.iterator = iterator;}
 
+    @Override
     public int peek()
     {
       if (!hasPeeked) {
@@ -615,7 +631,7 @@ public final class IntIterators
   }
 
   // iterator return >= 0
-  public static IntIterator filter(IntIterator iterator, ImmutableBitmap skip, int size)
+  public static IntIterator except(IntIterator iterator, ImmutableBitmap skip, int size)
   {
     if (skip == null || skip.isEmpty()) {
       return iterator;
@@ -654,7 +670,7 @@ public final class IntIterators
     };
   }
 
-  public static IntIterator filter(IntIterator iterator, IntPredicate predicate)
+  public static IntIterator except(IntIterator iterator, IntPredicate predicate)
   {
     return new IntIterators.Abstract()
     {
@@ -670,6 +686,48 @@ public final class IntIterators
       public int next()
       {
         return peekable.next();
+      }
+    };
+  }
+
+  public static IntIterator include(IntIterator iterator, ImmutableBitmap include)
+  {
+    if (include == null) {
+      return iterator;
+    }
+    if (include.isEmpty()) {
+      return IntIterators.EMPTY;
+    }
+    if (iterator == null) {
+      return include.iterator();
+    }
+    return new Abstract()
+    {
+      private int ix = advance();
+
+      @Override
+      public boolean hasNext()
+      {
+        return ix >= 0;
+      }
+
+      @Override
+      public int next()
+      {
+        int next = ix;
+        ix = advance();
+        return next;
+      }
+
+      private int advance()
+      {
+        while (iterator.hasNext()) {
+          int ix = iterator.next();
+          if (include.get(ix)) {
+            return ix;
+          }
+        }
+        return -1;
       }
     };
   }
@@ -697,7 +755,7 @@ public final class IntIterators
 
   public static IntStream filteredStream(IntIterator iterator, ImmutableBitmap skip, int size)
   {
-    IntIterator filtered = IntIterators.filter(iterator, skip, size);
+    IntIterator filtered = IntIterators.except(iterator, skip, size);
     return filtered == null ? IntStream.range(0, size) : stream(iterator);
   }
 }

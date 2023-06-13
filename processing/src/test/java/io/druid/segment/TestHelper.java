@@ -34,7 +34,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
-import io.druid.collections.StupidPool;
+import io.druid.collections.BufferPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -74,6 +74,7 @@ import io.druid.query.SchemaQueryToolChest;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.frequency.FrequencyQueryRunnerFactory;
 import io.druid.query.frequency.FrequencyQueryToolChest;
+import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
@@ -120,7 +121,6 @@ import org.junit.Assert;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Array;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -169,8 +169,9 @@ public class TestHelper
 
   public static final QueryWatcher NOOP_QUERYWATCHER = NoopQueryWatcher.instance();
 
-  private static final StupidPool<ByteBuffer> GBY_POOL = StupidPool.heap(10 * 1024 * 1024);
-  private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(StupidPool.heap(1024 * 1024));
+  private static final BufferPool GBY_POOL = BufferPool.heap(10 * 1024 * 1024);
+  private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(BufferPool.heap(1024 * 1024));
+  private static final VectorizedGroupByQueryEngine BATCH_ENGINE = new VectorizedGroupByQueryEngine(BufferPool.heap(1024 * 1024));
 
   public static final QueryRunnerFactoryConglomerate CONGLOMERATE = newConglometator();
 
@@ -226,10 +227,10 @@ public class TestHelper
             .put(
                 TopNQuery.class,
                 new TopNQueryRunnerFactory(
-                    StupidPool.heap(10 * 1024 * 1024),
+                    BufferPool.heap(10 * 1024 * 1024),
                     new TopNQueryQueryToolChest(
                         config.getTopN(),
-                        new TopNQueryEngine(StupidPool.heap(10 * 1024 * 1024))
+                        new TopNQueryEngine(BufferPool.heap(10 * 1024 * 1024))
                     ),
                     NOOP_QUERYWATCHER
                 )
@@ -238,11 +239,11 @@ public class TestHelper
                 GroupByQuery.class,
                 new GroupByQueryRunnerFactory(
                     GBY_ENGINE,
+                    BATCH_ENGINE,
                     new StreamQueryEngine(),
                     NOOP_QUERYWATCHER,
                     config,
-                    new GroupByQueryQueryToolChest(config, GBY_ENGINE, GBY_POOL),
-                    GBY_POOL
+                    new GroupByQueryQueryToolChest(config, GBY_ENGINE, GBY_POOL)
                 )
             )
             .put(
@@ -614,7 +615,7 @@ public class TestHelper
 
   public static TopNQueryEngine testTopNQueryEngine()
   {
-    return new TopNQueryEngine(StupidPool.heap(1024 * 1024));
+    return new TopNQueryEngine(BufferPool.heap(1024 * 1024));
   }
 
   public static List<InputRow> createInputRows(String[] columnNames, Object[]... values)
