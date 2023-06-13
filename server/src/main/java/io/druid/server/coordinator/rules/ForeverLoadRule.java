@@ -43,15 +43,9 @@ public class ForeverLoadRule extends LoadRule.Always
     return new ForeverLoadRule(ImmutableMap.of(DruidServer.DEFAULT_TIER, replicant))
     {
       @Override
-      protected boolean assign(
-          DataSegment segment,
-          LoadQueuePeon peon,
-          String reason,
-          LoadPeonCallback callback,
-          Predicate<DataSegment> predicate
-      )
+      protected boolean assign(DataSegment segment, LoadQueuePeon peon, String reason, LoadPeonCallback callback)
       {
-        return predicate.test(segment) && super.assign(segment, peon, reason, callback, predicate);
+        return predicate.test(segment) && super.assign(segment, peon, reason, callback);
       }
     };
   }

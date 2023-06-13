@@ -35,7 +35,6 @@ import io.druid.client.SingleServerInventoryView;
 import io.druid.collections.String2IntMap;
 import io.druid.common.DateTimes;
 import io.druid.common.config.JacksonConfigManager;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
 import io.druid.curator.discovery.NoopServiceAnnouncer;
@@ -246,7 +245,6 @@ public class DruidCoordinatorTest extends CuratorTestBase
         segment,
         new ServerHolder(druidServer.toImmutableDruidServer(), loadQueuePeon),
         new ServerHolder(druidServer2.toImmutableDruidServer(), loadQueuePeon),
-        null,
         null
     );
     EasyMock.verify(druidServer);

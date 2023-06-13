@@ -51,7 +51,7 @@ public class DruidCoordinatorBalancerTester extends DruidCoordinatorBalancer
       );
       movingSegments.put(segmentName, new BalancerSegmentHolder(fromServer, segment));
       try {
-        toPeon.loadSegment(segment, null);
+        toPeon.loadSegment(segment, (LoadPeonCallback) null);
 
         currentlyMovingSegments.get("normal").put(segmentName, new BalancerSegmentHolder(fromServer, segment));
 

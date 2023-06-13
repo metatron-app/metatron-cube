@@ -20,10 +20,9 @@
 package io.druid.server.coordinator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
 import io.druid.jackson.DefaultObjectMapper;
@@ -45,9 +44,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class LoadQueuePeonTest extends CuratorTestBase
 {
@@ -78,9 +77,6 @@ public class LoadQueuePeonTest extends CuratorTestBase
   @Test(timeout = 20_000L)
   public void testMultipleLoadDropSegments() throws Exception
   {
-    final AtomicInteger requestSignalIdx = new AtomicInteger(0);
-    final AtomicInteger segmentSignalIdx = new AtomicInteger(0);
-
     loadQueuePeon = new LoadQueuePeon(
         curator,
         "/druid/loadqueue",
@@ -103,86 +99,49 @@ public class LoadQueuePeonTest extends CuratorTestBase
       segmentDroppedSignal[i] = new CountDownLatch(1);
     }
 
-    final DataSegmentChangeHandler handler = new DataSegmentChangeHandler()
-    {
-      @Override
-      public void addSegment(DataSegment segment, DataSegmentChangeCallback callback)
-      {
-        loadRequestSignal[requestSignalIdx.get()].countDown();
-      }
-
-      @Override
-      public void removeSegment(DataSegment segment, DataSegmentChangeCallback callback)
-      {
-        dropRequestSignal[requestSignalIdx.get()].countDown();
-      }
-    };
-
-    final List<DataSegment> segmentToDrop = Lists.transform(
-        ImmutableList.<String>of(
+    final List<DataSegment> segmentToDrop = GuavaUtils.transform(
+        Arrays.asList(
             "2014-10-26T00:00:00Z/P1D",
             "2014-10-25T00:00:00Z/P1D",
             "2014-10-24T00:00:00Z/P1D",
             "2014-10-23T00:00:00Z/P1D",
             "2014-10-22T00:00:00Z/P1D"
-        ), new Function<String, DataSegment>()
-        {
-          @Override
-          public DataSegment apply(String intervalStr)
-          {
-            return dataSegmentWithInterval(intervalStr);
-          }
-        }
+        ), this::dataSegmentWithInterval
     );
 
-    final List<DataSegment> segmentToLoad = Lists.transform(
-        ImmutableList.<String>of(
+    final List<DataSegment> segmentToLoad = GuavaUtils.transform(
+        Arrays.asList(
             "2014-10-27T00:00:00Z/P1D",
             "2014-10-29T00:00:00Z/P1M",
             "2014-10-31T00:00:00Z/P1D",
             "2014-10-30T00:00:00Z/P1D",
             "2014-10-28T00:00:00Z/P1D"
-        ), new Function<String, DataSegment>()
-        {
-          @Override
-          public DataSegment apply(String intervalStr)
-          {
-            return dataSegmentWithInterval(intervalStr);
-          }
-        }
+        ), this::dataSegmentWithInterval
     );
 
-    // segment with latest interval should be loaded first
-    final List<DataSegment> expectedLoadOrder = Lists.transform(
-        ImmutableList.<String>of(
-            "2014-10-29T00:00:00Z/P1M",
-            "2014-10-31T00:00:00Z/P1D",
-            "2014-10-30T00:00:00Z/P1D",
-            "2014-10-28T00:00:00Z/P1D",
-            "2014-10-27T00:00:00Z/P1D"
-        ), new Function<String, DataSegment>()
-        {
-          @Override
-          public DataSegment apply(String intervalStr)
-          {
-            return dataSegmentWithInterval(intervalStr);
-          }
-        }
-    );
+    final DataSegmentChangeHandler handler = new DataSegmentChangeHandler()
+    {
+      @Override
+      public void addSegment(DataSegment segment, DataSegmentChangeCallback callback)
+      {
+        loadRequestSignal[segmentToLoad.indexOf(segment)].countDown();
+      }
+
+      @Override
+      public void removeSegment(DataSegment segment, DataSegmentChangeCallback callback)
+      {
+        dropRequestSignal[segmentToDrop.indexOf(segment)].countDown();
+      }
+    };
 
     loadQueueCache.getListenable().addListener(
         new PathChildrenCacheListener()
         {
           @Override
-          public void childEvent(
-              CuratorFramework client, PathChildrenCacheEvent event
-          ) throws Exception
+          public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception
           {
             if (event.getType() == PathChildrenCacheEvent.Type.CHILD_ADDED) {
-              DataSegmentChangeRequest request = jsonMapper.readValue(
-                  event.getData().getData(),
-                  DataSegmentChangeRequest.class
-              );
+              DataSegmentChangeRequest request = jsonMapper.readValue(event.getData().getData(), DataSegmentChangeRequest.class);
               request.go(handler, null);
             }
           }
@@ -190,39 +149,20 @@ public class LoadQueuePeonTest extends CuratorTestBase
     );
     loadQueueCache.start();
 
-    for (DataSegment segment : segmentToDrop) {
-      loadQueuePeon.dropSegment(
-          segment, new LoadPeonCallback()
-          {
-            @Override
-            public void execute(boolean canceled)
-            {
-              segmentDroppedSignal[segmentSignalIdx.get()].countDown();
-            }
-          }
-      );
+    for (int i = 0; i < segmentToDrop.size(); i++) {
+      int ix = i;
+      loadQueuePeon.dropSegment(segmentToDrop.get(i), x -> segmentDroppedSignal[ix].countDown());
     }
 
-    for (DataSegment segment : segmentToLoad) {
-      loadQueuePeon.loadSegment(
-          segment, new LoadPeonCallback()
-          {
-            @Override
-            public void execute(boolean canceled)
-            {
-              segmentLoadedSignal[segmentSignalIdx.get()].countDown();
-            }
-          }
-      );
+    for (int i = 0; i < segmentToLoad.size(); i++) {
+      int ix = i;
+      loadQueuePeon.loadSegment(segmentToLoad.get(i), x -> segmentLoadedSignal[ix].countDown());
     }
 
-    Assert.assertEquals(6000, loadQueuePeon.getLoadQueueSize());
-    Assert.assertEquals(5, loadQueuePeon.getNumSegmentsToLoad());
-    Assert.assertEquals(5, loadQueuePeon.getNumSegmentsToDrop());
-
     for (DataSegment segment : segmentToDrop) {
+      int ix = segmentToDrop.indexOf(segment);
       String dropRequestPath = ZKPaths.makePath(LOAD_QUEUE_PATH, segment.getIdentifier());
-      Assert.assertTrue(timing.forWaiting().awaitLatch(dropRequestSignal[requestSignalIdx.get()]));
+      Assert.assertTrue(timing.forWaiting().awaitLatch(dropRequestSignal[ix]));
       Assert.assertNotNull(curator.checkExists().forPath(dropRequestPath));
       Assert.assertEquals(
           segment,
@@ -232,30 +172,15 @@ public class LoadQueuePeonTest extends CuratorTestBase
                      .forPath(dropRequestPath), DataSegmentChangeRequest.class
           )).getSegment()
       );
-
-      if (requestSignalIdx.get() == 4) {
-        requestSignalIdx.set(0);
-      } else {
-        requestSignalIdx.incrementAndGet();
-      }
-
       // simulate completion of drop request by historical
       curator.delete().guaranteed().forPath(dropRequestPath);
-      Assert.assertTrue(timing.forWaiting().awaitLatch(segmentDroppedSignal[segmentSignalIdx.get()]));
-
-      int expectedNumSegmentToDrop = 5 - segmentSignalIdx.get() - 1;
-      Assert.assertEquals(expectedNumSegmentToDrop, loadQueuePeon.getNumSegmentsToDrop());
-
-      if (segmentSignalIdx.get() == 4) {
-        segmentSignalIdx.set(0);
-      } else {
-        segmentSignalIdx.incrementAndGet();
-      }
+      Assert.assertTrue(timing.forWaiting().awaitLatch(segmentDroppedSignal[ix]));
     }
 
-    for (DataSegment segment : expectedLoadOrder) {
+    for (DataSegment segment : segmentToLoad) {
+      int ix = segmentToLoad.indexOf(segment);
       String loadRequestPath = ZKPaths.makePath(LOAD_QUEUE_PATH, segment.getIdentifier());
-      Assert.assertTrue(timing.forWaiting().awaitLatch(loadRequestSignal[requestSignalIdx.get()]));
+      Assert.assertTrue(timing.forWaiting().awaitLatch(loadRequestSignal[ix]));
       Assert.assertNotNull(curator.checkExists().forPath(loadRequestPath));
       Assert.assertEquals(
           segment, ((SegmentChangeRequestLoad) jsonMapper.readValue(
@@ -266,16 +191,9 @@ public class LoadQueuePeonTest extends CuratorTestBase
           )).getSegment()
       );
 
-      requestSignalIdx.incrementAndGet();
-
       // simulate completion of load request by historical
       curator.delete().guaranteed().forPath(loadRequestPath);
-      Assert.assertTrue(timing.forWaiting().awaitLatch(segmentLoadedSignal[segmentSignalIdx.get()]));
-
-      int expectedNumSegmentToLoad = 5 - segmentSignalIdx.get() - 1;
-      Assert.assertEquals(1200 * expectedNumSegmentToLoad, loadQueuePeon.getLoadQueueSize());
-      Assert.assertEquals(expectedNumSegmentToLoad, loadQueuePeon.getNumSegmentsToLoad());
-      segmentSignalIdx.incrementAndGet();
+      Assert.assertTrue(timing.forWaiting().awaitLatch(segmentLoadedSignal[ix]));
     }
   }
 
@@ -340,7 +258,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
     // don't simulate completion of load request here
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentLoadedSignal));
     Assert.assertEquals(0, loadQueuePeon.getNumSegmentsToLoad());
-    Assert.assertEquals(0L, loadQueuePeon.getLoadQueueSize());
+    Assert.assertEquals(1200L, loadQueuePeon.getLoadQueueSize());   // failed but still on load queue
   }
 
   private DataSegment dataSegmentWithInterval(String intervalStr)

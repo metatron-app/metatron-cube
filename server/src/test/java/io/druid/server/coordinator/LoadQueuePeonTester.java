@@ -34,10 +34,7 @@ public class LoadQueuePeonTester extends LoadQueuePeon
   }
 
   @Override
-  public void loadSegment(
-      DataSegment segment,
-      LoadPeonCallback callback
-  )
+  public void loadSegment(DataSegment segment, LoadPeonCallback callback)
   {
     segmentsToLoad.add(segment);
   }

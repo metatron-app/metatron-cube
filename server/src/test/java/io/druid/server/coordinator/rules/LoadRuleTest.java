@@ -58,7 +58,6 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.Executors;
-import java.util.function.Predicate;
 
 /**
  */
@@ -119,10 +118,9 @@ public class LoadRuleTest
     mockPeon.loadSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject(),
-        EasyMock.<Predicate<DataSegment>>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject()
     );
-    EasyMock.expectLastCall().andReturn(true).atLeastOnce();
+    EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
     EasyMock.expect(mockPeon.getNumSegmentsToLoad()).andReturn(0).atLeastOnce();
     EasyMock.expect(mockPeon.getNumSegmentsToDrop()).andReturn(0).atLeastOnce();
@@ -220,10 +218,9 @@ public class LoadRuleTest
     mockPeon.dropSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject(),
-        EasyMock.<Predicate<DataSegment>>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject()
     );
-    EasyMock.expectLastCall().andReturn(true).atLeastOnce();
+    EasyMock.expectLastCall().atLeastOnce();
     mockPeon.getSegmentsToLoad(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).anyTimes();
@@ -322,10 +319,9 @@ public class LoadRuleTest
     mockPeon.loadSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject(),
-        EasyMock.<Predicate<DataSegment>>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject()
     );
-    EasyMock.expectLastCall().andReturn(true).atLeastOnce();
+    EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
     mockPeon.getSegmentsToLoad(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
@@ -404,10 +400,9 @@ public class LoadRuleTest
     mockPeon.dropSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject(),
-        EasyMock.<Predicate<DataSegment>>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject()
     );
-    EasyMock.expectLastCall().andReturn(true).atLeastOnce();
+    EasyMock.expectLastCall().atLeastOnce();
     mockPeon.getSegmentsToLoad(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).anyTimes();

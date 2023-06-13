@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
@@ -43,7 +42,6 @@ import org.joda.time.Interval;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 
 /**
  * LoadRules indicate the number of replicants a segment should have in a given tier.
@@ -151,7 +149,7 @@ public abstract class LoadRule implements Rule
       }
 
       String reason = String.format("under-replicated(%d/%d)", currReplicantsInTier, expectedReplicantsInTier);
-      if (assign(segment, holder.getPeon(), reason, null, null)) {
+      if (assign(segment, holder.getPeon(), reason, null)) {
         ++assigned;
         ++currReplicantsInTier;
       }
@@ -160,15 +158,10 @@ public abstract class LoadRule implements Rule
     return assigned;
   }
 
-  protected boolean assign(
-      DataSegment segment,
-      LoadQueuePeon peon,
-      String reason,
-      LoadPeonCallback callback,
-      Predicate<DataSegment> predicate
-  )
+  protected boolean assign(DataSegment segment, LoadQueuePeon peon, String reason, LoadPeonCallback callback)
   {
-    return peon.loadSegment(segment, reason, callback, predicate);
+    peon.loadSegment(segment, reason, callback);
+    return true;
   }
 
   private void drop(DataSegment segment, DruidCoordinatorRuntimeParams params, Map<String, Integer> tieredReplicants)
@@ -209,12 +202,9 @@ public abstract class LoadRule implements Rule
     List<ServerHolder> droppedServers = Lists.newArrayList();
     while (!serverQueue.isEmpty() && currentNumReplicantsForTier > expectedNumReplicantsForTier) {
       final ServerHolder holder = Preconditions.checkNotNull(serverQueue.pollLast());
-      if (holder.isServingSegment(segment) && holder.getPeon().dropSegment(
-          segment,
-          StringUtils.safeFormat("over-replicated(%d/%d)", currentNumReplicantsForTier, expectedNumReplicantsForTier),
-          null,
-          null
-      )) {
+      if (holder.isServingSegment(segment)) {
+        String reason = String.format("over-replicated(%d/%d)", currentNumReplicantsForTier, expectedNumReplicantsForTier);
+        holder.getPeon().dropSegment(segment, reason, null);
         --currentNumReplicantsForTier;
         ++dropped;
       }

@@ -25,14 +25,34 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BooleanSupplier;
 
 public class StopWatch
 {
+  public static void wainOn(Object lock, BooleanSupplier condition, long timeout)
+  {
+    new StopWatch(timeout).wainOn(lock, condition);
+  }
+
   private final long timeout;
 
   public StopWatch(long timeout)
   {
     this.timeout = System.currentTimeMillis() + timeout;
+  }
+
+  public void wainOn(Object lock, BooleanSupplier condition)
+  {
+    synchronized (lock) {
+      for (long remaining = remaining(); remaining > 0 && !condition.getAsBoolean(); remaining = remaining()) {
+        try {
+          lock.wait(remaining);
+        }
+        catch (Exception e) {
+          // ignore
+        }
+      }
+    }
   }
 
   public <T> T wainOn(Future<T> future) throws TimeoutException, ExecutionException, InterruptedException

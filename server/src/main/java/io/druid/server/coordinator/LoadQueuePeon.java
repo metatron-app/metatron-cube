@@ -21,7 +21,10 @@ package io.druid.server.coordinator;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.emitter.EmittingLogger;
@@ -29,11 +32,12 @@ import io.druid.server.coordination.DataSegmentChangeRequest;
 import io.druid.server.coordination.SegmentChangeRequestDrop;
 import io.druid.server.coordination.SegmentChangeRequestLoad;
 import io.druid.timeline.DataSegment;
+import io.druid.utils.StopWatch;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorWatcher;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.data.Stat;
 
 import java.util.Iterator;
@@ -48,13 +52,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 /**
  */
 public class LoadQueuePeon
 {
   private static final EmittingLogger log = new EmittingLogger(LoadQueuePeon.class);
+
   private static final int DROP = 0;
   private static final int LOAD = 1;
 
@@ -80,17 +84,13 @@ public class LoadQueuePeon
   private final AtomicLong queuedSize = new AtomicLong(0);
   private final AtomicInteger failedAssignCount = new AtomicInteger(0);
 
-  private final NavigableMap<DataSegment, SegmentHolder> segmentsToLoad = new TreeMap<>(
-      DataSegment.TIME_DESCENDING
-  );
-  private final NavigableMap<DataSegment, SegmentHolder> segmentsToDrop = new TreeMap<>(
-      DataSegment.TIME_DESCENDING
-  );
+  private final NavigableMap<DataSegment, SegmentHolder> segmentsToLoad = new TreeMap<>(DataSegment.TIME_DESCENDING);
+  private final NavigableMap<DataSegment, SegmentHolder> segmentsToDrop = new TreeMap<>(DataSegment.TIME_DESCENDING);
 
   private final Object lock = new Object();
 
-  private SegmentHolder currentlyProcessing = null;
-  private boolean stopped = false;
+  private final Map<DataSegment, SegmentHolder> inProcessing = Maps.newHashMap();
+  private final List<SegmentHolder> failed = Lists.newArrayList();    // jail
 
   LoadQueuePeon(
       CuratorFramework curator,
@@ -131,14 +131,14 @@ public class LoadQueuePeon
   public int getNumSegmentsToLoad()
   {
     synchronized (lock) {
-      return segmentsToLoad.size();
+      return segmentsToLoad.size() + Maps.filterValues(inProcessing, h -> h.type == LOAD).size();
     }
   }
 
   public int getNumSegmentsToDrop()
   {
     synchronized (lock) {
-      return segmentsToDrop.size();
+      return segmentsToDrop.size() + Maps.filterValues(inProcessing, h -> h.type == DROP).size();
     }
   }
 
@@ -146,6 +146,7 @@ public class LoadQueuePeon
   {
     synchronized (lock) {
       segmentsToLoad.keySet().forEach(sink);
+      Maps.filterValues(inProcessing, h -> h.type == LOAD).keySet().forEach(sink);
     }
   }
 
@@ -153,27 +154,30 @@ public class LoadQueuePeon
   {
     synchronized (lock) {
       segmentsToDrop.keySet().forEach(sink);
+      Maps.filterValues(inProcessing, h -> h.type == DROP).keySet().forEach(sink);
     }
   }
+
+  private static final SegmentHolder DUMMY = new SegmentHolder(DataSegment.asKey("dummy"), 99, null, null);
 
   public boolean isLoadingSegment(DataSegment segment)
   {
     synchronized (lock) {
-      return segmentsToLoad.containsKey(segment);
+      return segmentsToLoad.containsKey(segment) || inProcessing.getOrDefault(segment, DUMMY).type == LOAD;
     }
   }
 
   public boolean isDroppingSegment(DataSegment segment)
   {
     synchronized (lock) {
-      return segmentsToDrop.containsKey(segment);
+      return segmentsToDrop.containsKey(segment) || inProcessing.getOrDefault(segment, DUMMY).type == DROP;
     }
   }
 
   public int getNumberOfQueuedSegments()
   {
     synchronized (lock) {
-      return segmentsToDrop.size() + segmentsToLoad.size();
+      return segmentsToDrop.size() + segmentsToLoad.size() + inProcessing.size();
     }
   }
 
@@ -187,212 +191,177 @@ public class LoadQueuePeon
     return failedAssignCount.getAndSet(0);
   }
 
-  public void loadSegment(final DataSegment segment, final LoadPeonCallback callback)
+  @VisibleForTesting
+  void loadSegment(DataSegment segment, LoadPeonCallback callback)
   {
-    loadSegment(segment, "test", callback, null);
+    loadSegment(segment, "test", callback);
   }
 
-  public boolean loadSegment(
-      final DataSegment segment,
-      final String loadReason,
-      final LoadPeonCallback callback,
-      final Predicate<DataSegment> validity
-  )
+  @VisibleForTesting
+  void dropSegment(DataSegment segment, final LoadPeonCallback callback)
   {
-    if (checkInProcessing(segment, segmentsToLoad, callback)) {
-      log.info("Asking server [%s] to load segment[%s] for [%s]", server, segment.getIdentifier(), loadReason);
-      queuedSize.addAndGet(segment.getSize());
-      segmentsToLoad.put(segment, new SegmentHolder(segment, LOAD, callback, validity));
-      doNext();
-      return true;
-    }
-    return false;
+    dropSegment(segment, "test", callback);
   }
 
-  public void dropSegment(final DataSegment segment, final LoadPeonCallback callback)
+  public void loadSegment(DataSegment segment, String reason, LoadPeonCallback callback)
   {
-    dropSegment(segment, "test", callback, null);
+    checkIn(new SegmentHolder(segment, LOAD, reason, callback), segmentsToLoad, false);
   }
 
-  public boolean dropSegment(
-      final DataSegment segment,
-      final String dropReason,
-      final LoadPeonCallback callback,
-      final Predicate<DataSegment> validity
-  )
+  public void dropSegment(DataSegment segment, String reason, LoadPeonCallback callback)
   {
-    if (checkInProcessing(segment, segmentsToDrop, callback)) {
-      log.info("Asking server [%s] to drop segment[%s] for [%s]", server, segment.getIdentifier(), dropReason);
-      segmentsToDrop.put(segment, new SegmentHolder(segment, DROP, callback, validity));
-      doNext();
-      return true;
-    }
-    return false;
+    checkIn(new SegmentHolder(segment, DROP, reason, callback), segmentsToDrop, false);
   }
 
-  private boolean checkInProcessing(
-      final DataSegment segment,
-      final Map<DataSegment, SegmentHolder> queued,
-      final LoadPeonCallback callback
-  )
+  private void checkIn(SegmentHolder holder, Map<DataSegment, SegmentHolder> queue, boolean revive)
   {
+    log.info("Asking server [%s] to [%s] for [%s]", server, holder, holder.reason);
     synchronized (lock) {
-      if (currentlyProcessing != null && segment.equals(currentlyProcessing.getSegment())) {
-        currentlyProcessing.addCallback(callback);
-        return false;
-      }
-      final SegmentHolder existingHolder = queued.get(segment);
-      if (existingHolder != null) {
-        existingHolder.addCallback(callback);
-        return false;
-      }
-      return true;
-    }
-  }
-
-  private void doNext()
-  {
-    synchronized (lock) {
-      if (currentlyProcessing == null) {
-        if (!segmentsToDrop.isEmpty()) {
-          currentlyProcessing = segmentsToDrop.firstEntry().getValue();
-          log.debug("Server[%s] dropping [%s]", server, currentlyProcessing.getSegmentIdentifier());
-        } else if (!segmentsToLoad.isEmpty()) {
-          currentlyProcessing = segmentsToLoad.firstEntry().getValue();
-          log.debug("Server[%s] loading [%s]", server, currentlyProcessing.getSegmentIdentifier());
-        }
-
-        if (currentlyProcessing == null) {
+      for (SegmentHolder running : inProcessing.values()) {
+        if (running.merge(holder)) {
           return;
         }
-
-        processingExecutor.execute(
-            new Runnable()
-            {
-              @Override
-              public void run()
-              {
-                synchronized (lock) {
-                  try {
-                    // expected when the coordinator looses leadership and LoadQueuePeon is stopped.
-                    if (currentlyProcessing == null) {
-                      if(!stopped) {
-                        log.makeAlert("Crazy race condition! server[%s]", server)
-                           .emit();
-                      }
-                      actionCompleted(true);
-                      doNext();
-                      return;
-                    } else if (!currentlyProcessing.isValid()) {
-                      actionCompleted(true);
-                      doNext();
-                      return;
-                    }
-                    log.debug("Server[%s] processing segment[%s]", server, currentlyProcessing);
-
-                    final String path = ZKPaths.makePath(basePath, currentlyProcessing.getSegmentIdentifier());
-                    final byte[] payload = jsonMapper.writeValueAsBytes(currentlyProcessing.getChangeRequest());
-                    curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
-
-                    processingExecutor.schedule(
-                        new Runnable()
-                        {
-                          @Override
-                          public void run()
-                          {
-                            try {
-                              if (curator.checkExists().forPath(path) != null) {
-                                failAssign(new ISE("%s was never removed! Failing this operation!", path));
-                              }
-                            }
-                            catch (Exception e) {
-                              failAssign(e);
-                            }
-                          }
-                        },
-                        config.getLoadTimeoutDelay().getMillis(),
-                        TimeUnit.MILLISECONDS
-                    );
-
-                    final Stat stat = curator.checkExists().usingWatcher(
-                        new CuratorWatcher()
-                        {
-                          @Override
-                          public void process(WatchedEvent watchedEvent) throws Exception
-                          {
-                            switch (watchedEvent.getType()) {
-                              case NodeDeleted:
-                                entryRemoved(watchedEvent.getPath());
-                            }
-                          }
-                        }
-                    ).forPath(path);
-
-                    if (stat == null) {
-
-                      // Create a node and then delete it to remove the registered watcher.  This is a work-around for
-                      // a zookeeper race condition.  Specifically, when you set a watcher, it fires on the next event
-                      // that happens for that node.  If no events happen, the watcher stays registered foreverz.
-                      // Couple that with the fact that you cannot set a watcher when you create a node, but what we
-                      // want is to create a node and then watch for it to get deleted.  The solution is that you *can*
-                      // set a watcher when you check to see if it exists so, we first create the node and then set a
-                      // watcher on its existence.  However, if already does not exist by the time the existence check
-                      // returns, then the watcher that was set will never fire (nobody will ever create the node
-                      // again) and thus lead to a slow, but real, memory leak.  So, we create another node to cause
-                      // that watcher to fire and delete it right away.
-                      //
-                      // We do not create the existence watcher first, because then it will fire when we create the
-                      // node and we'll have the same race when trying to refresh that watcher.
-                      curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, NOOP_PAYLOAD);
-
-                      entryRemoved(path);
-                    }
-                  }
-                  catch (Exception e) {
-                    failAssign(e);
-                  }
-                }
-              }
-            }
-        );
-      } else {
-        log.debug(
-            "Server[%s] skipping doNext() because something is currently loading[%s].", server, currentlyProcessing
-        );
       }
+      final SegmentHolder existing = queue.get(holder.segment);
+      if (existing != null && existing.merge(holder)) {
+        return;
+      }
+      queue.put(holder.segment, holder);  // possibly overwrite
+    }
+    if (!revive && holder.type == LOAD) {
+      queuedSize.addAndGet(holder.getSegmentSize());
+    }
+    execute();
+  }
+
+  private static final int PENDING_THRESHOLD = 16;
+  private static final long WAIT_ON_PENDING = 6000;
+
+  private SegmentHolder work()
+  {
+    if (inProcessing.size() >= PENDING_THRESHOLD) {
+      StopWatch.wainOn(lock, () -> inProcessing.size() < PENDING_THRESHOLD, WAIT_ON_PENDING);
+    }
+    synchronized (lock) {
+      if (!segmentsToDrop.isEmpty()) {
+        SegmentHolder holder = segmentsToDrop.pollFirstEntry().getValue();
+        inProcessing.put(holder.segment, holder);
+        return holder;
+      } else if (!segmentsToLoad.isEmpty()) {
+        SegmentHolder holder = segmentsToLoad.pollFirstEntry().getValue();
+        inProcessing.put(holder.segment, holder);
+        return holder;
+      }
+      return null;
     }
   }
 
-  private void actionCompleted(boolean canceled)
+  private void execute()
   {
-    if (currentlyProcessing != null) {
-      switch (currentlyProcessing.getType()) {
-        case LOAD:
-          segmentsToLoad.remove(currentlyProcessing.getSegment());
-          queuedSize.addAndGet(-currentlyProcessing.getSegmentSize());
-          break;
-        case DROP:
-          segmentsToDrop.remove(currentlyProcessing.getSegment());
-          break;
-        default:
-          throw new UnsupportedOperationException();
-      }
+    // single threaded
+    processingExecutor.execute(
+        () -> {
+          for (SegmentHolder work = work(); work != null; work = work()) {
 
-      final List<LoadPeonCallback> callbacks = currentlyProcessing.getCallbacks();
-      currentlyProcessing = null;
-      if (!callbacks.isEmpty()) {
-        callBackExecutor.execute(() -> executeCallbacks(callbacks, canceled));
+            log.debug("Server[%s] processing [%s]", server, work);
+
+            final SegmentHolder current = work;
+            try {
+              final String path = ZKPaths.makePath(basePath, current.getSegmentIdentifier());
+              final byte[] payload = jsonMapper.writeValueAsBytes(current.toChangeRequest());
+
+              curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
+
+              // register cleanup
+              processingExecutor.schedule(
+                  () -> {
+                    try {
+                      if (curator.checkExists().forPath(path) != null) {
+                        failed(current, new ISE("[%s] is timed-out !", current));
+                      }
+                    }
+                    catch (Exception e) {
+                      failed(current, e);
+                    }
+                  },
+                  config.getLoadTimeoutDelay().getMillis(),
+                  TimeUnit.MILLISECONDS
+              );
+
+              final Stat stat = curator.checkExists().usingWatcher((CuratorWatcher) event -> {
+                if (event.getType() == Watcher.Event.EventType.NodeDeleted) {
+                  success(current, event.getPath());
+                }
+              }).forPath(path);
+
+              if (stat == null) {
+
+                // Create a node and then delete it to remove the registered watcher.  This is a work-around for
+                // a zookeeper race condition.  Specifically, when you set a watcher, it fires on the next event
+                // that happens for that node.  If no events happen, the watcher stays registered foreverz.
+                // Couple that with the fact that you cannot set a watcher when you create a node, but what we
+                // want is to create a node and then watch for it to get deleted.  The solution is that you *can*
+                // set a watcher when you check to see if it exists so, we first create the node and then set a
+                // watcher on its existence.  However, if already does not exist by the time the existence check
+                // returns, then the watcher that was set will never fire (nobody will ever create the node
+                // again) and thus lead to a slow, but real, memory leak.  So, we create another node to cause
+                // that watcher to fire and delete it right away.
+                //
+                // We do not create the existence watcher first, because then it will fire when we create the
+                // node, and we'll have the same race when trying to refresh that watcher.
+                curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, NOOP_PAYLOAD);
+
+                success(current, path);
+              }
+            }
+            catch (Exception e) {
+              failed(current, e);
+            }
+          }
+        }
+    );
+  }
+
+  private void success(SegmentHolder processing, String path)
+  {
+    if (ZKPaths.getNodeFromPath(path).equals(processing.getSegmentIdentifier())) {
+      synchronized (lock) {
+        inProcessing.remove(processing.segment);
+        lock.notifyAll();
       }
+      if (processing.type == LOAD) {
+        queuedSize.addAndGet(-processing.getSegmentSize());
+      }
+      finalize(processing, false);
+      log.debug("Server[%s] done processing [%s]", server, processing);
+    }
+  }
+
+  private void failed(SegmentHolder processing, Exception e)
+  {
+    log.info("Failed to assign [%s] to Server[%s] by [%s]", processing, server, e);
+    failedAssignCount.getAndIncrement();
+    synchronized (lock) {
+      inProcessing.remove(processing.segment);
+      lock.notifyAll();
+    }
+    finalize(processing, true);
+    synchronized (lock) {
+      failed.add(processing);   // wait for revive
+    }
+  }
+
+  private void finalize(SegmentHolder processing, boolean canceled)
+  {
+    final List<LoadPeonCallback> callbacks = processing.getCallbacks();
+    if (!callbacks.isEmpty()) {
+      callBackExecutor.execute(() -> executeCallbacks(callbacks, canceled));
     }
   }
 
   public void stop()
   {
     synchronized (lock) {
-      if (currentlyProcessing != null) {
-        executeCallbacks(currentlyProcessing.getCallbacks(), true);
-        currentlyProcessing = null;
-      }
       for (SegmentHolder holder : segmentsToDrop.values()) {
         executeCallbacks(holder.getCallbacks(), true);
       }
@@ -405,55 +374,28 @@ public class LoadQueuePeon
 
       queuedSize.set(0L);
       failedAssignCount.set(0);
-      stopped = true;
     }
-  }
-
-  private void entryRemoved(String path)
-  {
-    synchronized (lock) {
-      if (currentlyProcessing == null) {
-        log.debug("Server[%s] an entry[%s] was removed even though it wasn't loading!?", server, path);
-        return;
-      }
-      if (!ZKPaths.getNodeFromPath(path).equals(currentlyProcessing.getSegmentIdentifier())) {
-        log.debug(
-            "Server[%s] entry [%s] was removed even though it's not what is currently loading[%s]",
-            server, path, currentlyProcessing
-        );
-        return;
-      }
-      actionCompleted(false);
-      log.debug("Server[%s] done processing [%s]", basePath, path);
-    }
-    doNext();
-  }
-
-  private void failAssign(Exception e)
-  {
-    synchronized (lock) {
-      log.debug(e, "Server[%s], throwable caught when submitting [%s].", server, currentlyProcessing);
-      failedAssignCount.getAndIncrement();
-      // Act like it was completed so that the coordinator gives it to someone else
-      actionCompleted(true);
-    }
-    doNext();
   }
 
   public void tick(final int threshold)
   {
     synchronized (lock) {
-      final Iterator<SegmentHolder> iterator = segmentsToLoad.values().iterator();
+      Iterator<SegmentHolder> iterator = segmentsToLoad.values().iterator();
       while (iterator.hasNext()) {
         final SegmentHolder holder = iterator.next();
-        if (holder != currentlyProcessing && ++holder.tick > threshold) {
+        if (++holder.tick > threshold) {
           iterator.remove();
           queuedSize.addAndGet(-holder.getSegmentSize());
-          List<LoadPeonCallback> callbacks = holder.getCallbacks();
-          if (!callbacks.isEmpty()) {
-            callBackExecutor.execute(() -> executeCallbacks(callbacks, true));
-          }
-          log.debug("Dropped [%s] from load queue of Server[%s]", holder.segment.getIdentifier(), server);
+          finalize(holder, true);
+          log.debug("Dropped [%s] from load queue of Server[%s]", holder.getSegmentIdentifier(), server);
+        }
+      }
+      iterator = failed.iterator();
+      while (iterator.hasNext()) {
+        final SegmentHolder holder = iterator.next();
+        if (holder.revive++ > holder.failure) {
+          checkIn(holder.reset(), holder.type == LOAD ? segmentsToLoad : segmentsToDrop, true);
+          iterator.remove();
         }
       }
     }
@@ -461,35 +403,36 @@ public class LoadQueuePeon
 
   private static class SegmentHolder
   {
+    private static final String[] OP = new String[] {"DROP", "LOAD"};
+
     private final DataSegment segment;
     private final int type;
+    private final String reason;
     private final List<LoadPeonCallback> callbacks = Lists.newLinkedList();
-    private final Predicate<DataSegment> validity;
-    private int tick;
 
-    private SegmentHolder(DataSegment segment, int type, LoadPeonCallback callback, Predicate<DataSegment> validity)
+    private int tick;
+    private int failure;
+    private int revive;
+    private boolean done;
+
+    private SegmentHolder(
+        DataSegment segment,
+        int type,
+        String reason,
+        LoadPeonCallback callback
+    )
     {
       this.segment = segment;
       this.type = type;
+      this.reason = reason;
       if (callback != null) {
         this.callbacks.add(callback);
       }
-      this.validity = validity;
-    }
-
-    public boolean isValid()
-    {
-      return validity == null || validity.test(segment);
     }
 
     public DataSegment getSegment()
     {
       return segment;
-    }
-
-    public int getType()
-    {
-      return type;
     }
 
     public String getSegmentIdentifier()
@@ -502,23 +445,43 @@ public class LoadQueuePeon
       return segment.getSize();
     }
 
-    public void addCallback(LoadPeonCallback newCallback)
-    {
-      if (newCallback != null) {
-        synchronized (callbacks) {
-          callbacks.add(newCallback);
-        }
-      }
-    }
-
     public List<LoadPeonCallback> getCallbacks()
     {
-      synchronized (callbacks) {
+      synchronized (segment) {
+        done = true;
         return callbacks;
       }
     }
 
-    public DataSegmentChangeRequest getChangeRequest()
+    public boolean merge(SegmentHolder other)
+    {
+      if (type != other.type || !segment.equals(other.segment)) {
+        return false;
+      }
+      if (!GuavaUtils.isNullOrEmpty(other.callbacks)) {
+        synchronized (segment) {
+          if (done) {
+            return false;
+          }
+          callbacks.addAll(other.callbacks);
+        }
+      }
+      // merge reason ??
+      tick = Math.min(tick, other.tick);
+      return true;
+    }
+
+    public SegmentHolder reset()
+    {
+      synchronized (segment) {
+        done = false;
+      }
+      failure++;
+      revive = 0;
+      return this;
+    }
+
+    public DataSegmentChangeRequest toChangeRequest()
     {
       return type == LOAD ? new SegmentChangeRequestLoad(segment) : new SegmentChangeRequestDrop(segment);
     }
@@ -526,7 +489,7 @@ public class LoadQueuePeon
     @Override
     public String toString()
     {
-      return segment.getIdentifier();
+      return OP[type] + ":" + segment.getIdentifier();
     }
   }
 }

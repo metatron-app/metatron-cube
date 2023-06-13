@@ -408,8 +408,7 @@ public class DruidCoordinator
       final DataSegment segment,
       final ServerHolder fromServer,
       final ServerHolder toServer,
-      final LoadPeonCallback callback,
-      final Predicate<DataSegment> validity   // load validity
+      final LoadPeonCallback callback
   )
   {
     final String segmentId = segment.getIdentifier();
@@ -429,7 +428,7 @@ public class DruidCoordinator
           LoadPeonCallback.notCanceled(() -> {
             try {
               if (curator.checkExists().forPath(toLoadQueueSegPath) == null) {
-                dropPeon.dropSegment(segment, String.format("balanced to %s", toServer.getName()), callback, null);
+                dropPeon.dropSegment(segment, String.format("balanced to %s", toServer.getName()), callback);
               } else if (callback != null) {
                 callback.execute(false);
               }
@@ -437,8 +436,7 @@ public class DruidCoordinator
             catch (Exception e) {
               throw Throwables.propagate(e);
             }
-          }),
-          validity
+          })
       );
       return true;
     }
@@ -756,7 +754,7 @@ public class DruidCoordinator
     }
   }
 
-  // keep latest only ?
+  // keep the latest only ?
   // seemed possible to disable the segment
   private final Map<DataSegment, Report> reports = Maps.newHashMap();
 
