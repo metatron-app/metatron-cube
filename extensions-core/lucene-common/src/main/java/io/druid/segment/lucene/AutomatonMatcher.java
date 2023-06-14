@@ -180,7 +180,7 @@ public class AutomatonMatcher
     final List<Path<Long>> queue = new ArrayList<>();
     final List<Path<Long>> endNodes = new ArrayList<>();
     if (_automaton.getNumStates() == 0) {
-      return new IntList(0);
+      return IntList.sizeOf(0);
     }
 
     // Automaton start state and FST start node is added to the queue.

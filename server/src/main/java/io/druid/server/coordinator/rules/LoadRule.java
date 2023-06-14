@@ -139,12 +139,14 @@ public abstract class LoadRule implements Rule
 
       final ServerHolder holder = strategy.findNewSegmentHomeReplicator(segment, serverHolderList);
       if (holder == null) {
-        log.warn(
-            "Not enough servers or node capacity in tier [%s] to assign segment[%s]! Expected Replicants[%d]",
-            tier,
-            segment.getIdentifier(),
-            expectedReplicantsInTier
-        );
+        if (Iterables.all(serverHolderList, h -> h.isDecommissioned() || h.getAvailableSize() < segment.getSize())) {
+          log.warn(
+              "Not enough servers or node capacity in tier [%s] to assign segment[%s]! Expected Replicants[%d]",
+              tier,
+              segment.getIdentifier(),
+              expectedReplicantsInTier
+          );
+        }
         break;
       }
 

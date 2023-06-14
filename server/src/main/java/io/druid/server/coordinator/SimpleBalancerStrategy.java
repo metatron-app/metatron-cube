@@ -30,6 +30,7 @@ import io.druid.common.IntTagged;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.java.util.common.guava.Comparators;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.timeline.DataSegment;
@@ -53,17 +54,21 @@ public class SimpleBalancerStrategy implements BalancerStrategy
   private static final Granularity DEFAULT_OFFSET_PERIOD = Granularities.DAY;
   private static final int DEFAULT_INIT_GROUPING = 96;
 
-  private static final float BASELINE_RATIO = 0.96f;
-  private static final float EXCESSIVE_TOLERANCE_RATIO = 0.04f;
+  private static final float DEFAULT_BASELINE_RATIO = 0.96f;
+  private static final float DEFAULT_EXCESSIVE_TOLERANCE_RATIO = 0.04f;
 
   private final Granularity offset;
   private final int initialGrouping;
+  private final float baselineRatio;
+  private final float tolerance;
   private final Random random = new Random();
 
-  public SimpleBalancerStrategy(Period offsetPeriod, Integer initialGrouping)
+  public SimpleBalancerStrategy(Period offsetPeriod, Integer initialGrouping, Float baselineRatio, Float tolerance)
   {
     this.offset = offsetPeriod == null ? DEFAULT_OFFSET_PERIOD : new PeriodGranularity(offsetPeriod, null, null);
     this.initialGrouping = initialGrouping == null || initialGrouping <= 0 ? DEFAULT_INIT_GROUPING : initialGrouping;
+    this.baselineRatio = baselineRatio == null ? DEFAULT_BASELINE_RATIO : Math.max(0.75f, baselineRatio);
+    this.tolerance = tolerance == null ? DEFAULT_EXCESSIVE_TOLERANCE_RATIO : Math.min(0.75f, tolerance);
   }
 
   @Override
@@ -96,7 +101,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
       Iterables.addAll(dataSourceNames, holders[i].getServer().getDataSourceNames());
     }
     final int serverCount = holders.length;
-    final int baseLine = (int) (BASELINE_RATIO * numTotalSegments / serverCount);
+    final int baseLine = (int) (baselineRatio * numTotalSegments / serverCount);
 
     // per DS, incremental
     final int[] totalSegmentsPerDs = new int[serverCount];
@@ -124,9 +129,10 @@ public class SimpleBalancerStrategy implements BalancerStrategy
           }
         }
       }
-      Collections.sort(
-          allSegmentsInDS, Ordering.from(DataSegment.TIME_DESCENDING).onResultOf(IntTagged::value)
-      );
+      if (allSegmentsInDS.isEmpty()) {
+        continue;
+      }
+      Collections.sort(allSegmentsInDS, Ordering.from(DataSegment.TIME_DESCENDING).onResultOf(IntTagged::value));
       Arrays.fill(totalSegmentsPerDs, 0);
 
       final int numSegmentsInDS = allSegmentsInDS.size();
@@ -147,7 +153,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
           totalSegmentsPerDs[pair.tag]++;
         }
         final int deficitThreshold = i / serverCount;   // casting induces `excessive` rather than `deficits`
-        final float excessiveThreshold = deficitThreshold + EXCESSIVE_TOLERANCE_RATIO * i / serverCount;
+        final float excessiveThreshold = deficitThreshold + tolerance * i / serverCount;
         for (int x = 0; x < serverCount; x++) {
           int count = totalSegmentsPerDs[x];
           if (count < deficitThreshold && !holders[x].isDecommissioned()) {
@@ -163,13 +169,19 @@ public class SimpleBalancerStrategy implements BalancerStrategy
         if (excessive.isEmpty()) {
           continue;
         }
-        excessive.shuffle(random);
-        deficit.shuffle(random);
-
         if (deficit.isEmpty()) {
-          int expected = Math.max(1, excessive.size() >> 2);
-          deficit.addAll(serversBelowBaseLine(holders, totalSegments, baseLine, expected));
+          IntStream.range(0, holders.length)
+                   .filter(x -> !holders[x].isDecommissioned())
+                   .filter(x -> totalSegments[x] <= baseLine && totalSegmentsPerDs[x] <= excessiveThreshold)
+                   .limit(Math.max(1, excessive.size() >> 2))
+                   .forEach(deficit);
         }
+        if (deficit.isEmpty()) {
+          continue;
+        }
+
+        deficit.sortOn(totalSegmentsPerDs, Comparators.INT_COMPARATOR_ASC);
+        excessive.sortOn(totalSegmentsPerDs, Comparators.INT_COMPARATOR_DSC);
 
         int remain = deficit.size();
         for (int x = 0; remain > 0 && x < excessive.size() && !params.isStopNow(); x++) {
@@ -202,21 +214,6 @@ public class SimpleBalancerStrategy implements BalancerStrategy
       }
     }
     return balanced;
-  }
-
-  private IntStream serversBelowBaseLine(ServerHolder[] servers, int[] segmentsPerServer, int baseLine, int expected)
-  {
-    final List<int[]> taggedSegmentsPerServer = Lists.newArrayList();
-    for (int i = 0; i < segmentsPerServer.length; i++) {
-      if (!servers[i].isDecommissioned() && segmentsPerServer[i] <= baseLine) {
-        taggedSegmentsPerServer.add(new int[]{i, segmentsPerServer[i]});
-      }
-    }
-    if (taggedSegmentsPerServer.isEmpty()) {
-      return IntStream.empty();
-    }
-    Collections.sort(taggedSegmentsPerServer, (a, b) -> Integer.compare(a[1], b[1]));
-    return taggedSegmentsPerServer.stream().mapToInt(x -> x[0]).limit(expected);
   }
 
   private int chooseSegmentToMove(List<DataSegment> segments, ServerHolder server)

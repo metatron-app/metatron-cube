@@ -29,19 +29,25 @@ public class SimpleBalancerStrategyFactory implements BalancerStrategyFactory
 {
   private final Period offsetPeriod;
   private final Integer initialGrouping;
+  private final Float baselineRatio;
+  private final Float tolerance;
 
   public SimpleBalancerStrategyFactory(
       @JsonProperty("offsetPeriod") Period offsetPeriod,
-      @JsonProperty("initialGrouping") Integer initialGrouping
+      @JsonProperty("initialGrouping") Integer initialGrouping,
+      @JsonProperty("baselineRatio") Float baselineRatio,
+      @JsonProperty("tolerance") Float tolerance
   )
   {
     this.offsetPeriod = offsetPeriod;
     this.initialGrouping = initialGrouping;
+    this.baselineRatio = baselineRatio;
+    this.tolerance = tolerance;
   }
 
   @Override
   public BalancerStrategy createBalancerStrategy(ListeningExecutorService exec)
   {
-    return new SimpleBalancerStrategy(offsetPeriod, initialGrouping);
+    return new SimpleBalancerStrategy(offsetPeriod, initialGrouping, baselineRatio, tolerance);
   }
 }

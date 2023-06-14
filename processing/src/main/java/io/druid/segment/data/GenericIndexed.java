@@ -410,7 +410,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     int vs = 0;
     int ve = values.size();
 
-    final IntList prefix = new IntList(2);
+    final IntList prefix = IntList.sizeOf(2);
 
     T d = get(ds);
     T v = values.get(vs);
@@ -447,7 +447,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return prefix.stream();
     }
 
-    final IntList postfix = new IntList(1);
+    final IntList postfix = IntList.sizeOf(1);
 
     int di = de - 1;
     int vi = ve - 1;
@@ -514,7 +514,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     int vs = 0;
     int ve = values.size();
 
-    final IntList prefix = new IntList(2);
+    final IntList prefix = IntList.sizeOf(2);
 
     BinaryRef d = getAsRef(ds);
     BinaryRef v = values.get(vs);
@@ -551,7 +551,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return prefix.stream();
     }
 
-    final IntList postfix = new IntList(1);
+    final IntList postfix = IntList.sizeOf(1);
 
     int di = de - 1;
     int vi = ve - 1;

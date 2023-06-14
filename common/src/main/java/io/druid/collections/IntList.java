@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.primitives.Ints;
+import it.unimi.dsi.fastutil.ints.IntComparator;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntIterators;
 
@@ -49,13 +50,18 @@ public class IntList implements Iterable<Integer>, IntConsumer
     return ixs;
   }
 
+  public static IntList sizeOf(int size)
+  {
+    return new IntList(size);
+  }
+
   @JsonCreator
   public static IntList of(int... values)
   {
     return new IntList(values);
   }
 
-  private int[] baseArray;
+  private int[] array;
   private int size;
 
   public IntList()
@@ -63,21 +69,21 @@ public class IntList implements Iterable<Integer>, IntConsumer
     this(10);
   }
 
-  public IntList(int init)
+  private IntList(int init)
   {
-    this.baseArray = new int[init];
+    this.array = new int[init];
   }
 
-  public IntList(int... baseArray)
+  private IntList(int... array)
   {
-    this(baseArray, baseArray.length);
+    this(array, array.length);
   }
 
-  public IntList(int[] baseArray, int size)
+  private IntList(int[] array, int size)
   {
-    this.baseArray = baseArray;
+    this.array = array;
     this.size = size;
-    Preconditions.checkArgument(size <= baseArray.length);
+    Preconditions.checkArgument(size <= array.length);
   }
 
   public int size()
@@ -88,27 +94,27 @@ public class IntList implements Iterable<Integer>, IntConsumer
   public void add(int value)
   {
     reserve(1);
-    baseArray[size++] = value;
+    array[size++] = value;
   }
 
   public void addAll(int... values)
   {
     reserve(values.length);
-    System.arraycopy(values, 0, baseArray, size, values.length);
+    System.arraycopy(values, 0, array, size, values.length);
     size += values.length;
   }
 
   public void addAll(int[] values, int offset, int length)
   {
     reserve(length);
-    System.arraycopy(values, offset, baseArray, size, length);
+    System.arraycopy(values, offset, array, size, length);
     size += length;
   }
 
   public void addAll(IntList intList)
   {
     reserve(intList.size);
-    System.arraycopy(intList.baseArray, 0, baseArray, size, intList.size);
+    System.arraycopy(intList.array, 0, array, size, intList.size);
     size += intList.size;
   }
 
@@ -125,8 +131,8 @@ public class IntList implements Iterable<Integer>, IntConsumer
 
   private void reserve(int reserve)
   {
-    if (size + reserve > baseArray.length) {
-      baseArray = Arrays.copyOf(baseArray, Math.max(baseArray.length << 1, baseArray.length + reserve));
+    if (size + reserve > array.length) {
+      array = Arrays.copyOf(array, Math.max(array.length << 1, array.length + reserve));
     }
   }
 
@@ -135,7 +141,7 @@ public class IntList implements Iterable<Integer>, IntConsumer
     if (index >= size) {
       throw new ArrayIndexOutOfBoundsException(index);
     }
-    baseArray[index] = value;
+    array[index] = value;
   }
 
   public int get(int index)
@@ -143,12 +149,12 @@ public class IntList implements Iterable<Integer>, IntConsumer
     if (index >= size) {
       throw new ArrayIndexOutOfBoundsException(index);
     }
-    return baseArray[index];
+    return array[index];
   }
 
   public int indexOf(int value)
   {
-    final int index = Ints.indexOf(baseArray, value);
+    final int index = Ints.indexOf(array, value);
     return index >= size ? -1 : index;
   }
 
@@ -156,7 +162,7 @@ public class IntList implements Iterable<Integer>, IntConsumer
   {
     final int remanining = size - current;
     if (current >= remanining) {
-      System.arraycopy(baseArray, current, baseArray, 0, remanining);
+      System.arraycopy(array, current, array, 0, remanining);
       size = remanining;
       current = 0;
     }
@@ -165,7 +171,7 @@ public class IntList implements Iterable<Integer>, IntConsumer
 
   public IntList sort()
   {
-    Arrays.sort(baseArray, 0, size);
+    Arrays.sort(array, 0, size);
     return this;
   }
 
@@ -185,7 +191,7 @@ public class IntList implements Iterable<Integer>, IntConsumer
       @Override
       public T next()
       {
-        return function.apply(baseArray[x++]);
+        return function.apply(array[x++]);
       }
     };
   }
@@ -193,12 +199,12 @@ public class IntList implements Iterable<Integer>, IntConsumer
   @JsonValue
   public int[] array()
   {
-    return Arrays.copyOfRange(baseArray, 0, size);
+    return Arrays.copyOfRange(array, 0, size);
   }
 
   public int[] unwrap()
   {
-    return baseArray;
+    return array;
   }
 
   public void shuffle()
@@ -214,22 +220,22 @@ public class IntList implements Iterable<Integer>, IntConsumer
     for (int i = size; i > 1; i--) {
       final int from = i - 1;
       final int to = r.nextInt(i);
-      final int x = baseArray[from];
-      baseArray[from] = baseArray[to];
-      baseArray[to] = x;
+      final int x = array[from];
+      array[from] = array[to];
+      array[to] = x;
     }
   }
 
   public IntList concat(IntList other)
   {
     final int length = size + other.size;
-    if (baseArray.length >= length) {
-      System.arraycopy(other.baseArray, 0, baseArray, size, other.size);
+    if (array.length >= length) {
+      System.arraycopy(other.array, 0, array, size, other.size);
       this.size = length;
     } else {
-      final int[] concat = Arrays.copyOf(baseArray, length);
-      System.arraycopy(other.baseArray, 0, concat, size, other.size);
-      this.baseArray = concat;
+      final int[] concat = Arrays.copyOf(array, length);
+      System.arraycopy(other.array, 0, concat, size, other.size);
+      this.array = concat;
       this.size = length;
     }
     return this;
@@ -238,6 +244,25 @@ public class IntList implements Iterable<Integer>, IntConsumer
   public IntStream stream()
   {
     return size == 0 ? IntStream.empty() : IntStream.of(array());
+  }
+
+  public IntList sortOn(IntComparator cp)
+  {
+    it.unimi.dsi.fastutil.Arrays.quickSort(0, size, (x1, x2) -> cp.compare(array[x1], array[x2]), this::swap);
+    return this;
+  }
+
+  public IntList sortOn(int[] v, IntComparator cp)
+  {
+    it.unimi.dsi.fastutil.Arrays.quickSort(0, size, (x1, x2) -> cp.compare(v[array[x1]], v[array[x2]]), this::swap);
+    return this;
+  }
+
+  private void swap(int a, int b)
+  {
+    int t = array[a];
+    array[a] = array[b];
+    array[b] = t;
   }
 
   @Override
@@ -251,9 +276,9 @@ public class IntList implements Iterable<Integer>, IntConsumer
     if (size == 0) {
       return IntIterators.EMPTY_ITERATOR;
     } else if (size == 1) {
-      return IntIterators.singleton(baseArray[0]);
+      return IntIterators.singleton(array[0]);
     }
-    return IntIterators.wrap(baseArray, 0, size);
+    return IntIterators.wrap(array, 0, size);
   }
 
   public boolean isEmpty()
@@ -280,7 +305,7 @@ public class IntList implements Iterable<Integer>, IntConsumer
       return false;
     }
     for (int i = 0; i < size ;i++) {
-      if (baseArray[i] != other.baseArray[i]) {
+      if (array[i] != other.array[i]) {
         return false;
       }
     }

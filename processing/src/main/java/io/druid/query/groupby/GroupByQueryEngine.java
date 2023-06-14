@@ -229,8 +229,8 @@ public class GroupByQueryEngine
       dimensions = new DimensionSelector[dimensionSpecs.size()];
       dimensionTypes = new ValueDesc[dimensions.length];
 
-      IntList svDimensions = new IntList(dimensions.length);
-      IntList mvDimensions = new IntList(dimensions.length);
+      IntList svDimensions = IntList.sizeOf(dimensions.length);
+      IntList mvDimensions = IntList.sizeOf(dimensions.length);
 
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();

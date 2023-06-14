@@ -128,9 +128,9 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
       Map<ServerHolder, List<DataSegment>> segmentsMap = Maps.newHashMap();
       while (iterator.hasNext()) {
         ServerHolder holder = iterator.next();
-        if (holder.getServer().isAssignable()) {
+        if (holder.isDecommissioned() && holder.getServer().isAssignable()) {
           Map<String, DataSegment> segments = holder.getServer().getSegments();
-          if (holder.isDecommissioned() && !segments.isEmpty()) {
+          if (!segments.isEmpty()) {
             segmentsMap.put(holder, Lists.newArrayList(segments.values()));
             iterator.remove();
           }

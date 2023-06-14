@@ -15,6 +15,7 @@
 package io.druid.java.util.common.guava;
 
 import com.google.common.collect.Ordering;
+import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.joda.time.DateTimeComparator;
 import org.joda.time.Interval;
 
@@ -51,6 +52,10 @@ public class Comparators
   {
     return NATURAL_NULLS_FIRST;
   }
+
+  public static final IntComparator INT_COMPARATOR_ASC = Integer::compare;
+
+  public static final IntComparator INT_COMPARATOR_DSC = (i1, i2) -> Integer.compare(i2, i1);
 
   /**
    * This is a "reverse" comparator.  Positive becomes negative, negative becomes positive and 0 (equal) stays the same.

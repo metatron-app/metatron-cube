@@ -194,7 +194,7 @@ public class LoadRuleTest
 
     ListeningExecutorService exec = MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(1));
-    BalancerStrategy balancerStrategy = new SimpleBalancerStrategy(null, null);
+    BalancerStrategy balancerStrategy = new SimpleBalancerStrategy(null, null, null, null);
 //            new CostBalancerStrategyFactory().createBalancerStrategy(exec);
 
     DruidCoordinatorRuntimeParams params =

@@ -172,4 +172,10 @@ public class ServerHolder implements Comparable<ServerHolder>
     result = 31 * result + (peon != null ? peon.hashCode() : 0);
     return result;
   }
+
+  @Override
+  public String toString()
+  {
+    return server.getName();
+  }
 }
