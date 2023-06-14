@@ -20,6 +20,7 @@
 package io.druid.common;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import io.druid.common.guava.Sequence;
 import io.druid.common.guava.Yielder;
@@ -27,11 +28,25 @@ import io.druid.common.guava.YieldingAccumulator;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 
 /**
  */
 public class Yielders
 {
+  public static <T> List<Yielder<T>> prepare(final List<Yielder<T>> yielders)
+  {
+    List<Yielder<T>> prepared = Lists.newArrayList();
+    for (Yielder<T> yielder : yielders) {
+      if (yielder.isDone()) {
+        Yielders.close(yielder);
+      } else {
+        prepared.add(yielder);
+      }
+    }
+    return prepared;
+  }
+
   public static <T> Yielder<T> each(final Sequence<T> sequence)
   {
     return sequence.toYielder(null, new Yielders.Yielding<T>());

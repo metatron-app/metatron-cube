@@ -282,13 +282,21 @@ public class QueryRunners
         }
       };
     }
+
+    Execs.Executor exec = new Execs.Executor(executor, semaphore, priority, watcher.remainingTime(query.getId()))
+    {
+      @Override
+      public <V> List<V> collect(List<ListenableFuture<V>> futures)
+      {
+        return waitForCompletion(query, Futures.allAsList(futures), watcher, () -> semaphore.destroy());
+      }
+    };
+
     return new QueryRunner<T>()
     {
       private <X> List<X> execute(Iterable<Callable<X>> works, Closeable resource)
       {
-        StopWatch watch = new StopWatch(watcher.remainingTime(query.getId()));
-        List<ListenableFuture<X>> futures = Execs.execute(executor, works, semaphore, watch, priority);
-        return waitForCompletion(query, Futures.allAsList(futures), watcher, resource);
+        return waitForCompletion(query, Futures.allAsList(exec.execute(works)), watcher, resource);
       }
 
       @Override
@@ -303,9 +311,10 @@ public class QueryRunners
           );
           sequence = Sequences.mergeSort(columns, ordering, Sequences.simple(sequences));
         } else {
-          sequence = Sequences.mergeSort(columns, ordering, execute(
-              Iterables.transform(runners, runner -> asYielders(runner, query, responseContext, semaphore)), resource
-          ));
+          Iterable<Callable<Yielder<T>>> works = Iterables.transform(
+              runners, runner -> asYielders(runner, query, responseContext, semaphore)
+          );
+          sequence = Sequences.mergeSort(columns, ordering, execute(works, resource));
         }
         return Sequences.withBaggage(sequence, resource);
       }
@@ -481,13 +490,6 @@ public class QueryRunners
       final Execs.Semaphore semaphore
   )
   {
-    return () -> {
-      try {
-        return runner.run(query, responseContext).toYielder(null, new Yielders.Yielding<T>());
-      }
-      finally {
-        semaphore.close();
-      }
-    };
+    return semaphore.wrap(() -> runner.run(query, responseContext).toYielder(null, new Yielders.Yielding<T>()));
   }
 }

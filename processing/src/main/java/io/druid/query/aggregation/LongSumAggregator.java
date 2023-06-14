@@ -124,7 +124,7 @@ public abstract class LongSumAggregator implements Aggregator.FromMutableLong
       }
 
       @Override
-      public void aggregate(IntIterator iterator, long[] vector, Int2IntFunction offset)
+      public void aggregate(IntIterator iterator, long[] vector, Int2IntFunction offset, int size)
       {
         selector.consume(iterator, (i, x) -> vector[offset.applyAsInt(i)] += x);
       }

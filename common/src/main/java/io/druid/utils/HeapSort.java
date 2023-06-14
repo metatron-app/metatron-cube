@@ -24,10 +24,48 @@ package io.druid.utils;
  */
 public class HeapSort
 {
-  /**
-   * Sort the given range of items using heap sort.
-   * {@inheritDoc}
-   */
+  public static void sort(final long[] k, final int p, final int r)
+  {
+    final int N = r - p;
+    // build heap w/ reverse comparator, then write in-place from end
+    final int t = Integer.highestOneBit(N);
+    for (int i = t; i > 1; i >>>= 1) {
+      for (int j = i >>> 1; j < i; ++j) {
+        downHeap(k, p - 1, j, N + 1);
+      }
+    }
+    for (int i = r - 1; i > p; --i) {
+      swap(k, p, i);
+      downHeap(k, p - 1, 1, i - p + 1);
+    }
+  }
+
+  private static void downHeap(final long[] k, final int b, int i, final int N)
+  {
+    for (int idx = i << 1; idx < N; idx = i << 1) {
+      if (idx + 1 < N && k[b + idx] < k[b + idx + 1]) {
+        if (k[b + i] < k[b + idx + 1]) {
+          swap(k, b + i, b + idx + 1);
+        } else {
+          return;
+        }
+        i = idx + 1;
+      } else if (k[b + i] < k[b + idx]) {
+        swap(k, b + i, b + idx);
+        i = idx;
+      } else {
+        return;
+      }
+    }
+  }
+
+  private static void swap(final long[] k, final int a, final int b)
+  {
+    long ka = k[a];
+    k[a] = k[b];
+    k[b] = ka;
+  }
+
   public static void sort(final long[] k, final int[] v, final int p, final int r)
   {
     final int N = r - p;
@@ -66,55 +104,6 @@ public class HeapSort
   private static void swap(final long[] k, final int[] v, final int a, final int b)
   {
     long ka = k[a];
-    k[a] = k[b];
-    k[b] = ka;
-    int va = v[a];
-    v[a] = v[b];
-    v[b] = va;
-  }
-
-  /**
-   * Sort the given range of items using heap sort.
-   * {@inheritDoc}
-   */
-  public static void sort(final int[] k, final int[] v, final int p, final int r)
-  {
-    final int N = r - p;
-    // build heap w/ reverse comparator, then write in-place from end
-    final int t = Integer.highestOneBit(N);
-    for (int i = t; i > 1; i >>>= 1) {
-      for (int j = i >>> 1; j < i; ++j) {
-        downHeap(k, v, p - 1, j, N + 1);
-      }
-    }
-    for (int i = r - 1; i > p; --i) {
-      swap(k, v, p, i);
-      downHeap(k, v, p - 1, 1, i - p + 1);
-    }
-  }
-
-  private static void downHeap(final int[] k, final int[] v, final int b, int i, final int N)
-  {
-    for (int idx = i << 1; idx < N; idx = i << 1) {
-      if (idx + 1 < N && k[b + idx] < k[b + idx + 1]) {
-        if (k[b + i] < k[b + idx + 1]) {
-          swap(k, v, b + i, b + idx + 1);
-        } else {
-          return;
-        }
-        i = idx + 1;
-      } else if (k[b + i] < k[b + idx]) {
-        swap(k, v, b + i, b + idx);
-        i = idx;
-      } else {
-        return;
-      }
-    }
-  }
-
-  private static void swap(final int[] k, final int[] v, final int a, final int b)
-  {
-    int ka = k[a];
     k[a] = k[b];
     k[b] = ka;
     int va = v[a];

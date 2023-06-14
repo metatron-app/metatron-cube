@@ -300,7 +300,7 @@ public class GroupByQueryRunnerFactory
             logger.info("Using normal aggregation.. ratio = [%.2f < %.2f]", ratio, streamThreshold);
           }
         }
-     }
+      }
     }
     if (numSplit > MAX_LOCAL_SPLIT) {
       throw new ISE("Too many splits %,d", numSplit);

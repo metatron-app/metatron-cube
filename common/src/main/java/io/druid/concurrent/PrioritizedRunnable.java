@@ -21,14 +21,23 @@ package io.druid.concurrent;
 
 public interface PrioritizedRunnable extends Runnable
 {
-  int getPriority();
+  default int getPriority() {return 0;}
 
-  abstract class Zero implements PrioritizedRunnable
+  static PrioritizedRunnable wrap(int priority, Runnable runnable)
   {
-    @Override
-    public int getPriority()
+    return new PrioritizedRunnable()
     {
-      return 0;
-    }
+      @Override
+      public int getPriority()
+      {
+        return priority;
+      }
+
+      @Override
+      public void run()
+      {
+        runnable.run();
+      }
+    };
   }
 }

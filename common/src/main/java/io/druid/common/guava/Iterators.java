@@ -29,6 +29,13 @@ import java.util.List;
 
 public class Iterators
 {
+  private static final int BATCH_DEFAULT = 1024;
+
+  public static <T> CloseableIterator<T> batch(Class<T> clazz, Iterator<T> delegate)
+  {
+    return new Batch<>(clazz, BATCH_DEFAULT, delegate);
+  }
+
   public static <T> CloseableIterator<T> batch(Class<T> clazz, int size, Iterator<T> delegate)
   {
     return new Batch<>(clazz, size, delegate);

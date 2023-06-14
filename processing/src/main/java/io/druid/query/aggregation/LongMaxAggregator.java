@@ -85,7 +85,7 @@ public abstract class LongMaxAggregator implements Aggregator.FromMutableLong, A
       }
 
       @Override
-      public void aggregate(IntIterator iterator, MutableLong[] vector, Int2IntFunction offset)
+      public void aggregate(IntIterator iterator, MutableLong[] vector, Int2IntFunction offset, int size)
       {
         selector.consume(iterator, (i, x) -> {
           int ix = offset.applyAsInt(i);

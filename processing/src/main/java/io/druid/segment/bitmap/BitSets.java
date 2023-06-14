@@ -38,6 +38,11 @@ public class BitSets
     return bitIndex & BIT_INDEX_MASK;
   }
 
+  public static long[] makeWords(int numRows)
+  {
+    return new long[wordIndex(numRows - 1) + 1];
+  }
+
   public static <T> Iterable<T> transfrom(BitSet bitset, IntFunction<T> function)
   {
     return () -> IntIterators.transfrom(iterator(bitset), function);

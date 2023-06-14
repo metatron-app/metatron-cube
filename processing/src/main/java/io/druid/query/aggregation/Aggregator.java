@@ -73,7 +73,7 @@ public interface Aggregator<T>
   {
     V init(int length);
 
-    void aggregate(IntIterator iterator, V vector, Int2IntFunction offset);
+    void aggregate(IntIterator iterator, V vector, Int2IntFunction offset, int size);
 
     Object get(V vector, int offset);
   }

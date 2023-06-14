@@ -28,7 +28,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
-import io.druid.concurrent.PrioritizedRunnable;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.groupby.GroupByQuery;
@@ -150,21 +149,14 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
       if (!closed.compareAndSet(false, true)) {
         return;
       }
-      exec.submit(
-          new PrioritizedRunnable.Zero()
-          {
-            @Override
-            public void run()
-            {
-              try {
-                delegate.close();
-              }
-              catch (IOException e) {
-                log.debug(e, "Failed to close merge index..");
-              }
-            }
-          }
-      );
+      exec.submit(() -> {
+        try {
+          delegate.close();
+        }
+        catch (IOException e) {
+          log.debug(e, "Failed to close merge index..");
+        }
+      });
     }
   }
 }

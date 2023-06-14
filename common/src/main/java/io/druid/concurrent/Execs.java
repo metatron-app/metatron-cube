@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.druid.common.Tagged;
 import io.druid.common.guava.DirectExecutorService;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Yielder;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.utils.Runnables;
 import io.druid.utils.StopWatch;
@@ -42,6 +43,7 @@ import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -268,6 +270,78 @@ public class Execs
     };
   }
 
+  public static <V> List<ListenableFuture<V>> execute(
+      ExecutorService executor, Iterable<Callable<V>> works, Semaphore semaphore, int priority
+  )
+  {
+    return new Executor(executor, semaphore, priority, null).execute(works);
+  }
+
+  public static class Executor implements Closeable
+  {
+    private final ExecutorService executor;
+    private final Semaphore semaphore;
+    private final int priority;
+    private final StopWatch watch;
+
+    public Executor(ExecutorService executor, Semaphore semaphore, int priority, Long timeout)
+    {
+      this.executor = executor;
+      this.semaphore = semaphore;
+      this.priority = priority;
+      this.watch = timeout == null ? null : new StopWatch(timeout);
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      semaphore.destroy();
+    }
+
+    public <V> Yielder<V> yield(Yielder<V> yielder)
+    {
+      return yield(Arrays.asList(yielder)).get(0);
+    }
+
+    public <V> List<Yielder<V>> yield(Iterable<Yielder<V>> yielders)
+    {
+      return collect(execute(Iterables.transform(yielders, y -> semaphore.wrap(() -> y.next(null)))));
+    }
+
+    public <V> List<ListenableFuture<V>> execute(Iterable<Callable<V>> works)
+    {
+      final int parallelism = semaphore.availablePermits();
+      Preconditions.checkArgument(parallelism > 0, "Invalid parallelism %d", parallelism);
+      log.debug("Executing with parallelism : %d", parallelism);
+      // must be materialized first
+      final List<WaitingFuture<V>> futures = GuavaUtils.transform(works, WaitingFuture::new);
+      final BlockingQueue<WaitingFuture<V>> queue = new LinkedBlockingQueue<WaitingFuture<V>>(futures);
+      try {
+        for (int i = 0; i < parallelism; i++) {
+          executor.submit(PrioritizedRunnable.wrap(priority, () -> {
+            for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
+              if (!semaphore.acquire(work, watch) || !work.execute()) {
+                log.debug("Something wrong.. aborting");  // can be normal process
+                break;
+              }
+            }
+          }));
+        }
+      }
+      catch (RejectedExecutionException e) {
+        semaphore.destroy();
+        cancelQuietly(Futures.allAsList(futures));
+        throw e;
+      }
+      return GuavaUtils.cast(futures);
+    }
+
+    public <V> List<V> collect(List<ListenableFuture<V>> futures)
+    {
+      throw new UnsupportedOperationException("collect");
+    }
+  }
+
   public static class ExecutorQueue<T> implements Closeable
   {
     private final Semaphore semaphore;
@@ -313,6 +387,18 @@ public class Execs
     {
       log.debug("init parallelism = %d", parallelism);
       this.semaphore = new java.util.concurrent.Semaphore(parallelism);
+    }
+
+    public <V> PrioritizedCallable<V> wrap(Callable<V> callable)
+    {
+      return () -> {
+        try {
+          return callable.call();
+        }
+        finally {
+          semaphore.release();
+        }
+      };
     }
 
     public boolean acquire(WaitingFuture future)
@@ -387,63 +473,6 @@ public class Execs
     );
   }
 
-  public static <V> List<ListenableFuture<V>> execute(
-      final ExecutorService executor,
-      final Iterable<Callable<V>> works,
-      final Semaphore semaphore,
-      final int priority
-  )
-  {
-    return execute(executor, works, semaphore, null, priority);
-  }
-
-  public static <V> List<ListenableFuture<V>> execute(
-      final ExecutorService executor,
-      final Iterable<Callable<V>> works,
-      final Semaphore semaphore,
-      final StopWatch watch,
-      final int priority
-  )
-  {
-    final int parallelism = semaphore.availablePermits();
-    Preconditions.checkArgument(parallelism > 0, "Invalid parallelism %d", parallelism);
-    log.debug("Executing with parallelism : %d", parallelism);
-    // must be materialized first
-    final List<WaitingFuture<V>> futures = GuavaUtils.transform(works, WaitingFuture.<V>toWaiter());
-    final BlockingQueue<WaitingFuture<V>> queue = new LinkedBlockingQueue<WaitingFuture<V>>(futures);
-    try {
-      for (int i = 0; i < parallelism; i++) {
-        executor.submit(
-            new PrioritizedRunnable()
-            {
-              @Override
-              public int getPriority()
-              {
-                return priority;
-              }
-
-              @Override
-              public void run()
-              {
-                for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
-                  if (!semaphore.acquire(work, watch) || !work.execute()) {
-                    log.debug("Something wrong.. aborting");  // can be normal process
-                    break;
-                  }
-                }
-              }
-            }
-        );
-      }
-    }
-    catch (RejectedExecutionException e) {
-      semaphore.destroy();
-      cancelQuietly(Futures.allAsList(futures));
-      throw e;
-    }
-    return GuavaUtils.cast(futures);
-  }
-
   private static class WaitingFuture<V> extends AbstractFuture<V>
   {
     private final Callable<V> callable;
@@ -467,18 +496,6 @@ public class Execs
       super.setException(throwable);
       Throwables.propagate(throwable);
       return false;
-    }
-
-    private static <V> Function<Callable<V>, WaitingFuture<V>> toWaiter()
-    {
-      return new Function<Callable<V>, WaitingFuture<V>>()
-      {
-        @Override
-        public WaitingFuture<V> apply(Callable<V> input)
-        {
-          return new WaitingFuture<V>(input);
-        }
-      };
     }
   }
 

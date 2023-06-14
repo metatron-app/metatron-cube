@@ -386,9 +386,9 @@ public class GuavaUtils
     return Iterables.concat(Iterables.transform(iterable, function));
   }
 
-  public static <T, V> Iterator<V> explode(Iterator<T> iterable, Function<T, Iterator<V>> function)
+  public static <T, V> Iterator<V> explode(Iterator<T> iterator, Function<T, Iterator<V>> function)
   {
-    return Iterators.concat(Iterators.transform(iterable, function));
+    return Iterators.concat(Iterators.transform(iterator, function));
   }
 
   @SuppressWarnings("unchecked")

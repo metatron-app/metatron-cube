@@ -930,7 +930,7 @@ public class Filters
           if (context.factory instanceof RoaringBitmapFactory) {
             final IntIterator it0 = encoded[0].getSingleValueRows();
             final IntIterator it1 = encoded[1].getSingleValueRows();
-            final long[] words = makeWords(numRows);
+            final long[] words = BitSets.makeWords(numRows);
             for (int i = 0; i < words.length; i++) {
               final int offset = i << BitSets.ADDRESS_BITS_PER_WORD;
               final int limit = Math.min(numRows - offset, BitSets.BITS_PER_WORD);
@@ -976,16 +976,6 @@ public class Filters
         return () -> selector.get().asBoolean();
       }
     };
-  }
-
-  private static long[] makeWords(int numRows)
-  {
-    return new long[wordIndex(numRows - 1) + 1];
-  }
-
-  private static int wordIndex(int bitIndex)
-  {
-    return bitIndex >> BitSets.ADDRESS_BITS_PER_WORD;
   }
 
   @SuppressWarnings("unchecked")

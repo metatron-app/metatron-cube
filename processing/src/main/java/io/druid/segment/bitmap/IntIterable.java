@@ -21,6 +21,8 @@ package io.druid.segment.bitmap;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.Cursor;
+import io.druid.segment.ScanContext;
+import io.druid.segment.Scanning;
 import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
@@ -127,7 +129,11 @@ public interface IntIterable
     if (cursor.isDone()) {
       return EMPTY;
     }
-    if (cursor.scanContext().awareTargetRows()) {
+    ScanContext context = cursor.scanContext();
+    if (context.is(Scanning.FULL)) {
+      return () -> null;
+    }
+    if (context.awareTargetRows()) {
       AtomicBoolean first = new AtomicBoolean(true);
       return () -> {
         if (!first.compareAndSet(true, false)) {

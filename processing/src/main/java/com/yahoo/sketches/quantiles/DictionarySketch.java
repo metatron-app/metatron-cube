@@ -36,6 +36,7 @@ import org.roaringbitmap.IntIterator;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.Random;
 
 public class DictionarySketch
 {
@@ -72,6 +73,8 @@ public class DictionarySketch
   private long bitPattern;
   private int min = -1;
   private int max = -1;
+
+  private final Random rand = new Random(0);
 
   private DictionarySketch(int k)
   {
@@ -119,12 +122,12 @@ public class DictionarySketch
     final int destLvl = Util.lowestZeroBitStartingAt(bitPattern, 0);
     final int destPos = offset(destLvl);
 
-    zipSize2KBuffer(sketch, 0, sketch, destPos, K);
+    zipSize2KBuffer(sketch, 0, sketch, destPos, K, rand);
 
     for (int lvl = 0; lvl < destLvl; lvl++) {
       assert (bitPattern & (1L << lvl)) > 0; // internal consistency check
       mergeTwoSizeKBuffers(sketch, offset(lvl), sketch, destPos, sketch, 0, K);
-      zipSize2KBuffer(sketch, 0, sketch, destPos, K);
+      zipSize2KBuffer(sketch, 0, sketch, destPos, K, rand);
     } // end of loop over lower levels
 
     // update bit pattern with binary-arithmetic ripple carry
@@ -164,7 +167,7 @@ public class DictionarySketch
         for (int lvl = srcLvl; lvl < destLvl; lvl++) {
           assert (bitPattern & (1L << lvl)) > 0; // internal consistency check
           mergeTwoSizeKBuffers(sketch, offset(lvl), sketch, destPos, scratch, 0, K); // merge & sort on scratch
-          zipSize2KBuffer(scratch, 0, sketch, destPos, K); // scratch to dest
+          zipSize2KBuffer(scratch, 0, sketch, destPos, K, rand); // scratch to dest
         }
         // update bit pattern with binary-arithmetic ripple carry
         bitPattern += 1L << srcLvl;
@@ -244,11 +247,11 @@ public class DictionarySketch
   private static void zipSize2KBuffer(
       final int[] source, final int srcPos,
       final int[] dest, final int destPos,
-      final int k
+      final int k, final Random r
   )
   {
     final int limit = destPos + k;
-    final int token = ItemsSketch.rand.nextBoolean() ? 1 : 0;
+    final int token = r.nextBoolean() ? 1 : 0;
     for (int a = srcPos + token, c = destPos; c < limit; a += 2, c++) {
       dest[c] = source[a];
     }

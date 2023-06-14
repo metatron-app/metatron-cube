@@ -177,7 +177,7 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
       }
 
       @Override
-      public void aggregate(IntIterator iterator, double[] vector, Int2IntFunction offset)
+      public void aggregate(IntIterator iterator, double[] vector, Int2IntFunction offset, int size)
       {
         selector.consume(iterator, (i, x) -> vector[offset.applyAsInt(i)] += x);
       }
@@ -185,7 +185,7 @@ public abstract class DoubleSumAggregator implements Aggregator.FromMutableDoubl
       @Override
       public Object get(double[] vector, int offset)
       {
-        return new MutableDouble(vector[offset]);
+        return vector[offset];
       }
     };
   }

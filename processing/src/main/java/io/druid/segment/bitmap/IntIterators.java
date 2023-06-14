@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.PrimitiveIterator;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -757,5 +758,10 @@ public final class IntIterators
   {
     IntIterator filtered = IntIterators.except(iterator, skip, size);
     return filtered == null ? IntStream.range(0, size) : stream(iterator);
+  }
+
+  public static IntIterator from(IntIterable iterable, int size)
+  {
+    return Optional.ofNullable(iterable.iterator()).orElseGet(() -> fromTo(0, size));
   }
 }

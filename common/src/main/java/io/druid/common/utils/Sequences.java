@@ -282,15 +282,7 @@ public class Sequences
 
   public static <T> Sequence<T> mergeSort(List<String> columns, Comparator<T> ordering, List<Yielder<T>> yielders)
   {
-    List<Yielder<T>> prepared = Lists.newArrayList();
-    for (Yielder<T> yielder : yielders) {
-      if (yielder.isDone()) {
-        Yielders.close(yielder);
-      } else {
-        prepared.add(yielder);
-      }
-    }
-    return new YielderMergeSequence<T>(columns, ordering, prepared);
+    return new YielderMergeSequence<T>(columns, ordering, Yielders.prepare(yielders));
   }
 
   public static <T> Sequence<T> mergeSort(

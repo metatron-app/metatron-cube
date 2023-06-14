@@ -43,6 +43,7 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.Segment;
 import io.druid.segment.bitmap.IntIterable;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.utils.HeapSort;
 import it.unimi.dsi.fastutil.ints.Int2LongFunction;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
@@ -87,6 +88,7 @@ public class VectorizedGroupByQueryEngine
   @SuppressWarnings("unchecked")
   private Sequence<Row> process(Cursor cursor, GroupByQuery query, QueryConfig config)
   {
+    final int size = cursor.size();
     final List<DimensionSpec> dimensionSpecs = query.getDimensions();
     final Scannable[] dimensions = new Scannable[dimensionSpecs.size()];
     for (int i = 0; i < dimensions.length; i++) {
@@ -103,9 +105,10 @@ public class VectorizedGroupByQueryEngine
     final int[] bits = DictionaryID.bitsRequired(cardinalities);
     final int[] shifts = DictionaryID.bitsToShifts(bits);
     final int[] keyMask = DictionaryID.bitsToMasks(bits);
+    final int bitsNeeded = Arrays.stream(bits).sum();
 
     // apply unsigned long ?
-    Preconditions.checkArgument(Arrays.stream(bits).sum() < Long.SIZE - 1, Arrays.toString(bits));    // todo
+    Preconditions.checkArgument(bitsNeeded < Long.SIZE - 1, Arrays.toString(bits));    // todo
 
     final Long2IntOpenHashMap keyToBatch = new Long2IntOpenHashMap();
     final Object[] aggregations = new Object[aggregators.length];
@@ -116,7 +119,7 @@ public class VectorizedGroupByQueryEngine
 
       final IntBuffer ordering = buffer.asIntBuffer();    // row to batch
       final Int2LongFunction keyMaker = keys(iterable, buffer.asLongBuffer(), dimensions, bits);
-      for (IntIterator iterator = iterable.iterator(); iterator.hasNext(); ) {
+      for (IntIterator iterator = IntIterators.from(iterable, size); iterator.hasNext(); ) {
         final int row = iterator.next();
         final long key = keyMaker.applyAsLong(row);
         ordering.put(row, keyToBatch.computeIfAbsent(key, k -> keyToBatch.size()));
@@ -125,11 +128,53 @@ public class VectorizedGroupByQueryEngine
         aggregations[i] = aggregators[i].init(keyToBatch.size());
       }
       for (int i = 0; i < aggregators.length; i++) {
-        aggregators[i].aggregate(iterable.iterator(), aggregations[i], x -> ordering.get(x));
+        aggregators[i].aggregate(iterable.iterator(), aggregations[i], x -> ordering.get(x), size);
       }
     }
-
     final int limit = keyToBatch.size();
+    final int numColumns = rawAccess.length + aggregators.length + 1;
+    final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
+
+    if (bitsNeeded + DictionaryID.bitsRequired(limit) < Long.SIZE - 1) {
+      final int shift = DictionaryID.bitsRequired(limit);
+      final int mask = DictionaryID.bitToMask(shift);
+      final long[] kv = new long[limit];
+      final ObjectIterator<Long2IntMap.Entry> iterator = keyToBatch.long2IntEntrySet().fastIterator();
+      for (int i = 0; iterator.hasNext(); i++) {
+        Long2IntMap.Entry entry = iterator.next();
+        kv[i] = (entry.getLongKey() << shift) + entry.getIntValue();
+      }
+      Arrays.sort(kv);
+
+      return Sequences.once(Iterators.batch(Row.class, new Iterator<Row>()
+      {
+        private int ix;
+
+        @Override
+        public boolean hasNext()
+        {
+          return ix < limit;
+        }
+
+        @Override
+        public Row next()
+        {
+          final int c = ix++;
+          int i = 0;
+          Object[] row = new Object[numColumns];
+          row[i++] = new MutableLong(timestamp);
+          final long k = kv[c] >> shift;
+          for (int x = 0; x < rawAccess.length; x++) {
+            row[i++] = rawAccess[x].apply(keyMask[x] & (int) (k >> shifts[x]));
+          }
+          for (int x = 0; x < aggregators.length; x++) {
+            row[i++] = aggregators[x].get(aggregations[x], (int) (kv[c] & mask));
+          }
+          return new CompactRow(row);
+        }
+      }));
+    }
+
     final long[] keys = new long[limit];
     final int[] values = new int[limit];
     final ObjectIterator<Long2IntMap.Entry> iterator = keyToBatch.long2IntEntrySet().fastIterator();
@@ -140,10 +185,7 @@ public class VectorizedGroupByQueryEngine
     }
     HeapSort.sort(keys, values, 0, keys.length);
 
-    final int numColumns = rawAccess.length + aggregators.length + 1;
-    final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
-
-    return Sequences.once(Iterators.batch(Row.class, 1024, new Iterator<Row>()
+    return Sequences.once(Iterators.batch(Row.class, new Iterator<Row>()
     {
       private int ix;
 

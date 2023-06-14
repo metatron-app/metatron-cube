@@ -103,10 +103,16 @@ public class CountAggregator implements Aggregator.FromMutableLong, Aggregator.L
       }
 
       @Override
-      public void aggregate(IntIterator iterator, long[] vector, Int2IntFunction offset)
+      public void aggregate(IntIterator iterator, long[] vector, Int2IntFunction offset, int size)
       {
-        while (iterator.hasNext()) {
-          vector[offset.applyAsInt(iterator.next())] += 1;
+        if (iterator == null) {
+          for (int i = 0; i < size; i++) {
+            vector[offset.applyAsInt(i)] += 1;
+          }
+        } else {
+          while (iterator.hasNext()) {
+            vector[offset.applyAsInt(iterator.next())] += 1;
+          }
         }
       }
 

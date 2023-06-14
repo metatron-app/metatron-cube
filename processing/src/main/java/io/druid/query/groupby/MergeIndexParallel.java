@@ -110,9 +110,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
 
     // sort all
     final Comparator<Object[]> cmp = DimensionSpecs.toComparator(groupBy.getDimensions(), groupBy.getGranularity());
-    final long start = System.currentTimeMillis();
     final Object[][] array = sortRows(values, cmp, parallel);
-    LOG.debug("Took %d msec for parallel sorting %,d rows", (System.currentTimeMillis() - start), array.length);
 
     return Sequences.simple(
         groupBy.estimatedInitialColumns(),
@@ -122,12 +120,15 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
 
   private static Object[][] sortRows(Collection<Object[]> values, Comparator<Object[]> cmp, boolean parallel)
   {
+    final long start = System.currentTimeMillis();
     final Object[][] array = values.toArray(new Object[0][]);
     if (parallel) {
       Arrays.parallelSort(array, cmp);
     } else {
       Arrays.sort(array, cmp);
     }
+    long elapsed = System.currentTimeMillis() - start;
+    LOG.debug("Took %d msec for%s sorting %,d rows", elapsed, parallel ? " parallel" : "", array.length);
     return array;
   }
 
