@@ -164,8 +164,7 @@ public class DruidCoordinatorBalancerTest
     coordinator.moveSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<ServerHolder>anyObject()
     );
     EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);
@@ -253,8 +252,7 @@ public class DruidCoordinatorBalancerTest
     coordinator.moveSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<ServerHolder>anyObject()
     );
     EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);
@@ -353,8 +351,7 @@ public class DruidCoordinatorBalancerTest
     coordinator.moveSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<ServerHolder>anyObject()
     );
     EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);

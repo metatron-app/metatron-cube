@@ -25,7 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.java.util.common.ISE;
+import io.druid.concurrent.Execs;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.server.coordination.DataSegmentChangeRequest;
@@ -37,7 +37,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorWatcher;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.data.Stat;
 
 import java.util.Iterator;
@@ -48,7 +48,9 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -64,11 +66,11 @@ public class LoadQueuePeon
 
   private static final byte[] NOOP_PAYLOAD = StringUtils.toUtf8("{\"action\": \"noop\"}");
 
-  private static void executeCallbacks(List<LoadPeonCallback> callbacks, boolean canceled)
+  private static void executeCallbacks(List<LoadPeonCallback> callbacks, boolean success)
   {
     for (LoadPeonCallback callback : callbacks) {
       if (callback != null) {
-        callback.execute(canceled);
+        callback.execute(success);
       }
     }
   }
@@ -82,7 +84,8 @@ public class LoadQueuePeon
   private final DruidCoordinatorConfig config;
 
   private final AtomicLong queuedSize = new AtomicLong(0);
-  private final AtomicInteger failedAssignCount = new AtomicInteger(0);
+  private final AtomicInteger assignSuccessCount = new AtomicInteger(0);
+  private final AtomicInteger assignFailCount = new AtomicInteger(0);
 
   private final NavigableMap<DataSegment, SegmentHolder> segmentsToLoad = new TreeMap<>(DataSegment.TIME_DESCENDING);
   private final NavigableMap<DataSegment, SegmentHolder> segmentsToDrop = new TreeMap<>(DataSegment.TIME_DESCENDING);
@@ -90,7 +93,7 @@ public class LoadQueuePeon
   private final Object lock = new Object();
 
   private final Map<DataSegment, SegmentHolder> inProcessing = Maps.newHashMap();
-  private final List<SegmentHolder> failed = Lists.newArrayList();    // jail
+  private final Map<DataSegment, SegmentHolder> failQueue = Maps.newHashMap();    // jail
 
   LoadQueuePeon(
       CuratorFramework curator,
@@ -186,9 +189,14 @@ public class LoadQueuePeon
     return queuedSize.get();
   }
 
-  public int getAndResetFailedAssignCount()
+  public int getAndResetAssignSuccessCount()
   {
-    return failedAssignCount.getAndSet(0);
+    return assignSuccessCount.getAndSet(0);
+  }
+
+  public int getAndResetAssignFailCount()
+  {
+    return assignFailCount.getAndSet(0);
   }
 
   @VisibleForTesting
@@ -205,42 +213,49 @@ public class LoadQueuePeon
 
   public void loadSegment(DataSegment segment, String reason, LoadPeonCallback callback)
   {
-    checkIn(new SegmentHolder(segment, LOAD, reason, callback), segmentsToLoad, false);
+    checkIn(new SegmentHolder(segment, LOAD, reason, callback));
   }
 
   public void dropSegment(DataSegment segment, String reason, LoadPeonCallback callback)
   {
-    checkIn(new SegmentHolder(segment, DROP, reason, callback), segmentsToDrop, false);
+    checkIn(new SegmentHolder(segment, DROP, reason, callback));
   }
 
-  private void checkIn(SegmentHolder holder, Map<DataSegment, SegmentHolder> queue, boolean revive)
+  private void checkIn(SegmentHolder holder)
   {
     log.info("Asking server [%s] to [%s] for [%s]", server, holder, holder.reason);
+
+    Map<DataSegment, SegmentHolder> queue = holder.type == LOAD ? segmentsToLoad : segmentsToDrop;
     synchronized (lock) {
+      failQueue.remove(holder.segment);   // discard whatever
       for (SegmentHolder running : inProcessing.values()) {
         if (running.merge(holder)) {
           return;
         }
       }
-      final SegmentHolder existing = queue.get(holder.segment);
+      SegmentHolder existing = queue.get(holder.segment);
       if (existing != null && existing.merge(holder)) {
         return;
       }
-      queue.put(holder.segment, holder);  // possibly overwrite
+      existing = queue.put(holder.segment, holder);  // possibly overwrite
+      if (existing != null && existing.type == LOAD) {
+        queuedSize.addAndGet(-existing.getSegmentSize());
+      }
     }
-    if (!revive && holder.type == LOAD) {
+    if (holder.type == LOAD) {
       queuedSize.addAndGet(holder.getSegmentSize());
     }
     execute();
   }
 
   private static final int PENDING_THRESHOLD = 16;
-  private static final long WAIT_ON_PENDING = 6000;
+  private static final long WAIT_ON_PENDING = 10000;
 
   private SegmentHolder work()
   {
-    if (inProcessing.size() >= PENDING_THRESHOLD) {
-      StopWatch.wainOn(lock, () -> inProcessing.size() < PENDING_THRESHOLD, WAIT_ON_PENDING);
+    if (!StopWatch.wainOn(lock, () -> inProcessing.size() < PENDING_THRESHOLD, WAIT_ON_PENDING)) {
+      log.info("Pending [%d] tasks for Server[%s]..", inProcessing.size(), server);
+      return null;
     }
     synchronized (lock) {
       if (!segmentsToDrop.isEmpty()) {
@@ -266,6 +281,7 @@ public class LoadQueuePeon
             log.debug("Server[%s] processing [%s]", server, work);
 
             final SegmentHolder current = work;
+            final int generation = current.generation();
             try {
               final String path = ZKPaths.makePath(basePath, current.getSegmentIdentifier());
               final byte[] payload = jsonMapper.writeValueAsBytes(current.toChangeRequest());
@@ -273,11 +289,11 @@ public class LoadQueuePeon
               curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
 
               // register cleanup
-              processingExecutor.schedule(
+              current.cleanup = processingExecutor.schedule(
                   () -> {
                     try {
-                      if (curator.checkExists().forPath(path) != null) {
-                        failed(current, new ISE("[%s] is timed-out !", current));
+                      if (current.generation() == generation && curator.checkExists().forPath(path) != null) {
+                        failed(current, new TimeoutException("Timed-out!!"));
                       }
                     }
                     catch (Exception e) {
@@ -289,7 +305,7 @@ public class LoadQueuePeon
               );
 
               final Stat stat = curator.checkExists().usingWatcher((CuratorWatcher) event -> {
-                if (event.getType() == Watcher.Event.EventType.NodeDeleted) {
+                if (event.getType() == EventType.NodeDeleted) {
                   success(current, event.getPath());
                 }
               }).forPath(path);
@@ -324,56 +340,53 @@ public class LoadQueuePeon
 
   private void success(SegmentHolder processing, String path)
   {
-    if (ZKPaths.getNodeFromPath(path).equals(processing.getSegmentIdentifier())) {
-      synchronized (lock) {
-        inProcessing.remove(processing.segment);
-        lock.notifyAll();
-      }
-      if (processing.type == LOAD) {
-        queuedSize.addAndGet(-processing.getSegmentSize());
-      }
-      finalize(processing, false);
+    if (!processing.executed() && ZKPaths.getNodeFromPath(path).equals(processing.getSegmentIdentifier())) {
       log.debug("Server[%s] done processing [%s]", server, processing);
+      assignSuccessCount.getAndIncrement();
+      _done(processing, true);
     }
   }
 
   private void failed(SegmentHolder processing, Exception e)
   {
-    log.info("Failed to assign [%s] to Server[%s] by [%s]", processing, server, e);
-    failedAssignCount.getAndIncrement();
+    if (!processing.executed()) {
+      log.info("Failed to assign [%s] to Server[%s] by [%s]", processing, server, e);
+      assignFailCount.getAndIncrement();
+      _done(processing, false);
+      synchronized (failQueue) {
+        failQueue.put(processing.segment, processing);   // wait for revive
+      }
+    }
+  }
+
+  private void _done(SegmentHolder processing, boolean success)
+  {
     synchronized (lock) {
       inProcessing.remove(processing.segment);
       lock.notifyAll();
     }
-    finalize(processing, true);
-    synchronized (lock) {
-      failed.add(processing);   // wait for revive
+    if (processing.type == LOAD) {
+      queuedSize.addAndGet(-processing.getSegmentSize());
     }
-  }
-
-  private void finalize(SegmentHolder processing, boolean canceled)
-  {
-    final List<LoadPeonCallback> callbacks = processing.getCallbacks();
-    if (!callbacks.isEmpty()) {
-      callBackExecutor.execute(() -> executeCallbacks(callbacks, canceled));
-    }
+    processing.finalize(callBackExecutor, success);
   }
 
   public void stop()
   {
     synchronized (lock) {
       for (SegmentHolder holder : segmentsToDrop.values()) {
-        executeCallbacks(holder.getCallbacks(), true);
+        holder.finalize(null, false);
       }
       segmentsToDrop.clear();
 
       for (SegmentHolder holder : segmentsToLoad.values()) {
-        executeCallbacks(holder.getCallbacks(), true);
+        holder.finalize(null, false);
       }
       segmentsToLoad.clear();
 
       queuedSize.set(0L);
-      failedAssignCount.set(0);
+      assignFailCount.set(0);
+      assignSuccessCount.set(0);
     }
   }
 
@@ -385,17 +398,21 @@ public class LoadQueuePeon
         final SegmentHolder holder = iterator.next();
         if (++holder.tick > threshold) {
           iterator.remove();
-          queuedSize.addAndGet(-holder.getSegmentSize());
-          finalize(holder, true);
-          log.debug("Dropped [%s] from load queue of Server[%s]", holder.getSegmentIdentifier(), server);
+          if (holder.type == LOAD) {
+            queuedSize.addAndGet(-holder.getSegmentSize());
+          }
+          holder.finalize(callBackExecutor, false);
+          log.info("Dropped [%s] from load queue of Server[%s]", holder.getSegmentIdentifier(), server);
         }
       }
-      iterator = failed.iterator();
+    }
+    synchronized (failQueue) {
+      Iterator<SegmentHolder> iterator = failQueue.values().iterator();
       while (iterator.hasNext()) {
         final SegmentHolder holder = iterator.next();
-        if (holder.revive++ > holder.failure) {
-          checkIn(holder.reset(), holder.type == LOAD ? segmentsToLoad : segmentsToDrop, true);
+        if (holder.revive++ > holder.generation()) {
           iterator.remove();
+          checkIn(holder.reset());
         }
       }
     }
@@ -411,16 +428,13 @@ public class LoadQueuePeon
     private final List<LoadPeonCallback> callbacks = Lists.newLinkedList();
 
     private int tick;
-    private int failure;
+    private int generation;
     private int revive;
-    private boolean done;
 
-    private SegmentHolder(
-        DataSegment segment,
-        int type,
-        String reason,
-        LoadPeonCallback callback
-    )
+    private boolean executed;
+    private ScheduledFuture<?> cleanup;
+
+    private SegmentHolder(DataSegment segment, int type, String reason, LoadPeonCallback callback)
     {
       this.segment = segment;
       this.type = type;
@@ -445,14 +459,6 @@ public class LoadQueuePeon
       return segment.getSize();
     }
 
-    public List<LoadPeonCallback> getCallbacks()
-    {
-      synchronized (segment) {
-        done = true;
-        return callbacks;
-      }
-    }
-
     public boolean merge(SegmentHolder other)
     {
       if (type != other.type || !segment.equals(other.segment)) {
@@ -460,25 +466,65 @@ public class LoadQueuePeon
       }
       if (!GuavaUtils.isNullOrEmpty(other.callbacks)) {
         synchronized (segment) {
-          if (done) {
+          if (executed) {
             return false;
           }
           callbacks.addAll(other.callbacks);
         }
       }
       // merge reason ??
-      tick = Math.min(tick, other.tick);
+      tick = Math.max(tick, other.tick);
+      generation = Math.max(generation, other.generation);
       return true;
+    }
+
+    private List<LoadPeonCallback> checkoutCallbacks()
+    {
+      synchronized (segment) {
+        executed = true;
+        return callbacks;
+      }
+    }
+
+    private void finalize(ExecutorService executor, boolean success)
+    {
+      final List<LoadPeonCallback> callbacks = checkoutCallbacks();
+      if (!callbacks.isEmpty()) {
+        if (executor != null) {
+          executor.execute(() -> executeCallbacks(callbacks, success));
+        } else {
+          executeCallbacks(callbacks, success);
+        }
+      }
+      if (cleanup != null) {
+        Execs.cancelQuietly(cleanup);
+      }
+      cleanup = null;
     }
 
     public SegmentHolder reset()
     {
       synchronized (segment) {
-        done = false;
+        cleanup = null;
+        executed = false;
+        generation++;
+        revive = 0;
       }
-      failure++;
-      revive = 0;
       return this;
+    }
+
+    public boolean executed()
+    {
+      synchronized (segment) {
+        return executed;
+      }
+    }
+
+    public int generation()
+    {
+      synchronized (segment) {
+        return generation;
+      }
     }
 
     public DataSegmentChangeRequest toChangeRequest()

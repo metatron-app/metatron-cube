@@ -155,7 +155,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
         !toServer.isServingSegment(segment) &&
         toServer.getAvailableSize() > segment.getSize()) {
       log.debug("Moving [%s] from [%s] to [%s]", segment.getIdentifier(), fromServer.getName(), toServer.getName());
-      return coordinator.moveSegment(segment, fromServer, toServer, null);
+      return coordinator.moveSegment(segment, fromServer, toServer);
     }
     return false;
   }

@@ -404,47 +404,25 @@ public class DruidCoordinator
   }
 
   // conditions like availablity, loading state, etc. should be checked before
-  public boolean moveSegment(
-      final DataSegment segment,
-      final ServerHolder fromServer,
-      final ServerHolder toServer,
-      final LoadPeonCallback callback
-  )
+  public boolean moveSegment(DataSegment segment, ServerHolder fromServer, ServerHolder toServer)
   {
-    final String segmentId = segment.getIdentifier();
+    String segmentId = segment.getIdentifier();
     try {
       if (Objects.equals(fromServer.getName(), toServer.getName())) {
         throw new IAE("Cannot move [%s] to and from the same server [%s]", segmentId, fromServer.getName());
       }
-      final LoadQueuePeon loadPeon = toServer.getPeon();
-      final LoadQueuePeon dropPeon = fromServer.getPeon();
-      // served path check here was not valid (always null).. so removed
-      // just regard removed-from-queue means it's served (little racy but would be faster than unload + unannounce)
-      final String toLoadQueueSegPath = ZKPaths.makePath(loadPeon.getBasePath(), segmentId);
+      LoadQueuePeon loadPeon = toServer.getPeon();
+      LoadQueuePeon dropPeon = fromServer.getPeon();
 
       loadPeon.loadSegment(
           segment,
-          String.format("balancing from %s", fromServer.getName()),
-          LoadPeonCallback.notCanceled(() -> {
-            try {
-              if (curator.checkExists().forPath(toLoadQueueSegPath) == null) {
-                dropPeon.dropSegment(segment, String.format("balanced to %s", toServer.getName()), callback);
-              } else if (callback != null) {
-                callback.execute(false);
-              }
-            }
-            catch (Exception e) {
-              throw Throwables.propagate(e);
-            }
-          })
+          fromServer.balancingFrom(),
+          LoadPeonCallback.succeeded(() -> dropPeon.dropSegment(segment, toServer.balancedTo(), null))
       );
       return true;
     }
     catch (Exception e) {
       log.makeAlert(e, "Exception moving segment %s", segmentId).emit();
-      if (callback != null) {
-        callback.execute(true);
-      }
     }
     return false;
   }

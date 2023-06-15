@@ -617,4 +617,9 @@ public class Execs
     }
     return future.get(remain, TimeUnit.MILLISECONDS);
   }
+
+  public static interface Call
+  {
+    void run() throws Exception;
+  }
 }

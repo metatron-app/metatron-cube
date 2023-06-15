@@ -232,16 +232,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
     );
     loadQueueCache.start();
 
-    loadQueuePeon.loadSegment(
-        segment, new LoadPeonCallback()
-        {
-          @Override
-          public void execute(boolean canceled)
-          {
-            segmentLoadedSignal.countDown();
-          }
-        }
-    );
+    loadQueuePeon.loadSegment(segment, success -> segmentLoadedSignal.countDown());
 
     String loadRequestPath = ZKPaths.makePath(LOAD_QUEUE_PATH, segment.getIdentifier());
     Assert.assertTrue(timing.forWaiting().awaitLatch(loadRequestSignal));

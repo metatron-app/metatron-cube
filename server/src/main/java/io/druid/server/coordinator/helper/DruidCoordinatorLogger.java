@@ -229,7 +229,13 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
       emitter.emit(
           new ServiceMetricEvent.Builder()
               .setDimension(DruidMetrics.SERVER, serverName).build(
-              "segment/loadQueue/failed", queuePeon.getAndResetFailedAssignCount()
+              "segment/loadQueue/success", queuePeon.getAndResetAssignSuccessCount()
+          )
+      );
+      emitter.emit(
+          new ServiceMetricEvent.Builder()
+              .setDimension(DruidMetrics.SERVER, serverName).build(
+              "segment/loadQueue/failed", queuePeon.getAndResetAssignFailCount()
           )
       );
       emitter.emit(

@@ -244,8 +244,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
     coordinator.moveSegment(
         segment,
         new ServerHolder(druidServer.toImmutableDruidServer(), loadQueuePeon),
-        new ServerHolder(druidServer2.toImmutableDruidServer(), loadQueuePeon),
-        null
+        new ServerHolder(druidServer2.toImmutableDruidServer(), loadQueuePeon)
     );
     EasyMock.verify(druidServer);
     EasyMock.verify(druidServer2);

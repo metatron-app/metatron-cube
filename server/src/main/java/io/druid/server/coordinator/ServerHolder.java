@@ -24,6 +24,8 @@ import io.druid.client.ImmutableDruidServer;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.timeline.DataSegment;
 
+import java.util.Objects;
+
 /**
  */
 public class ServerHolder implements Comparable<ServerHolder>
@@ -31,11 +33,13 @@ public class ServerHolder implements Comparable<ServerHolder>
   private static final Logger log = new Logger(ServerHolder.class);
   private final ImmutableDruidServer server;
   private final LoadQueuePeon peon;
+  private final String[] balancingReasons;
 
   public ServerHolder(ImmutableDruidServer server, LoadQueuePeon peon)
   {
     this.server = Preconditions.checkNotNull(server);
     this.peon = Preconditions.checkNotNull(peon);
+    this.balancingReasons = new String[] {"balancing from " + server.getName(), "balanced to " + server.getName()};
   }
 
   public ImmutableDruidServer getServer()
@@ -80,7 +84,7 @@ public class ServerHolder implements Comparable<ServerHolder>
 
   public double getPercentUsed()
   {
-    return (100 * getSizeUsed()) / getMaxSize();
+    return 100d * getSizeUsed() / getMaxSize();
   }
 
   public boolean isDecommissioned()
@@ -137,6 +141,16 @@ public class ServerHolder implements Comparable<ServerHolder>
     return peon.isDroppingSegment(segment);
   }
 
+  public String balancingFrom()
+  {
+    return balancingReasons[0];
+  }
+
+  public String balancedTo()
+  {
+    return balancingReasons[1];
+  }
+
   @Override
   public int compareTo(ServerHolder serverHolder)
   {
@@ -153,24 +167,13 @@ public class ServerHolder implements Comparable<ServerHolder>
       return false;
     }
 
-    ServerHolder that = (ServerHolder) o;
-
-    if (peon != null ? !peon.equals(that.peon) : that.peon != null) {
-      return false;
-    }
-    if (server != null ? !server.equals(that.server) : that.server != null) {
-      return false;
-    }
-
-    return true;
+    return Objects.equals(server, ((ServerHolder) o).server);
   }
 
   @Override
   public int hashCode()
   {
-    int result = server != null ? server.hashCode() : 0;
-    result = 31 * result + (peon != null ? peon.hashCode() : 0);
-    return result;
+    return Objects.hashCode(server);
   }
 
   @Override

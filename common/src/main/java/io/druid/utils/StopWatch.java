@@ -29,9 +29,9 @@ import java.util.function.BooleanSupplier;
 
 public class StopWatch
 {
-  public static void wainOn(Object lock, BooleanSupplier condition, long timeout)
+  public static boolean wainOn(Object lock, BooleanSupplier condition, long timeout)
   {
-    new StopWatch(timeout).wainOn(lock, condition);
+    return condition.getAsBoolean() || new StopWatch(timeout).wainOn(lock, condition);
   }
 
   private final long timeout;
@@ -41,7 +41,7 @@ public class StopWatch
     this.timeout = System.currentTimeMillis() + timeout;
   }
 
-  public void wainOn(Object lock, BooleanSupplier condition)
+  public boolean wainOn(Object lock, BooleanSupplier condition)
   {
     synchronized (lock) {
       for (long remaining = remaining(); remaining > 0 && !condition.getAsBoolean(); remaining = remaining()) {
@@ -53,6 +53,7 @@ public class StopWatch
         }
       }
     }
+    return condition.getAsBoolean();
   }
 
   public <T> T wainOn(Future<T> future) throws TimeoutException, ExecutionException, InterruptedException

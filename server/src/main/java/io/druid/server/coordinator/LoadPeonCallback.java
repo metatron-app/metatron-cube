@@ -19,6 +19,9 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.base.Throwables;
+import io.druid.concurrent.Execs;
+
 /**
  */
 public interface LoadPeonCallback
@@ -29,15 +32,20 @@ public interface LoadPeonCallback
    * also be called in failure scenarios so for implementations of LoadPeonCallback that care about success it
    * is important to take extra measures to ensure that whatever side effects they expect to happen upon success
    * have happened. Coordinator will have a complete and correct view of the cluster in the next run period.
-   * @param canceled
+   * @param success
    */
-  void execute(boolean canceled);
+  void execute(boolean success);
 
-  static LoadPeonCallback notCanceled(Runnable runnable)
+  static LoadPeonCallback succeeded(Execs.Call call)
   {
-    return canceled -> {
-      if (!canceled) {
-        runnable.run();
+    return success -> {
+      if (success) {
+        try {
+          call.run();
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
       }
     };
   }
