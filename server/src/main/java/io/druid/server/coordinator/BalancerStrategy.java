@@ -32,7 +32,7 @@ public interface BalancerStrategy
       final DruidCoordinatorRuntimeParams params
   );
 
-  ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders);
+  ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders, int maxLoad);
 
   default void emitStats(String tier, CoordinatorStats stats, List<ServerHolder> serverHolderList) {}
 
@@ -55,7 +55,7 @@ public interface BalancerStrategy
         }
         final DataSegment segment = segmentToMove.getSegment();
         if (balancer.isAvailable(segment)) {
-          final ServerHolder holder = findNewSegmentHomeBalancer(segment, holders);
+          final ServerHolder holder = findNewSegmentHomeBalancer(segment, holders, params.getMaxPendingSegmentsToLoad());
           if (holder != null && balancer.moveSegment(segment, segmentToMove.getServerHolder(), holder)) {
             balanced++;
           }
@@ -66,6 +66,6 @@ public interface BalancerStrategy
 
     public abstract BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders);
 
-    public abstract ServerHolder findNewSegmentHomeBalancer(DataSegment segment, List<ServerHolder> holders);
+    public abstract ServerHolder findNewSegmentHomeBalancer(DataSegment segment, List<ServerHolder> holders, int maxLoad);
   }
 }

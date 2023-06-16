@@ -121,6 +121,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
 
   private void handleDecommissionedServer(DruidCoordinatorRuntimeParams params)
   {
+    final int maxLoad = params.getMaxPendingSegmentsToLoad();
     final BalancerStrategy strategy = params.getBalancerStrategy();
     for (MinMaxPriorityQueue<ServerHolder> servers : params.getDruidCluster().getSortedServersByTier()) {
       List<ServerHolder> holders = Lists.newArrayList(servers);
@@ -139,7 +140,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
       if (!segmentsMap.isEmpty() && !holders.isEmpty()) {
         for (Map.Entry<ServerHolder, List<DataSegment>> entry : segmentsMap.entrySet()) {
           for (DataSegment segment : entry.getValue()) {
-            ServerHolder target = strategy.findNewSegmentHomeReplicator(segment, holders);
+            ServerHolder target = strategy.findNewSegmentHomeReplicator(segment, holders, maxLoad);
             if (target != null) {
               moveSegment(segment, entry.getKey(), target);
             }

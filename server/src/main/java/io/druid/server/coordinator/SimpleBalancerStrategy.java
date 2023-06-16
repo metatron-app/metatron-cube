@@ -233,12 +233,12 @@ public class SimpleBalancerStrategy implements BalancerStrategy
   }
 
   @Override
-  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders)
+  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders, int maxLoad)
   {
     // can be used for bulk loading when server is down or decommisioned.. need to handle that properly
     int minExpectedSegments = -1;
     ServerHolder minServer = null;
-    for (ServerHolder holder : RandomBalancerStrategy.filter(segment, holders, false)) {
+    for (ServerHolder holder : RandomBalancerStrategy.filter(segment, holders, maxLoad, false)) {
       int expectedSegments = holder.getNumExpectedSegments();
       if (minExpectedSegments < 0 || minExpectedSegments > expectedSegments) {
         minExpectedSegments = expectedSegments;

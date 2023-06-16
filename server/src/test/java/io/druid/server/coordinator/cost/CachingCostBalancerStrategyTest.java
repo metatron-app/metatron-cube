@@ -96,8 +96,8 @@ public class CachingCostBalancerStrategyTest
     CostBalancerStrategy costBalancerStrategy = createCostBalancerStrategy(executorService);
     int notEqual = 0;
     for (DataSegment s : segmentQueries) {
-      ServerHolder s1 = cachingCostBalancerStrategy.findNewSegmentHomeBalancer(s, serverHolderList);
-      ServerHolder s2 = costBalancerStrategy.findNewSegmentHomeBalancer(s, serverHolderList);
+      ServerHolder s1 = cachingCostBalancerStrategy.findNewSegmentHomeBalancer(s, serverHolderList, -1);
+      ServerHolder s2 = costBalancerStrategy.findNewSegmentHomeBalancer(s, serverHolderList, -1);
       if (!(s1.getServer().getName().equals(s2.getServer().getName()))) {
         notEqual += 1;
       }

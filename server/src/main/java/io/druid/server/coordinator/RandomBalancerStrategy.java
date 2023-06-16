@@ -23,52 +23,50 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.timeline.DataSegment;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
 public class RandomBalancerStrategy extends BalancerStrategy.Abstract
 {
+  private final Random random = new Random();
   private final ReservoirSegmentSampler sampler = new ReservoirSegmentSampler();
 
   @Override
-  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders)
+  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders, int maxLoad)
   {
-    return chooseRandomServer(segment, holders, false);
+    return choose(filter(segment, holders, maxLoad, false).iterator());
   }
 
   @Override
-  public ServerHolder findNewSegmentHomeBalancer(DataSegment segment, List<ServerHolder> holders)
+  public ServerHolder findNewSegmentHomeBalancer(DataSegment segment, List<ServerHolder> holders, int maxLoad)
   {
-    return chooseRandomServer(segment, holders, true);
+    return choose(filter(segment, holders, maxLoad, true).iterator());
   }
 
-  private final Random random = new Random();
+  private ServerHolder choose(Iterator<ServerHolder> filtered)
+  {
+    if (filtered.hasNext()) {
+      List<ServerHolder> candidates = Lists.newArrayList(filtered);
+      return candidates.get(random.nextInt(candidates.size()));
+    }
+    return null;
+  }
 
-  private ServerHolder chooseRandomServer(
-      DataSegment proposalSegment,
-      List<ServerHolder> serverHolders,
+  static Iterable<ServerHolder> filter(
+      DataSegment segment,
+      List<ServerHolder> holders,
+      int maxLoad,
       boolean includeCurrentServer
   )
   {
-    serverHolders = filter(proposalSegment, serverHolders, includeCurrentServer);
-    return serverHolders.isEmpty() ? null : serverHolders.get(random.nextInt(serverHolders.size()));
-  }
-
-  public static List<ServerHolder> filter(
-      final DataSegment segment,
-      final List<ServerHolder> holders,
-      final boolean includeCurrentServer
-  )
-  {
-    final long segmentSize = segment.getSize();
-    return Lists.newArrayList(
-        Iterables.filter(
-            holders,
-            holder -> !holder.isDecommissioned() &&
-                      !holder.isLoadingSegment(segment) &&
-                      holder.getAvailableSize() > segmentSize &&
-                      (includeCurrentServer || !holder.isServingSegment(segment))
-        )
+    return Iterables.filter(
+        holders,
+        holder -> !holder.isDecommissioned() &&
+                  !holder.isLoadingSegment(segment) &&
+                  (maxLoad < 0 || holder.getNumSegmentsToLoad() < maxLoad) &&
+                  holder.getAvailableSize() >= segment.getSize() &&
+                  (includeCurrentServer || !holder.isServingSegment(segment))
     );
   }
 

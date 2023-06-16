@@ -179,7 +179,7 @@ public class CostBalancerStrategy extends BalancerStrategy.Abstract
   }
 
   @Override
-  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders)
+  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders, int maxLoad)
   {
     ServerHolder holder = chooseBestServer(segment, holders, false).rhs;
     if (holder != null && !holder.isServingSegment(segment)) {
@@ -189,7 +189,11 @@ public class CostBalancerStrategy extends BalancerStrategy.Abstract
   }
 
   @Override
-  public ServerHolder findNewSegmentHomeBalancer(DataSegment segment, List<ServerHolder> holders)
+  public ServerHolder findNewSegmentHomeBalancer(
+      DataSegment segment,
+      List<ServerHolder> holders,
+      int maxLoad
+  )
   {
     return chooseBestServer(segment, holders, true).rhs;
   }

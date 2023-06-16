@@ -78,21 +78,20 @@ public abstract class LoadRule implements Rule
       if (totalReplicantsInTier >= expectedReplicantsInTier) {
         continue;
       }
-      final List<ServerHolder> servers = filterServers(serverQueue, failed, maxLoad);
+      final List<ServerHolder> servers = filterServers(serverQueue, failed);
       if (!failed.isEmpty() && servers.isEmpty()) {
         coordinator.releaseFailedServers(segment);
         continue;
       }
 
       int assigned = assign(
-          coordinator,
           tier,
           segment,
           totalReplicantsInTier,
           expectedReplicantsInTier,
           params.getBalancerStrategy(),
           servers,
-          !failed.isEmpty()
+          maxLoad
       );
       if (assigned > 0) {
         stats.addToTieredStat(assignedCount, tier, assigned);
@@ -107,44 +106,38 @@ public abstract class LoadRule implements Rule
     return totalReplicantsInCluster == 0;
   }
 
-  private List<ServerHolder> filterServers(
-      Iterable<ServerHolder> servers,
-      Set<String> fails,
-      int maxPendingSegmentsToLoad
-  )
+  private List<ServerHolder> filterServers(Iterable<ServerHolder> servers, Set<String> fails)
   {
     if (!fails.isEmpty()) {
       servers = Iterables.filter(servers, server -> !fails.contains(server.getName()));
-    }
-    if (maxPendingSegmentsToLoad > 0) {
-      servers = Iterables.filter(servers, server -> server.getNumSegmentsToLoad() < maxPendingSegmentsToLoad);
     }
     return Lists.newArrayList(servers);
   }
 
   private int assign(
-      final DruidCoordinator coordinator,
       final String tier,
       final DataSegment segment,
       final int totalReplicantsInTier,
       final int expectedReplicantsInTier,
       final BalancerStrategy strategy,
-      final List<ServerHolder> serverHolderList,
-      final boolean failedBefore
+      final List<ServerHolder> servers,
+      final int maxLoad
   )
   {
     int assigned = 0;
     int currReplicantsInTier = totalReplicantsInTier;
     while (currReplicantsInTier < expectedReplicantsInTier) {
 
-      final ServerHolder holder = strategy.findNewSegmentHomeReplicator(segment, serverHolderList);
+      final ServerHolder holder = strategy.findNewSegmentHomeReplicator(segment, servers, maxLoad);
       if (holder == null) {
-        log.warn(
-            "Not enough servers or node capacity in tier [%s] to assign segment[%s]! Expected Replicants[%d]",
-            tier,
-            segment.getIdentifier(),
-            expectedReplicantsInTier
-        );
+        if (Iterables.all(servers, h -> h.isDecommissioned() || h.getAvailableSize() < segment.getSize())) {
+          log.warn(
+              "Not enough servers or node capacity in tier [%s] to assign segment[%s]! Expected Replicants[%d]",
+              tier,
+              segment.getIdentifier(),
+              expectedReplicantsInTier
+          );
+        }
         break;
       }
 
