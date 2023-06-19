@@ -163,9 +163,14 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     }
   }
 
-  public boolean isSegmentCached(final DataSegment segment) throws SegmentLoadingException
+  public void done()
   {
-    return segmentLoader.isSegmentLoaded(segment);
+    segmentLoader.done();
+  }
+
+  public boolean isSegmentLoaded(final DataSegment segment) throws SegmentLoadingException
+  {
+    return segmentLoader.isLoaded(segment);
   }
 
   /**

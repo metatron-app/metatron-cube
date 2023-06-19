@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import io.druid.client.DruidDataSource;
+import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.collections.String2IntMap;
 import io.druid.collections.String2LongMap;
@@ -199,11 +200,16 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
             printedHeader = true;
             log.info("%sLoad Queues:", dumpAll ? "*" : "");
           }
+          StringBuilder b = new StringBuilder();
+          b.append("Server[").append(server.getName()).append(", ").append(server.getType());
+          if (!DruidServer.DEFAULT_TIER.equals(server.getTier())) {
+            b.append(", ").append(server.getTier());
+          }
+          b.append("]");
+
           log.info(
-              "Server[%s, %s, %s] has %,d left to load, %,d left to drop, %s queued, %s served (%,d segments, %.2f%% full).",
-              server.getName(),
-              server.getType(),
-              server.getTier(),
+              "%s has %,d left to load, %,d left to drop, %s queued.. serving %s (%,d segments, %.2f%% full).",
+              b,
               toLoad,
               toDrop,
               io.druid.common.utils.StringUtils.toKMGT(queued),

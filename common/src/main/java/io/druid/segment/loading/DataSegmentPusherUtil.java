@@ -21,7 +21,9 @@ package io.druid.segment.loading;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
+import io.druid.common.Intervals;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.format.ISODateTimeFormat;
@@ -90,5 +92,21 @@ public class DataSegmentPusherUtil
         segment.getVersion().replaceAll(":", "_"),
         segment.getShardSpecWithDefault().getPartitionNum()
     );
+  }
+
+  public static Interval parseInterval(String itv)
+  {
+    final int ix = itv.indexOf('_');
+    try {
+      if (ix > 0) {
+        return Intervals.of(
+            ISODateTimeFormat.dateTime().parseDateTime(itv.substring(0, ix)),
+            ISODateTimeFormat.dateTime().parseDateTime(itv.substring(ix + 1))
+        );
+      }
+    }
+    catch (Throwable t) {
+    }
+    return null;
   }
 }

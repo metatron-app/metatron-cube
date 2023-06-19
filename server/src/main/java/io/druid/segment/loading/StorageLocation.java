@@ -67,6 +67,11 @@ class StorageLocation
     }
   }
 
+  synchronized boolean contains(DataSegment segment)
+  {
+    return segments.contains(segment);
+  }
+
   boolean canHandle(long size)
   {
     return available() >= size;

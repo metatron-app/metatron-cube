@@ -75,7 +75,7 @@ public class DeleteColumnsFactory extends QueryRunnerFactory.Abstract<DDLResult>
       {
         DeleteColumnsQuery delete = (DeleteColumnsQuery) query;
         DataSegment descriptor = segment.getDescriptor();
-        File location = loader.getSegmentLocation(descriptor);
+        File location = loader.getLocation(descriptor);
         try {
           IndexIO.IndexLoader loader = indexIO.getIndexLoader(location);
           File deleted = loader.deleteColumns(location, null, delete.getColumns().toArray(new String[0]));

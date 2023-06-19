@@ -21,6 +21,7 @@ package io.druid.segment.loading;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.ISE;
@@ -30,6 +31,7 @@ import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
+import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -72,7 +74,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   }
 
   @Override
-  public boolean isSegmentLoaded(final DataSegment segment)
+  public boolean isLoaded(final DataSegment segment)
   {
     return findExistingLocation(DataSegmentPusherUtil.getStorageDir(segment)) != null;
   }
@@ -167,7 +169,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   }
 
   @Override
-  public File getSegmentLocation(DataSegment segment)
+  public File getLocation(DataSegment segment)
   {
     final String relativePath = DataSegmentPusherUtil.getStorageDir(segment);
     final StorageLocation location = findExistingLocation(relativePath);
@@ -178,6 +180,60 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
       }
     }
     return null;
+  }
+
+  @Override
+  public void done()
+  {
+    if (!config.isSyncOnStart()) {
+      return;
+    }
+    for (StorageLocation location : locations) {
+      for (File dsp : location.getPath().listFiles()) {
+        if (dsp.isDirectory()) {
+          String ds = dsp.getName();
+          File[] dspc = dsp.listFiles();
+          if (dspc == null || dspc.length == 0) {
+            FileUtils.deleteQuietly(dsp);
+            log.info("Deleted empty path [%s]", ds);
+            continue;
+          }
+          for (File itvp : dspc) {
+            if (itvp.isDirectory()) {
+              Interval interval = DataSegmentPusherUtil.parseInterval(itvp.getName());
+              if (interval != null) {
+                File[] itvpc = itvp.listFiles();
+                if (itvpc == null || itvpc.length == 0) {
+                  FileUtils.deleteQuietly(itvp);
+                  log.info("Deleted empty path [%s/%s]", ds, itvp.getName());
+                  continue;
+                }
+                for (File vp : itvpc) {
+                  if (vp.isDirectory()) {
+                    String version = vp.getName();
+                    File[] vpc = vp.listFiles();
+                    if (vpc == null || vpc.length == 0) {
+                      FileUtils.deleteQuietly(vp);
+                      log.info("Deleted empty path [%s/%s/%s]", ds, itvp.getName(), version);
+                      continue;
+                    }
+                    for (File pp : vpc) {
+                      Integer p = Ints.tryParse(pp.getName());
+                      if (p != null && pp.isDirectory()) {
+                        String identifier = DataSegment.toSegmentId(ds, interval, version, p);
+                        if (!location.contains(DataSegment.asKey(identifier)) && FileUtils.deleteQuietly(pp)) {
+                          log.info("Deleted remains of segment [%s]", identifier);
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   @Override

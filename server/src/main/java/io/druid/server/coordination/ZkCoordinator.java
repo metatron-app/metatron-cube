@@ -37,6 +37,7 @@ import io.druid.segment.loading.SegmentLoaderConfig;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
@@ -48,6 +49,7 @@ import org.apache.curator.utils.ZKPaths;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -307,6 +309,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     long total = 0;
     final List<DataSegment> cachedSegments = Lists.newArrayList();
     final File[] segmentsToLoad = baseDir.listFiles();
+    Arrays.parallelSort(segmentsToLoad, (f1, f2) -> f1.getName().compareTo(f2.getName()));
+
     final int numSegments = segmentsToLoad.length;
     final int logInterval = numSegments < LOG_INTERVAL
                             ? 1 : (int) Math.pow(10, (int) Math.log10(numSegments / (double) LOG_INTERVAL) + 1);
@@ -318,7 +322,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       }
       try {
         DataSegment segment = jsonMapper.readValue(file, DataSegment.class);
-        if (serverManager.isSegmentCached(segment)) {
+        if (serverManager.isSegmentLoaded(segment)) {
           cachedSegments.add(segment);
           total += segment.getSize();
         } else {
@@ -337,19 +341,10 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       }
     }
 
-    final long reading = total;
-    addSegments(
-        cachedSegments,
-        new DataSegmentChangeCallback()
-        {
-          @Override
-          public void execute()
-          {
-            long elapsed = System.currentTimeMillis() - start;
-            log.info("Cache load took %,d ms.. (%,d segments : %,d bytes)", elapsed, cachedSegments.size(), reading);
-          }
-        }
-    );
+    loadCachedSegments(cachedSegments);
+
+    long elapsed = System.currentTimeMillis() - start;
+    log.info("Cache load took %,d ms.. (%,d segments : %,d bytes)", elapsed, cachedSegments.size(), total);
   }
 
   public DataSegmentChangeHandler getDataSegmentChangeHandler()
@@ -358,7 +353,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
   }
 
   /**
-   * Load a single segment. If the segment is loaded successfully, this function simply returns. Otherwise it will
+   * Load a single segment. If the segment is loaded successfully, this function simply returns. Otherwise, it will
    * throw a SegmentLoadingException
    *
    * @throws SegmentLoadingException
@@ -457,15 +452,14 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     }
   }
 
-  private void addSegments(Collection<DataSegment> segments, final DataSegmentChangeCallback callback)
+  private void loadCachedSegments(Collection<DataSegment> segments)
   {
-    ExecutorService loadingExecutor = null;
-    try (final BackgroundSegmentAnnouncer backgroundSegmentAnnouncer =
+    ExecutorService loader = Execs.multiThreaded(config.getNumBootstrapThreads(), "ZkCoordinator-loading-%s");
+
+    try (BackgroundSegmentAnnouncer background =
              new BackgroundSegmentAnnouncer(announcer, exec, config.getAnnounceIntervalMillis())) {
 
-      backgroundSegmentAnnouncer.startAnnouncing();
-
-      loadingExecutor = Execs.multiThreaded(config.getNumBootstrapThreads(), "ZkCoordinator-loading-%s");
+      background.startAnnouncing();
 
       final int numSegments = segments.size();
       final int logInterval = numSegments < LOG_INTERVAL ?
@@ -474,7 +468,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       final AtomicInteger counter = new AtomicInteger(0);
       final CopyOnWriteArrayList<DataSegment> failedSegments = new CopyOnWriteArrayList<>();
       for (final DataSegment segment : segments) {
-        loadingExecutor.submit(
+        loader.submit(
             new Runnable()
             {
               @Override
@@ -485,9 +479,9 @@ public class ZkCoordinator implements DataSegmentChangeHandler
                   if (id == numSegments || id % logInterval == 0) {
                     log.info("Loading segment [%d/%d][%s]", id, numSegments, segment.getIdentifier());
                   }
-                  DataSegment loaded = loadSegment(segment, callback);
+                  DataSegment loaded = loadSegment(segment, () -> {});
                   try {
-                    backgroundSegmentAnnouncer.announceSegment(loaded == null ? segment : loaded);
+                    background.announceSegment(loaded == null ? segment : loaded);
                   }
                   catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -508,18 +502,19 @@ public class ZkCoordinator implements DataSegmentChangeHandler
 
       try {
         latch.await();
-
-        if (failedSegments.size() > 0) {
-          log.makeAlert("%,d errors seen while loading segments", failedSegments.size())
-             .addData("failedSegments", failedSegments);
-        }
       }
       catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         log.makeAlert(e, "LoadingInterrupted");
       }
 
-      backgroundSegmentAnnouncer.finishAnnouncing();
+      if (!failedSegments.isEmpty()) {
+        log.makeAlert("%,d errors seen while loading segments", failedSegments.size())
+           .addData("failedSegments", failedSegments);
+      }
+
+      serverManager.done();
+      background.finishAnnouncing();
     }
     catch (SegmentLoadingException e) {
       log.makeAlert(e, "Failed to load segments -- likely problem with announcing.")
@@ -527,13 +522,9 @@ public class ZkCoordinator implements DataSegmentChangeHandler
          .emit();
     }
     finally {
-      callback.execute();
-      if (loadingExecutor != null) {
-        loadingExecutor.shutdownNow();
-      }
+      loader.shutdownNow();
     }
   }
-
 
   @Override
   public void removeSegment(final DataSegment segment, final DataSegmentChangeCallback callback)
@@ -559,9 +550,9 @@ public class ZkCoordinator implements DataSegmentChangeHandler
                   if (segmentsToDelete.remove(segment)) {
                     serverManager.dropSegment(segment);
 
-                    File segmentInfoCacheFile = new File(config.getInfoDir(), segment.getIdentifier());
-                    if (!segmentInfoCacheFile.delete()) {
-                      log.warn("Unable to delete segmentInfoCacheFile[%s]", segmentInfoCacheFile);
+                    File infoFile = new File(config.getInfoDir(), segment.getIdentifier());
+                    if (infoFile.exists() && !FileUtils.deleteQuietly(infoFile)) {
+                      log.warn("Unable to delete cache entry[%s]", infoFile);
                     }
                   }
                 }

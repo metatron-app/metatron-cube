@@ -115,7 +115,7 @@ public class ServerManagerTest
         new SegmentLoader()
         {
           @Override
-          public boolean isSegmentLoaded(DataSegment segment) throws SegmentLoadingException
+          public boolean isLoaded(DataSegment segment) throws SegmentLoadingException
           {
             return false;
           }
@@ -142,7 +142,7 @@ public class ServerManagerTest
           }
 
           @Override
-          public File getSegmentLocation(DataSegment segment)
+          public File getLocation(DataSegment segment)
           {
             throw new UnsupportedOperationException();
           }

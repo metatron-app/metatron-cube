@@ -33,6 +33,9 @@ public class SegmentLoaderConfig
   @JsonProperty
   private List<StorageLocationConfig> locations = Arrays.asList();
 
+  @JsonProperty("syncOnStart")
+  private boolean syncOnStart = false;
+
   @JsonProperty("deleteOnRemove")
   private boolean deleteOnRemove = true;
 
@@ -57,6 +60,11 @@ public class SegmentLoaderConfig
   public List<StorageLocationConfig> getLocations()
   {
     return locations;
+  }
+
+  public boolean isSyncOnStart()
+  {
+    return syncOnStart;
   }
 
   public boolean isDeleteOnRemove()

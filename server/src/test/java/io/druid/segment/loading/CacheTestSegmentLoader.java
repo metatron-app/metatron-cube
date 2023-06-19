@@ -43,7 +43,7 @@ public class CacheTestSegmentLoader implements SegmentLoader
   private final Set<DataSegment> segmentsInTrash = new HashSet<>();
 
   @Override
-  public boolean isSegmentLoaded(DataSegment segment) throws SegmentLoadingException
+  public boolean isLoaded(DataSegment segment) throws SegmentLoadingException
   {
     Map<String, Object> loadSpec = segment.getLoadSpec();
     return new File(MapUtils.getString(loadSpec, "cacheDir")).exists();
@@ -110,7 +110,7 @@ public class CacheTestSegmentLoader implements SegmentLoader
   }
 
   @Override
-  public File getSegmentLocation(DataSegment segment)
+  public File getLocation(DataSegment segment)
   {
     throw new UnsupportedOperationException();
   }

@@ -28,7 +28,6 @@ import com.google.common.collect.Lists;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.TestHelper;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
@@ -89,10 +88,10 @@ public class SegmentLoaderLocalCacheManagerTest
     );
     cachedSegmentFile.mkdirs();
 
-    Assert.assertTrue("Expect cache hit", manager.isSegmentLoaded(cachedSegment));
+    Assert.assertTrue("Expect cache hit", manager.isLoaded(cachedSegment));
 
     final DataSegment uncachedSegment = dataSegmentWithInterval("2014-10-21T00:00:00Z/P1D");
-    Assert.assertFalse("Expect cache miss", manager.isSegmentLoaded(uncachedSegment));
+    Assert.assertFalse("Expect cache miss", manager.isLoaded(uncachedSegment));
   }
 
   @Test
@@ -121,13 +120,13 @@ public class SegmentLoaderLocalCacheManagerTest
     final File indexZip = new File(localSegmentFile, "index.zip");
     indexZip.createNewFile();
 
-    Assert.assertFalse("Expect cache miss before downloading segment", manager.isSegmentLoaded(segmentToDownload));
+    Assert.assertFalse("Expect cache miss before downloading segment", manager.isLoaded(segmentToDownload));
 
     manager.getSegmentFiles(segmentToDownload);
-    Assert.assertTrue("Expect cache hit after downloading segment", manager.isSegmentLoaded(segmentToDownload));
+    Assert.assertTrue("Expect cache hit after downloading segment", manager.isLoaded(segmentToDownload));
 
     manager.cleanup(segmentToDownload);
-    Assert.assertFalse("Expect cache miss after dropping segment", manager.isSegmentLoaded(segmentToDownload));
+    Assert.assertFalse("Expect cache miss after dropping segment", manager.isLoaded(segmentToDownload));
   }
 
   private DataSegment dataSegmentWithInterval(String intervalStr)
