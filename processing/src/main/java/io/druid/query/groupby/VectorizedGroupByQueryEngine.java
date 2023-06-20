@@ -108,7 +108,7 @@ public class VectorizedGroupByQueryEngine
     final int bitsNeeded = Arrays.stream(bits).sum();
 
     // apply unsigned long ?
-    Preconditions.checkArgument(bitsNeeded < Long.SIZE - 1, Arrays.toString(bits));    // todo
+    Preconditions.checkArgument(bitsNeeded < Long.SIZE, Arrays.toString(bits));    // todo
 
     final Long2IntOpenHashMap keyToBatch = new Long2IntOpenHashMap();
     final Object[] aggregations = new Object[aggregators.length];
@@ -135,7 +135,7 @@ public class VectorizedGroupByQueryEngine
     final int numColumns = rawAccess.length + aggregators.length + 1;
     final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
 
-    if (bitsNeeded + DictionaryID.bitsRequired(limit) < Long.SIZE - 1) {
+    if (bitsNeeded + DictionaryID.bitsRequired(limit) < Long.SIZE) {
       final int shift = DictionaryID.bitsRequired(limit);
       final int mask = DictionaryID.bitToMask(shift);
       final long[] kv = new long[limit];

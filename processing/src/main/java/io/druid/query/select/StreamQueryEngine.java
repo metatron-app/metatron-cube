@@ -47,7 +47,9 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.ScanContext;
 import io.druid.segment.Segment;
+import io.druid.utils.HeapSort;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -101,7 +103,8 @@ public class StreamQueryEngine
       {
         final Cursor cursor = Cursors.explode(source, tableFunction);
 
-        final int size = cursor.size();
+        final ScanContext context = source.scanContext();
+        final int numRows = context.awareTargetRows() ? context.count() : context.numRows();
         final List<String> orderingColumns = Lists.newArrayList(Iterables.transform(orderings, o -> o.getDimension()));
 
         boolean optimizeOrdering = !orderingColumns.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings);
@@ -147,17 +150,17 @@ public class StreamQueryEngine
 
           final int[] cardinalities = Arrays.stream(orders).mapToInt(DimensionSelector::getValueCardinality).toArray();
           final int[] bits = DictionaryID.bitsRequired(cardinalities);
-          if (size > 0 && bits != null) {
+          if (numRows > 0 && bits != null) {
             final int keyBits = Arrays.stream(bits).sum();
-            final int rowBits = DictionaryID.bitsRequired(size);
-            if (rowBits < Integer.SIZE && keyBits + rowBits < Long.SIZE - 1) {
-              final long[] keys = new long[size];
-              final List<Object[]> values = Lists.newArrayList();
+            final int rowBits = DictionaryID.bitsRequired(numRows);
+            if (keyBits + rowBits < Long.SIZE) {
+              final long[] keys = new long[numRows];
+              final Object[][] values = new Object[numRows][selectors.length];
               final LongSupplier supplier = keys(orders, directions, cardinalities, DictionaryID.bitsToShifts(bits));
               int ix = 0;
               for (; !cursor.isDone(); cursor.advance(), ix++) {
                 keys[ix] = (supplier.getAsLong() << rowBits) + ix;
-                values.add(values(selectors));
+                values[ix] = values(selectors);
               }
               Arrays.sort(keys, 0, ix);
 
@@ -176,7 +179,38 @@ public class StreamQueryEngine
                 @Override
                 public Object[] next()
                 {
-                  return values.get((int) keys[index++] & mask);
+                  return values[(int) (keys[index++] & mask)];
+                }
+              });
+              return limit > 0 ? Sequences.limit(sequence, limit) : sequence;
+            } else if (keyBits < Long.SIZE) {
+              final long[] keys = new long[numRows];
+              final int[] rows = new int[numRows];
+              final Object[][] values = new Object[numRows][selectors.length];
+              final LongSupplier supplier = keys(orders, directions, cardinalities, DictionaryID.bitsToShifts(bits));
+              int ix = 0;
+              for (; !cursor.isDone(); cursor.advance(), ix++) {
+                keys[ix] = supplier.getAsLong();
+                rows[ix] = ix;
+                values[ix] = values(selectors);
+              }
+              HeapSort.sort(keys, rows, 0, ix);
+
+              final int valid = ix;
+              final Sequence<Object[]> sequence = Sequences.once(query.getColumns(), new Iterator<Object[]>()
+              {
+                private int index;
+
+                @Override
+                public boolean hasNext()
+                {
+                  return index < valid;
+                }
+
+                @Override
+                public Object[] next()
+                {
+                  return values[rows[index++]];
                 }
               });
               return limit > 0 ? Sequences.limit(sequence, limit) : sequence;
@@ -271,6 +305,11 @@ public class StreamQueryEngine
   private static IntComparator comparator(Direction direction)
   {
     return direction == Direction.ASCENDING ? ((l, r) -> Integer.compare(l, r)) : ((l, r) -> Integer.compare(r, l));
+  }
+
+  private static long flip(long a)
+  {
+    return a ^ Long.MIN_VALUE;
   }
 
   private static LongSupplier keys(DimensionSelector[] selectors, Direction[] directions, int[] cardinalities, int[] shifts)
