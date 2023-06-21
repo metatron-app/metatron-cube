@@ -96,6 +96,7 @@ import org.apache.calcite.rel.rules.UnionMergeRule;
 import org.apache.calcite.rel.rules.UnionPullUpConstantsRule;
 import org.apache.calcite.rel.rules.UnionToDistinctRule;
 import org.apache.calcite.rel.rules.ValuesReduceRule;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.calcite.sql2rel.RelFieldTrimmer;
@@ -106,6 +107,7 @@ import org.apache.calcite.tools.RelBuilder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 
 public class Rules
@@ -268,7 +270,7 @@ public class Rules
     }
     programs.add(hepProgram(
         ProjectMergeRule.INSTANCE, FilterMergeRule.INSTANCE,
-        new ProjectJoinTransposeRule(expr -> Utils.isInputRef(expr), RelFactories.LOGICAL_BUILDER)
+        new ProjectJoinTransposeRule(Rules::pushdown, RelFactories.LOGICAL_BUILDER)
     ));
 
     programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
@@ -277,6 +279,13 @@ public class Rules
 
     Program program = Programs.sequence(programs.toArray(new Program[0]));
     return config.isDumpPlan() ? Dump.wrap(program) : program;
+  }
+
+  private static final EnumSet<SqlKind> ALLOWED =  EnumSet.of(SqlKind.INPUT_REF, SqlKind.OTHER_FUNCTION, SqlKind.LIKE);
+
+  private static boolean pushdown(RexNode rex)
+  {
+    return rex.getKind() == SqlKind.LITERAL || ALLOWED.contains(rex.getKind()) && Utils.isSoleRef(rex);
   }
 
   private static Program hepProgram(RelOptRule... rules)

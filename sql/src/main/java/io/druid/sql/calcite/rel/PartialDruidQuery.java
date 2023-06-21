@@ -95,7 +95,7 @@ public class PartialDruidQuery
       rexNode = RelOptUtil.pushPastProject(rexNode, aggregateProject);
     }
     if (aggregate != null) {
-      int rex = Utils.getInputRef(rexNode);
+      int rex = Utils.soleInputRef(rexNode);
       if (rex < 0 || !aggregate.getGroupSet().get(rex)) {
         return null;
       }
@@ -776,24 +776,24 @@ public class PartialDruidQuery
 
     if (scanProject != null) {
       List<RexNode> rexNodes = scanProject.getChildExps();
-      cost += estimate * (0.0001 + Utils.rexEvalCost(rexNodes));
+      cost += estimate * Utils.rexEvalCost(rexNodes);
       double ratio = tableScan ? PROJECT_BASE : PROJECT_BASE_OUTER;
-      estimate *= ratio + (1 - ratio) * (rexNodes.size() / numColumns + 0.001);
+      estimate *= ratio + (1 - ratio) * (rexNodes.size() / numColumns);
       numColumns = rexNodes.size();
     }
 
     if (aggregate != null) {
       int groupings = aggregate.getGroupSets().size();
-      int cardinality = aggregate.getGroupSet().cardinality();
-      cost += estimate * Utils.aggregationCost(cardinality, aggregate.getAggCallList()) * groupings;
-      estimate *= Utils.aggregationRow(cardinality) * groupings;
-      numColumns += cardinality;
+      int dimensionality = aggregate.getGroupSet().cardinality();
+      cost += estimate * Utils.aggregationCost(dimensionality, aggregate.getAggCallList()) * groupings;
+      estimate *= Utils.aggregationRow(dimensionality) * groupings;
+      numColumns += dimensionality;
     }
 
     if (aggregateProject != null) {
       List<RexNode> rexNodes = aggregateProject.getChildExps();
-      cost += estimate * (0.0001 + Utils.rexEvalCost(rexNodes));
-      estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns + 0.001);
+      cost += estimate * Utils.rexEvalCost(rexNodes);
+      estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns);
       numColumns = rexNodes.size();
     }
 
@@ -819,7 +819,7 @@ public class PartialDruidQuery
     if (sortProject != null) {
       List<RexNode> rexNodes = sortProject.getChildExps();
       cost += estimate * (0.0001 + Utils.rexEvalCost(rexNodes));
-      estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns + 0.001);
+      estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns);
     }
 
     return factory.makeCost(estimate, cost, 0);

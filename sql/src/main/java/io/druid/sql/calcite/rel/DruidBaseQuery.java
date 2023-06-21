@@ -314,7 +314,7 @@ public class DruidBaseQuery implements DruidQuery
         startIx = Integer.MAX_VALUE;
       } else {
         Comparable value = RexLiteral.value(window.getConstants().get(
-            Utils.getInputRef(group.lowerBound.getOffset()) - rowOrdering.size()
+            Utils.soleInputRef(group.lowerBound.getOffset()) - rowOrdering.size()
         ));
         if (value instanceof Number) {
           startIx = ((Number) value).intValue();
@@ -339,7 +339,7 @@ public class DruidBaseQuery implements DruidQuery
         endIx = Integer.MAX_VALUE;
       } else {
         Comparable value = RexLiteral.value(window.getConstants().get(
-            Utils.getInputRef(group.upperBound.getOffset()) - rowOrdering.size()
+            Utils.soleInputRef(group.upperBound.getOffset()) - rowOrdering.size()
         ));
         if (value instanceof Number) {
           endIx = ((Number) value).intValue();

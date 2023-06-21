@@ -56,7 +56,6 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -157,7 +156,7 @@ public class Utils
   {
     final int[] inputRefs = new int[nodes.size()];
     for (int i = 0; i < inputRefs.length; i++) {
-      int ref = getInputRef(nodes.get(i));
+      int ref = soleInputRef(nodes.get(i));
       if (ref < 0) {
         return null;
       }
@@ -166,10 +165,15 @@ public class Utils
     return inputRefs;
   }
 
-  public static int getInputRef(RexNode node)
+  public static int soleInputRef(RexNode node)
   {
     ImmutableBitSet bits = RelOptUtil.InputFinder.bits(node);
     return bits.cardinality() != 1 ? -1 : bits.nextSetBit(0);
+  }
+
+  public static boolean isSoleRef(RexNode node)
+  {
+    return soleInputRef(node) >= 0;
   }
 
   public static String opName(RexNode op)
@@ -443,8 +447,11 @@ public class Utils
   }
 
   private static final double REF_PER_COLUMN = 0.001;
-  private static final double EXPR_PER_COLUMN = 0.01;
+  private static final double LITERAL_PER_COLUMN = 0.00001;
+
+  private static final double CUSTOM_FN_CALL = 0.02;
   private static final double LIKE_PER_COLUMN = 0.05;
+  private static final double EXPR_PER_COLUMN = 0.005;
 
   public static double rexEvalCost(List<RexNode> rexNodes)
   {
@@ -453,17 +460,23 @@ public class Utils
 
   public static double rexEvalCost(RexNode rexNode)
   {
-    if (rexNode instanceof RexCall) {
-      return rexEvalCost(((RexCall) rexNode).getOperands());
-    }
     switch (rexNode.getKind()) {
       case INPUT_REF:
         return REF_PER_COLUMN;
-      case LIKE:
-        return LIKE_PER_COLUMN;
-      default:
-        return EXPR_PER_COLUMN;
+      case LITERAL:
+        return LITERAL_PER_COLUMN;
     }
+    double cost = 0;
+    if (rexNode instanceof RexCall) {
+      cost = rexEvalCost(((RexCall) rexNode).getOperands());
+      switch (rexNode.getKind()) {
+        case OTHER_FUNCTION:
+          return CUSTOM_FN_CALL + cost;   // todo
+        case LIKE:
+          return LIKE_PER_COLUMN + cost;
+      }
+    }
+    return EXPR_PER_COLUMN + cost;
   }
 
   private static final double TIMESERIES = 0.01;
@@ -474,9 +487,9 @@ public class Utils
     return cardinality == 0 ? TIMESERIES : Math.min(1, Math.pow(GROUP_BY_FACTOR, cardinality) - 1);
   }
 
-  public static double aggregationCost(int cardinality, List<AggregateCall> aggregations)
+  public static double aggregationCost(int dimensionality, List<AggregateCall> aggregations)
   {
-    return Math.pow(1.2, cardinality + Utils.aggregationCost(aggregations));
+    return Math.pow(1.2, dimensionality + Utils.aggregationCost(aggregations));
   }
 
   public static double aggregationCost(List<AggregateCall> aggregations)
@@ -494,8 +507,7 @@ public class Utils
       case "any":
         return 0.01;
       case "count":
-        return aggregation.getArgList().isEmpty() ? 0.01 :
-               aggregation.isDistinct() ? 0.5 : 0.06;
+        return aggregation.getArgList().isEmpty() ? 0.01 : 0.03;
       case "min":
       case "max":
       case "sum":
@@ -590,7 +602,6 @@ public class Utils
         return null;
       }
     }
-    RelDataType valueType = null;
     Set<Object> values = Sets.newHashSet();
     for (RexNode rex : node.getOperands()) {
       RexNode op1 = ((RexCall) rex).getOperands().get(0);

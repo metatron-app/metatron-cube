@@ -5709,9 +5709,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 CountAggregatorFactory.of("a0"),
                 GenericSumAggregatorFactory.ofDouble("a1", "m2")
             )
-            .postAggregators(EXPR_POST_AGG("s0", "(a1 / a0)"))
+            .postAggregators(EXPR_POST_AGG("p0", "(a1 / a0)"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("a0")))
-            .outputColumns("s0", "d0", "d1", "a1", "a0")
+            .outputColumns("p0", "d0", "d1", "a1", "a0")
             .build(),
         new Object[]{1.0, "", "a", 1.0},
         new Object[]{4.0, "1", "a", 4.0},

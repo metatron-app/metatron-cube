@@ -130,10 +130,10 @@ public class DruidMetadataProvider
     public RelOptCost getNonCumulativeCost(Aggregate rel, RelMetadataQuery mq)
     {
       int groupings = rel.getGroupSets().size();
-      int cardinality = rel.getGroupSet().cardinality();
+      int dimensionality = rel.getGroupSet().cardinality();
 
       double rc = mq.getRowCount(rel.getInput());
-      double cost = rc * Utils.aggregationCost(cardinality, rel.getAggCallList()) * groupings;
+      double cost = rc * Utils.aggregationCost(dimensionality, rel.getAggCallList()) * groupings;
       return DruidCost.FACTORY.makeCost(0, cost, 0);
     }
   }
