@@ -110,11 +110,13 @@ public class DruidExpression implements Cacheable
   {
     if (n == null) {
       return nullLiteral();
+    } else if (SqlTypeName.FLOAT == typeName) {
+      return n.floatValue() + "F";
+    } else if (SqlTypeName.DOUBLE == typeName) {
+      return n.doubleValue() + "D";
     }
     String v = n instanceof BigDecimal ? ((BigDecimal) n).toPlainString() : n.toString();
-    if (SqlTypeName.FLOAT == typeName) {
-      return v + 'F';
-    } else if (SqlTypeName.DECIMAL == typeName) {
+    if (SqlTypeName.DECIMAL == typeName) {
       return v + 'B';
     }
     return v;

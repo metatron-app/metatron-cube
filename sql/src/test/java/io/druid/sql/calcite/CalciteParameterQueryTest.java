@@ -108,7 +108,7 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .filters(SELECTOR("dim2", null))
             .aggregators(CountAggregatorFactory.of("a0"), GenericSumAggregatorFactory.ofDouble("a1", "m2"))
-            .postAggregators(EXPR_POST_AGG("p0", "(exp(a0) + 10)"))
+            .postAggregators(EXPR_POST_AGG("p0", "(exp(a0) + 10.0D)"))
             .outputColumns("p0", "a1")
             .build(),
         new Object[]{30.085536923187668, 11.0}

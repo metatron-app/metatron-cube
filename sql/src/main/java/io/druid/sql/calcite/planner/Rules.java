@@ -169,11 +169,11 @@ public class Rules
   // RelOptRules.CONSTANT_REDUCTION_RULES
   private static final List<RelOptRule> CONSTANT_REDUCTION_RULES =
       ImmutableList.of(
-          REDUCE_EXPR_PROJECT_INSTANCE,
-          ReduceExpressionsRule.FILTER_INSTANCE,
-          ReduceExpressionsRule.CALC_INSTANCE,
-          ReduceExpressionsRule.WINDOW_INSTANCE,
-          ReduceExpressionsRule.JOIN_INSTANCE,
+//          REDUCE_EXPR_PROJECT_INSTANCE,
+//          ReduceExpressionsRule.FILTER_INSTANCE,
+//          ReduceExpressionsRule.CALC_INSTANCE,
+//          ReduceExpressionsRule.WINDOW_INSTANCE,
+//          ReduceExpressionsRule.JOIN_INSTANCE,
           ValuesReduceRule.FILTER_INSTANCE,
           ValuesReduceRule.PROJECT_FILTER_INSTANCE,
           ValuesReduceRule.PROJECT_INSTANCE,
@@ -271,6 +271,13 @@ public class Rules
     programs.add(hepProgram(
         ProjectMergeRule.INSTANCE, FilterMergeRule.INSTANCE,
         new ProjectJoinTransposeRule(Rules::pushdown, RelFactories.LOGICAL_BUILDER)
+    ));
+    programs.add(hepProgram(
+        REDUCE_EXPR_PROJECT_INSTANCE,
+        ReduceExpressionsRule.FILTER_INSTANCE,
+        ReduceExpressionsRule.CALC_INSTANCE,
+        ReduceExpressionsRule.WINDOW_INSTANCE,
+        ReduceExpressionsRule.JOIN_INSTANCE
     ));
 
     programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));

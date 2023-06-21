@@ -891,7 +891,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-              .havingSpec(EXPR_HAVING("(a0 == 21)"))
+              .havingSpec(EXPR_HAVING("(a0 == 21.0D)"))
               .outputColumns("a0")
               .build(),
         new Object[]{21d}
@@ -1288,7 +1288,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-              .havingSpec(EXPR_HAVING("(a0 == 21)"))
+              .havingSpec(EXPR_HAVING("(a0 == 21.0D)"))
               .outputColumns("a0")
               .build(),
         new Object[]{21.0}
@@ -1862,7 +1862,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 OR(
                     SELECTOR("dim1", "10"),
                     AND(
-                        EXPR_FILTER("(floor(CAST(dim1, 'FLOAT')) == 10.00F)"),
+                        EXPR_FILTER("(floor(CAST(dim1, 'FLOAT')) == 10.0F)"),
                         EXPR_FILTER("(CAST(dim1, 'FLOAT') > 9)"),
                         EXPR_FILTER("(CAST(dim1, 'FLOAT') <= 10.5B)")
                     )
@@ -3723,7 +3723,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   CountAggregatorFactory.of("a0"),
                   CARDINALITY("a1", "d0")
               )
-              .postAggregators(EXPR_POST_AGG("p0", "((1F - (a1 / a0)) * 100)"))
+              .postAggregators(EXPR_POST_AGG("p0", "((1.0F - (a1 / a0)) * 100)"))
               .outputColumns("a0", "a1", "p0")
               .build(),
         new Object[]{5L, 5L, 0.0f}
@@ -4380,7 +4380,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       GenericSumAggregatorFactory.ofLong("a0", "cnt"),
                       BOUND(
                           "__time",
-                          String.valueOf(T("2000-01-01")),
+                          null,
                           String.valueOf(T("2000-02-01")),
                           false,
                           true,
@@ -5363,7 +5363,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .columns("__time", "cnt", "dim1", "dim2")
             .streaming()
         )
-        .element(JoinElement.inner("foo.dim1 = foo$.d0 && foo.dim2 = foo$.d1"))
+        .element(JoinElement.inner("foo.dim1 = foo$.d0"))
         .outputColumns("__time", "cnt", "dim1", "dim2")
         .build();
 
@@ -5387,9 +5387,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{T("2001-01-02"), 1L, "def", "abc"}
     );
     hook.verifyHooked(
-        "msqSetksn9qEFgCLFJKvBQ==",
+        "fQOWiV1vwXjiTnev/lmEQw==",
         "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], filter=dim2=='abc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], havingSpec=ExpressionHavingSpec{expression='(a0 == 1)'}, outputColumns=[d0, d1]}",
-        "StreamQuery{dataSource='foo', filter=(dim2=='abc' && InDimsFilter{dimensions=[dim1, dim2], values=[[def, abc]]}), columns=[__time, cnt, dim1, dim2]}"
+        "StreamQuery{dataSource='foo', filter=(dim2=='abc' && dim1=='def'), columns=[__time, cnt, dim1, dim2]}"
     );
   }
 
@@ -6415,7 +6415,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Arrays.<Object>asList("abc"),
         newScan()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("v0", "concat(dim1,dim1)"))
+            .virtualColumns(EXPR_VC("v0", "concat('abc','abc')"))
             .filters(SELECTOR("dim1", "abc"))
             .columns("v0")
             .streaming(),
