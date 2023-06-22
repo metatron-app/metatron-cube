@@ -244,7 +244,7 @@ public class Estimations
     float estimation = 0;
     switch (element.getJoinType()) {
       case INNER:
-        if (leftEstimated.gt(rightEstimated)) {
+        if (leftEstimated.gtt(rightEstimated)) {
           estimation = leftEstimated.estimated * rightEstimated.selectivity;
         } else {
           estimation = rightEstimated.estimated * leftEstimated.selectivity;

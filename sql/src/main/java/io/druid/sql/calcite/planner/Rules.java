@@ -82,6 +82,7 @@ import org.apache.calcite.rel.rules.MatchRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
+import org.apache.calcite.rel.rules.ProjectSortTransposeRule;
 import org.apache.calcite.rel.rules.ProjectTableScanRule;
 import org.apache.calcite.rel.rules.ProjectToWindowRule;
 import org.apache.calcite.rel.rules.ProjectWindowTransposeRule;
@@ -119,6 +120,7 @@ public class Rules
   public static final RelOptRule REDUCE_EXPR_PROJECT_INSTANCE =
       new ReduceExpressionsRule.ProjectReduceExpressionsRule(LogicalProject.class, true, RelFactories.LOGICAL_BUILDER)
       {
+        @Override
         public void onMatch(RelOptRuleCall call)
         {
           final Project project = call.rel(0);
@@ -135,7 +137,7 @@ public class Rules
           AggregateStarTableRule.INSTANCE2,
 //          TableScanRule.INSTANCE,
 //          CalciteSystemProperty.COMMUTE.value() ? JoinAssociateRule.INSTANCE :
-          ProjectMergeRule.INSTANCE,
+//          ProjectMergeRule.INSTANCE,
 //          FilterTableScanRule.INSTANCE,
 //          ProjectFilterTransposeRule.INSTANCE,
 //          FilterProjectTransposeRule.INSTANCE,
@@ -145,7 +147,7 @@ public class Rules
 //          AggregateCaseToFilterRule.INSTANCE,
 //          AggregateReduceFunctionsRule.INSTANCE,
 //          FilterAggregateTransposeRule.INSTANCE,
-          ProjectWindowTransposeRule.INSTANCE,
+//          ProjectWindowTransposeRule.INSTANCE,
           MatchRule.INSTANCE,
 //          JoinCommuteRule.INSTANCE,
           JoinPushThroughJoinRule.RIGHT,
@@ -191,7 +193,7 @@ public class Rules
 //          SemiJoinRule.JOIN,
           AggregateRemoveRule.INSTANCE,
           UnionToDistinctRule.INSTANCE,
-          ProjectRemoveRule.INSTANCE,
+//          ProjectRemoveRule.INSTANCE,
           AggregateJoinTransposeRule.INSTANCE,
           AggregateMergeRule.INSTANCE,    // see ensureTypes()
           AggregateProjectMergeRule.INSTANCE,
@@ -217,8 +219,8 @@ public class Rules
           UnionMergeRule.INSTANCE,
           UnionMergeRule.INTERSECT_INSTANCE,
           UnionMergeRule.MINUS_INSTANCE,
-          ProjectToWindowRule.PROJECT,
-          FilterMergeRule.INSTANCE,
+//          ProjectToWindowRule.PROJECT,
+//          FilterMergeRule.INSTANCE,
           DateRangeRules.FILTER_INSTANCE,
           IntersectToDistinctRule.INSTANCE
       );
@@ -248,7 +250,7 @@ public class Rules
     programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
-    programs.add(hepProgram(PreFilteringRule.instance()));
+    programs.add(hepProgram(PreFilteringRule.instance(), ProjectToWindowRule.PROJECT));
 
     programs.add(hepProgram(
         FilterProjectTransposeRule.INSTANCE,
@@ -258,6 +260,8 @@ public class Rules
         JoinPushExpressionsRule.INSTANCE,
         JoinPushTransitivePredicatesRule.INSTANCE
     ));
+    programs.add(hepProgram(FilterMergeRule.INSTANCE));
+
     if (config.isUseJoinReordering()) {
       // from Programs.heuristicJoinOrder
       Program program = Programs.sequence(
@@ -269,7 +273,10 @@ public class Rules
       ));
     }
     programs.add(hepProgram(
-        ProjectMergeRule.INSTANCE, FilterMergeRule.INSTANCE,
+        ProjectMergeRule.INSTANCE,
+        ProjectRemoveRule.INSTANCE,
+        ProjectWindowTransposeRule.INSTANCE,
+        ProjectSortTransposeRule.INSTANCE,
         new ProjectJoinTransposeRule(Rules::pushdown, RelFactories.LOGICAL_BUILDER)
     ));
     programs.add(hepProgram(
@@ -411,7 +418,7 @@ public class Rules
 
     if (!plannerConfig.isUseApproximateCountDistinct()) {
       // We'll need this to expand COUNT DISTINCTs.
-      // Avoid AggregateExpandDistinctAggregatesRule.INSTANCE; it uses grouping sets and we don't support those.
+      // Avoid AggregateExpandDistinctAggregatesRule.INSTANCE; it uses grouping sets, and we don't support those.
       rules.add(AggregateExpandDistinctAggregatesRule.JOIN);
     }
     if (plannerConfig.isUseJoinReordering()) {

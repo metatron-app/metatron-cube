@@ -88,6 +88,11 @@ public class Estimation
     return Math.abs(estimated - estimation.estimated) < epsilon;
   }
 
+  public boolean gtt(Estimation estimation)
+  {
+    return estimated / Math.max(0.001f, selectivity) > estimation.estimated / Math.max(0.001f, estimation.selectivity);
+  }
+
   public boolean gt(Estimation estimation)
   {
     return estimated > estimation.estimated;

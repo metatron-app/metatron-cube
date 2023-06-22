@@ -4822,9 +4822,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     .outputColumns("T","S","w0$o0","w0$o1")
                     .build()
             )
-            .virtualColumns(EXPR_VC("v0", "case((\"w0$o0\" > 0),\"w0$o1\",'')"))
             .filters(SELECTOR("w0$o0", "2"))
-            .columns("T","v0")
+            .columns("T","w0$o1")
             .streaming(),
         new Object[]{T("2011-07-01"), 49520.0},
         new Object[]{T("2012-01-01"), 55981.0},
@@ -4856,9 +4855,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     .outputColumns("T","S","w0$o0","w0$o1")
                     .build()
             )
-            .virtualColumns(EXPR_VC("v0", "case((\"w0$o0\" > 0),\"w0$o1\",'')"))
             .filters(SELECTOR("w0$o0", "2"))
-            .columns("T","v0")
+            .columns("T","w0$o1")
             .streaming(),
         new Object[]{T("2012-01-01"), 49520.0},
         new Object[]{T("2012-07-01"), 55981.0},

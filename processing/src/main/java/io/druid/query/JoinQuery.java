@@ -453,7 +453,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           }
           LOG.debug("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
           boolean applyfilter = false;
-          if (leftEstimated.moreSelective(rightEstimated)) {
+          if (element.isInnerJoin() && leftEstimated.moreSelective(rightEstimated)) {
             if (leftEstimated.lt(rightEstimated) && DataSources.isDataLocalFilterable(query1, rightJoinColumns)) {
               applyfilter = true;
               LOG.debug("-- %s:%s (L) will be applied as filter to %s (R)", leftAlias, leftEstimated, rightAlias);
@@ -491,7 +491,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           }
           LOG.debug("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
           boolean applyfilter = false;
-          if (rightEstimated.moreSelective(leftEstimated)) {
+          if (element.isInnerJoin() && rightEstimated.moreSelective(leftEstimated)) {
             if (rightEstimated.lt(leftEstimated) && DataSources.isDataLocalFilterable(query0, leftJoinColumns)) {
               applyfilter = true;
               LOG.debug("-- %s:%s (R) will be applied as filter to %s (L)", rightAlias, rightEstimated, leftAlias);
