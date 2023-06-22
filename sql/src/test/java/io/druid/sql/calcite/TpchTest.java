@@ -1780,7 +1780,7 @@ public class TpchTest extends TpchTestHelper
       + "    P_TYPE not like 'ECONOMY BRUSHED%' and"
       + "    P_SIZE in (22, 14, 27, 49, 21, 33, 35, 28) and"
       + "    PS_SUPPKEY not in ("
-      + "        SELECT S_SUPPKEY FROM supplier WHERE S_COMMENT like '%Customer%Complaints%'"
+      + "        SELECT S_SUPPKEY FROM supplier WHERE S_COMMENT like '%fluffily%requests%'"
       + "    )"
       + " GROUP BY"
       + "    P_BRAND, P_TYPE, P_SIZE"
@@ -1794,8 +1794,8 @@ public class TpchTest extends TpchTestHelper
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1])\n"
       + "        DruidQueryRel(table=[druid.partsupp], scanProject=[$2, $3])\n"
       + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(OR(=($7, 22), =($7, 14), =($7, 27), =($7, 49), =($7, 21), =($7, 33), =($7, 35), =($7, 28)), <>($0, 'Brand#34'), NOT(LIKE($8, 'ECONOMY BRUSHED%')))], scanProject=[$0, $5, $7, $8])\n"
-      + "      DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%Customer%Complaints%')], scanProject=[$6], c=[COUNT()], ck=[COUNT($0)])\n"
-      + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%Customer%Complaints%')], scanProject=[$6, true], group=[{0, 1}])\n";
+      + "      DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6], c=[COUNT()], ck=[COUNT($0)])\n"
+      + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6, true], group=[{0, 1}])\n";
 
   public static final String TPCH16_EXPLAIN_JR =
       "DruidOuterQueryRel(scanFilter=[OR(=($4, 0), AND(IS NULL($5), >=($6, $4), IS NOT NULL($3)))], scanProject=[$0, $1, $2, $3], group=[{0, 1, 2}], supplier_cnt=[COUNT(DISTINCT $3)], sort=[$3:DESC, $0:ASC, $1:ASC, $2:ASC])\n"
@@ -1804,8 +1804,8 @@ public class TpchTest extends TpchTestHelper
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1])\n"
       + "        DruidQueryRel(table=[druid.partsupp], scanProject=[$2, $3])\n"
       + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(OR(=($7, 22), =($7, 14), =($7, 27), =($7, 49), =($7, 21), =($7, 33), =($7, 35), =($7, 28)), <>($0, 'Brand#34'), NOT(LIKE($8, 'ECONOMY BRUSHED%')))], scanProject=[$0, $5, $7, $8])\n"
-      + "      DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%Customer%Complaints%')], scanProject=[$6, true], group=[{0, 1}])\n"
-      + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%Customer%Complaints%')], scanProject=[$6], c=[COUNT()], ck=[COUNT($0)])\n";
+      + "      DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6, true], group=[{0, 1}])\n"
+      + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6], c=[COUNT()], ck=[COUNT($0)])\n";
 
   public static final String TPCH16_EXPLAIN_JR2 =
       "DruidOuterQueryRel(scanFilter=[OR(=($4, 0), AND(IS NULL($5), >=($6, $4), IS NOT NULL($3)))], scanProject=[$0, $1, $2, $3], group=[{0, 1, 2}], supplier_cnt=[COUNT(DISTINCT $3)], sort=[$3:DESC, $0:ASC, $1:ASC, $2:ASC])\n"
@@ -1814,42 +1814,193 @@ public class TpchTest extends TpchTestHelper
       + "      DruidQueryRel(table=[druid.partsupp], scanProject=[$2, $3])\n"
       + "      DruidJoinRel(joinType=[INNER])\n"
       + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(OR(=($7, 22), =($7, 14), =($7, 27), =($7, 49), =($7, 21), =($7, 33), =($7, 35), =($7, 28)), <>($0, 'Brand#34'), NOT(LIKE($8, 'ECONOMY BRUSHED%')))], scanProject=[$0, $5, $7, $8])\n"
-      + "        DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%Customer%Complaints%')], scanProject=[$6], c=[COUNT()], ck=[COUNT($0)])\n"
-      + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%Customer%Complaints%')], scanProject=[$6, true], group=[{0, 1}])\n";
+      + "        DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6], c=[COUNT()], ck=[COUNT($0)])\n"
+      + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6, true], group=[{0, 1}])\n";
+
+  public static final Object[][] TPCH16_RESULT = {
+      {"Brand#35", "SMALL POLISHED COPPER", 14L, 7L},
+      {"Brand#11", "ECONOMY ANODIZED COPPER", 35L, 4L},
+      {"Brand#11", "LARGE BRUSHED STEEL", 21L, 4L},
+      {"Brand#11", "LARGE BURNISHED STEEL", 35L, 4L},
+      {"Brand#11", "LARGE POLISHED COPPER", 27L, 4L},
+      {"Brand#11", "MEDIUM POLISHED NICKEL", 35L, 4L},
+      {"Brand#11", "MEDIUM POLISHED STEEL", 33L, 4L},
+      {"Brand#11", "PROMO PLATED NICKEL", 22L, 4L},
+      {"Brand#12", "PROMO BURNISHED BRASS", 49L, 4L},
+      {"Brand#12", "SMALL BRUSHED NICKEL", 28L, 4L},
+      {"Brand#13", "ECONOMY PLATED STEEL", 22L, 4L},
+      {"Brand#13", "MEDIUM BURNISHED BRASS", 27L, 4L},
+      {"Brand#13", "PROMO BRUSHED COPPER", 49L, 4L},
+      {"Brand#13", "SMALL POLISHED STEEL", 28L, 4L},
+      {"Brand#13", "STANDARD POLISHED NICKEL", 35L, 4L},
+      {"Brand#14", "SMALL ANODIZED STEEL", 33L, 4L},
+      {"Brand#14", "SMALL BURNISHED COPPER", 14L, 4L},
+      {"Brand#15", "LARGE PLATED COPPER", 22L, 4L},
+      {"Brand#15", "LARGE POLISHED TIN", 35L, 4L},
+      {"Brand#15", "PROMO POLISHED TIN", 49L, 4L},
+      {"Brand#15", "SMALL PLATED NICKEL", 27L, 4L},
+      {"Brand#15", "SMALL POLISHED TIN", 27L, 4L},
+      {"Brand#21", "MEDIUM BURNISHED BRASS", 28L, 4L},
+      {"Brand#21", "SMALL BRUSHED COPPER", 35L, 4L},
+      {"Brand#21", "SMALL BRUSHED NICKEL", 28L, 4L},
+      {"Brand#22", "STANDARD ANODIZED TIN", 35L, 4L},
+      {"Brand#22", "STANDARD PLATED TIN", 28L, 4L},
+      {"Brand#23", "LARGE ANODIZED COPPER", 14L, 4L},
+      {"Brand#23", "LARGE PLATED BRASS", 35L, 4L},
+      {"Brand#23", "LARGE PLATED BRASS", 49L, 4L},
+      {"Brand#23", "MEDIUM ANODIZED NICKEL", 27L, 4L},
+      {"Brand#23", "PROMO BURNISHED COPPER", 14L, 4L},
+      {"Brand#23", "PROMO POLISHED BRASS", 14L, 4L},
+      {"Brand#23", "SMALL ANODIZED NICKEL", 33L, 4L},
+      {"Brand#23", "SMALL BRUSHED BRASS", 49L, 4L},
+      {"Brand#24", "ECONOMY POLISHED TIN", 35L, 4L},
+      {"Brand#24", "STANDARD ANODIZED COPPER", 28L, 4L},
+      {"Brand#24", "STANDARD BRUSHED BRASS", 14L, 4L},
+      {"Brand#24", "STANDARD BURNISHED COPPER", 27L, 4L},
+      {"Brand#25", "ECONOMY BURNISHED COPPER", 27L, 4L},
+      {"Brand#25", "LARGE BURNISHED TIN", 49L, 4L},
+      {"Brand#25", "MEDIUM BURNISHED NICKEL", 49L, 4L},
+      {"Brand#25", "MEDIUM PLATED STEEL", 35L, 4L},
+      {"Brand#25", "MEDIUM POLISHED STEEL", 21L, 4L},
+      {"Brand#25", "PROMO BRUSHED BRASS", 27L, 4L},
+      {"Brand#25", "PROMO PLATED BRASS", 35L, 4L},
+      {"Brand#25", "SMALL BURNISHED COPPER", 21L, 4L},
+      {"Brand#25", "STANDARD POLISHED BRASS", 33L, 4L},
+      {"Brand#31", "LARGE PLATED NICKEL", 14L, 4L},
+      {"Brand#31", "LARGE PLATED STEEL", 27L, 4L},
+      {"Brand#31", "MEDIUM PLATED BRASS", 28L, 4L},
+      {"Brand#31", "MEDIUM PLATED NICKEL", 33L, 4L},
+      {"Brand#31", "PROMO BRUSHED BRASS", 28L, 4L},
+      {"Brand#31", "SMALL POLISHED BRASS", 28L, 4L},
+      {"Brand#32", "MEDIUM BURNISHED BRASS", 49L, 4L},
+      {"Brand#32", "MEDIUM PLATED BRASS", 21L, 4L},
+      {"Brand#32", "PROMO BURNISHED TIN", 27L, 4L},
+      {"Brand#33", "ECONOMY ANODIZED TIN", 28L, 4L},
+      {"Brand#33", "ECONOMY BURNISHED COPPER", 14L, 4L},
+      {"Brand#33", "ECONOMY PLATED TIN", 27L, 4L},
+      {"Brand#33", "LARGE ANODIZED BRASS", 35L, 4L},
+      {"Brand#33", "LARGE BURNISHED NICKEL", 35L, 4L},
+      {"Brand#33", "LARGE POLISHED COPPER", 28L, 4L},
+      {"Brand#33", "MEDIUM ANODIZED COPPER", 35L, 4L},
+      {"Brand#33", "PROMO PLATED STEEL", 49L, 4L},
+      {"Brand#35", "LARGE BRUSHED TIN", 21L, 4L},
+      {"Brand#35", "LARGE PLATED BRASS", 22L, 4L},
+      {"Brand#35", "MEDIUM BURNISHED BRASS", 33L, 4L},
+      {"Brand#35", "PROMO BRUSHED STEEL", 21L, 4L},
+      {"Brand#35", "PROMO BURNISHED STEEL", 14L, 4L},
+      {"Brand#35", "PROMO PLATED BRASS", 35L, 4L},
+      {"Brand#35", "PROMO POLISHED COPPER", 28L, 4L},
+      {"Brand#35", "SMALL ANODIZED BRASS", 27L, 4L},
+      {"Brand#35", "SMALL PLATED BRASS", 33L, 4L},
+      {"Brand#35", "STANDARD PLATED STEEL", 14L, 4L},
+      {"Brand#41", "LARGE BURNISHED TIN", 22L, 4L},
+      {"Brand#42", "LARGE ANODIZED NICKEL", 49L, 4L},
+      {"Brand#42", "MEDIUM BRUSHED COPPER", 21L, 4L},
+      {"Brand#42", "PROMO BURNISHED TIN", 49L, 4L},
+      {"Brand#42", "PROMO PLATED TIN", 28L, 4L},
+      {"Brand#42", "PROMO POLISHED COPPER", 35L, 4L},
+      {"Brand#42", "SMALL BRUSHED BRASS", 28L, 4L},
+      {"Brand#42", "SMALL POLISHED STEEL", 35L, 4L},
+      {"Brand#42", "STANDARD BURNISHED NICKEL", 49L, 4L},
+      {"Brand#42", "STANDARD POLISHED BRASS", 21L, 4L},
+      {"Brand#43", "ECONOMY ANODIZED NICKEL", 49L, 4L},
+      {"Brand#43", "LARGE BRUSHED NICKEL", 21L, 4L},
+      {"Brand#43", "PROMO BRUSHED BRASS", 33L, 4L},
+      {"Brand#44", "MEDIUM ANODIZED BRASS", 35L, 4L},
+      {"Brand#44", "PROMO PLATED BRASS", 28L, 4L},
+      {"Brand#44", "PROMO POLISHED NICKEL", 35L, 4L},
+      {"Brand#44", "SMALL BRUSHED TIN", 21L, 4L},
+      {"Brand#44", "SMALL POLISHED STEEL", 35L, 4L},
+      {"Brand#44", "STANDARD BRUSHED STEEL", 27L, 4L},
+      {"Brand#45", "ECONOMY ANODIZED COPPER", 27L, 4L},
+      {"Brand#45", "ECONOMY BURNISHED NICKEL", 22L, 4L},
+      {"Brand#45", "MEDIUM BRUSHED COPPER", 49L, 4L},
+      {"Brand#45", "MEDIUM PLATED NICKEL", 35L, 4L},
+      {"Brand#45", "PROMO ANODIZED BRASS", 22L, 4L},
+      {"Brand#51", "ECONOMY POLISHED STEEL", 49L, 4L},
+      {"Brand#51", "PROMO POLISHED STEEL", 49L, 4L},
+      {"Brand#51", "STANDARD ANODIZED BRASS", 21L, 4L},
+      {"Brand#52", "MEDIUM PLATED NICKEL", 22L, 4L},
+      {"Brand#52", "PROMO ANODIZED BRASS", 21L, 4L},
+      {"Brand#52", "PROMO POLISHED STEEL", 35L, 4L},
+      {"Brand#52", "SMALL POLISHED COPPER", 21L, 4L},
+      {"Brand#52", "STANDARD POLISHED TIN", 35L, 4L},
+      {"Brand#53", "PROMO PLATED NICKEL", 28L, 4L},
+      {"Brand#53", "PROMO POLISHED NICKEL", 33L, 4L},
+      {"Brand#53", "STANDARD BRUSHED STEEL", 27L, 4L},
+      {"Brand#53", "STANDARD PLATED NICKEL", 27L, 4L},
+      {"Brand#54", "LARGE BRUSHED COPPER", 28L, 4L},
+      {"Brand#54", "LARGE BURNISHED COPPER", 22L, 4L},
+      {"Brand#54", "LARGE BURNISHED TIN", 14L, 4L},
+      {"Brand#54", "MEDIUM POLISHED BRASS", 22L, 4L},
+      {"Brand#54", "STANDARD ANODIZED BRASS", 22L, 4L},
+      {"Brand#55", "SMALL ANODIZED BRASS", 27L, 4L},
+      {"Brand#12", "STANDARD BURNISHED TIN", 33L, 3L},
+      {"Brand#13", "LARGE BURNISHED BRASS", 28L, 3L},
+      {"Brand#15", "SMALL POLISHED COPPER", 27L, 3L},
+      {"Brand#21", "STANDARD BURNISHED STEEL", 33L, 3L},
+      {"Brand#24", "LARGE BRUSHED TIN", 28L, 3L},
+      {"Brand#25", "SMALL PLATED STEEL", 21L, 3L},
+      {"Brand#31", "MEDIUM ANODIZED NICKEL", 21L, 3L},
+      {"Brand#32", "LARGE ANODIZED STEEL", 35L, 3L},
+      {"Brand#32", "MEDIUM ANODIZED STEEL", 49L, 3L},
+      {"Brand#33", "MEDIUM POLISHED BRASS", 49L, 3L},
+      {"Brand#33", "STANDARD POLISHED COPPER", 33L, 3L},
+      {"Brand#35", "STANDARD BRUSHED NICKEL", 49L, 3L},
+      {"Brand#43", "MEDIUM ANODIZED BRASS", 14L, 3L},
+      {"Brand#44", "STANDARD PLATED TIN", 33L, 3L},
+      {"Brand#45", "LARGE BURNISHED BRASS", 14L, 3L},
+      {"Brand#51", "LARGE POLISHED NICKEL", 28L, 3L},
+      {"Brand#51", "STANDARD ANODIZED BRASS", 22L, 3L},
+      {"Brand#52", "SMALL BURNISHED NICKEL", 14L, 3L},
+      {"Brand#52", "STANDARD ANODIZED STEEL", 33L, 3L},
+      {"Brand#53", "MEDIUM PLATED STEEL", 21L, 3L},
+      {"Brand#53", "STANDARD BURNISHED COPPER", 22L, 3L},
+      {"Brand#55", "ECONOMY ANODIZED STEEL", 35L, 3L},
+      {"Brand#55", "SMALL ANODIZED NICKEL", 35L, 3L},
+      {"Brand#13", "MEDIUM POLISHED STEEL", 14L, 2L},
+      {"Brand#15", "ECONOMY BURNISHED BRASS", 28L, 2L},
+      {"Brand#15", "MEDIUM PLATED COPPER", 27L, 2L},
+      {"Brand#32", "PROMO PLATED STEEL", 35L, 2L},
+      {"Brand#35", "ECONOMY PLATED STEEL", 35L, 2L},
+      {"Brand#43", "LARGE PLATED COPPER", 22L, 2L},
+      {"Brand#45", "STANDARD PLATED STEEL", 35L, 2L},
+      {"Brand#54", "SMALL PLATED TIN", 14L, 2L}
+  };
 
   @Test
   public void tpch16() throws Exception
   {
-    testQuery(TPCH16, TPCH16_EXPLAIN);
+    testQuery(TPCH16, TPCH16_EXPLAIN, TPCH16_RESULT);
 
     if (semiJoin) {
       hook.verifyHooked(
-          "NSsMaveAMTt/MP7z/wpYXQ==",
+          "qwyWFq+UYXuIeBPzak+hsA==",
           "StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}",
-          "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=InDimFilter{dimension='PS_PARTKEY', values=[105, 106, 111, 116, 127, 134, 14, 150, 155, 162, ..139 more]}, columns=[PS_PARTKEY, PS_SUPPKEY]}, MaterializedQuery{dataSource=[part]}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%Customer%Complaints%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
+          "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=InDimFilter{dimension='PS_PARTKEY', values=[105, 106, 111, 116, 127, 134, 14, 150, 155, 162, ..139 more]}, columns=[PS_PARTKEY, PS_SUPPKEY]}, MaterializedQuery{dataSource=[part]}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
           "StreamQuery{dataSource='partsupp', filter=InDimFilter{dimension='PS_PARTKEY', values=[105, 106, 111, 116, 127, 134, 14, 150, 155, 162, ..139 more]}, columns=[PS_PARTKEY, PS_SUPPKEY]}",
-          "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%Customer%Complaints%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
-          "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
+          "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
+          "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
       );
     } else {
       if (bloomFilter) {
         hook.verifyHooked(
-            "u7LKMPxdTS8AZHSVa28pLw==",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY]((InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%'))), fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop, maxNumEntries=149}, columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%Customer%Complaints%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
+            "/jII5b2xXQOfTQCcHvyMWA==",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY]((InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%'))), fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop, maxNumEntries=149}, columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
             "TimeseriesQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=149}]}",
             "StreamQuery{dataSource='partsupp', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop}, columns=[PS_PARTKEY, PS_SUPPKEY]}",
             "StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}",
-            "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%Customer%Complaints%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
-            "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
+            "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
+            "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
         );
       } else {
         hook.verifyHooked(
-            "C/CWT+zUoAWHk01VN5V44A==",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%Customer%Complaints%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
+            "ojMmykFx2RVLZovWQYuEYA==",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
             "StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY]}",
             "StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}",
-            "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%Customer%Complaints%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
-            "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
+            "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
+            "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
         );
       }
     }
@@ -2121,7 +2272,7 @@ public class TpchTest extends TpchTestHelper
       + "        AND L_QUANTITY >= 7 AND L_QUANTITY <= 7 + 10"
       + "        AND P_SIZE BETWEEN 1 AND 5"
       + "        AND L_SHIPMODE IN ('AIR', 'AIR REG')"
-      + "        AND L_SHIPINSTRUCT = 'DELIVER IN PERSON'"
+      + "        AND L_SHIPINSTRUCT = 'NONE'"
       + "    )"
       + "    OR"
       + "    ("
@@ -2131,7 +2282,7 @@ public class TpchTest extends TpchTestHelper
       + "        AND L_QUANTITY >= 15 AND L_QUANTITY <= 15 + 10"
       + "        AND P_SIZE BETWEEN 1 AND 10"
       + "        AND L_SHIPMODE IN ('AIR', 'AIR REG')"
-      + "        AND L_SHIPINSTRUCT = 'DELIVER IN PERSON'"
+      + "        AND L_SHIPINSTRUCT = 'NONE'"
       + "    )"
       + "    OR"
       + "    ("
@@ -2141,41 +2292,43 @@ public class TpchTest extends TpchTestHelper
       + "        AND L_QUANTITY >= 26 AND L_QUANTITY <= 26 + 10"
       + "        AND P_SIZE BETWEEN 1 AND 15"
       + "        AND L_SHIPMODE IN ('AIR', 'AIR REG')"
-      + "        AND L_SHIPINSTRUCT = 'DELIVER IN PERSON'"
+      + "        AND L_SHIPINSTRUCT = 'NONE'"
       + "    )";
 
   public static final String TPCH19_EXPLAIN =
       "DruidOuterQueryRel(scanFilter=[OR(AND(=($2, 'Brand#32'), OR(=($3, 'SM CASE'), =($3, 'SM BOX'), =($3, 'SM PACK'), =($3, 'SM PKG')), >=($4, 7), <=($4, 17), <=($5, 5)), AND(=($2, 'Brand#35'), OR(=($3, 'MED BAG'), =($3, 'MED BOX'), =($3, 'MED PKG'), =($3, 'MED PACK')), >=($4, 15), <=($4, 25), <=($5, 10)), AND(=($2, 'Brand#24'), OR(=($3, 'LG CASE'), =($3, 'LG BOX'), =($3, 'LG PACK'), =($3, 'LG PKG')), >=($4, 26), <=($4, 36), <=($5, 15)))], scanProject=[*($0, -(1, $1))], REVENUE=[SUM($0)])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[2], outputColumns=[1, 0, 4, 5, 3, 7])\n"
-      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(OR(=($13, 'AIR'), =($13, 'AIR REG')), =($12, 'DELIVER IN PERSON'))], scanProject=[$2, $3, $7, $8])\n"
+      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(OR(=($13, 'AIR'), =($13, 'AIR REG')), =($12, 'NONE'))], scanProject=[$2, $3, $7, $8])\n"
       + "    DruidQueryRel(table=[druid.part], scanFilter=[>=($7, 1)], scanProject=[$0, $2, $5, $7])\n";
+
+  public static final Object[][] TPCH19_RESULT = {{96705.38689177096D}};
 
   @Test
   public void tpch19() throws Exception
   {
-    testQuery(TPCH19, TPCH19_EXPLAIN);
+    testQuery(TPCH19, TPCH19_EXPLAIN, TPCH19_RESULT);
 
     if (semiJoin) {
       hook.verifyHooked(
-          "lrgkCprGWdp4D80DCm9e7w==",
-          "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='DELIVER IN PERSON'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
-          "TimeseriesQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[lineitem]}, StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && InDimFilter{dimension='P_PARTKEY', values=[10, 100, 1000, 101, 102, 103, 105, 108, 109, 11, ..628 more]}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
-          "StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && InDimFilter{dimension='P_PARTKEY', values=[10, 100, 1000, 101, 102, 103, 105, 108, 109, 11, ..628 more]}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}"
+          "N1MIm1DLHENEMYqvNePmGg==",
+          "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
+          "TimeseriesQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[lineitem]}, StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && InDimFilter{dimension='P_PARTKEY', values=[1, 10, 100, 1000, 102, 103, 106, 108, 109, 11, ..656 more]}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
+          "StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && InDimFilter{dimension='P_PARTKEY', values=[1, 10, 100, 1000, 102, 103, 106, 108, 109, 11, ..656 more]}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}"
       );
     } else {
       if (bloomFilter) {
         hook.verifyHooked(
-            "M1dPUtrmnlFmfNBI4T1LVw==",
-            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='DELIVER IN PERSON'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && BloomDimFilter.Factory{bloomSource=$view:lineitem[L_PARTKEY]((InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='DELIVER IN PERSON')), fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='P_PARTKEY'}], groupingSets=Noop, maxNumEntries=1039}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
-            "TimeseriesQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='DELIVER IN PERSON'), aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[L_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=1039}]}",
-            "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='DELIVER IN PERSON'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
+            "2hUH1d3RnV92772zeR+e5A==",
+            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && BloomDimFilter.Factory{bloomSource=$view:lineitem[L_PARTKEY]((InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE')), fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='P_PARTKEY'}], groupingSets=Noop, maxNumEntries=1107}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
+            "TimeseriesQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[L_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=1107}]}",
+            "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
             "StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && BloomFilter{fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='P_PARTKEY'}], groupingSets=Noop}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}"
         );
       } else {
         hook.verifyHooked(
-            "Ruir07/ah8dnaprCp4Nz7g==",
-            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='DELIVER IN PERSON'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, StreamQuery{dataSource='part', filter=BoundDimFilter{1 <= P_SIZE(numeric)}, columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
-            "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='DELIVER IN PERSON'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
+            "UvqVWmhCBJlyrDfqIjg+ww==",
+            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, StreamQuery{dataSource='part', filter=BoundDimFilter{1 <= P_SIZE(numeric)}, columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
+            "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
             "StreamQuery{dataSource='part', filter=BoundDimFilter{1 <= P_SIZE(numeric)}, columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}"
         );
       }

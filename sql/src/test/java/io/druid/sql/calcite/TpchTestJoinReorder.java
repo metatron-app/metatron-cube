@@ -171,13 +171,13 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch16() throws Exception
   {
-    testQuery(JOIN_REORDERING, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR, TpchTest.TPCH16_RESULT);
   }
 
   @Test
   public void tpch16S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR2);
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR2, TpchTest.TPCH16_RESULT);
   }
 
   @Test
@@ -195,7 +195,13 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch19() throws Exception
   {
-    testQuery(JOIN_REORDERING, TpchTest.TPCH19, TpchTest.TPCH19_EXPLAIN);
+    testQuery(JOIN_REORDERING, TpchTest.TPCH19, TpchTest.TPCH19_EXPLAIN, TpchTest.TPCH19_RESULT);
+  }
+
+  @Test
+  public void tpch19S() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH19, TpchTest.TPCH19_EXPLAIN, TpchTest.TPCH19_RESULT);
   }
 
   @Test
