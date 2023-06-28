@@ -34,9 +34,11 @@ import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.topn.TopNQueryConfig;
+import io.druid.segment.Segment;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import java.util.List;
 
 /**
  */
@@ -154,14 +156,16 @@ public class QueryConfig
     return query.getContextBoolean(Query.GBY_USE_PARALLEL_SORT, getGroupBy().isUseParallelSort());
   }
 
-  public boolean useStreamingAggregation(Query<?> query)
+  public boolean useStreamingAggregation(GroupByQuery query, List<Segment> segments)
   {
-    return query.getContextBoolean(Query.GBY_STREAMING, getGroupBy().isStreamingAggregation());
+    return query.getContextBoolean(Query.GBY_STREAMING, getGroupBy().isStreamingAggregation()) &&
+           query.isStreamingAggregatable(segments);
   }
 
-  public boolean useVectorizedAggregation(Query<?> query)
+  public boolean useVectorizedAggregation(GroupByQuery query, List<Segment> segments)
   {
-    return query.getContextBoolean(Query.GBY_VECTORIZE, getGroupBy().isVectorizedAggregation());
+    return query.getContextBoolean(Query.GBY_VECTORIZE, getGroupBy().isVectorizedAggregation()) &&
+           query.isVectorizable(segments);
   }
 
   public boolean useCustomSerdeForDateTime(Query query)

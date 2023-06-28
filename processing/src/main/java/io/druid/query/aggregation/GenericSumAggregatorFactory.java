@@ -32,6 +32,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.LongColumnSelector;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.math.BigDecimal;
@@ -276,9 +277,9 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory implem
   }
 
   @Override
-  public boolean supports(ColumnSelectorFactory factory)
+  public boolean supports(QueryableIndex index)
   {
-    return supportsStreaming(factory);
+    return isVectorizable(index);
   }
 
   @Override

@@ -45,6 +45,7 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.Metadata;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.ScanContext;
 import io.druid.segment.Scanning;
 import io.druid.segment.Segment;
@@ -317,7 +318,7 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static interface Vectorizable
   {
-    boolean supports(ColumnSelectorFactory factory);
+    boolean supports(QueryableIndex index);
 
     Aggregator.Vectorized create(ColumnSelectorFactory factory);
   }

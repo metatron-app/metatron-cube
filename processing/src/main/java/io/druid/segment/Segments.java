@@ -22,6 +22,8 @@ package io.druid.segment;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.dimension.DictionaryID;
 import io.druid.query.spec.SpecificSegmentSpec;
 
 import java.util.List;
@@ -88,5 +90,28 @@ public class Segments
       }
     }
     return false;
+  }
+
+  public static boolean isVectorizableDimensions(List<Segment> segments, List<String> dimensions)
+  {
+    for (Segment segment : segments) {
+      StorageAdapter adapter = segment.asStorageAdapter(false);
+      long bits = dimensions.stream().mapToInt(d -> DictionaryID.bitsRequired(adapter.getDimensionCardinality(d))).sum();
+      if (bits >= Long.SIZE) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public static boolean isVectorizableFactories(List<Segment> segments, List<AggregatorFactory> factories)
+  {
+    for (Segment segment : segments) {
+      QueryableIndex index = segment.asQueryableIndex(false);
+      if (factories.stream().map(f -> ((AggregatorFactory.Vectorizable) f)).anyMatch(v -> !v.supports(index))) {
+        return false;
+      }
+    }
+    return true;
   }
 }

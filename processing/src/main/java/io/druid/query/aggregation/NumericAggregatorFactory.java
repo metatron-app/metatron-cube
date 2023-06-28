@@ -39,6 +39,7 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
+import io.druid.segment.QueryableIndex;
 
 import java.util.Comparator;
 import java.util.List;
@@ -250,9 +251,10 @@ public abstract class NumericAggregatorFactory extends NumericEvalSupport implem
     }
 
     @Override
-    public boolean supports(ColumnSelectorFactory factory)
+    public boolean supports(QueryableIndex index)
     {
-      return predicate == null && fieldExpression == null && factory.makeDoubleColumnSelector(fieldName) instanceof DoubleColumnSelector.Scannable;
+      return predicate == null && fieldExpression == null &&
+             DoubleColumnSelector.Scannable.class.isAssignableFrom(ColumnSelectors.asDouble(index.getGenericColumnType(fieldName)));
     }
   }
 
@@ -281,9 +283,10 @@ public abstract class NumericAggregatorFactory extends NumericEvalSupport implem
     }
 
     @Override
-    public boolean supports(ColumnSelectorFactory factory)
+    public boolean supports(QueryableIndex index)
     {
-      return predicate == null && fieldExpression == null && factory.makeLongColumnSelector(fieldName) instanceof LongColumnSelector.Scannable;
+      return predicate == null && fieldExpression == null &&
+             LongColumnSelector.Scannable.class.isAssignableFrom(ColumnSelectors.asLong(index.getGenericColumnType(fieldName)));
     }
   }
 }

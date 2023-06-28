@@ -283,13 +283,13 @@ public class GroupByQueryRunnerFactory
           logger.info("Expected cardinality %d. no split (%d msec)", cardinality, elapsed);
         }
         float streamThreshold = config.useParallelSort(query) ? STREAMING_THRESHOLD_PS : STREAMING_THRESHOLD;
-        if (config.useStreamingAggregation(query) && query.isStreamingAggregatable(segments)) {
+        if (config.useStreamingAggregation(query, segments)) {
           StreamQuery stream = query.toStreaming();
           int numRows = Queries.estimateNumRows(stream, segments, resolver, cache, splitCardinality);
           float ratio = Math.min(1, cardinality / (float) numRows);
           float vectorThreshold = streamThreshold / (0.5f * dimensions.size() + 1);
           int requirements = AggregatorFactory.bufferNeeded(query.getAggregatorSpecs());
-          if (requirements < VECTORIZE_BUFFER_LIMIT && config.useVectorizedAggregation(query) &&
+          if (requirements < VECTORIZE_BUFFER_LIMIT && config.useVectorizedAggregation(query, segments) &&
               ratio >= vectorThreshold && ratio < VECTOR_STREAMING_LIMIT + 0.2f * (dimensions.size() - 1)) {
             logger.info("Using vectorized aggregation.. ratio = [%.2f >= %.2f]", ratio, vectorThreshold);
             query = query.withOverriddenContext(Query.VECTORIZED_GBY, true);

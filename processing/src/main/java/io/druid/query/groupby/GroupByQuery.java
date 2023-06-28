@@ -63,6 +63,7 @@ import io.druid.query.SequenceCountingProcessor;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -772,6 +773,13 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return getContextValue(Query.GROUPED_DIMENSIONS) == null &&
            DimensionSpecs.isAllDefault(dimensions) && groupingSets == null &&
            Segments.isAllIndexedSingleValuedDimensions(segments, DimensionSpecs.toInputNames(dimensions));
+  }
+
+  public boolean isVectorizable(List<Segment> segments)
+  {
+    return Aggregators.allVectorizable(aggregatorSpecs) &&
+           Segments.isVectorizableFactories(segments, aggregatorSpecs) &&
+           Segments.isVectorizableDimensions(segments, DimensionSpecs.toInputNames(dimensions));
   }
 
   @JsonIgnore

@@ -35,6 +35,7 @@ import io.druid.query.filter.ValueMatchers;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.ScanContext;
 import io.druid.segment.Segment;
 import io.druid.segment.column.ColumnMeta;
@@ -262,7 +263,7 @@ public class CountAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public boolean supports(ColumnSelectorFactory factory)
+  public boolean supports(QueryableIndex index)
   {
     return fieldName == null && predicate == null;
   }

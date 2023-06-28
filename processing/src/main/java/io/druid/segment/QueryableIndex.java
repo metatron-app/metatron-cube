@@ -55,6 +55,12 @@ public interface QueryableIndex extends SchemaProvider, Closeable
     return (GenericColumn.TimestampType) getColumn(Row.TIME_COLUMN_NAME).getGenericColumn();
   }
 
+  default Class<? extends GenericColumn> getGenericColumnType(String columnName)
+  {
+    Column column = getColumn(columnName);
+    return column != null && column.hasGenericColumn() ? column.getGenericColumnType() : null;
+  }
+
   int getNumRows();
   long getSerializedSize();
   Metadata getMetadata();

@@ -97,7 +97,6 @@ public class VectorizedGroupByQueryEngine
     final IntFunction[] rawAccess = DimensionSelector.convert(dimensions, null, config.useUTF8(query));
 
     final Vectorized[] aggregators = Aggregators.vectorize(query.getAggregatorSpecs(), cursor);
-    Preconditions.checkArgument(aggregators != null);     // todo
 
     final int[] cardinalities = Arrays.stream(dimensions).mapToInt(DimensionSelector::getValueCardinality).toArray();
 
@@ -108,7 +107,7 @@ public class VectorizedGroupByQueryEngine
     final int bitsNeeded = Arrays.stream(bits).sum();
 
     // apply unsigned long ?
-    Preconditions.checkArgument(bitsNeeded < Long.SIZE, Arrays.toString(bits));    // todo
+    Preconditions.checkArgument(bitsNeeded < Long.SIZE, Arrays.toString(bits));
 
     final Long2IntOpenHashMap keyToBatch = new Long2IntOpenHashMap();
     final Object[] aggregations = new Object[aggregators.length];
@@ -144,7 +143,7 @@ public class VectorizedGroupByQueryEngine
         Long2IntMap.Entry entry = iterator.next();
         kv[i] = (entry.getLongKey() << shift) + entry.getIntValue();
       }
-      Arrays.sort(kv);
+      Arrays.parallelSort(kv);
 
       return Sequences.once(Iterators.batch(Row.class, new Iterator<Row>()
       {

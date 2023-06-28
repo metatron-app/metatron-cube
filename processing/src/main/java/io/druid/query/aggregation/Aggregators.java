@@ -26,8 +26,8 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.IOUtils;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.query.aggregation.Aggregator.Vectorized;
 import io.druid.query.aggregation.Aggregator.Streaming;
+import io.druid.query.aggregation.Aggregator.Vectorized;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.LongColumnSelector;
@@ -92,18 +92,16 @@ public class Aggregators
     return aggregators;
   }
 
+  public static boolean allVectorizable(List<AggregatorFactory> factories)
+  {
+    return factories.stream().allMatch(f -> f instanceof AggregatorFactory.Vectorizable);
+  }
+
   public static Vectorized[] vectorize(List<AggregatorFactory> factories, ColumnSelectorFactory factory)
   {
     Vectorized[] aggregators = new Vectorized[factories.size()];
     for (int i = 0; i < aggregators.length; i++) {
-      if (!(factories.get(i) instanceof AggregatorFactory.Vectorizable)) {
-        return null;
-      }
-      AggregatorFactory.Vectorizable support = (AggregatorFactory.Vectorizable) factories.get(i);
-      if (!support.supports(factory)) {
-        return null;
-      }
-      aggregators[i] = support.create(factory);
+      aggregators[i] = ((AggregatorFactory.Vectorizable) factories.get(i)).create(factory);
     }
     return aggregators;
   }

@@ -786,6 +786,17 @@ public class ColumnSelectors
     }
   }
 
+  public static Class<? extends ObjectColumnSelector> asLong(Class<? extends GenericColumn> clazz)
+  {
+    if (clazz == null) {
+      return LongColumnSelector.class;
+    } else if (GenericColumn.LongType.class.isAssignableFrom(clazz)) {
+      return LongColumnSelector.Scannable.class;
+    } else {
+      return LongColumnSelector.WithBaggage.class;
+    }
+  }
+
   public static LongColumnSelector asLong(GenericColumn column, Offset offset)
   {
     if (column == null) {
@@ -890,6 +901,17 @@ public class ColumnSelectors
         return true;
       }
       return false;
+    }
+  }
+
+  public static Class<? extends ObjectColumnSelector> asDouble(Class<? extends GenericColumn> clazz)
+  {
+    if (clazz == null) {
+      return DoubleColumnSelector.class;
+    } else if (GenericColumn.DoubleType.class.isAssignableFrom(clazz) || GenericColumn.FloatType.class.isAssignableFrom(clazz)) {
+      return DoubleColumnSelector.Scannable.class;
+    } else {
+      return DoubleColumnSelector.WithBaggage.class;
     }
   }
 
@@ -1056,6 +1078,17 @@ public class ColumnSelectors
         return true;
       }
       return false;
+    }
+  }
+
+  public static Class<? extends ObjectColumnSelector> asFloat(Class<? extends GenericColumn> clazz)
+  {
+    if (clazz == null) {
+      return FloatColumnSelector.class;
+    } else if (GenericColumn.DoubleType.class.isAssignableFrom(clazz) || GenericColumn.FloatType.class.isAssignableFrom(clazz)) {
+      return FloatColumnSelector.Scannable.class;
+    } else {
+      return FloatColumnSelector.WithBaggage.class;
     }
   }
 

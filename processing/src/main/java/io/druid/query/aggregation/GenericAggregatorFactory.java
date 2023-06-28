@@ -37,11 +37,14 @@ import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory.NumericEvalSupport;
 import io.druid.segment.ColumnSelectorFactories.VariableArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ColumnStats;
 import io.druid.segment.Cursor;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.QueryableIndex;
+import io.druid.segment.column.GenericColumn;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -387,13 +390,14 @@ public abstract class GenericAggregatorFactory extends NumericEvalSupport
     return Objects.hash(fieldName, fieldExpression, predicate, inputType, name);
   }
 
-  protected boolean supportsStreaming(ColumnSelectorFactory factory)
+  protected boolean isVectorizable(QueryableIndex index)
   {
     if (inputType.isPrimitiveNumeric() && fieldExpression == null && predicate == null) {
+      Class<? extends GenericColumn> columnType = index.getGenericColumnType(fieldName);
       if (inputType.type() == ValueType.LONG) {
-        return factory.makeLongColumnSelector(fieldName) instanceof LongColumnSelector.Scannable;
+        return LongColumnSelector.Scannable.class.isAssignableFrom(ColumnSelectors.asLong(columnType));
       }
-      return factory.makeDoubleColumnSelector(fieldName) instanceof DoubleColumnSelector.Scannable;
+      return DoubleColumnSelector.Scannable.class.isAssignableFrom(ColumnSelectors.asDouble(columnType));
     }
     return false;
   }
