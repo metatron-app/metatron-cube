@@ -30,7 +30,6 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
-import io.druid.data.RowSignature;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -40,6 +39,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowSignature;
 import io.druid.segment.column.Column;
 
 import java.util.Arrays;

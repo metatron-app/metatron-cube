@@ -25,6 +25,7 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -47,7 +48,7 @@ import java.util.stream.Collectors;
 
 /**
  */
-public class RowResolver implements io.druid.data.RowSignature
+public class RowResolver implements TypeResolver
 {
   public static Supplier<RowResolver> supplier(final List<Segment> segments, final Query query)
   {
@@ -161,16 +162,24 @@ public class RowResolver implements io.druid.data.RowSignature
     return schema.getColumnNames();
   }
 
-  @Override
   public List<ValueDesc> getColumnTypes()
   {
     return schema.getColumnTypes();
   }
 
-  @Override
   public int size()
   {
     return schema.size();
+  }
+
+  public List<String> getDimensionNames()
+  {
+    return schema.getDimensionNames();
+  }
+
+  public List<String> getMetricNames()
+  {
+    return schema.getMetricNames();
   }
 
   public Map<String, AggregatorFactory> getAggregators()

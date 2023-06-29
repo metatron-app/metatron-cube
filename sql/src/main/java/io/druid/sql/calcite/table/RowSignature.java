@@ -79,7 +79,7 @@ public class RowSignature extends io.druid.query.RowSignature
     return from(io.druid.query.RowSignature.fromTypeString(typeString, defaultType));
   }
 
-  public static RowSignature from(io.druid.data.RowSignature signature)
+  public static RowSignature from(io.druid.query.RowSignature signature)
   {
     return new RowSignature(signature.getColumnNames(), signature.getColumnTypes());
   }
@@ -169,7 +169,7 @@ public class RowSignature extends io.druid.query.RowSignature
     return new Builder();
   }
 
-  public static Builder builderFrom(io.druid.data.RowSignature signature)
+  public static Builder builderFrom(io.druid.query.RowSignature signature)
   {
     return new Builder(signature);
   }
@@ -206,7 +206,7 @@ public class RowSignature extends io.druid.query.RowSignature
       this.columnTypeList = new ArrayList<>();
     }
 
-    private Builder(io.druid.data.RowSignature signature)
+    private Builder(io.druid.query.RowSignature signature)
     {
       this.columnTypeList = Lists.newArrayList(signature.columnAndTypes());
     }

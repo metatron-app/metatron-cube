@@ -36,6 +36,7 @@ import io.druid.java.util.common.StringUtils;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.GranularitySpec;
@@ -63,6 +64,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @JsonTypeName("shape")
 public class ShapeFileResolver extends AbstractResolver
@@ -146,9 +148,11 @@ public class ShapeFileResolver extends AbstractResolver
     }
     ObjectMapper mapper = walker.getMapper();
     List<String> dimensions = signature.extractDimensionCandidates();
-    List<AggregatorFactory> metrics = rewriteMetrics(
-        signature.extractMetricCandidates(Sets.newHashSet(dimensions)), properties, mapper
-    );
+    List<AggregatorFactory> relays = signature.exclude(Sets.newHashSet(dimensions))
+                                              .stream()
+                                              .map(p -> RelayAggregatorFactory.of(p.lhs, p.rhs))
+                                              .collect(Collectors.toList());
+    List<AggregatorFactory> metrics = rewriteMetrics(relays, properties, mapper);
     GranularitySpec granularity = UniformGranularitySpec.of(segmentGranularity);
     Map<String, Object> parser = Maps.newHashMap(properties);
     if (!parser.containsKey("type")) {

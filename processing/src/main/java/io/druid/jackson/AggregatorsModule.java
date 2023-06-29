@@ -31,6 +31,8 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.RequestLogParseSpec;
 import io.druid.data.input.Row;
 import io.druid.query.HashPartitionedQuery;
+import io.druid.query.RowSignature;
+import io.druid.query.Schema;
 import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
@@ -141,7 +143,8 @@ public class AggregatorsModule extends SimpleModule
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);
     setMixInAnnotation(PostAggregator.class, PostAggregatorMixin.class);
-    setMixInAnnotation(Row.class, Rows.class);
+    setMixInAnnotation(Row.class, RowMixIn.class);
+    setMixInAnnotation(RowSignature.class, RowSignatureMixIn.class);
 
     // for test
     registerSubtypes(ExpressionTimestampSpec.class);
@@ -211,7 +214,16 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "b", value = BulkRow.class),
       @JsonSubTypes.Type(name = "predict", value = HoltWintersPostProcessor.PredictedRow.class)
   })
-  public static interface Rows
+  public static interface RowMixIn
+  {
+  }
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RowSignature.class)
+  @JsonSubTypes(value = {
+      @JsonSubTypes.Type(name = "simple", value = RowSignature.class),
+      @JsonSubTypes.Type(name = "schema", value = Schema.class)
+  })
+  public static interface RowSignatureMixIn
   {
   }
 }

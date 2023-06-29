@@ -21,15 +21,17 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.Pair;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.RelayAggregatorFactory;
+import io.druid.java.util.common.Pair;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.Arrays;
@@ -37,16 +39,179 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RowSignature.class)
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "simple", value = RowSignature.class),
-    @JsonSubTypes.Type(name = "schema", value = Schema.class)
-})
-public class RowSignature implements io.druid.data.RowSignature
+public class RowSignature implements TypeResolver
 {
+  protected final List<String> columnNames;
+  protected final List<ValueDesc> columnTypes;
+
+  @JsonCreator
+  public RowSignature(
+      @JsonProperty("columnNames") List<String> columnNames,
+      @JsonProperty("columnTypes") List<ValueDesc> columnTypes
+  )
+  {
+    this.columnNames = columnNames;
+    this.columnTypes = columnTypes;
+  }
+
+  @JsonProperty
+  public List<String> getColumnNames()
+  {
+    return columnNames;
+  }
+
+  @JsonProperty
+  public List<ValueDesc> getColumnTypes()
+  {
+    return columnTypes;
+  }
+
+  @Override
+  public ValueDesc resolve(String column)
+  {
+    int index = columnNames.indexOf(column);
+    if (index >= 0) {
+      return columnTypes.get(index);
+    }
+    ValueDesc resolved = null;
+    for (int x = column.lastIndexOf('.'); resolved == null && x > 0; x = column.lastIndexOf('.', x - 1)) {
+      resolved = findElementOfStruct(column.substring(0, x), column.substring(x + 1));
+    }
+    return resolved;
+  }
+
+  public int size()
+  {
+    return getColumnNames().size();
+  }
+
+  public String columnName(int index)
+  {
+    return index < 0 ? null : getColumnNames().get(index);
+  }
+
+  public ValueDesc columnType(int index)
+  {
+    return index < 0 ? null : getColumnTypes().get(index);
+  }
+
+  public ValueDesc columnType(String name)
+  {
+    return columnType(getColumnNames().indexOf(name));
+  }
+
+  public Iterable<Pair<String, ValueDesc>> columnAndTypes()
+  {
+    return GuavaUtils.zip(getColumnNames(), getColumnTypes());
+  }
+
+  public Stream<Pair<String, ValueDesc>> stream()
+  {
+    return IntStream.range(0, columnNames.size()).mapToObj(x -> Pair.of(columnNames.get(x), columnTypes.get(x)));
+  }
+
+  public Iterable<Pair<String, ValueDesc>> dimensionAndTypes()
+  {
+    return columnAndTypes(type -> type.isDimension());
+  }
+
+  public Iterable<Pair<String, ValueDesc>> metricAndTypes()
+  {
+    return columnAndTypes(type -> !type.isDimension());
+  }
+
+  public List<Pair<String, ValueDesc>> columnAndTypes(Predicate<ValueDesc> predicate)
+  {
+    List<String> columnNames = getColumnNames();
+    List<ValueDesc> columnTypes = getColumnTypes();
+    List<Pair<String, ValueDesc>> columnAndTypes = Lists.newArrayList();
+    for (int i = 0; i < columnTypes.size(); i++) {
+      if (predicate.apply(columnTypes.get(i))) {
+        columnAndTypes.add(Pair.of(columnNames.get(i), columnTypes.get(i)));
+      }
+    }
+    return columnAndTypes;
+  }
+
+  public Iterable<Pair<String, ValueDesc>> columnAndTypes(Iterable<String> columns)
+  {
+    return Iterables.transform(columns, c -> Pair.of(c, resolve(c, ValueDesc.UNKNOWN)));
+  }
+
+  public Map<String, IntTagged<ValueDesc>> columnToIndexAndType()
+  {
+    Map<String, IntTagged<ValueDesc>> mapping = Maps.newHashMap();
+    for (int i = 0; i < size(); i++) {
+      mapping.put(columnName(i), IntTagged.of(i, columnType(i)));
+    }
+    return mapping;
+  }
+
+  public List<String> getDimensionNames()
+  {
+    return columnName(type -> type != null && type.isDimension());
+  }
+
+  public List<String> getMetricNames()
+  {
+    return columnName(type -> type == null || !type.isDimension());
+  }
+
+  public List<String> columnName(Predicate<ValueDesc> predicate)
+  {
+    List<String> columnNames = getColumnNames();
+    List<ValueDesc> columnTypes = getColumnTypes();
+    List<String> predicated = Lists.newArrayList();
+    for (int i = 0; i < columnTypes.size(); i++) {
+      if (predicate.apply(columnTypes.get(i))) {
+        predicated.add(columnNames.get(i));
+      }
+    }
+    return predicated;
+  }
+
+  public String asTypeString()
+  {
+    final StringBuilder s = new StringBuilder();
+    for (Pair<String, ValueDesc> pair : columnAndTypes()) {
+      if (s.length() > 0) {
+        s.append(',');
+      }
+      s.append(pair.lhs).append(':').append(ValueDesc.toTypeString(pair.rhs));
+    }
+    return s.toString();
+  }
+
+  public Map<String, ValueDesc> asTypeMap()
+  {
+    final Map<String, ValueDesc> map = Maps.newHashMap();
+    for (Pair<String, ValueDesc> pair : columnAndTypes()) {
+      map.put(pair.lhs, pair.rhs);
+    }
+    return map;
+  }
+
+  public boolean anyType(Predicate<ValueDesc> predicate)
+  {
+    return Iterables.any(getColumnTypes(), predicate);
+  }
+
+  public IntStream indexOf(Predicate<ValueDesc> predicate)
+  {
+    List<ValueDesc> types = getColumnTypes();
+    return IntStream.range(0, size()).filter(x -> predicate.apply(types.get(x)));
+  }
+
+  public int indexOf(String column)
+  {
+    return getColumnNames().indexOf(column);
+  }
+
   public static final RowSignature EMPTY = of(Arrays.asList(), Arrays.asList());
 
   // this is needed to be implemented by all post processors, but let's do it step by step
@@ -96,47 +261,6 @@ public class RowSignature implements io.druid.data.RowSignature
     return RowSignature.of(columnNames, columnTypes);
   }
 
-  protected final List<String> columnNames;
-  protected final List<ValueDesc> columnTypes;
-
-  @JsonCreator
-  public RowSignature(
-      @JsonProperty("columnNames") List<String> columnNames,
-      @JsonProperty("columnTypes") List<ValueDesc> columnTypes
-  )
-  {
-    this.columnNames = columnNames;
-    this.columnTypes = columnTypes;
-  }
-
-  @Override
-  @JsonProperty
-  public List<String> getColumnNames()
-  {
-    return columnNames;
-  }
-
-  @Override
-  @JsonProperty
-  public List<ValueDesc> getColumnTypes()
-  {
-    return columnTypes;
-  }
-
-  @Override
-  public ValueDesc resolve(String column)
-  {
-    int index = columnNames.indexOf(column);
-    if (index >= 0) {
-      return columnTypes.get(index);
-    }
-    ValueDesc resolved = null;
-    for (int x = column.lastIndexOf('.'); resolved == null && x > 0; x = column.lastIndexOf('.', x - 1)) {
-      resolved = findElementOfStruct(column.substring(0, x), column.substring(x + 1));
-    }
-    return resolved;
-  }
-
   public boolean containsAll(RowSignature signature)
   {
     for (int i = 0; i < signature.size(); i++) {
@@ -167,10 +291,10 @@ public class RowSignature implements io.druid.data.RowSignature
     return null;
   }
 
-  public Pair<String, ValueDesc> ordinal(int ix)
+  public io.druid.data.Pair<String, ValueDesc> ordinal(int ix)
   {
     if (ix < columnNames.size()) {
-      return Pair.of(columnNames.get(ix), columnTypes.get(ix));
+      return io.druid.data.Pair.of(columnNames.get(ix), columnTypes.get(ix));
     }
     return null;
   }
@@ -228,17 +352,6 @@ public class RowSignature implements io.druid.data.RowSignature
     for (int i = 0; i < columnTypes.size(); i++) {
       if (columnTypes.get(i).isString() || columnTypes.get(i).isMultiValued()) {
         candidates.add(columnNames.get(i));
-      }
-    }
-    return candidates;
-  }
-
-  public List<AggregatorFactory> extractMetricCandidates(Set<String> excludes)
-  {
-    List<AggregatorFactory> candidates = Lists.newArrayList();
-    for (int i = 0; i < columnNames.size(); i++) {
-      if (!excludes.contains(columnNames.get(i))) {
-        candidates.add(RelayAggregatorFactory.of(columnNames.get(i), columnTypes.get(i)));
       }
     }
     return candidates;
@@ -332,6 +445,19 @@ public class RowSignature implements io.druid.data.RowSignature
       aliased.add(alias.getOrDefault(name, name));
     }
     return aliased;
+  }
+
+  public RowSignature rename(List<String> columnNames)
+  {
+    Preconditions.checkArgument(columnNames.size() == columnTypes.size());
+    return of(columnNames, columnTypes);
+  }
+
+  public RowSignature exclude(Set<String> exclude)
+  {
+    Builder builder = new Builder();
+    stream().filter(p -> !exclude.contains(p.lhs)).forEach(p -> builder.append(p.lhs, p.rhs));
+    return builder.build();
   }
 
   public static class Builder
