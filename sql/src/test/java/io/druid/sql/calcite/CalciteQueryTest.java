@@ -4784,8 +4784,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource("sales")
             .dimensions(DefaultDimensionSpec.of("State", "d0"))
             .aggregators(
-                new RelayAggregatorFactory("a0", "Profit", "double", "MIN"),
-                new RelayAggregatorFactory("a1", "Profit", "double", "MAX"),
+                new GenericMinAggregatorFactory("a0", "Profit", ValueDesc.DOUBLE),
+                new GenericMaxAggregatorFactory("a1", "Profit", ValueDesc.DOUBLE),
                 new RelayAggregatorFactory("a2", "Profit", "double", "TIME_MIN"),
                 new RelayAggregatorFactory("a3", "Profit", "double", "TIME_MAX")
             )

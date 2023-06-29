@@ -104,7 +104,7 @@ public class DoubleMinAggregatorFactory extends NumericAggregatorFactory.DoubleT
   @Override
   public BinaryFn.Identical<Number> combiner()
   {
-    return (param1, param2) -> Math.min(param1.doubleValue(), param2.doubleValue());
+    return (param1, param2) -> param1.longValue() > param2.longValue() ? param2 : param1;
   }
 
   @Override

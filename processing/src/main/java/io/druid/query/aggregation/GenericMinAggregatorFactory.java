@@ -246,6 +246,14 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory implem
   @SuppressWarnings("unchecked")
   public BinaryFn.Identical combiner()
   {
+    switch (inputType.type()) {
+      case FLOAT:
+        return (param1, param2) -> ((Number) param1).floatValue() > ((Number) param2).floatValue() ? param2 : param1;
+      case DOUBLE:
+        return (param1, param2) -> ((Number) param1).doubleValue() > ((Number) param2).doubleValue() ? param2 : param1;
+      case LONG:
+        return (param1, param2) -> ((Number) param1).longValue() > ((Number) param2).longValue() ? param2 : param1;
+    }
     return (param1, param2) -> comparator.compare(param1, param2) < 0 ? param1 : param2;
   }
 

@@ -25,9 +25,14 @@ import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
 import org.apache.commons.lang.mutable.MutableLong;
+import org.roaringbitmap.IntIterator;
+
+import java.io.Closeable;
+import java.io.IOException;
 
 /**
  */
@@ -115,5 +120,66 @@ public abstract class VarianceAggregator implements Aggregator.Simple<VarianceAg
         return current;
       }
     };
+  }
+
+  public static Vectorized vectorize(LongColumnSelector.Scannable selector)
+  {
+    return new AbstractVectorized(selector)
+    {
+      @Override
+      public void aggregate(IntIterator iterator, VarianceAggregatorCollector[] vector, Int2IntFunction offset, int size)
+      {
+        selector.consume(iterator, (i, x) -> {
+          int ix = offset.applyAsInt(i);
+          if (vector[ix] == null) {
+            vector[ix] = new VarianceAggregatorCollector();
+          }
+          vector[ix].add(x);
+        });
+      }
+    };
+  }
+
+  public static Vectorized vectorize(DoubleColumnSelector.Scannable selector)
+  {
+    return new AbstractVectorized(selector)
+    {
+      @Override
+      public void aggregate(IntIterator iterator, VarianceAggregatorCollector[] vector, Int2IntFunction offset, int size)
+      {
+        selector.consume(iterator, (i, x) -> {
+          int ix = offset.applyAsInt(i);
+          if (vector[ix] == null) {
+            vector[ix] = new VarianceAggregatorCollector();
+          }
+          vector[ix].add(x);
+        });
+      }
+    };
+  }
+
+  private static abstract class AbstractVectorized implements Vectorized<VarianceAggregatorCollector[]>
+  {
+    private final Closeable selector;
+
+    private AbstractVectorized(Closeable selector) {this.selector = selector;}
+
+    @Override
+    public VarianceAggregatorCollector[] init(int length)
+    {
+      return new VarianceAggregatorCollector[length];
+    }
+
+    @Override
+    public VarianceAggregatorCollector get(VarianceAggregatorCollector[] vector, int offset)
+    {
+      return vector[offset];
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      selector.close();
+    }
   }
 }

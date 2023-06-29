@@ -27,6 +27,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.Aggregator;
@@ -36,6 +37,9 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.GenericAggregatorFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
+import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.LongColumnSelector;
+import io.druid.segment.QueryableIndex;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -47,7 +51,7 @@ import java.util.stream.LongStream;
 /**
  */
 @JsonTypeName("variance")
-public class VarianceAggregatorFactory extends GenericAggregatorFactory implements SQLSupport
+public class VarianceAggregatorFactory extends GenericAggregatorFactory implements AggregatorFactory.Vectorizable, SQLSupport
 {
   protected static final byte CACHE_TYPE_ID = 16;
 
@@ -345,5 +349,25 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
     int result = super.hashCode();
     result = 31 * result + Objects.hashCode(isVariancePop);
     return result;
+  }
+
+  @Override
+  public boolean supports(QueryableIndex index)
+  {
+    return isVectorizable(index);
+  }
+
+  @Override
+  public Aggregator.Vectorized create(ColumnSelectorFactory factory)
+  {
+    switch (inputType.type()) {
+      case LONG:
+        return VarianceAggregator.vectorize((LongColumnSelector.Scannable) factory.makeLongColumnSelector(fieldName));
+      case FLOAT:
+      case DOUBLE:
+        return VarianceAggregator.vectorize((DoubleColumnSelector.Scannable) factory.makeDoubleColumnSelector(fieldName));
+      default:
+        throw new ISE("%s", inputType);
+    }
   }
 }

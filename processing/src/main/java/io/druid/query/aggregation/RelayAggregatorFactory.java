@@ -256,14 +256,38 @@ public class RelayAggregatorFactory extends AggregatorFactory implements TypeRes
   }
 
   @Override
+  public boolean needResolving()
+  {
+    return typeName == null;
+  }
+
+  @Override
+  public AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver)
+  {
+    return rewrite(
+        name, columnName, Preconditions.checkNotNull(resolver.get().resolve(columnName), "Failed to resolve %s", columnName)
+    );
+  }
+
+  @Override
   public AggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver)
   {
     String fieldName = Iterables.getOnlyElement(fieldNames, null);
-    if (fieldName == null) {
-      return null;
+    if (fieldName != null) {
+      return rewrite(name, fieldName, resolver.resolve(fieldName, ValueDesc.UNKNOWN));
     }
-    ValueDesc inputType = resolver.resolve(fieldName, ValueDesc.UNKNOWN);
-    return new RelayAggregatorFactory(name, fieldName, inputType.typeName(), relayType, extractHints);
+    return null;
+  }
+
+  private AggregatorFactory rewrite(String name, String fieldName, ValueDesc type)
+  {
+    if (extractHints == null && type.isPrimitiveNumeric()) {
+      switch (relayType) {
+        case MIN: return new GenericMinAggregatorFactory(name, fieldName, type);
+        case MAX: return new GenericMaxAggregatorFactory(name, fieldName, type);
+      }
+    }
+    return new RelayAggregatorFactory(name, fieldName, type.typeName(), relayType, extractHints);
   }
 
   @Override
@@ -435,23 +459,5 @@ public class RelayAggregatorFactory extends AggregatorFactory implements TypeRes
            (relayType == null ? "": ", columnName='" + columnName + '\'') +
            (extractHints == null ? "": ", extractHints='" + extractHints + '\'') +
            '}';
-  }
-
-  @Override
-  public boolean needResolving()
-  {
-    return typeName == null;
-  }
-
-  @Override
-  public AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver)
-  {
-    return new RelayAggregatorFactory(
-        name,
-        columnName,
-        Preconditions.checkNotNull(resolver.get().resolve(columnName), "Failed to resolve %s", columnName).typeName(),
-        relayType,
-        extractHints
-    );
   }
 }

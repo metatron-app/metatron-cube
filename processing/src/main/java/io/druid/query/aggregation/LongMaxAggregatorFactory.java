@@ -103,7 +103,7 @@ public class LongMaxAggregatorFactory extends NumericAggregatorFactory.LongType 
   @Override
   public BinaryFn.Identical<Number> combiner()
   {
-    return (param1, param2) -> Math.max(param1.longValue(), param2.longValue());
+    return (param1, param2) -> param1.longValue() > param2.longValue() ? param1 : param2;
   }
 
   @Override
