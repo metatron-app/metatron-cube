@@ -284,44 +284,38 @@ next:
 
   public static Query.FilterSupport<?> inflate(Query.FilterSupport<?> query)
   {
-    final DimFilter filter = query.getFilter();
-    if (filter != null) {
-      List<VirtualColumn> inflated = Lists.newArrayList();
-      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, expression -> {
-        if (expression instanceof DimFilter.VCInflator) {
-          VirtualColumn vc = ((DimFilter.VCInflator) expression).inflate();
-          if (vc != null) {
-            inflated.add(vc);
-          }
-        }
-        return expression;
-      });
-      if (!inflated.isEmpty()) {
-        query = query.withVirtualColumns(GuavaUtils.concat(query.getVirtualColumns(), inflated));
-      }
+    List<VirtualColumn> inflated = inflate(query.getFilter());
+    if (!GuavaUtils.isNullOrEmpty(inflated)) {
+      query = query.withVirtualColumns(GuavaUtils.concat(query.getVirtualColumns(), inflated));
     }
     return query;
   }
 
   public static ViewDataSource inflate(ViewDataSource view)
   {
-    final DimFilter filter = view.getFilter();
-    if (filter != null) {
-      List<VirtualColumn> inflated = Lists.newArrayList();
-      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, expression -> {
-        if (expression instanceof DimFilter.VCInflator) {
-          VirtualColumn vc = ((DimFilter.VCInflator) expression).inflate();
-          if (vc != null) {
-            inflated.add(vc);
-          }
-        }
-        return expression;
-      });
-      if (!inflated.isEmpty()) {
-        view = view.withVirtualColumns(GuavaUtils.concat(view.getVirtualColumns(), inflated));
-      }
+    List<VirtualColumn> inflated = inflate(view.getFilter());
+    if (!GuavaUtils.isNullOrEmpty(inflated)) {
+      view = view.withVirtualColumns(GuavaUtils.concat(view.getVirtualColumns(), inflated));
     }
     return view;
+  }
+
+  private static List<VirtualColumn> inflate(DimFilter filter)
+  {
+    if (filter == null) {
+      return null;
+    }
+    List<VirtualColumn> inflated = Lists.newArrayList();
+    DimFilter rewritten = Expressions.rewrite(filter, FACTORY, expression -> {
+      if (expression instanceof DimFilter.VCInflator) {
+        VirtualColumn vc = ((DimFilter.VCInflator) expression).inflate();
+        if (vc != null) {
+          inflated.add(vc);
+        }
+      }
+      return expression;
+    });
+    return inflated;
   }
 
   // called for non-historical nodes (see QueryResource.prepareQuery)

@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.FrontCoding;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
@@ -36,9 +38,10 @@ import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 @JsonTypeName("in.compressed")
-public class CompressedInFilter extends DimFilter.FilterFactory implements DimFilter.Compressed
+public class CompressedInFilter implements DimFilter.Compressed
 {
   private static final Logger LOG = new Logger(CompressedInFilter.class);
 
@@ -134,6 +137,12 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
   public byte[] getHash()
   {
     return hash;
+  }
+
+  @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.add(dimension);
   }
 
   @Override

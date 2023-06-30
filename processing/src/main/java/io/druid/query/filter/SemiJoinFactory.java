@@ -168,7 +168,7 @@ public class SemiJoinFactory
     return allowDuplication ? Pair.of(from(fieldNames, sequence), null) : extract(fieldNames, sequence);
   }
 
-  public static Pair<DimFilter, RowExploder> extract(List<String> fieldNames, Iterable<Object[]> sequence)
+  private static Pair<DimFilter, RowExploder> extract(List<String> fieldNames, Iterable<Object[]> sequence)
   {
     Hasher hasher = Hashing.murmur3_128().newHasher();
     try {

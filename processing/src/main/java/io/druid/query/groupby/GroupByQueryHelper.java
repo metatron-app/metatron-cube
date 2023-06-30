@@ -28,6 +28,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.QueryConfig;
 import io.druid.segment.incremental.IncrementalIndex;
 
+import java.util.Arrays;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -65,7 +66,9 @@ public class GroupByQueryHelper
     @Override
     public Sequence toMergeStream(boolean parallel, boolean compact)
     {
-      return Sequences.simple(groupBy.estimatedInitialColumns(), queue);
+      Object[] array = queue.toArray();
+      Arrays.sort(array);
+      return Sequences.from(groupBy.estimatedInitialColumns(), array);
     }
 
     @Override

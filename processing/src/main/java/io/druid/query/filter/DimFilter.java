@@ -163,7 +163,7 @@ public interface DimFilter extends Expression, Cacheable
     @Override
     public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      throw new UnsupportedOperationException("getCacheKey");
+      return builder.disable();
     }
   }
 
@@ -366,6 +366,18 @@ public interface DimFilter extends Expression, Cacheable
   interface Compressed extends LogProvider
   {
     DimFilter decompress(Query parent);
+
+    @Override
+    default Filter toFilter(TypeResolver resolver)
+    {
+      throw new UnsupportedOperationException("toFilter");
+    }
+
+    @Override
+    default KeyBuilder getCacheKey(KeyBuilder builder)
+    {
+      return builder.disable();
+    }
   }
 
   interface VCInflator extends DimFilter

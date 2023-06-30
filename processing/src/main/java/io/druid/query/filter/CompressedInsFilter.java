@@ -38,9 +38,10 @@ import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 @JsonTypeName("ins.compressed")
-public class CompressedInsFilter extends DimFilter.FilterFactory implements DimFilter.Compressed
+public class CompressedInsFilter implements DimFilter.Compressed
 {
   private static final Logger LOG = new Logger(CompressedInsFilter.class);
 
@@ -126,6 +127,12 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   }
 
   @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.addAll(dimensions);
+  }
+
+  @Override
   public DimFilter forLog()
   {
     return new CompressedInsFilter(dimensions, destLens, valueLen, null, null);
@@ -149,7 +156,7 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
   @Override
   public String toString()
   {
-    return "CompressedInFilter{" +
+    return "CompressedInsFilter{" +
            "dimensions=" + dimensions +
            ", valueLen=" + valueLen +
            ", destLens=" + Arrays.toString(destLens) +
