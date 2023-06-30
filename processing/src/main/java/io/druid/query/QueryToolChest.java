@@ -46,6 +46,7 @@ import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.function.ToIntFunction;
 
 /**
@@ -135,10 +136,11 @@ public abstract class QueryToolChest<T>
    * @param query
    * @param sequence
    *
+   * @param executor
    * @return
    */
   @SuppressWarnings("unchecked")
-  public Sequence<T> deserializeSequence(Query<T> query, Sequence sequence)
+  public Sequence<T> deserializeSequence(Query<T> query, Sequence sequence, ExecutorService executor)
   {
     return Sequences.map(sequence, makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing()));
   }

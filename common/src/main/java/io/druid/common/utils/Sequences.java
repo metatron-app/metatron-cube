@@ -36,6 +36,7 @@ import io.druid.common.guava.ConcatSequence;
 import io.druid.common.guava.DelegatingYieldingAccumulator;
 import io.druid.common.guava.ExecuteWhenDoneYielder;
 import io.druid.common.guava.FilteredSequence;
+import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.InterruptibleSequence;
 import io.druid.common.guava.LazySequence;
@@ -244,6 +245,16 @@ public class Sequences
   public static <T> Sequence<T> lazy(List<String> columns, Supplier<Sequence<T>> supplier)
   {
     return new LazySequence<>(columns, supplier);
+  }
+
+  public static <T> Sequence<T> future(Future<Sequence<T>> supplier)
+  {
+    return future(null, supplier);
+  }
+
+  public static <T> Sequence<T> future(List<String> columns, Future<Sequence<T>> supplier)
+  {
+    return new FutureSequence<>(columns, supplier);
   }
 
   public static <T> List<Yielder<T>> toYielders(Sequence<Sequence<T>> sequences)

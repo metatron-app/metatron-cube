@@ -461,7 +461,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   public TestQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate)
   {
-    this(TestHelper.JSON_MAPPER, conglomerate, Execs.newDirectExecutorService(), new PopulatingMap(), q -> {});
+    this(TestHelper.JSON_MAPPER, conglomerate, Execs.multiThreaded(4, "exec-%d"), new PopulatingMap(), q -> {});
   }
 
   private TestQuerySegmentWalker(
@@ -870,7 +870,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
             mapper, typeReference, "test", "historical", () -> new BytesInputStream(output.toByteArray())
         );
         if (!BaseQuery.isBySegment(query)) {
-          return toolChest.deserializeSequence(query, Sequences.once(sequence.columns(), iterator));
+          return toolChest.deserializeSequence(query, Sequences.once(sequence.columns(), iterator), executor);
         }
         return (Sequence) Sequences.map(
             Sequences.once(sequence.columns(), iterator),

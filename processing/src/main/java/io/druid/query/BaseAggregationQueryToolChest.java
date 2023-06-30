@@ -50,6 +50,7 @@ import org.joda.time.DateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.function.ToIntFunction;
 
 /**
@@ -154,10 +155,10 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
 
   @Override
   @SuppressWarnings("unchecked")
-  public Sequence<Row> deserializeSequence(Query<Row> query, Sequence sequence)
+  public Sequence<Row> deserializeSequence(Query<Row> query, Sequence sequence, ExecutorService executor)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      Sequence<Object[]> decomposed = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> Sequences.once(bulk.decompose()));
+      Sequence<Object[]> decomposed = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> bulk.decompose(executor));
       Long timestamp = BaseQuery.getUniversalTimestamp(query, null);
       if (timestamp != null) {
         sequence = Sequences.map(decomposed, v -> CompactRow.timestamp(timestamp, v));
@@ -165,7 +166,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         sequence = Sequences.map(decomposed, CompactRow::new);
       }
     }
-    return super.deserializeSequence(query, sequence);
+    return super.deserializeSequence(query, sequence, executor);
   }
 
   @Override

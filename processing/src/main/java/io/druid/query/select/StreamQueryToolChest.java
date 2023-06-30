@@ -37,13 +37,13 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
-import io.druid.query.RowSignature;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.function.ToIntFunction;
 
 /**
@@ -99,12 +99,12 @@ public class StreamQueryToolChest extends QueryToolChest<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Sequence<Object[]> deserializeSequence(Query<Object[]> query, Sequence sequence)
+  public Sequence<Object[]> deserializeSequence(Query<Object[]> query, Sequence sequence, ExecutorService executor)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> Sequences.once(bulk.decompose()));
+      sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> bulk.decompose(executor));
     }
-    return super.deserializeSequence(query, sequence);
+    return super.deserializeSequence(query, sequence, executor);
   }
 
   @Override

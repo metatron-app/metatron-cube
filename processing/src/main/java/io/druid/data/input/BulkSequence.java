@@ -74,8 +74,8 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
     return new BulkSequence(sequence, schema, offset, limit, -1);   // disabled
   }
 
-  private static final int DEFAULT_PAGE_SIZE = 1024 << 1;
-  private static final int MAX_PAGE_SIZE = 1024 << 3;
+  private static final int DEFAULT_PAGE_SIZE = 1024 << 2;
+  private static final int MAX_PAGE_SIZE = 1024 << 4;
 
   private final Sequence<Object[]> sequence;
   private final RowSignature schema;

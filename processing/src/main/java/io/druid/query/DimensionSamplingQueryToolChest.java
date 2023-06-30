@@ -26,6 +26,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.BulkRow;
 import io.druid.data.input.BulkSequence;
 
+import java.util.concurrent.ExecutorService;
 import java.util.function.ToIntFunction;
 
 /**
@@ -66,12 +67,12 @@ public class DimensionSamplingQueryToolChest extends QueryToolChest<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Sequence<Object[]> deserializeSequence(Query<Object[]> query, Sequence sequence)
+  public Sequence<Object[]> deserializeSequence(Query<Object[]> query, Sequence sequence, ExecutorService executor)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> Sequences.once(bulk.decompose()));
+      sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> bulk.decompose(executor));
     }
-    return super.deserializeSequence(query, sequence);
+    return super.deserializeSequence(query, sequence, executor);
   }
 
   @Override

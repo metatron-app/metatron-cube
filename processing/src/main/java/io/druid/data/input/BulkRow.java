@@ -34,7 +34,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.FrontCoding;
+import io.druid.common.utils.Sequences;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.UTF8Bytes;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
@@ -47,6 +50,7 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 
 public class BulkRow extends AbstractRow
@@ -319,6 +323,12 @@ public class BulkRow extends AbstractRow
   public Iterator<Object[]> decompose()
   {
     return decompose(false);
+  }
+
+  public Sequence<Object[]> decompose(ExecutorService executor)
+  {
+    PrioritizedCallable<Sequence<Object[]>> callable = () -> Sequences.once(decompose());
+    return Sequences.future(executor.submit(callable));
   }
 
   public Iterator<Object[]> decompose(final boolean stringAsRaw)
