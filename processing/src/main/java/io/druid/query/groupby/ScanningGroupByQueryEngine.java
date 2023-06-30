@@ -66,24 +66,26 @@ public class ScanningGroupByQueryEngine
       return null;
     }
     List<DimensionSpec> dimensionSpecs = query.getDimensions();
-    DimensionSelector[] dimensions = new DimensionSelector[dimensionSpecs.size()];
+    String[] dimensions = new String[dimensionSpecs.size()];
+    DimensionSelector[] selectors = new DimensionSelector[dimensionSpecs.size()];
     ValueDesc[] dimensionTypes = new ValueDesc[dimensionSpecs.size()];
     Supplier<TypeResolver> resolver = Suppliers.ofInstance(cursor);
     final boolean useRawUTF8 = config.useUTF8(query);
-    for (int i = 0; i < dimensions.length; i++) {
+    for (int i = 0; i < selectors.length; i++) {
       DimensionSpec dimensionSpec = dimensionSpecs.get(i);
-      dimensions[i] = cursor.makeDimensionSelector(dimensionSpec);
-      if (!(dimensions[i] instanceof DimensionSelector.Scannable)) {
+      selectors[i] = cursor.makeDimensionSelector(dimensionSpec);
+      if (!(selectors[i] instanceof DimensionSelector.Scannable)) {
         return null;  // should be single valued, dictionary encoded
       }
+      dimensions[i] = dimensionSpec.getDimension();
       dimensionTypes[i] = dimensionSpec.resolve(resolver);
     }
-    Aggregator.Streaming[] aggregators = Aggregators.makeStreaming(query.getAggregatorSpecs(), cursor);
+    final Aggregator.Streaming[] aggregators = Aggregators.makeStreaming(query.getAggregatorSpecs(), cursor);
     if (aggregators == null) {
       return null;
     }
 
-    final int[] cardinalities = Arrays.stream(dimensions).mapToInt(DimensionSelector::getValueCardinality).toArray();
+    final int[] cardinalities = Arrays.stream(selectors).mapToInt(DimensionSelector::getValueCardinality).toArray();
 
     final int[] bits = DictionaryID.bitsRequired(cardinalities);
     final int[] shifts = DictionaryID.bitsToShifts(bits);
@@ -95,7 +97,7 @@ public class ScanningGroupByQueryEngine
 
     if (rowBits < Integer.SIZE && keyBits + rowBits < Long.SIZE) {
       final LongList list = new LongArrayList();
-      final LongSupplier supplier = keys(dimensions, cardinalities, shifts);
+      final LongSupplier supplier = DictionaryID.keys(selectors, cardinalities, shifts);
       for (; !cursor.isDone(); cursor.advance()) {
         list.add((supplier.getAsLong() << rowBits) + cursor.offset());
       }
@@ -105,10 +107,12 @@ public class ScanningGroupByQueryEngine
       Arrays.sort(keys);
 
       final Long fixedTimestamp = BaseQuery.getUniversalTimestamp(query, null);
-      final int numColumns = dimensions.length + aggregators.length + 1;
+      final int numColumns = selectors.length + aggregators.length + 1;
       final Long timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getStartTime();
 
-      final IntFunction[] rawAccess = DimensionSelector.convert(dimensions, dimensionTypes, useRawUTF8);
+      final IntFunction[] rawAccess = DimensionSelector.convert(
+          cursor.scanContext(), dimensions, dimensionTypes, selectors, useRawUTF8
+      );
       final LongFunction<Object[]> func = new LongFunction<Object[]>()
       {
         private long prev = -1;
@@ -132,7 +136,7 @@ public class ScanningGroupByQueryEngine
           int i = 0;
           Object[] row = new Object[numColumns];
           row[i++] = new MutableLong(timestamp.longValue());
-          for (int x = 0; x < dimensions.length; x++) {
+          for (int x = 0; x < selectors.length; x++) {
             row[i++] = rawAccess[x].apply(keyMask[x] & (int) (key >> shifts[x]));
           }
           for (Aggregator.Streaming scannable : aggregators) {
@@ -145,19 +149,5 @@ public class ScanningGroupByQueryEngine
       return Sequences.once(Arrays.stream(keys).mapToObj(func).filter(v -> v != null).iterator());
     }
     return null;
-  }
-
-  private static LongSupplier keys(DimensionSelector[] selectors, int[] cardinalities, int[] shifts)
-  {
-    if (selectors.length == 1) {
-      return () -> (long) selectors[0].getRow().get(0) << shifts[0];
-    }
-    return () -> {
-      long keys = 0;
-      for (int i = 0; i < selectors.length; i++) {
-        keys += (long) selectors[i].getRow().get(0) << shifts[i];
-      }
-      return keys;
-    };
   }
 }

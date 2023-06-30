@@ -195,7 +195,8 @@ public class GroupByQueryEngine
     private final boolean useRawUTF8;
     private final Long fixedTimestamp;
 
-    private final DimensionSelector[] dimensions;
+    private final String[] dimensions;
+    private final DimensionSelector[] selectors;
     private final ValueDesc[] dimensionTypes;
     private final BufferAggregator[] aggregators;
 
@@ -226,36 +227,38 @@ public class GroupByQueryEngine
       this.fixedTimestamp = BaseQuery.getUniversalTimestamp(query, null);
 
       List<DimensionSpec> dimensionSpecs = query.getDimensions();
-      dimensions = new DimensionSelector[dimensionSpecs.size()];
-      dimensionTypes = new ValueDesc[dimensions.length];
+      dimensions = new String[dimensionSpecs.size()];
+      selectors = new DimensionSelector[dimensionSpecs.size()];
+      dimensionTypes = new ValueDesc[selectors.length];
 
-      IntList svDimensions = IntList.sizeOf(dimensions.length);
-      IntList mvDimensions = IntList.sizeOf(dimensions.length);
+      IntList svDimensions = IntList.sizeOf(selectors.length);
+      IntList mvDimensions = IntList.sizeOf(selectors.length);
 
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
 
       Supplier<TypeResolver> resolver = Suppliers.ofInstance(source);
-      for (int i = 0; i < dimensions.length; i++) {
+      for (int i = 0; i < selectors.length; i++) {
         DimensionSpec dimensionSpec = dimensionSpecs.get(i);
-        dimensions[i] = cursor.makeDimensionSelector(dimensionSpec);
+        selectors[i] = cursor.makeDimensionSelector(dimensionSpec);
         dimensionTypes[i] = dimensionSpec.resolve(resolver);
-        if (dimensions[i] instanceof IndexProvidingSelector) {
-          IndexProvidingSelector provider = (IndexProvidingSelector) dimensions[i];
+        if (selectors[i] instanceof IndexProvidingSelector) {
+          IndexProvidingSelector provider = (IndexProvidingSelector) selectors[i];
           if (indexedColumns.removeAll(provider.targetColumns())) {
             throw new IllegalArgumentException("Found conflicts between index providers");
           }
           indexedColumns.addAll(provider.targetColumns());
           providers.add(provider);
         }
-        if (dimensions[i] instanceof DimensionSelector.SingleValued) {
+        if (selectors[i] instanceof DimensionSelector.SingleValued) {
           svDimensions.add(i);
         } else {
           mvDimensions.add(i);
         }
+        dimensions[i] = dimensionSpec.getDimension();
       }
 
-      final KeyPool pool = new KeyPool(dimensions.length);
+      final KeyPool pool = new KeyPool(selectors.length);
       if (mvDimensions.isEmpty()) {
         this.rowUpdater = new RowUpdater(pool)
         {
@@ -344,11 +347,13 @@ public class GroupByQueryEngine
 
     public Sequence<Object[]> asArray()
     {
-      final IntFunction[] rawAccess = DimensionSelector.convert(dimensions, dimensionTypes, useRawUTF8);
+      final IntFunction[] rawAccess = DimensionSelector.convert(
+          cursor.scanContext(), dimensions, dimensionTypes, selectors, useRawUTF8
+      );
 
       return Sequences.once(GuavaUtils.map(this, new Function<KeyValue, Object[]>()
       {
-        private final int numColumns = dimensions.length + aggregators.length + 1;
+        private final int numColumns = selectors.length + aggregators.length + 1;
         private final Long timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getStartTime();
 
         @Override
@@ -360,7 +365,7 @@ public class GroupByQueryEngine
           final Object[] row = new Object[numColumns];
 
           row[i++] = new MutableLong(timestamp.longValue());
-          for (int x = 0; x < dimensions.length; x++) {
+          for (int x = 0; x < selectors.length; x++) {
             row[i++] = rawAccess[x].apply(array[x + BUFFER_POS]);
           }
 
@@ -424,7 +429,7 @@ public class GroupByQueryEngine
 
       List<KeyValue> unprocessedKeys = null;
       while (!cursor.isDone() && unprocessedKeys == null) {
-        unprocessedKeys = rowUpdater.updateValues(dimensions);
+        unprocessedKeys = rowUpdater.updateValues(selectors);
         if (unprocessedKeys == null) {
           cursor.advance();   // should not advance before updated (for selectors)
         }

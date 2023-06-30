@@ -37,8 +37,8 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
+import io.druid.segment.bitmap.BitSets;
 import io.druid.segment.bitmap.Bitmaps;
-import io.druid.segment.bitmap.WrappedBitSetBitmap;
 import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DoubleScanner;
@@ -56,13 +56,16 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.IntFunction;
 import java.util.stream.DoubleStream;
 import java.util.stream.LongStream;
 
@@ -541,61 +544,84 @@ public class ColumnSelectors
     };
   }
 
-  private static final int THRESHOLD = 4194304;
+  public static final int THRESHOLD = 16_777_216;
+  public static final IntFunction NOT_EXISTS = x -> UTF8Bytes.EMPTY;
 
   // ignores value matcher
-  public static ObjectColumnSelector withRawAccess(Scannable scannable, ScanContext context, String column)
+  public static ObjectColumnSelector withRawAccess(
+      Scannable scannable,
+      ScanContext context,
+      String column,
+      MutableInt available
+  )
   {
-    ImmutableBitmap caching = context.dictionaryRef(column);
-    if (caching != null && caching.isEmpty()) {
+    IntFunction cached = toDictionaryCache(scannable, context, column, available);
+    if (cached == null) {
+      return ObjectColumnSelector.string(() -> UTF8Bytes.of(scannable.getAsRaw(scannable.getRow().get(0))));
+    }
+    if (cached == NOT_EXISTS) {
       return ObjectColumnSelector.string(() -> UTF8Bytes.EMPTY);
     }
-    int targetRows = context.count();
-    ObjectColumnSelector cached = asCachingSelector(scannable, caching, targetRows);
-    if (cached == null && caching == null && targetRows << 1 < context.numRows()) {
-      ImmutableBitmap bitmap = new WrappedBitSetBitmap(scannable.collect(context.iterator()));
-      if (bitmap.isEmpty()) {
-        return ObjectColumnSelector.string(() -> UTF8Bytes.EMPTY);
-      }
-      cached = asCachingSelector(scannable, bitmap, targetRows);
-    }
-    if (cached != null) {
-      return cached;
-    }
-    return ObjectColumnSelector.string(() -> UTF8Bytes.of(scannable.getAsRaw(scannable.getRow().get(0))));
+    return ObjectColumnSelector.string(() -> cached.apply(scannable.getRow().get(0)));
   }
 
-  private static ObjectColumnSelector asCachingSelector(Scannable scannable, ImmutableBitmap bitmap, int targetRows)
+  public static IntFunction toDictionaryCache(
+      Scannable scannable,
+      ScanContext context,
+      String column,
+      MutableInt available
+  )
+  {
+    ImmutableBitmap ref = context.dictionaryRef(column);
+    if (ref != null && ref.isEmpty()) {
+      return NOT_EXISTS;
+    }
+    int targetRows = context.count();
+    IntFunction cached = dictionaryCache(scannable, ref, targetRows, available);
+    if (cached == null && ref == null && targetRows << 1 < context.numRows()) {
+      BitSet collect = scannable.collect(context.iterator());
+      cached = collect.isEmpty() ? NOT_EXISTS : dictionaryCache(scannable, BitSets.wrap(collect), targetRows, available);
+    }
+    return cached;
+  }
+
+  private static IntFunction<UTF8Bytes> dictionaryCache(
+      Scannable scannable,
+      ImmutableBitmap bitmap,
+      int targetRows,
+      MutableInt available
+  )
   {
     Dictionary dictionary = scannable.getDictionary().dedicated();
 
     int cardinality = bitmap == null ? dictionary.size() : bitmap.size();
     long estimation = dictionary.getSerializedSize() * cardinality / dictionary.size();
-    if (estimation < THRESHOLD && targetRows > cardinality >> 1) {
-      int first = Bitmaps.firstOf(bitmap, 0);
-      int last = Bitmaps.lastOf(bitmap, dictionary.size());
-      int range = last - first + 1;
-
-      IntIterator iterator = bitmap == null ? null : bitmap.iterator();
-      if (range > cardinality << 3) {
-        Int2ObjectMap<UTF8Bytes> cached = new Int2ObjectOpenHashMap<>(cardinality);
-        if (dictionary instanceof GenericIndexed) {
-          dictionary.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b, o, l)));
-        } else {
-          dictionary.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b.duplicate(), o, l)));
-        }
-        return ObjectColumnSelector.string(() -> cached.get(scannable.getRow().get(0)));
-      } else {
-        UTF8Bytes[] cached = new UTF8Bytes[range];
-        if (dictionary instanceof GenericIndexed) {
-          dictionary.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b, o, l));
-        } else {
-          dictionary.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b.duplicate(), o, l));
-        }
-        return ObjectColumnSelector.string(() -> cached[scannable.getRow().get(0) - first]);
-      }
+    if (estimation > available.intValue() || targetRows < cardinality * 0.66) {
+      return null;
     }
-    return null;
+    available.subtract(estimation);
+
+    int first = Bitmaps.firstOf(bitmap, 0);
+    int last = Bitmaps.lastOf(bitmap, dictionary.size());
+    int range = last - first + 1;
+
+    IntIterator iterator = bitmap == null ? null : bitmap.iterator();
+    if (range > cardinality << 3) {
+      Int2ObjectMap<UTF8Bytes> cached = new Int2ObjectOpenHashMap<>(cardinality);
+      if (dictionary instanceof GenericIndexed) {
+        dictionary.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b, o, l)));
+      } else {
+        dictionary.scan(iterator, (x, b, o, l) -> cached.put(x, UTF8Bytes.read(b.duplicate(), o, l)));
+      }
+      return x -> cached.get(x);
+    }
+    UTF8Bytes[] cached = new UTF8Bytes[range];
+    if (dictionary instanceof GenericIndexed) {
+      dictionary.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b, o, l));
+    } else {
+      dictionary.scan(iterator, (x, b, o, l) -> cached[x - first] = UTF8Bytes.read(b.duplicate(), o, l));
+    }
+    return x -> cached[x - first];
   }
 
   public static ObjectColumnSelector<UTF8Bytes> asSingleRaw(final SingleValued selector)

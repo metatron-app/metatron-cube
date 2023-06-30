@@ -16,6 +16,7 @@
 
 package io.druid.segment.bitmap;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
@@ -82,6 +83,11 @@ public class BitSets
     BitSet clone = (BitSet) indices.clone();
     clone.flip(from, to);
     return clone;
+  }
+
+  public static ImmutableBitmap wrap(BitSet bitSet)
+  {
+    return new WrappedBitSetBitmap(bitSet);
   }
 
   private static class BatchIterator implements IntIterator

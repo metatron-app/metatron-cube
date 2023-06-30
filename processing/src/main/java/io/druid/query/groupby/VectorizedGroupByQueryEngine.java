@@ -90,15 +90,18 @@ public class VectorizedGroupByQueryEngine
   {
     final int size = cursor.size();
     final List<DimensionSpec> dimensionSpecs = query.getDimensions();
-    final Scannable[] dimensions = new Scannable[dimensionSpecs.size()];
-    for (int i = 0; i < dimensions.length; i++) {
-      dimensions[i] = (Scannable) cursor.makeDimensionSelector(dimensionSpecs.get(i));
+    final String[] dimensions = new String[dimensionSpecs.size()];
+    final Scannable[] selectors = new Scannable[dimensionSpecs.size()];
+    for (int i = 0; i < selectors.length; i++) {
+      dimensions[i] = dimensionSpecs.get(i).getDimension();
+      selectors[i] = (Scannable) cursor.makeDimensionSelector(dimensionSpecs.get(i));
     }
-    final IntFunction[] rawAccess = DimensionSelector.convert(dimensions, null, config.useUTF8(query));
-
+    final IntFunction[] rawAccess = DimensionSelector.convert(
+        cursor.scanContext(), dimensions, null, selectors, config.useUTF8(query)
+    );
     final Vectorized[] aggregators = Aggregators.vectorize(query.getAggregatorSpecs(), cursor);
 
-    final int[] cardinalities = Arrays.stream(dimensions).mapToInt(DimensionSelector::getValueCardinality).toArray();
+    final int[] cardinalities = Arrays.stream(selectors).mapToInt(DimensionSelector::getValueCardinality).toArray();
 
     // 1M : 20 bit, 10M : 24 bit
     final int[] bits = DictionaryID.bitsRequired(cardinalities);
@@ -117,7 +120,7 @@ public class VectorizedGroupByQueryEngine
       final IntIterable iterable = IntIterable.wrap(cursor);
 
       final IntBuffer ordering = buffer.asIntBuffer();    // row to batch
-      final Int2LongFunction keyMaker = keys(iterable, buffer.asLongBuffer(), dimensions, bits);
+      final Int2LongFunction keyMaker = keys(iterable, buffer.asLongBuffer(), selectors, bits);
       for (IntIterator iterator = IntIterators.from(iterable, size); iterator.hasNext(); ) {
         final int row = iterator.next();
         final long key = keyMaker.applyAsLong(row);

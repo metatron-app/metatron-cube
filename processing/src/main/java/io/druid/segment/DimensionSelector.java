@@ -29,6 +29,7 @@ import io.druid.segment.column.IntScanner;
 import io.druid.segment.column.RowSupplier;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.roaringbitmap.IntIterator;
 
 import java.util.BitSet;
@@ -157,17 +158,30 @@ public interface DimensionSelector
   {
   }
 
-  static IntFunction[] convert(DimensionSelector[] dimensions, ValueDesc[] dimensionTypes, boolean useRawUTF8)
+  static IntFunction[] convert(
+      ScanContext context,
+      String[] dimensions,
+      ValueDesc[] dimensionTypes,
+      DimensionSelector[] selectors,
+      boolean useRawUTF8
+  )
   {
-    final IntFunction[] rawAccess = new IntFunction[dimensions.length];
-    for (int x = 0; x < rawAccess.length; x++) {
-      final DimensionSelector selector = dimensions[x];
-      if (useRawUTF8 && (dimensionTypes == null || dimensionTypes[x].isStringOrDimension())) {
-        rawAccess[x] = selector instanceof DimensionSelector.WithRawAccess ?
-                       ix -> UTF8Bytes.of(((DimensionSelector.WithRawAccess) selector).getAsRaw(ix)) :
-                       ix -> UTF8Bytes.of((String) selector.lookupName(ix));
-      } else {
-        rawAccess[x] = ix -> StringUtils.emptyToNull(selector.lookupName(ix));
+    MutableInt available = new MutableInt(ColumnSelectors.THRESHOLD);
+    IntFunction[] rawAccess = new IntFunction[selectors.length];
+    for (int i = 0; i < rawAccess.length; i++) {
+      DimensionSelector selector = selectors[i];
+      if (selector instanceof Scannable) {
+        IntFunction cache = ColumnSelectors.toDictionaryCache((Scannable) selector, context, dimensions[i], available);
+        if (cache != null) {
+          if (useRawUTF8 && (dimensionTypes == null || dimensionTypes[i].isStringOrDimension())) {
+            rawAccess[i] = cache;
+          } else {
+            rawAccess[i] = ix -> StringUtils.emptyToNull(String.valueOf(cache.apply(ix)));
+          }
+        }
+      }
+      if (rawAccess[i] == null) {
+        rawAccess[i] = ix -> StringUtils.emptyToNull(selector.lookupName(ix));
       }
     }
     return rawAccess;

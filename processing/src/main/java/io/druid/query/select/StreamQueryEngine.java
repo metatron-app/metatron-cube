@@ -110,6 +110,7 @@ public class StreamQueryEngine
         boolean optimizeOrdering = !orderingColumns.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings);
         final DimensionSelector[] dimensions = new DimensionSelector[columns.length];
         final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.length];
+        final MutableInt available = new MutableInt(ColumnSelectors.THRESHOLD);
         for (int i = 0; i < columns.length; i++) {
           String column = columns[i];
           ValueDesc columnType = cursor.resolve(column, ValueDesc.UNKNOWN);
@@ -121,7 +122,7 @@ public class StreamQueryEngine
               }
               if (useRawUTF8 && columnType.isStringOrDimension()) {
                 if (selector instanceof Scannable) {
-                  selectors[i] = ColumnSelectors.withRawAccess((Scannable) selector, cursor.scanContext(), column);
+                  selectors[i] = ColumnSelectors.withRawAccess((Scannable) selector, context, column, available);
                 } else {
                   selectors[i] = ColumnSelectors.asSingleRaw((SingleValued) selector);
                 }
@@ -314,17 +315,8 @@ public class StreamQueryEngine
 
   private static LongSupplier keys(DimensionSelector[] selectors, Direction[] directions, int[] cardinalities, int[] shifts)
   {
-    if (!Arrays.asList(directions).contains(Direction.DESCENDING)) {
-      if (selectors.length == 1) {
-        return () -> (long) selectors[0].getRow().get(0) << shifts[0];
-      }
-      return () -> {
-        long keys = 0;
-        for (int i = 0; i < selectors.length; i++) {
-          keys += (long) selectors[i].getRow().get(0) << shifts[i];
-        }
-        return keys;
-      };
+    if (Arrays.stream(directions).allMatch(d -> d == Direction.ASCENDING)) {
+      return DictionaryID.keys(selectors, cardinalities, shifts);
     }
     return () -> {
       long keys = 0;

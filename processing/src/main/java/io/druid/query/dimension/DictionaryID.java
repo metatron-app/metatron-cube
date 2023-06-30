@@ -23,6 +23,7 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.Sequences;
 import io.druid.segment.Cursor;
+import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.ScanContext;
 import io.druid.segment.Scanning;
@@ -34,6 +35,7 @@ import org.roaringbitmap.IntIterator;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.function.LongSupplier;
 import java.util.stream.LongStream;
 
 public interface DictionaryID
@@ -122,6 +124,20 @@ public interface DictionaryID
       }
       return hash.toStream();
     }));
+  }
+
+  static LongSupplier keys(DimensionSelector[] selectors, int[] cardinalities, int[] shifts)
+  {
+    if (selectors.length == 1) {
+      return () -> (long) selectors[0].getRow().get(0) << shifts[0];
+    }
+    return () -> {
+      long keys = 0;
+      for (int i = 0; i < selectors.length; i++) {
+        keys += (long) selectors[i].getRow().get(0) << shifts[i];
+      }
+      return keys;
+    };
   }
 
   static class Hashes extends LongArrayList

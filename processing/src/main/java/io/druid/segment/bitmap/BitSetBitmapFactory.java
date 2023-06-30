@@ -47,7 +47,7 @@ public final class BitSetBitmapFactory implements BitmapFactory
   @Override
   public ImmutableBitmap mapImmutableBitmap(ByteBuffer b)
   {
-    return new WrappedBitSetBitmap(BitSet.valueOf(b.array()));
+    return BitSets.wrap(BitSet.valueOf(b.array()));
   }
 
   @Override
@@ -57,7 +57,7 @@ public final class BitSetBitmapFactory implements BitmapFactory
     for (ImmutableBitmap bm : b) {
       bitSet.or(((WrappedBitSetBitmap) bm).bitset());
     }
-    return new WrappedBitSetBitmap(bitSet);
+    return BitSets.wrap(bitSet);
   }
 
   @Override
@@ -71,7 +71,7 @@ public final class BitSetBitmapFactory implements BitmapFactory
     while (iterator.hasNext() && !bitSet.isEmpty()) {
       bitSet.and(((WrappedBitSetBitmap) iterator.next()).bitset());
     }
-    return new WrappedBitSetBitmap(bitSet);
+    return BitSets.wrap(bitSet);
   }
 
   @Override
@@ -79,7 +79,7 @@ public final class BitSetBitmapFactory implements BitmapFactory
   {
     BitSet bitSet = (BitSet) ((WrappedBitSetBitmap) b).bitset().clone();
     bitSet.flip(0, bitSet.size());
-    return new WrappedBitSetBitmap(bitSet);
+    return BitSets.wrap(bitSet);
   }
 
   @Override
@@ -87,6 +87,6 @@ public final class BitSetBitmapFactory implements BitmapFactory
   {
     BitSet bitSet = (BitSet) ((WrappedBitSetBitmap) b).bitset().clone();
     bitSet.flip(0, length);
-    return new WrappedBitSetBitmap(bitSet);
+    return BitSets.wrap(bitSet);
   }
 }
