@@ -248,19 +248,19 @@ public class BulkSequenceTest
     Assert.assertFalse(yielder.isDone());
     BulkRow g1 = yielder.get();
     Assert.assertEquals(5, g1.count());
-    Assert.assertArrayEquals(new Long[]{0L, 1L, 2L, 3L, 4L}, (Long[]) g1.values()[0]);
+    Assert.assertArrayEquals(new long[]{0L, 1L, 2L, 3L, 4L}, (long[]) g1.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
     BulkRow g2 = yielder.get();
     Assert.assertEquals(5, g2.count());
-    Assert.assertArrayEquals(new Long[]{5L, 6L, 7L, 8L, 9L}, (Long[]) g2.values()[0]);
+    Assert.assertArrayEquals(new long[]{5L, 6L, 7L, 8L, 9L}, (long[]) g2.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
     BulkRow g3 = yielder.get();
     Assert.assertEquals(3, g3.count());
-    Assert.assertArrayEquals(new Long[]{10L, 11L, 12L}, (Long[]) g3.values()[0]);
+    Assert.assertArrayEquals(new long[]{10L, 11L, 12L}, (long[]) g3.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertTrue(yielder.isDone());
@@ -282,19 +282,19 @@ public class BulkSequenceTest
     Assert.assertFalse(yielder.isDone());
     BulkRow g1 = yielder.get();
     Assert.assertEquals(3, g1.count());
-    Assert.assertArrayEquals(new Long[]{0L, 1L, 2L}, (Long[]) g1.values()[0]);
+    Assert.assertArrayEquals(new long[]{0L, 1L, 2L}, (long[]) g1.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
     BulkRow g2 = yielder.get();
     Assert.assertEquals(3, g2.count());
-    Assert.assertArrayEquals(new Long[]{3L, 4L, 5L}, (Long[]) g2.values()[0]);
+    Assert.assertArrayEquals(new long[]{3L, 4L, 5L}, (long[]) g2.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
     BulkRow g3 = yielder.get();
     Assert.assertEquals(1, g3.count());
-    Assert.assertArrayEquals(new Long[]{6L}, (Long[]) g3.values()[0]);
+    Assert.assertArrayEquals(new long[]{6L}, (long[]) g3.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertTrue(yielder.isDone());

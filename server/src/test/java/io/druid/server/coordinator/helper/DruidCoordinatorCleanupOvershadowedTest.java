@@ -69,13 +69,9 @@ public class DruidCoordinatorCleanupOvershadowedTest
   @Test
   public void testRun()
   {
-    druidCoordinatorCleanupOvershadowed = new DruidCoordinatorCleanupOvershadowed(coordinator);
-
-    druidCluster = new DruidCluster(
-        ImmutableMap.of("normal", MinMaxPriorityQueue.orderedBy(Ordering.natural().reverse()).create(Arrays.asList(
-            new ServerHolder(druidServer, mockPeon
-            )))));
-
+    EasyMock.expect(druidServer.getName())
+            .andReturn("test")
+            .anyTimes();
     EasyMock.expect(druidServer.getDataSources())
             .andReturn(ImmutableList.of(druidDataSource))
             .anyTimes();
@@ -86,6 +82,14 @@ public class DruidCoordinatorCleanupOvershadowedTest
     EasyMock.expect(coordinator.disableSegment("overshadowed", segmentV1)).andReturn(true).once();
     EasyMock.expect(coordinator.disableSegment("overshadowed", segmentV0)).andReturn(true).once();
     EasyMock.replay(mockPeon, coordinator, druidServer, druidDataSource);
+
+    druidCoordinatorCleanupOvershadowed = new DruidCoordinatorCleanupOvershadowed(coordinator);
+
+    druidCluster = new DruidCluster(
+        ImmutableMap.of("normal", MinMaxPriorityQueue.orderedBy(Ordering.natural().reverse()).create(Arrays.asList(
+            new ServerHolder(druidServer, mockPeon
+            )))));
+
     DruidCoordinatorRuntimeParams params = DruidCoordinatorRuntimeParams.newBuilder()
                                                                         .withMajorTick(true)
                                                                         .withStartTime(System.currentTimeMillis())

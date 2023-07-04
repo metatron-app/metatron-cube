@@ -67,9 +67,10 @@ public class QueryableIndexIndexableAdapterTest
     IndexableAdapter adapter = new QueryableIndexIndexableAdapter(index);
     String dimension = "dim1";
     //null is added to all dimensions with value
-    ImmutableBitmap bitmap = adapter.getBitmap(dimension, 0);
+    IndexableAdapter.BitmapProvider bitmaps = adapter.getBitmaps(dimension);
+    ImmutableBitmap bitmap = bitmaps.apply(0);
     for (int i = 0; i < adapter.getDimValueLookup(dimension).size(); i++) {
-      bitmap = adapter.getBitmap(dimension, i);
+      bitmap = bitmaps.apply(i);
       Assert.assertEquals(1, bitmap.size());
     }
   }

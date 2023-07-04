@@ -39,7 +39,6 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -115,12 +114,6 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   {
     final Column column = input.getColumn(dimension);
     return column == null ? null : column.getDictionary();
-  }
-
-  @Override
-  public Iterable<Rowboat> getRows()
-  {
-    return getRows(Lists.newArrayList(getDimensionNames()), Lists.newArrayList(getMetricNames()));
   }
 
   @Override
@@ -257,18 +250,17 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  @Nullable
-  public ImmutableBitmap getBitmap(String dimension, int dictId)
+  public BitmapProvider getBitmaps(String dimension)
   {
     final Column column = input.getColumn(dimension);
     if (column == null) {
-      return null;
+      return x -> null;
     }
     final BitmapIndex bitmaps = column.getBitmapIndex();
     if (bitmaps == null) {
-      return null;
+      return x -> null;
     }
-    return bitmaps.getBitmap(dictId);
+    return x -> bitmaps.getBitmap(x);
   }
 
   @Override

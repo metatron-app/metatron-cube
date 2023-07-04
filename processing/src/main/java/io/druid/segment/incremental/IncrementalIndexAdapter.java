@@ -21,10 +21,8 @@ package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
@@ -42,7 +40,6 @@ import io.druid.segment.incremental.IncrementalIndex.DimensionDesc;
 import io.druid.segment.incremental.IncrementalIndex.SortedDimLookup;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -206,12 +203,6 @@ public class IncrementalIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows()
-  {
-    return getRows(Lists.newArrayList(getDimensionNames()), Lists.newArrayList(getMetricNames()));
-  }
-
-  @Override
   public Iterable<Rowboat> getRows(final List<String> mergedDimensions, final List<String> mergedMetrics)
   {
     return new Iterable<Rowboat>()
@@ -290,19 +281,17 @@ public class IncrementalIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  @Nullable
-  public ImmutableBitmap getBitmap(String dimension, int index)
+  public BitmapProvider getBitmaps(String dimension)
   {
     final DimensionIndexer accessor = indexerMap.get(dimension);
     if (accessor == null) {
-      return null;
+      return x -> null;
     }
     final SortedDimLookup dimLookup = accessor.getDimLookup();
-    final int id = dimLookup.getUnsortedIdFromSortedId(index);
-    if (id < 0 || id >= dimLookup.size()) {
-      return null;
-    }
-    return accessor.invertedIndexes[id];
+    return x -> {
+      final int id = dimLookup.getUnsortedIdFromSortedId(x);
+      return id < 0 || id >= dimLookup.size() ? null : accessor.invertedIndexes[id];
+    };
   }
 
   @Override

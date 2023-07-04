@@ -220,9 +220,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
         new PathChildrenCacheListener()
         {
           @Override
-          public void childEvent(
-              CuratorFramework client, PathChildrenCacheEvent event
-          ) throws Exception
+          public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception
           {
             if (event.getType() == PathChildrenCacheEvent.Type.CHILD_ADDED) {
               loadRequestSignal.countDown();
@@ -249,7 +247,11 @@ public class LoadQueuePeonTest extends CuratorTestBase
     // don't simulate completion of load request here
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentLoadedSignal));
     Assert.assertEquals(0, loadQueuePeon.getNumSegmentsToLoad());
-    Assert.assertEquals(1200L, loadQueuePeon.getLoadQueueSize());   // failed but still on load queue
+    Assert.assertEquals(0, loadQueuePeon.getLoadQueueSize());   // fail queue
+    loadQueuePeon.tick(1);
+    Assert.assertEquals(0, loadQueuePeon.getLoadQueueSize());   // still fail queue
+    loadQueuePeon.tick(1);
+    Assert.assertEquals(1200, loadQueuePeon.getLoadQueueSize());   // checked in
   }
 
   private DataSegment dataSegmentWithInterval(String intervalStr)

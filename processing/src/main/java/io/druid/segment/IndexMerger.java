@@ -45,7 +45,7 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
-import io.druid.common.guava.CombineFn;
+import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
@@ -59,6 +59,7 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.segment.IndexableAdapter.BitmapProvider;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -98,13 +99,13 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  */
@@ -119,14 +120,10 @@ public class IndexMerger
   protected final IndexIO indexIO;
 
   @Inject
-  public IndexMerger(
-      ObjectMapper mapper,
-      IndexIO indexIO
-  )
+  public IndexMerger(ObjectMapper mapper, IndexIO indexIO)
   {
     this.mapper = Preconditions.checkNotNull(mapper, "null ObjectMapper");
     this.indexIO = Preconditions.checkNotNull(indexIO, "null IndexIO");
-
   }
 
   public IndexIO getIndexIO()
@@ -189,14 +186,11 @@ public class IndexMerger
     }
 
     log.info("Starting persist for interval[%s], rows[%,d]", interval, index.size());
+    IndexableAdapter adapter = new IncrementalIndexAdapter(
+        interval, index, indexSpec.getBitmapSerdeFactory().getBitmapFactory()
+    );
     return merge(
-        Arrays.<IndexableAdapter>asList(
-            new IncrementalIndexAdapter(
-                interval,
-                index,
-                indexSpec.getBitmapSerdeFactory().getBitmapFactory()
-            )
-        ),
+        Arrays.asList(adapter),
         index.isRollup(),
         index.getMetricAggs(),
         outDir,
@@ -206,55 +200,20 @@ public class IndexMerger
   }
 
   public File mergeQueryableIndex(
-      final List<QueryableIndex> indexes,
-      final boolean rollup,
-      final AggregatorFactory[] metricAggs,
-      final File outDir,
-      final IndexSpec indexSpec
+      List<QueryableIndex> indexes,
+      boolean rollup,
+      AggregatorFactory[] metricAggs,
+      File outDir,
+      IndexSpec indexSpec
   ) throws IOException
   {
     return mergeQueryableIndex(indexes, rollup, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
   }
 
-  public File mergeQueryableIndex(
-      final List<QueryableIndex> indexes,
-      final boolean rollup,
-      final AggregatorFactory[] metricAggs,
-      final File outDir,
-      final IndexSpec indexSpec,
-      final ProgressIndicator progress
-  ) throws IOException
-  {
-    // We are materializing the list for performance reasons. Lists.transform
-    // only creates a "view" of the original list, meaning the function gets
-    // applied every time you access an element.
-    List<IndexableAdapter> indexAdapteres = Lists.newArrayList(
-        Iterables.transform(
-            indexes,
-            new Function<QueryableIndex, IndexableAdapter>()
-            {
-              @Override
-              public IndexableAdapter apply(final QueryableIndex input)
-              {
-                return new QueryableIndexIndexableAdapter(input);
-              }
-            }
-        )
-    );
-    return merge(
-        indexAdapteres,
-        rollup,
-        metricAggs,
-        outDir,
-        indexSpec,
-        progress
-    );
-  }
-
   public File mergeQueryableIndexAndClose(
       List<QueryableIndex> indexes,
-      final boolean rollup,
-      final AggregatorFactory[] metricAggs,
+      boolean rollup,
+      AggregatorFactory[] metricAggs,
       File outDir,
       IndexSpec indexSpec,
       ProgressIndicator progress
@@ -270,12 +229,34 @@ public class IndexMerger
     }
   }
 
+  private File mergeQueryableIndex(
+      List<QueryableIndex> indexes,
+      boolean rollup,
+      AggregatorFactory[] metricAggs,
+      File outDir,
+      IndexSpec indexSpec,
+      ProgressIndicator progress
+  ) throws IOException
+  {
+    // We are materializing the list for performance reasons. Lists.transform
+    // only creates a "view" of the original list, meaning the function gets
+    // applied every time you access an element.
+    return merge(
+        indexes.stream().map(QueryableIndexIndexableAdapter::new).collect(Collectors.toList()),
+        rollup,
+        metricAggs,
+        outDir,
+        indexSpec,
+        progress
+    );
+  }
+
   public File merge(
-      final List<IndexableAdapter> indexes,
-      final boolean rollup,
-      final AggregatorFactory[] metricAggs,
-      final File outDir,
-      final IndexSpec indexSpec
+      List<IndexableAdapter> indexes,
+      boolean rollup,
+      AggregatorFactory[] metricAggs,
+      File outDir,
+      IndexSpec indexSpec
   ) throws IOException
   {
     return merge(indexes, rollup, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
@@ -318,8 +299,11 @@ public class IndexMerger
 
   private static List<String> getMergedDimensions(List<IndexableAdapter> indexes)
   {
-    if (indexes.size() == 0) {
+    if (indexes.isEmpty()) {
       return ImmutableList.of();
+    }
+    if (indexes.size() == 1) {
+      return Lists.newArrayList(indexes.get(0).getDimensionNames());
     }
     List<String> commonDimOrder = getLongestSharedDimOrder(indexes);
     if (commonDimOrder == null) {
@@ -345,13 +329,11 @@ public class IndexMerger
 
   private static List<String> getMergedMetrics(List<IndexableAdapter> indexes)
   {
-    if (indexes.size() == 0) {
+    if (indexes.isEmpty()) {
       return ImmutableList.of();
     }
     Set<String> retVal = Sets.newTreeSet();
-    for (IndexableAdapter adapter : indexes) {
-      Iterables.addAll(retVal, adapter.getMetricNames());
-    }
+    indexes.stream().forEach(x -> Iterables.addAll(retVal, x.getMetricNames()));
     return Lists.newArrayList(retVal);
   }
 
@@ -406,17 +388,10 @@ public class IndexMerger
       }
     }
     final int[][] rowNumConversions;
-    final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn;
+    final Function<List<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn;
     if (indexes.size() == 1) {
       rowNumConversions = null;
-      rowMergerFn = new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
-      {
-        @Override
-        public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> input)
-        {
-          return input.get(0);
-        }
-      };
+      rowMergerFn = boats -> boats.get(0);
     } else {
       rowNumConversions = new int[indexes.size()][];
       for (int i = 0; i < rowNumConversions.length; i++) {
@@ -431,14 +406,7 @@ public class IndexMerger
         ordering = Rowboat.TIME_ONLY_COMPARATOR;
         merger = null;
       }
-      rowMergerFn = new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
-      {
-        @Override
-        public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> boats)
-        {
-          return RowNumIterator.create(boats, rowNumConversions, ordering, merger);
-        }
-      };
+      rowMergerFn = boats -> RowNumIterator.create(boats, rowNumConversions, ordering, merger);
     }
 
     return makeIndexFiles(
@@ -456,13 +424,12 @@ public class IndexMerger
   }
 
   // Faster than IndexMaker
-  public File convert(final File inDir, final File outDir, final IndexSpec indexSpec) throws IOException
+  public File convert(File inDir, File outDir, IndexSpec indexSpec) throws IOException
   {
     return convert(inDir, outDir, indexSpec, new BaseProgressIndicator());
   }
 
-  public File convert(final File inDir, final File outDir, final IndexSpec indexSpec, final ProgressIndicator progress)
-      throws IOException
+  public File convert(File inDir, File outDir, IndexSpec indexSpec, ProgressIndicator progress) throws IOException
   {
     try (QueryableIndex index = indexIO.loadIndex(inDir)) {
       final IndexableAdapter adapter = new QueryableIndexIndexableAdapter(index);
@@ -473,14 +440,7 @@ public class IndexMerger
           progress,
           Lists.newArrayList(adapter.getDimensionNames()),
           Lists.newArrayList(adapter.getMetricNames()),
-          new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
-          {
-            @Override
-            public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> input)
-            {
-              return input.get(0);
-            }
-          },
+          x -> x.get(0),
           null,
           indexSpec,
           false
@@ -506,15 +466,8 @@ public class IndexMerger
     }
 
     // no rollup
-    final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn =
-        new Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>>()
-        {
-          @Override
-          public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> boats)
-          {
-            return new RowNumIterator(boats, rowNumConversions, GuavaUtils.noNullableNatural());
-          }
-        };
+    Function<List<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn =
+        boats -> new RowNumIterator(boats, rowNumConversions, GuavaUtils.noNullableNatural());
 
     return makeIndexFiles(
         indexes,
@@ -537,24 +490,13 @@ public class IndexMerger
       final ProgressIndicator progress,
       final List<String> mergedDimensions,
       final List<String> mergedMetrics,
-      final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn,
+      final Function<List<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn,
       final int[][] rowNumConversions,
       final IndexSpec indexSpec,
       final boolean rollup
   ) throws IOException
   {
-    List<Metadata> metadataList = Lists.transform(
-        indexes,
-        new Function<IndexableAdapter, Metadata>()
-        {
-          @Nullable
-          @Override
-          public Metadata apply(IndexableAdapter input)
-          {
-            return input.getMetadata();
-          }
-        }
-    );
+    List<Metadata> metadataList = Lists.transform(indexes, IndexableAdapter::getMetadata);
 
     AggregatorFactory[] combiningMetricAggs = null;
     if (metricAggs != null) {
@@ -627,11 +569,11 @@ public class IndexMerger
       progress.progress();
       startTime = System.currentTimeMillis();
 
-      final ArrayList<Pair<File, ByteSink>> dimOuts = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      final List<Pair<File, ByteSink>> dimOuts = Lists.newArrayListWithCapacity(mergedDimensions.size());
       final Map<String, Integer> dimensionCardinalities = Maps.newHashMap();
-      final ArrayList<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(indexes.size());
+      final List<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(indexes.size());
       final boolean[] convertMissingDimsFlags = new boolean[mergedDimensions.size()];
-      final ArrayList<MutableBitmap> nullRowsList = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      final List<MutableBitmap> nullRowsList = Lists.newArrayListWithCapacity(mergedDimensions.size());
       final boolean[] dimHasNullFlags = new boolean[mergedDimensions.size()];
 
       for (int i = 0; i < indexes.size(); ++i) {
@@ -739,14 +681,14 @@ public class IndexMerger
 
       timeWriter.open();
 
-      ArrayList<VSizeIntsWriter> forwardDimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      List<VSizeIntsWriter> forwardDimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
       for (String dimension : mergedDimensions) {
         VSizeIntsWriter writer = new VSizeIntsWriter(ioPeon, dimension, dimensionCardinalities.get(dimension));
         writer.open();
         forwardDimWriters.add(writer);
       }
 
-      ArrayList<MetricColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
+      List<MetricColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
       for (String metric : mergedMetrics) {
         ValueDesc type = metricTypeNames.get(metric);
         switch (type.type()) {
@@ -888,6 +830,7 @@ public class IndexMerger
         }
 
         final IndexSeeker[] dictIdSeeker = toIndexSeekers(indexes, dimConversions, dimension);
+        final BitmapProvider[] providers = indexes.stream().map(ix -> ix.getBitmaps(dimension)).toArray(x -> new BitmapProvider[x]);
 
         //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
         for (int dictId = 0; dictId < dimVals.size(); dictId++) {
@@ -896,7 +839,7 @@ public class IndexMerger
           for (int j = 0; j < indexes.size(); ++j) {
             final int seekedDictId = dictIdSeeker[j].seek(dictId);
             if (seekedDictId != IndexSeeker.NOT_EXIST) {
-              ImmutableBitmap bitmap = indexes.get(j).getBitmap(dimension, seekedDictId);
+              ImmutableBitmap bitmap = providers[j].apply(seekedDictId);
               if (bitmap == null) {
                 continue;
               }
@@ -953,7 +896,7 @@ public class IndexMerger
 
       log.info("outDir[%s] completed inverted.drd in %,d millis.", v8OutDir, System.currentTimeMillis() - startTime);
 
-      final ArrayList<String> expectedFiles = Lists.newArrayList(
+      final List<String> expectedFiles = Lists.newArrayList(
           Iterables.concat(
               Arrays.asList(
                   "index.drd", "inverted.drd", "spatial.drd", String.format("time_%s.drd", IndexIO.BYTE_ORDER)
@@ -1014,12 +957,12 @@ public class IndexMerger
       final List<IndexableAdapter> indexes,
       final List<String> mergedDimensions,
       final List<String> mergedMetrics,
-      final ArrayList<Map<String, IntBuffer>> dimConversions,
+      final List<Map<String, IntBuffer>> dimConversions,
       final boolean[] convertMissingDimsFlags,
-      final Function<ArrayList<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn
+      final Function<List<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn
   )
   {
-    final ArrayList<Iterator<Rowboat>> boats = Lists.newArrayListWithCapacity(indexes.size());
+    final List<Iterator<Rowboat>> boats = Lists.newArrayListWithCapacity(indexes.size());
 
     for (int i = 0; i < indexes.size(); ++i) {
       final Map<String, IntBuffer> conversionMap = dimConversions.get(i);
@@ -1183,28 +1126,22 @@ public class IndexMerger
     {
       iterator = Iterators.transform(
           rows,
-          new Function<Rowboat, Rowboat>()
-          {
-            @Override
-            public Rowboat apply(Rowboat input)
-            {
-              final int[][] dims = input.getDims();
-              for (int i = 0; i < conversions.length; ++i) {
-                if (dims[i] == null && convertMissingDimsFlags[i]) {
-                  dims[i] = EMPTY_STR_DIM;
-                  continue;
-                }
-                final IntBuffer converter = conversions[i];
-                if (converter == null) {
-                  continue;     // no need conversion
-                }
-                for (int j = 0; j < dims[i].length; ++j) {
-                  dims[i][j] = converter.get(dims[i][j]);
-                }
+          input -> {
+            final int[][] dims = input.getDims();
+            for (int i = 0; i < conversions.length; ++i) {
+              if (dims[i] == null && convertMissingDimsFlags[i]) {
+                dims[i] = EMPTY_STR_DIM;
+                continue;
               }
-
-              return input;
+              final IntBuffer converter = conversions[i];
+              if (converter == null) {
+                continue;     // no need conversion
+              }
+              for (int j = 0; j < dims[i].length; ++j) {
+                dims[i][j] = converter.get(dims[i][j]);
+              }
             }
+            return input;
           }
       );
     }
@@ -1274,14 +1211,14 @@ public class IndexMerger
   static class DictionaryMergeIterator implements Iterator<String>
   {
     protected final IntBuffer[] conversions;
-    protected final PriorityQueue<Pair<Integer, PeekingIterator<String>>> pQueue;
+    protected final PriorityQueue<IntTagged<PeekingIterator<String>>> pQueue;
 
     protected int counter;
 
     DictionaryMergeIterator(Indexed<String>[] dimValueLookups, boolean useDirect)
     {
       pQueue = new ObjectHeapPriorityQueue<>(
-          dimValueLookups.length, (lhs, rhs) -> lhs.rhs.peek().compareTo(rhs.rhs.peek())
+          dimValueLookups.length, (lhs, rhs) -> lhs.value.peek().compareTo(rhs.value.peek())
       );
       conversions = new IntBuffer[dimValueLookups.length];
       for (int i = 0; i < conversions.length; i++) {
@@ -1299,7 +1236,7 @@ public class IndexMerger
             Iterators.transform(indexed.iterator(), Strings::nullToEmpty)
         );
         if (iter.hasNext()) {
-          pQueue.enqueue(Pair.of(i, iter));
+          pQueue.enqueue(IntTagged.of(i, iter));
         }
       }
     }
@@ -1314,7 +1251,7 @@ public class IndexMerger
     public String next()
     {
       final String value = writeTranslate(pQueue.first(), counter);
-      while (!pQueue.isEmpty() && value.equals(pQueue.first().rhs.peek())) {
+      while (!pQueue.isEmpty() && value.equals(pQueue.first().value.peek())) {
         writeTranslate(pQueue.first(), counter);
       }
       counter++;
@@ -1334,13 +1271,13 @@ public class IndexMerger
       return false;
     }
 
-    private String writeTranslate(Pair<Integer, PeekingIterator<String>> smallest, int counter)
+    private String writeTranslate(IntTagged<PeekingIterator<String>> smallest, int counter)
     {
-      final int index = smallest.lhs;
-      final String value = smallest.rhs.next();
+      final int index = smallest.tag;
+      final String value = smallest.value.next();
 
       conversions[index].put(counter);
-      if (smallest.rhs.hasNext()) {
+      if (smallest.value.hasNext()) {
         pQueue.changed();
       } else {
         pQueue.dequeue();
@@ -1369,7 +1306,7 @@ public class IndexMerger
              new RowNumIterator.Merging(rows, conversions, ordering, merger);
     }
 
-    final PriorityQueue<Pair<Integer, PeekingIterator<Rowboat>>> pQueue;
+    final PriorityQueue<IntTagged<PeekingIterator<Rowboat>>> pQueue;
     final int[][] conversions;
     final Comparator<Rowboat> ordering;
 
@@ -1379,13 +1316,13 @@ public class IndexMerger
     {
       Preconditions.checkArgument(rowboats.size() == conversions.length);
       pQueue = new ObjectHeapPriorityQueue<>(
-          rowboats.size(), (lhs, rhs) -> ordering.compare(lhs.rhs.peek(), rhs.rhs.peek())
+          rowboats.size(), (lhs, rhs) -> ordering.compare(lhs.value.peek(), rhs.value.peek())
       );
       this.conversions = conversions;
       for (int i = 0; i < conversions.length; i++) {
         final PeekingIterator<Rowboat> iter = Iterators.peekingIterator(rowboats.get(i));
         if (iter.hasNext()) {
-          pQueue.enqueue(Pair.of(i, iter));
+          pQueue.enqueue(IntTagged.of(i, iter));
         }
       }
       this.ordering = ordering;
@@ -1403,13 +1340,13 @@ public class IndexMerger
       return writeConversion(pQueue.first(), rowNum++);
     }
 
-    Rowboat writeConversion(Pair<Integer, PeekingIterator<Rowboat>> smallest, int rowNum)
+    Rowboat writeConversion(IntTagged<PeekingIterator<Rowboat>> smallest, int rowNum)
     {
-      final int index = smallest.lhs;
-      final Rowboat value = smallest.rhs.next();
+      final int index = smallest.tag;
+      final Rowboat value = smallest.value.next();
 
       conversions[index][value.getRowNum()] = rowNum;
-      if (smallest.rhs.hasNext()) {
+      if (smallest.value.hasNext()) {
         pQueue.changed();
       } else {
         pQueue.dequeue();
@@ -1442,7 +1379,7 @@ public class IndexMerger
       public Rowboat next()
       {
         Rowboat value = writeConversion(pQueue.first(), rowNum);
-        while (!pQueue.isEmpty() && ordering.compare(value, pQueue.first().rhs.peek()) == 0) {
+        while (!pQueue.isEmpty() && ordering.compare(value, pQueue.first().value.peek()) == 0) {
           value = merger.apply(value, writeConversion(pQueue.first(), rowNum));
         }
         rowNum++;

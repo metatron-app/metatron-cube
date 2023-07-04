@@ -19,14 +19,15 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.List;
+import java.util.function.IntFunction;
 
 /**
  * An adapter to an index
@@ -43,16 +44,20 @@ public interface IndexableAdapter
 
   Indexed<String> getDimValueLookup(String dimension);
 
-  Iterable<Rowboat> getRows();
+  default Iterable<Rowboat> getRows()
+  {
+    return getRows(Lists.newArrayList(getDimensionNames()), Lists.newArrayList(getMetricNames()));
+  }
 
   Iterable<Rowboat> getRows(List<String> mergedDimensions, List<String> mergedMetrics);
 
-  @Nullable
-  ImmutableBitmap getBitmap(String dimension, int dictId);
+  BitmapProvider getBitmaps(String dimension);
 
   ValueDesc getMetricType(String metric);
 
   ColumnCapabilities getCapabilities(String column);
 
   Metadata getMetadata();
+
+  static interface BitmapProvider extends IntFunction<ImmutableBitmap> {}
 }

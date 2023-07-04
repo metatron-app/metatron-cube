@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -328,7 +329,7 @@ public abstract class IncrementalIndex implements Closeable
       );
     }
 
-    final List<String> rowDimensions = row.getDimensions();
+    final Iterable<String> rowDimensions = Iterables.filter(row.getDimensions(), x -> !x.equals(Row.TIME_COLUMN_NAME));
 
     int[][] dims;
     List<int[]> overflow = null;

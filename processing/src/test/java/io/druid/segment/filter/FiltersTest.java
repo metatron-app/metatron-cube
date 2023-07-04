@@ -114,7 +114,7 @@ public class FiltersTest
     int c3 = 0;
     s = System.currentTimeMillis();
     for (int k = 0; k < 20; k++) {
-      IntPredicate predicate = Filters.toMatcher(l, Direction.ASCENDING);
+      IntPredicate predicate = Filters.toMatcher(l, Direction.DESCENDING);
       for (int i = 2000000 - 1; i >= 0; i--) {
         if (predicate.apply(i)) {
           c3++;

@@ -60,7 +60,7 @@ public class IncrementalIndexAdapterTest
     );
     String dimension = "dim1";
     for (int i = 0; i < adapter.getDimValueLookup(dimension).size(); i++) {
-      ImmutableBitmap bitmap = adapter.getBitmap(dimension, i);
+      ImmutableBitmap bitmap = adapter.getBitmaps(dimension).apply(i);
       Assert.assertEquals(1, bitmap.size());
     }
   }

@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
@@ -73,12 +72,6 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows()
-  {
-    return Iterables.filter(baseAdapter.getRows(), filter);
-  }
-
-  @Override
   public Iterable<Rowboat> getRows(List<String> mergedDimensions, List<String> mergedMetrics)
   {
     return Iterables.filter(baseAdapter.getRows(mergedDimensions, mergedMetrics), filter);
@@ -97,9 +90,9 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public ImmutableBitmap getBitmap(String dimension, int dictId)
+  public BitmapProvider getBitmaps(String dimension)
   {
-    return baseAdapter.getBitmap(dimension, dictId);
+    return baseAdapter.getBitmaps(dimension);
   }
 
   @Override

@@ -427,6 +427,9 @@ public final class RoaringBitmapFactory implements BitmapFactory
       @Override
       public BitSet toBitSet()
       {
+        if (indices.length == 0) {
+          return new BitSet();
+        }
         BitSet bitSet = new BitSet(indices[indices.length - 1]);
         for (int i = 0; i < indices.length; i++) {
           bitSet.set(indices[i]);
