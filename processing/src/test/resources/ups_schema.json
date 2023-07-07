@@ -12,8 +12,8 @@
   },
   "metricsSpec":[
     {"name": "email", "typeName": "string"},
-    {"name": "ci_profile.base", "typeName": "boolean"},
-    {"name": "ci_profile.family", "typeName": "struct(fmly_memb_cnt:int,hhld_memb_cnt:int,child_y:boolean,adult_child_y:boolean)"},
+    {"name": "ci_profile", "typeName": "struct(base:boolean,segment:string)"},
+    {"name": "ci_profile.family", "typeName": "struct(fmly_memb_cnt:int,hhld_memb_cnt:int,child_y:boolean,adult_child_y:boolean,married:boolean)"},
     {"name": "adot_usage.quest.cone", "typeName": "struct(received:int,retention:int,received_percentile:int)"},
     {"name": "adot_usage.residence_time.summary", "typeName": "struct(daily_avg_time_sec:long,percentile:int)"},
     {"name": "adot_usage.stickness", "typeName": "struct(day_7:float,day_30:float)"}

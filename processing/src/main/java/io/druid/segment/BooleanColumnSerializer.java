@@ -134,42 +134,35 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
     @Override
     public long getSerializedSize()
     {
-      long serialized = Integer.BYTES + Integer.BYTES;
-      if (!values.isEmpty()) {
-        serialized += Integer.BYTES;
-        serialized += values.toBytes().length;
-      }
-      if (!nulls.isEmpty()) {
-        serialized += Integer.BYTES;
-        serialized += nulls.toBytes().length;
-      }
+      long serialized = 0;
+      serialized += Integer.BYTES;      // length of block
+      serialized += Integer.BYTES;      // size
+      serialized += Integer.BYTES;      // values.length
+      serialized += values.isEmpty() ? 0 : values.toBytes().length;
+      serialized += Integer.BYTES;      // nulls.length
+      serialized += nulls.isEmpty() ? 0 : nulls.toBytes().length;
       return serialized;
     }
 
     @Override
     public long writeToChannel(WritableByteChannel channel) throws IOException
     {
-      final byte[] valuesBytes = values.isEmpty() ? null : values.toBytes();
-      final byte[] nullsBytes = nulls.isEmpty() ? null : nulls.toBytes();
-      int serialized = Integer.BYTES;   // except self. tricky..
-      if (valuesBytes != null) {
-        serialized += Integer.BYTES + valuesBytes.length;
-      }
-      if (nullsBytes != null) {
-        serialized += Integer.BYTES + nullsBytes.length;
-      }
+      final byte[] valuesBytes = values.isEmpty() ? new byte[0] : values.toBytes();
+      final byte[] nullsBytes = nulls.isEmpty() ? new byte[0] : nulls.toBytes();
+
+      int serialized = Integer.BYTES;     // except length of block
+      serialized += Integer.BYTES + valuesBytes.length;
+      serialized += Integer.BYTES + nullsBytes.length;
+
       final DataOutputStream output = new DataOutputStream(Channels.newOutputStream(channel));
       output.writeInt(serialized);
-      output.writeInt(index);
-      if (valuesBytes != null) {
-        output.writeInt(valuesBytes.length);
-        output.write(valuesBytes);
-      }
-      if (nullsBytes != null) {
-        output.writeInt(nullsBytes.length);
-        output.write(nullsBytes);
-      }
+      output.writeInt(index);   // size
+      output.writeInt(valuesBytes.length);
+      output.write(valuesBytes);
+      output.writeInt(nullsBytes.length);
+      output.write(nullsBytes);
       output.flush();
+
       return Integer.BYTES + serialized;
     }
   }

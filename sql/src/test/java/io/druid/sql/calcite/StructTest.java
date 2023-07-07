@@ -76,4 +76,20 @@ public class StructTest extends CalciteQueryTestHelper
         "StreamQuery{dataSource='ups', filter=BoundDimFilter{0 < adot_usage.stickness.day_7(numeric)}, columns=[v0], virtualColumns=[ExprVirtualColumn{expression='ARRAY(\"adot_usage.quest.cone.received\",\"adot_usage.quest.cone.retention\",\"adot_usage.quest.cone.received_percentile\")', outputName='v0'}]}"
     );
   }
+
+  @Test
+  public void tesBoolean() throws Exception
+  {
+    testQuery(
+        "SELECT \"ci_profile.base\",\"ci_profile.family.child_y\",\"ci_profile.family.adult_child_y\",\"ci_profile.family.married\" from ups where \"adot_usage.stickness.day_7\" < 1000",
+        new Object[][]{
+            {false, true, null, false},
+            {true, true, null, null}
+        }
+    );
+    hook.verifyHooked(
+        "2ob5tJUEWj+xyzoc8dZ4Kw==",
+        "StreamQuery{dataSource='ups', filter=BoundDimFilter{adot_usage.stickness.day_7 < 1000(numeric)}, columns=[ci_profile.base, ci_profile.family.child_y, ci_profile.family.adult_child_y, ci_profile.family.married]}"
+    );
+  }
 }
