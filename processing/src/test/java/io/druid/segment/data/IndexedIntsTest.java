@@ -42,7 +42,7 @@ public class IndexedIntsTest
   {
     return Arrays.asList(
         new Object[][]{
-            {VSizedInt.fromArray(array)},
+            {VintValues.fromArray(array)},
             {IntBufferIndexedInts.fromArray(array)}
         }
     );

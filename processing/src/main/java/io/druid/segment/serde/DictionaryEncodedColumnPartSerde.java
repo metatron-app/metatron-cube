@@ -31,22 +31,22 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnPartProviders;
-import io.druid.segment.CompressedVSizedIndexedIntSupplier;
-import io.druid.segment.CompressedVSizedIndexedIntV3Supplier;
+import io.druid.segment.CompressedVIntsSupplierV3;
+import io.druid.segment.CompressedVintsSupplier;
 import io.druid.segment.IndexIO;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
-import io.druid.segment.data.CompressedVSizedIntSupplier;
+import io.druid.segment.data.CompressedVintsReader;
 import io.druid.segment.data.CumulativeBitmapWriter;
 import io.druid.segment.data.GenericIndexed;
-import io.druid.segment.data.IndexedInts;
-import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.data.IndexedRTree;
+import io.druid.segment.data.IntValues;
+import io.druid.segment.data.IntsValues;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.data.VSizedIndexedInt;
-import io.druid.segment.data.VSizedInt;
+import io.druid.segment.data.VintValues;
+import io.druid.segment.data.VintsValues;
 import io.druid.segment.data.WritableSupplier;
 
 import javax.annotation.Nullable;
@@ -272,8 +272,8 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     private VERSION version = null;
     private int flags = NO_FLAGS;
     private GenericIndexed<String> dictionary = null;
-    private WritableSupplier<IndexedInts> singleValuedColumn = null;
-    private WritableSupplier<IndexedMultivalue<IndexedInts>> multiValuedColumn = null;
+    private WritableSupplier<IntValues> singleValuedColumn = null;
+    private WritableSupplier<IntsValues> multiValuedColumn = null;
     private BitmapSerdeFactory bitmapSerdeFactory = null;
     private GenericIndexed<ImmutableBitmap> bitmaps = null;
     private ImmutableRTree spatialIndex = null;
@@ -314,15 +314,15 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       return this;
     }
 
-    public LegacySerializerBuilder withSingleValuedColumn(VSizedInt singleValuedColumn)
+    public LegacySerializerBuilder withSingleValuedColumn(VintValues singleValuedColumn)
     {
       Preconditions.checkState(multiValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
       this.version = VERSION.LEGACY_SINGLE_VALUE;
-      this.singleValuedColumn = singleValuedColumn.asWritableSupplier();
+      this.singleValuedColumn = singleValuedColumn;
       return this;
     }
 
-    public LegacySerializerBuilder withSingleValuedColumn(CompressedVSizedIntSupplier singleValuedColumn)
+    public LegacySerializerBuilder withSingleValuedColumn(CompressedVintsReader singleValuedColumn)
     {
       Preconditions.checkState(multiValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
       this.version = VERSION.LEGACY_COMPRESSED;
@@ -330,15 +330,15 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       return this;
     }
 
-    public LegacySerializerBuilder withMultiValuedColumn(VSizedIndexedInt multiValuedColumn)
+    public LegacySerializerBuilder withMultiValuedColumn(VintsValues multiValuedColumn)
     {
       Preconditions.checkState(singleValuedColumn == null, "Cannot set both multiValuedColumn and singleValuedColumn");
       this.version = VERSION.LEGACY_MULTI_VALUE;
-      this.multiValuedColumn = multiValuedColumn.asWritableSupplier();
+      this.multiValuedColumn = multiValuedColumn;
       return this;
     }
 
-    public LegacySerializerBuilder withMultiValuedColumn(CompressedVSizedIndexedIntSupplier multiValuedColumn)
+    public LegacySerializerBuilder withMultiValuedColumn(CompressedVintsSupplier multiValuedColumn)
     {
       Preconditions.checkState(singleValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
       this.version = VERSION.LEGACY_COMPRESSED;
@@ -491,26 +491,25 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
         }
       }
 
-
-      private ColumnPartProvider<IndexedInts> readSingleValuedColumn(ByteBuffer buffer, boolean compressed)
+      private ColumnPartProvider<IntValues> readSingleValuedColumn(ByteBuffer buffer, boolean compressed)
       {
         if (!compressed) {
-          return ColumnPartProviders.with(VSizedInt.readFromByteBuffer(buffer));
+          return ColumnPartProviders.with(VintValues.readFromByteBuffer(buffer));
         } else {
-          return CompressedVSizedIntSupplier.fromByteBuffer(buffer, byteOrder);
+          return CompressedVintsReader.from(buffer, byteOrder);
         }
       }
 
-      private ColumnPartProvider<IndexedMultivalue<IndexedInts>> readMultiValuedColumn(
+      private ColumnPartProvider<IntsValues> readMultiValuedColumn(
           ByteBuffer buffer, int flags, boolean compressed
       )
       {
         if (!compressed) {
-          return ColumnPartProviders.with(VSizedIndexedInt.readFromByteBuffer(buffer));
+          return ColumnPartProviders.with(VintsValues.readFromByteBuffer(buffer));
         } else if (Feature.MULTI_VALUE.isSet(flags)) {
-          return CompressedVSizedIndexedIntSupplier.fromByteBuffer(buffer, byteOrder);
+          return CompressedVintsSupplier.from(buffer, byteOrder);
         } else if (Feature.MULTI_VALUE_V3.isSet(flags)) {
-          return CompressedVSizedIndexedIntV3Supplier.fromByteBuffer(buffer, byteOrder);
+          return CompressedVIntsSupplierV3.from(buffer, byteOrder);
         } else {
           throw new IAE("Unrecognized multi-value flag[%d]", flags);
         }

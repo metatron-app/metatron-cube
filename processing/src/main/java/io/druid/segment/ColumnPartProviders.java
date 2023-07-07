@@ -21,8 +21,8 @@ package io.druid.segment;
 
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.data.VSizedIndexedInt;
-import io.druid.segment.data.VSizedInt;
+import io.druid.segment.data.VintsValues;
+import io.druid.segment.data.VintValues;
 
 import java.nio.ByteBuffer;
 
@@ -31,13 +31,13 @@ import java.nio.ByteBuffer;
 public class ColumnPartProviders
 {
   @SuppressWarnings("unchecked")
-  public static <T> ColumnPartProvider<T> with(final VSizedInt instance)
+  public static <T> ColumnPartProvider<T> with(final VintValues instance)
   {
     return with((T) instance, instance.getSerializedSize(), instance.size());
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> ColumnPartProvider<T> with(final VSizedIndexedInt instance)
+  public static <T> ColumnPartProvider<T> with(final VintsValues instance)
   {
     return with((T) instance, instance.getSerializedSize(), instance.size());
   }

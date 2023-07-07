@@ -34,7 +34,7 @@ import io.druid.segment.column.LongScanner;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedLongBufferObjectStrategy;
-import io.druid.segment.data.CompressedLongsIndexedSupplier;
+import io.druid.segment.data.CompressedLongReader;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
@@ -152,7 +152,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
         } else {
           CompressedLongBufferObjectStrategy strategy =
               CompressedLongBufferObjectStrategy.getBufferForOrder(byteOrder, compression, sizePer);
-          CompressedLongsIndexedSupplier column = new CompressedLongsIndexedSupplier(
+          CompressedLongReader column = new CompressedLongReader(
               numRows, sizePer, GenericIndexed.read(buffer, strategy), compression
           );
           Supplier<ImmutableBitmap> nulls = ComplexMetrics.readBitmap(buffer, serdeFactory);

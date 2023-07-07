@@ -65,7 +65,7 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
-import io.druid.segment.data.CompressedLongsSupplierSerializer;
+import io.druid.segment.data.ColumnPartWriter.LongType;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
@@ -74,7 +74,7 @@ import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.TmpFileIOPeon;
-import io.druid.segment.data.VSizeIntsWriter;
+import io.druid.segment.data.VintsWriter;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexAdapter;
 import io.druid.segment.serde.ComplexMetricColumnSerializer;
@@ -673,15 +673,15 @@ public class IndexMerger
           rowMergerFn
       );
 
-      ColumnPartWriter timeWriter = CompressedLongsSupplierSerializer.create(
+      ColumnPartWriter timeWriter = LongType.create(
           ioPeon, "little_end_time", IndexIO.BYTE_ORDER, IndexSpec.DEFAULT_COMPRESSION
       );
 
       timeWriter.open();
 
-      List<VSizeIntsWriter> forwardDimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      List<VintsWriter> forwardDimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
       for (String dimension : mergedDimensions) {
-        VSizeIntsWriter writer = new VSizeIntsWriter(ioPeon, dimension, dimensionCardinalities.get(dimension));
+        VintsWriter writer = new VintsWriter(ioPeon, dimension, dimensionCardinalities.get(dimension));
         writer.open();
         forwardDimWriters.add(writer);
       }
@@ -762,7 +762,7 @@ public class IndexMerger
       IndexIO.checkFileSize(timeFile);
 
       for (int i = 0; i < mergedDimensions.size(); ++i) {
-        VSizeIntsWriter writer = forwardDimWriters.get(i);
+        VintsWriter writer = forwardDimWriters.get(i);
         writer.close();
         try (WritableByteChannel channel = Channels.newChannel(dimOuts.get(i).rhs.openStream())) {
           writer.writeToChannel(channel);

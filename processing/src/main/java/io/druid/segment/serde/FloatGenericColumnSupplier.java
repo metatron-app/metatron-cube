@@ -24,16 +24,16 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedFloatsGenericColumn;
-import io.druid.segment.data.CompressedFloatsIndexedSupplier;
+import io.druid.segment.data.CompressedFloatReader;
 
 /**
  */
 public class FloatGenericColumnSupplier implements ColumnPartProvider<GenericColumn>
 {
-  private final CompressedFloatsIndexedSupplier column;
+  private final CompressedFloatReader column;
   private final Supplier<ImmutableBitmap> nulls;
 
-  public FloatGenericColumnSupplier(CompressedFloatsIndexedSupplier column, Supplier<ImmutableBitmap> nulls)
+  public FloatGenericColumnSupplier(CompressedFloatReader column, Supplier<ImmutableBitmap> nulls)
   {
     this.column = column;
     this.nulls = nulls;

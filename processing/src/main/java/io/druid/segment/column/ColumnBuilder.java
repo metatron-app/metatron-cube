@@ -29,7 +29,8 @@ import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.data.IndexedMultivalue;
+import io.druid.segment.data.IntValues;
+import io.druid.segment.data.IntsValues;
 import io.druid.segment.serde.DictionaryEncodedColumnSupplier;
 
 import java.util.List;
@@ -111,7 +112,7 @@ public class ColumnBuilder
     return this;
   }
 
-  public ColumnBuilder setMultiValuedColumn(ColumnPartProvider<IndexedMultivalue<IndexedInts>> mvColumn)
+  public ColumnBuilder setMultiValuedColumn(ColumnPartProvider<IntsValues> mvColumn)
   {
     setNumRows(mvColumn.numRows());
     builder.multiValuedColumn = mvColumn;
@@ -119,7 +120,7 @@ public class ColumnBuilder
   }
 
 
-  public ColumnBuilder setSingleValuedColumn(ColumnPartProvider<IndexedInts> svColumn)
+  public ColumnBuilder setSingleValuedColumn(ColumnPartProvider<IntValues> svColumn)
   {
     setNumRows(svColumn.numRows());
     builder.singleValuedColumn = svColumn;

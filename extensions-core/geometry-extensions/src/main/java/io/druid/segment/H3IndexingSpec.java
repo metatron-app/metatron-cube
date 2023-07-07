@@ -38,9 +38,8 @@ import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ColumnPartWriter;
-import io.druid.segment.data.CompressedLongsSupplierSerializer;
-import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.ColumnPartWriter.LongType;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
@@ -124,16 +123,11 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
 
     return new MetricColumnSerializer()
     {
-      private ColumnPartWriter.LongType writer;
+      private LongType writer;
 
       public void open(IOPeon ioPeon) throws IOException
       {
-        writer = CompressedLongsSupplierSerializer.create(
-            ioPeon,
-            String.format("%s.h3", columnName),
-            IndexIO.BYTE_ORDER,
-            CompressedObjectStrategy.CompressionStrategy.LZ4
-        );
+        writer = LongType.create(ioPeon, String.format("%s.h3", columnName), IndexIO.BYTE_ORDER, CompressionStrategy.LZ4);
         writer.open();
       }
 
@@ -183,7 +177,7 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
   @JsonTypeName("h3")
   public static class SerDe implements ColumnPartSerde
   {
-    private final ColumnPartWriter.LongType writer;
+    private final LongType writer;
 
     @JsonCreator
     public SerDe()
@@ -191,7 +185,7 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       this.writer = null;
     }
 
-    public SerDe(ColumnPartWriter.LongType writer)
+    public SerDe(LongType writer)
     {
       this.writer = Preconditions.checkNotNull(writer);
     }

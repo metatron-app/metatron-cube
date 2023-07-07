@@ -28,8 +28,7 @@ import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.BitSlicedBitmaps;
 import io.druid.segment.data.BitSlicer;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ColumnPartWriter;
-import io.druid.segment.data.CompressedLongsSupplierSerializer;
+import io.druid.segment.data.ColumnPartWriter.LongType;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.data.IOPeon;
@@ -115,7 +114,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   private final ByteOrder byteOrder;
   private final CompressionStrategy compression;
 
-  ColumnPartWriter.LongType writer;
+  LongType writer;
 
   final BitmapSerdeFactory serdeFactory;
   final MetricHistogram.LongType histogram;
@@ -153,12 +152,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   @Override
   public void open(IOPeon ioPeon) throws IOException
   {
-    writer = CompressedLongsSupplierSerializer.create(
-        ioPeon,
-        String.format("%s.long_column", filenameBase),
-        byteOrder,
-        compression
-    );
+    writer = LongType.create(ioPeon, String.format("%s.long_column", filenameBase), byteOrder, compression);
     writer.open();
   }
 

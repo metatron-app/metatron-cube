@@ -22,7 +22,7 @@ package io.druid.segment.column;
 import com.google.common.base.Strings;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.data.IndexedMultivalue;
+import io.druid.segment.data.IntsValues;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
@@ -36,12 +36,12 @@ import java.util.BitSet;
 public final class DictionaryEncodedColumn implements Closeable
 {
   private final IndexedInts column;
-  private final IndexedMultivalue<IndexedInts> multiValueColumn;
+  private final IntsValues multiValueColumn;
   private final Dictionary<String> dictionary;
 
   public DictionaryEncodedColumn(
       IndexedInts singleValueColumn,
-      IndexedMultivalue<IndexedInts> multiValueColumn,
+      IntsValues multiValueColumn,
       Dictionary<String> dictionary
   )
   {

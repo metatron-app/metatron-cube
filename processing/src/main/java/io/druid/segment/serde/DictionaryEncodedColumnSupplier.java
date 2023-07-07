@@ -21,10 +21,9 @@ package io.druid.segment.serde;
 
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.Dictionary;
-import io.druid.segment.data.IndexedInts;
-import io.druid.segment.data.IndexedMultivalue;
+import io.druid.segment.data.IntValues;
+import io.druid.segment.data.IntsValues;
 
 /**
 */
@@ -33,8 +32,8 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   public static class Builder
   {
     public ColumnPartProvider<Dictionary<String>> dictionary;
-    public ColumnPartProvider<IndexedInts> singleValuedColumn;
-    public ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
+    public ColumnPartProvider<IntValues> singleValuedColumn;
+    public ColumnPartProvider<IntsValues> multiValuedColumn;
 
     public DictionaryEncodedColumnSupplier build()
     {
@@ -43,13 +42,13 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   }
 
   private final ColumnPartProvider<Dictionary<String>> dictionary;
-  private final ColumnPartProvider<IndexedInts> singleValuedColumn;
-  private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
+  private final ColumnPartProvider<IntValues> singleValuedColumn;
+  private final ColumnPartProvider<IntsValues> multiValuedColumn;
 
   private DictionaryEncodedColumnSupplier(
       ColumnPartProvider<Dictionary<String>> dictionary,
-      ColumnPartProvider<IndexedInts> singleValuedColumn,
-      ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn
+      ColumnPartProvider<IntValues> singleValuedColumn,
+      ColumnPartProvider<IntsValues> multiValuedColumn
   )
   {
     this.dictionary = dictionary;

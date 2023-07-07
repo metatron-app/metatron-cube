@@ -34,7 +34,7 @@ import io.druid.segment.column.IntDoubleConsumer;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedFloatBufferObjectStrategy;
-import io.druid.segment.data.CompressedFloatsIndexedSupplier;
+import io.druid.segment.data.CompressedFloatReader;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
@@ -211,7 +211,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
         } else {
           CompressedFloatBufferObjectStrategy strategy =
               CompressedFloatBufferObjectStrategy.getBufferForOrder(byteOrder, compression, sizePer);
-          CompressedFloatsIndexedSupplier column = new CompressedFloatsIndexedSupplier(
+          CompressedFloatReader column = new CompressedFloatReader(
               numRows, sizePer, GenericIndexed.read(buffer, strategy), compression
           );
           builder.setGenericColumn(

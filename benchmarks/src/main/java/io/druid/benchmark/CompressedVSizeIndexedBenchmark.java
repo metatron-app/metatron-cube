@@ -51,8 +51,8 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Benchmark)
 public class CompressedVSizeIndexedBenchmark
 {
-  private IndexedMultivalue<IndexedInts> uncompressed;
-  private IndexedMultivalue<IndexedInts> compressed;
+  private IndexedMultivalue uncompressed;
+  private IndexedMultivalue compressed;
 
   @Param({"1", "2", "3", "4"})
   int bytes;
@@ -130,7 +130,7 @@ public class CompressedVSizeIndexedBenchmark
     }
   }
 
-  private static ByteBuffer serialize(WritableSupplier<IndexedMultivalue<IndexedInts>> writableSupplier)
+  private static ByteBuffer serialize(WritableSupplier<IndexedMultivalue> writableSupplier)
       throws IOException
   {
     final ByteBuffer buffer = ByteBuffer.allocateDirect((int) writableSupplier.getSerializedSize());

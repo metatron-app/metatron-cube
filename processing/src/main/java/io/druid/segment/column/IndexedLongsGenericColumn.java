@@ -22,7 +22,7 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.IndexedLongs;
+import io.druid.segment.data.LongValues;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
@@ -34,7 +34,7 @@ import java.util.stream.LongStream;
 public class IndexedLongsGenericColumn extends GenericColumn.LongType
 {
   public static IndexedLongsGenericColumn timestamp(
-      IndexedLongs column,
+      LongValues column,
       CompressionStrategy compressionType,
       ImmutableBitmap nulls
   )
@@ -53,7 +53,7 @@ public class IndexedLongsGenericColumn extends GenericColumn.LongType
     };
   }
 
-  private final IndexedLongs column;
+  private final LongValues column;
   private final CompressionStrategy compressionType;
   private final ImmutableBitmap nulls;
 
@@ -61,7 +61,7 @@ public class IndexedLongsGenericColumn extends GenericColumn.LongType
   private int to = -1;
   private final long[] buffered;
 
-  public IndexedLongsGenericColumn(IndexedLongs column, CompressionStrategy compressionType, ImmutableBitmap nulls)
+  public IndexedLongsGenericColumn(LongValues column, CompressionStrategy compressionType, ImmutableBitmap nulls)
   {
     this.column = column;
     this.compressionType = compressionType;
@@ -141,7 +141,7 @@ public class IndexedLongsGenericColumn extends GenericColumn.LongType
 
   private static abstract class Timestamp extends IndexedLongsGenericColumn implements TimestampType
   {
-    public Timestamp(IndexedLongs column, CompressionStrategy compressionType, ImmutableBitmap nulls)
+    public Timestamp(LongValues column, CompressionStrategy compressionType, ImmutableBitmap nulls)
     {
       super(column, compressionType, nulls);
     }

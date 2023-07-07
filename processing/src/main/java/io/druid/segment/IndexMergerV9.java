@@ -65,19 +65,17 @@ import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.ColumnPartWriter.Compressed;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.CompressedVSizeIntWriter;
-import io.druid.segment.data.CompressedVSizeIntsV3Writer;
 import io.druid.segment.data.CumulativeBitmapWriter;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedRTree;
+import io.druid.segment.data.IntWriter;
+import io.druid.segment.data.IntsWriter;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.TmpFileIOPeon;
-import io.druid.segment.data.VSizeIntWriter;
-import io.druid.segment.data.VSizeIntsWriter;
 import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -925,13 +923,9 @@ public class IndexMergerV9 extends IndexMerger
       CompressionStrategy compression = cardinality < SKIP_COMPRESSION_THRESHOLD ? dimCompression : CompressionStrategy.UNCOMPRESSED;
       ColumnPartWriter writer;
       if (capabilities != null && capabilities.hasMultipleValues()) {
-        writer = compression == CompressionStrategy.UNCOMPRESSED
-                 ? new VSizeIntsWriter(ioPeon, filenameBase, cardinality)
-                 : CompressedVSizeIntsV3Writer.create(ioPeon, filenameBase, cardinality, compression);
+        writer = IntsWriter.create(ioPeon, filenameBase, cardinality, compression);
       } else {
-        writer = compression == CompressionStrategy.UNCOMPRESSED
-                 ? new VSizeIntWriter(ioPeon, filenameBase, cardinality)
-                 : CompressedVSizeIntWriter.create(ioPeon, filenameBase, cardinality, compression);
+        writer = IntWriter.create(ioPeon, filenameBase, cardinality, compression);
       }
       writer.open();
       // we will close these writers in another method after we added all the values
@@ -940,15 +934,12 @@ public class IndexMergerV9 extends IndexMerger
     return dimWriters;
   }
 
-  private List<GenericIndexedWriter<String>> setupDictionaryWriters(
-      final IOPeon ioPeon,
-      final List<String> dimensions
-  )
+  private List<GenericIndexedWriter<String>> setupDictionaryWriters(IOPeon ioPeon, List<String> dimensions)
       throws IOException
   {
     List<GenericIndexedWriter<String>> dimValueWriters = Lists.newArrayListWithCapacity(dimensions.size());
     for (String dimension : dimensions) {
-      final GenericIndexedWriter<String> writer = GenericIndexedWriter.forDictionaryV2(
+      GenericIndexedWriter<String> writer = GenericIndexedWriter.forDictionaryV2(
           ioPeon, String.format("%s.dim_values", dimension)
       );
       writer.open();

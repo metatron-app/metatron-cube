@@ -23,14 +23,14 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueType;
-import io.druid.segment.data.CompressedDoublesIndexedSupplier;
-import io.druid.segment.data.CompressedFloatsIndexedSupplier;
-import io.druid.segment.data.CompressedLongsIndexedSupplier;
+import io.druid.segment.data.CompressedDoubleReader;
+import io.druid.segment.data.CompressedFloatReader;
+import io.druid.segment.data.CompressedLongReader;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedDoubles;
-import io.druid.segment.data.IndexedFloats;
-import io.druid.segment.data.IndexedLongs;
+import io.druid.segment.data.DoubleValues;
+import io.druid.segment.data.FloatValues;
+import io.druid.segment.data.LongValues;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -58,13 +58,13 @@ public class MetricHolder
 
     switch (holder.type) {
       case LONG:
-        holder.longType = CompressedLongsIndexedSupplier.fromByteBuffer(buf, ByteOrder.nativeOrder());
+        holder.longType = CompressedLongReader.fromByteBuffer(buf, ByteOrder.nativeOrder());
         break;
       case FLOAT:
-        holder.floatType = CompressedFloatsIndexedSupplier.fromByteBuffer(buf, ByteOrder.nativeOrder());
+        holder.floatType = CompressedFloatReader.fromByteBuffer(buf, ByteOrder.nativeOrder());
         break;
       case DOUBLE:
-        holder.doubleType = CompressedDoublesIndexedSupplier.fromByteBuffer(buf, ByteOrder.nativeOrder());
+        holder.doubleType = CompressedDoubleReader.fromByteBuffer(buf, ByteOrder.nativeOrder());
         break;
       case COMPLEX:
         final ComplexMetricSerde serdeForType = ComplexMetrics.getSerdeForType(holder.getTypeName());
@@ -84,9 +84,9 @@ public class MetricHolder
   private final String typeName;
   private final ValueType type;
 
-  CompressedLongsIndexedSupplier longType = null;
-  CompressedFloatsIndexedSupplier floatType = null;
-  CompressedDoublesIndexedSupplier doubleType = null;
+  CompressedLongReader longType = null;
+  CompressedFloatReader floatType = null;
+  CompressedDoubleReader doubleType = null;
   Indexed complexType = null;
 
   private MetricHolder(
@@ -114,19 +114,19 @@ public class MetricHolder
     return type;
   }
 
-  public IndexedLongs getLongType()
+  public LongValues getLongType()
   {
     assertType(ValueType.LONG);
     return longType.get();
   }
 
-  public IndexedFloats getFloatType()
+  public FloatValues getFloatType()
   {
     assertType(ValueType.FLOAT);
     return floatType.get();
   }
 
-  public IndexedDoubles getDoubleType()
+  public DoubleValues getDoubleType()
   {
     assertType(ValueType.DOUBLE);
     return doubleType.get();

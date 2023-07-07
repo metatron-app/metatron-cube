@@ -44,10 +44,10 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
-import io.druid.segment.data.IndexedInts;
+import io.druid.segment.data.IntValues;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
-import io.druid.segment.data.VSizedInt;
+import io.druid.segment.data.VintValues;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
 import org.junit.Assert;
 import org.junit.Test;
@@ -80,7 +80,7 @@ public class ExtractionDimFilterTest
 
     ColumnPartProvider<Dictionary<String>> dictionary = GenericIndexed.v2(
         Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY).asColumnPartProvider();
-    ColumnPartProvider<IndexedInts> values = ColumnPartProviders.with(VSizedInt.fromArray(new int[] {0}));
+    ColumnPartProvider<IntValues> values = ColumnPartProviders.with(VintValues.fromArray(new int[] {0}));
     ColumnPartProvider<BitmapIndex> bitmaps = new BitmapIndexColumnPartSupplier(
         factory,
         GenericIndexed.v2(Arrays.asList(bitmap), serdeFactory.getObjectStrategy()),

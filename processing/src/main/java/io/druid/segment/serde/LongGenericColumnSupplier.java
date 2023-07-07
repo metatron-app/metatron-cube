@@ -24,18 +24,18 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedLongsGenericColumn;
-import io.druid.segment.data.CompressedLongsIndexedSupplier;
+import io.druid.segment.data.CompressedLongReader;
 
 /**
  */
 public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColumn>
 {
-  private final CompressedLongsIndexedSupplier column;
+  private final CompressedLongReader column;
   private final Supplier<ImmutableBitmap> nulls;
   private final boolean timestamp;
 
   public LongGenericColumnSupplier(
-      CompressedLongsIndexedSupplier column,
+      CompressedLongReader column,
       Supplier<ImmutableBitmap> nulls,
       boolean timestamp
   )

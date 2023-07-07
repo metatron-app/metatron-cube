@@ -22,7 +22,7 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.IndexedDoubles;
+import io.druid.segment.data.DoubleValues;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.roaringbitmap.IntIterator;
 
@@ -33,7 +33,7 @@ import java.util.stream.DoubleStream;
 */
 public final class IndexedDoublesGenericColumn extends GenericColumn.DoubleType
 {
-  private final IndexedDoubles column;
+  private final DoubleValues column;
   private final CompressionStrategy compressionType;
   private final ImmutableBitmap nulls;
 
@@ -41,7 +41,7 @@ public final class IndexedDoublesGenericColumn extends GenericColumn.DoubleType
   private int to = -1;
   private final double[] buffered;
 
-  public IndexedDoublesGenericColumn(IndexedDoubles column, CompressionStrategy compressionType, ImmutableBitmap nulls)
+  public IndexedDoublesGenericColumn(DoubleValues column, CompressionStrategy compressionType, ImmutableBitmap nulls)
   {
     this.column = column;
     this.compressionType = compressionType;

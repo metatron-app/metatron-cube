@@ -28,8 +28,7 @@ import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.BitSlicedBitmaps;
 import io.druid.segment.data.BitSlicer;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ColumnPartWriter;
-import io.druid.segment.data.CompressedDoublesSupplierSerializer;
+import io.druid.segment.data.ColumnPartWriter.DoubleType;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.DoubleHistogram;
 import io.druid.segment.data.HistogramBitmaps;
@@ -115,7 +114,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   private final ByteOrder byteOrder;
   private final CompressionStrategy compression;
 
-  ColumnPartWriter.DoubleType writer;
+  DoubleType writer;
 
   final BitmapSerdeFactory serdeFactory;
   final MetricHistogram.DoubleType histogram;
@@ -153,12 +152,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   @Override
   public void open(IOPeon ioPeon) throws IOException
   {
-    writer = CompressedDoublesSupplierSerializer.create(
-        ioPeon,
-        String.format("%s.double_column", filenameBase),
-        byteOrder,
-        compression
-    );
+    writer = DoubleType.create(ioPeon, String.format("%s.double_column", filenameBase), byteOrder, compression);
     writer.open();
   }
 

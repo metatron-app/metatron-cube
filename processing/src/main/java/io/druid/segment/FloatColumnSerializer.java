@@ -28,8 +28,7 @@ import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.BitSlicedBitmaps;
 import io.druid.segment.data.BitSlicer;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ColumnPartWriter;
-import io.druid.segment.data.CompressedFloatsSupplierSerializer;
+import io.druid.segment.data.ColumnPartWriter.FloatType;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.FloatHistogram;
 import io.druid.segment.data.HistogramBitmaps;
@@ -115,7 +114,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   private final ByteOrder byteOrder;
   private final CompressionStrategy compression;
 
-  ColumnPartWriter.FloatType writer;
+  FloatType writer;
 
   final BitmapSerdeFactory serdeFactory;
   final MetricHistogram.FloatType histogram;
@@ -153,12 +152,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   @Override
   public void open(IOPeon ioPeon) throws IOException
   {
-    writer = CompressedFloatsSupplierSerializer.create(
-        ioPeon,
-        String.format("%s.float_column", filenameBase),
-        byteOrder,
-        compression
-    );
+    writer = FloatType.create(ioPeon, String.format("%s.float_column", filenameBase), byteOrder, compression);
     writer.open();
   }
 

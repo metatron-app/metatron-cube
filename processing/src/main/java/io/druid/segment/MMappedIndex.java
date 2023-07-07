@@ -23,9 +23,9 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.segment.data.CompressedLongsIndexedSupplier;
+import io.druid.segment.data.CompressedLongReader;
 import io.druid.segment.data.GenericIndexed;
-import io.druid.segment.data.VSizedIndexedInt;
+import io.druid.segment.data.VintsValues;
 import org.joda.time.Interval;
 
 import java.io.IOException;
@@ -40,10 +40,10 @@ public class MMappedIndex
   final GenericIndexed<String> availableDimensions;
   final GenericIndexed<String> availableMetrics;
   final Interval interval;
-  final CompressedLongsIndexedSupplier timestamps;
+  final CompressedLongReader timestamps;
   final Map<String, MetricHolder> metrics;
   final Map<String, GenericIndexed<String>> dimValueLookups;
-  final Map<String, VSizedIndexedInt> dimColumns;
+  final Map<String, VintsValues> dimColumns;
   final Map<String, GenericIndexed<ImmutableBitmap>> invertedIndexes;
   final Map<String, ImmutableRTree> spatialIndexes;
   final SmooshedFileMapper fileMapper;
@@ -52,10 +52,10 @@ public class MMappedIndex
       GenericIndexed<String> availableDimensions,
       GenericIndexed<String> availableMetrics,
       Interval interval,
-      CompressedLongsIndexedSupplier timestamps,
+      CompressedLongReader timestamps,
       Map<String, MetricHolder> metrics,
       Map<String, GenericIndexed<String>> dimValueLookups,
-      Map<String, VSizedIndexedInt> dimColumns,
+      Map<String, VintsValues> dimColumns,
       Map<String, GenericIndexed<ImmutableBitmap>> invertedIndexes,
       Map<String, ImmutableRTree> spatialIndexes,
       SmooshedFileMapper fileMapper
@@ -73,7 +73,7 @@ public class MMappedIndex
     this.fileMapper = fileMapper;
   }
 
-  public CompressedLongsIndexedSupplier getTimestamps()
+  public CompressedLongReader getTimestamps()
   {
     return timestamps;
   }
@@ -114,7 +114,7 @@ public class MMappedIndex
     return dimValueLookups.get(dimension);
   }
 
-  public VSizedIndexedInt getDimColumn(String dimension)
+  public VintsValues getDimColumn(String dimension)
   {
     return dimColumns.get(dimension);
   }
