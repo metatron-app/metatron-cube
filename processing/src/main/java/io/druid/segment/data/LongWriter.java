@@ -72,7 +72,7 @@ public class LongWriter implements ColumnPartWriter.LongType
   }
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     return 1 +              // version
            Integer.BYTES +  // elements num
@@ -82,14 +82,15 @@ public class LongWriter implements ColumnPartWriter.LongType
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(count)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(Long.BYTES)));
-    channel.write(ByteBuffer.wrap(new byte[]{CompressionStrategy.NONE.getId()}));
+    long written = channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(count)));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(Long.BYTES)));
+    written += channel.write(ByteBuffer.wrap(new byte[]{CompressionStrategy.NONE.getId()}));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(valueFileName))) {
-      FileSmoosher.transfer(channel, input);
+      written += FileSmoosher.transfer(channel, input);
     }
+    return written;
   }
 }

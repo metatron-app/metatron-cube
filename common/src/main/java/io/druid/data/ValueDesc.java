@@ -50,6 +50,7 @@ public class ValueDesc implements Serializable, Cacheable
   public static final String STRING_TYPE = "string";
   public static final String FLOAT_TYPE = "float";
   public static final String DOUBLE_TYPE = "double";
+  public static final String INT_TYPE = "int";
   public static final String LONG_TYPE = "long";
   public static final String BOOLEAN_TYPE = "boolean";
   public static final String DATETIME_TYPE = "datetime";
@@ -96,37 +97,37 @@ public class ValueDesc implements Serializable, Cacheable
   }
 
   // primitives
-  public static ValueDesc STRING = new ValueDesc(ValueType.STRING);
-  public static ValueDesc BOOLEAN = new ValueDesc(ValueType.BOOLEAN);
-  public static ValueDesc FLOAT = new ValueDesc(ValueType.FLOAT);
-  public static ValueDesc DOUBLE = new ValueDesc(ValueType.DOUBLE);
-  public static ValueDesc LONG = new ValueDesc(ValueType.LONG);
-  public static ValueDesc DATETIME = new ValueDesc(ValueType.DATETIME);
+  public static final ValueDesc STRING = new ValueDesc(ValueType.STRING);
+  public static final ValueDesc BOOLEAN = new ValueDesc(ValueType.BOOLEAN);
+  public static final ValueDesc FLOAT = new ValueDesc(ValueType.FLOAT);
+  public static final ValueDesc DOUBLE = new ValueDesc(ValueType.DOUBLE);
+  public static final ValueDesc LONG = new ValueDesc(ValueType.LONG);
+  public static final ValueDesc DATETIME = new ValueDesc(ValueType.DATETIME);
 
   // dimension
-  public static ValueDesc DIM_STRING = new ValueDesc(STRING_DIMENSION_TYPE);
-  public static ValueDesc MV_STRING = new ValueDesc(STRING_MULTIVALUED_TYPE);
+  public static final ValueDesc DIM_STRING = new ValueDesc(STRING_DIMENSION_TYPE);
+  public static final ValueDesc MV_STRING = new ValueDesc(STRING_MULTIVALUED_TYPE);
 
   // internal types
-  public static ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);
-  public static ValueDesc ARRAY = new ValueDesc(ARRAY_TYPE, List.class);
-  public static ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
+  public static final ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);
+  public static final ValueDesc ARRAY = new ValueDesc(ARRAY_TYPE, List.class);
+  public static final ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
 
   // from expression
-  public static ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE, BigDecimal.class);
-  public static ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE, List.class);
-  public static ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
+  public static final ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE, BigDecimal.class);
+  public static final ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE, List.class);
+  public static final ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
 
-  public static ValueDesc STRING_ARRAY = new ValueDesc(ARRAY_PREFIX + STRING_TYPE);
-  public static ValueDesc LONG_ARRAY = new ValueDesc(ARRAY_PREFIX + LONG_TYPE);
-  public static ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
-  public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
+  public static final ValueDesc STRING_ARRAY = new ValueDesc(ARRAY_PREFIX + STRING_TYPE);
+  public static final ValueDesc LONG_ARRAY = new ValueDesc(ARRAY_PREFIX + LONG_TYPE);
+  public static final ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
+  public static final ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
 
-  public static ValueDesc GEOMETRY = new ValueDesc("geometry");
-  public static ValueDesc OGC_GEOMETRY = new ValueDesc("ogc_geometry");
-  public static ValueDesc SHAPE = new ValueDesc("shape");
-  public static ValueDesc INTERVAL = new ValueDesc("interval", Interval.class);
-  public static ValueDesc BITSET = new ValueDesc(BITSET_TYPE, BitSet.class);
+  public static final ValueDesc GEOMETRY = new ValueDesc("geometry");
+  public static final ValueDesc OGC_GEOMETRY = new ValueDesc("ogc_geometry");
+  public static final ValueDesc SHAPE = new ValueDesc("shape");
+  public static final ValueDesc INTERVAL = new ValueDesc("interval", Interval.class);
+  public static final ValueDesc BITSET = new ValueDesc(BITSET_TYPE, BitSet.class);
 
   public static ValueDesc ofArray(ValueDesc valueType)
   {
@@ -563,6 +564,7 @@ public class ValueDesc implements Serializable, Cacheable
       case STRING_TYPE: return STRING;
       case FLOAT_TYPE: return FLOAT;
       case DOUBLE_TYPE: return DOUBLE;
+      case INT_TYPE: return LONG;
       case LONG_TYPE: return LONG;
       case BOOLEAN_TYPE: return BOOLEAN;
       case DATETIME_TYPE: return DATETIME;

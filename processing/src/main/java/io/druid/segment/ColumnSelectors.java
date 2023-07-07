@@ -31,6 +31,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.UOE;
 import io.druid.math.expr.Evals;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -39,6 +40,7 @@ import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.bitmap.BitSets;
 import io.druid.segment.bitmap.Bitmaps;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DoubleScanner;
@@ -64,6 +66,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.IntFunction;
 import java.util.stream.DoubleStream;
@@ -791,6 +794,18 @@ public class ColumnSelectors
     return bytes.length == 0 ? null : UTF8Bytes.of(bytes);
   }
 
+  public static ObjectColumnSelector asSelector(Column column, Offset offset)
+  {
+    if (column == null) {
+      return UNKNOWN;
+    } else if (column.hasGenericColumn()) {
+      return asSelector(column.getGenericColumn(), offset);
+    } else if (column.hasComplexColumn()) {
+      return asSelector(column.getComplexColumn(), offset);
+    }
+    throw new UOE("?? %s", column);
+  }
+
   public static ObjectColumnSelector asSelector(GenericColumn column, Offset offset)
   {
     if (column == null) {
@@ -1341,6 +1356,48 @@ public class ColumnSelectors
   {
     if (column == null) {
       return UNKNOWN;
+    }
+    if (column instanceof ComplexColumn.StructColumn) {
+      return new ObjectColumnSelector.StructColumnSelector()
+      {
+        private final ComplexColumn.StructColumn struct = (ComplexColumn.StructColumn) column;
+
+        @Override
+        public ValueDesc type()
+        {
+          return struct.getType();
+        }
+
+        @Override
+        public Object get()
+        {
+          return struct.getValue(offset.get());   // throws exception
+        }
+
+        @Override
+        public List<String> getFieldNames()
+        {
+          return struct.getFieldNames();
+        }
+
+        @Override
+        public ValueDesc getType(String field)
+        {
+          return struct.getType(field);
+        }
+
+        @Override
+        public ObjectColumnSelector getField(String field)
+        {
+          return asSelector(struct.getField(field), offset);
+        }
+
+        @Override
+        public Map<String, Object> getStats(String field)
+        {
+          return struct.getStats(field);
+        }
+      };
     }
     if (column instanceof ColumnAccess.WithRawAccess) {
       return new ObjectColumnSelector.WithRawAccess<Object>()

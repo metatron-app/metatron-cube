@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.base.Preconditions;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.data.ObjectStrategy;
@@ -45,7 +46,7 @@ public class DecimalMetricSerde implements ComplexMetricSerde
 
   private final MathContext context;
   private final int scale;
-  private final String typeName;
+  private final ValueDesc type;
 
   public DecimalMetricSerde(int precision, int scale, RoundingMode roundingMode)
   {
@@ -53,7 +54,7 @@ public class DecimalMetricSerde implements ComplexMetricSerde
     Preconditions.checkArgument(precision == 0 || (precision > 0 && precision > scale), "out of range %d", scale);
     this.scale = scale;
     this.context = new MathContext(precision, roundingMode);
-    this.typeName = "decimal(" + precision + "," + scale + "," + roundingMode + ")";
+    this.type = ValueDesc.of("decimal(" + precision + "," + scale + "," + roundingMode + ")");
   }
 
   public DecimalMetricSerde(int precision, int scale)
@@ -82,9 +83,9 @@ public class DecimalMetricSerde implements ComplexMetricSerde
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return typeName;
+    return type;
   }
 
   @Override

@@ -25,12 +25,13 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.segment.ObjectColumnSelector.StructColumnSelector;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -69,7 +70,7 @@ public class StructVirtualColumn implements VirtualColumn
     }
     final String fieldName = column.substring(columnName.length() + 1);
     final StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
-    return ValueDesc.of(serde.getTypeOf(fieldName));
+    return serde.getTypeOf(fieldName);
   }
 
   @Override
@@ -84,6 +85,23 @@ public class StructVirtualColumn implements VirtualColumn
 
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
     if (dimension.equals(outputName)) {
+      if (selector instanceof StructColumnSelector) {
+        StructColumnSelector struct = (StructColumnSelector) selector;
+        ObjectColumnSelector[] fields = struct.getFieldNames().stream()
+                                              .map(f -> struct.getField(f)).toArray(x -> new ObjectColumnSelector[x]);
+        return new ObjectColumnSelector.Typed(struct.type())
+        {
+          @Override
+          public Object get()
+          {
+            Object[] array = new Object[fields.length];
+            for (int i = 0; i < array.length; i++) {
+              array[i] = fields[i].get();
+            }
+            return Arrays.asList(array);
+          }
+        };
+      }
       return selector;
     }
     final String fieldName = dimension.substring(columnName.length() + 1);
@@ -92,13 +110,14 @@ public class StructVirtualColumn implements VirtualColumn
     if (index < 0) {
       return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
     }
-    final ValueType elementType = serde.type(index);
+    final ValueDesc fieldType = serde.type(index);
     Preconditions.checkArgument(
-        elementType.isPrimitive(), "only primitive types are allowed in struct (was %s)", elementType
+        fieldType.isPrimitive(), "only primitive types are allowed in struct (was %s)", fieldType
     );
-
-    final ValueDesc fieldType = ValueDesc.of(elementType);
-    return new ObjectColumnSelector()
+    if (selector instanceof StructColumnSelector) {
+      return ((StructColumnSelector) selector).getField(fieldName);
+    }
+    return new ObjectColumnSelector.Typed(fieldType)
     {
       @Override
       public Object get()
@@ -111,12 +130,6 @@ public class StructVirtualColumn implements VirtualColumn
         } else {
           return ((Object[]) o)[index];
         }
-      }
-
-      @Override
-      public ValueDesc type()
-      {
-        return fieldType;
       }
     };
   }

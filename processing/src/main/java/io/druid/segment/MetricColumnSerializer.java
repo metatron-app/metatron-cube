@@ -34,25 +34,36 @@ public interface MetricColumnSerializer extends Closeable
   MetricColumnSerializer DUMMY = new MetricColumnSerializer()
   {
     @Override
+    public void open(IOPeon ioPeon) throws IOException {}
+
+    @Override
     public void serialize(int rowNum, Object aggs) throws IOException {}
+
+    @Override
+    public Builder buildDescriptor(Builder builder) throws IOException {return builder;}
   };
 
-  default void open(IOPeon ioPeon) throws IOException {}
+  void open(IOPeon ioPeon) throws IOException;
 
   void serialize(int rowNum, Object aggs) throws IOException;
-
-  default Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException { return builder;}
 
   @Override
   default void close() throws IOException {}
 
+  Builder buildDescriptor(Builder builder) throws IOException;
+
   // for deprecated classes
-  abstract class Abstract implements MetricColumnSerializer
+  abstract class Deprecated implements MetricColumnSerializer
   {
     @Override
-    public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException
+    public Builder buildDescriptor(Builder builder) throws IOException
     {
       throw new UnsupportedOperationException("buildDescriptor");
     }
+  }
+
+  interface Factory
+  {
+    MetricColumnSerializer create(String name, ValueDesc type) throws IOException;
   }
 }

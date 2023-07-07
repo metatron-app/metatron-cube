@@ -26,13 +26,12 @@ import java.util.Comparator;
 
 public class MetricRangeAggregator implements Aggregator.Simple<MetricRange>
 {
-  public static final Comparator COMPARATOR = new Comparator() {
+  public static final Comparator<MetricRange> COMPARATOR = new Comparator<MetricRange>()
+  {
     @Override
-    public int compare(Object o1, Object o2) {
-      MetricRange mr1 = (MetricRange)o1;
-      MetricRange mr2 = (MetricRange)o2;
-
-      return Double.compare(mr1.getRange(), mr2.getRange());
+    public int compare(MetricRange o1, MetricRange o2)
+    {
+      return Double.compare(o1.getRange(), o2.getRange());
     }
   };
 

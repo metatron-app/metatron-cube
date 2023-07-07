@@ -605,13 +605,13 @@ public class ColumnSelectorFactories
       if (type.isUnknown() || type.isPrimitive() || !deserializeComplexMetrics) {
         return ColumnSelectors.asSelector(type, () -> in.get().getRaw(column));
       }
-      final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type.typeName());
+      final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
       if (serde == null) {
-        throw new ISE("Don't know how to handle type[%s]", type.typeName());
+        throw new ISE("Don't know how to handle type[%s]", type);
       }
       final ComplexMetricExtractor extractor = serde.getExtractor(factory.getExtractHints());
       if (extractor == null) {
-        throw new ISE("Don't know how to handle type[%s].%s", type.typeName(), factory.getExtractHints());
+        throw new ISE("Don't know how to handle type[%s].%s", type, factory.getExtractHints());
       }
       return ColumnSelectors.asSelector(type, () -> extractor.extractValue(in.get(), column));
     }

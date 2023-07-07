@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.histogram;
 
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.segment.serde.ComplexMetricExtractor;
 
@@ -30,9 +31,9 @@ import java.util.List;
 public class ApproximateHistogramBase64FoldingSerde extends ApproximateHistogramFoldingSerde
 {
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return "approximateBase64Histogram";
+    return ApproximateHistogramAggregatorFactory.BASE64;
   }
 
   @Override

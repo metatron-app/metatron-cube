@@ -21,6 +21,7 @@ package io.druid.query.aggregation.range;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -31,6 +32,7 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
 
+@JsonTypeName("rangePost")
 public class MetricRangePostAggregator extends PostAggregator.Stateless
 {
   private final String name;

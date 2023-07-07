@@ -92,7 +92,7 @@ public class ComplexColumnSerializerTest
 
     serializer.close();
 
-    ColumnDescriptor descriptor = serializer.buildDescriptor(ValueDesc.STRING, new ColumnDescriptor.Builder()).build();
+    ColumnDescriptor descriptor = serializer.buildDescriptor(new ColumnDescriptor.Builder()).build();
 
     long length = descriptor.numBytes();
 
@@ -165,7 +165,7 @@ public class ComplexColumnSerializerTest
 
     serializer.close();
 
-    ColumnDescriptor descriptor = serializer.buildDescriptor(type, new ColumnDescriptor.Builder()).build();
+    ColumnDescriptor descriptor = serializer.buildDescriptor(new ColumnDescriptor.Builder()).build();
 
     long length = descriptor.numBytes();
 
@@ -228,7 +228,7 @@ public class ComplexColumnSerializerTest
 
     serializer.close();
 
-    ColumnDescriptor descriptor = serializer.buildDescriptor(ValueDesc.STRING, new ColumnDescriptor.Builder()).build();
+    ColumnDescriptor descriptor = serializer.buildDescriptor(new ColumnDescriptor.Builder()).build();
 
     long length = descriptor.numBytes();
 

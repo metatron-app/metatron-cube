@@ -36,7 +36,7 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
+public class CompressedComplexColumnSerializer implements ColumnPartWriter
 {
   @SuppressWarnings(value = "unchecked")
   public static ColumnPartWriter create(
@@ -129,7 +129,7 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   }
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     return 1 +              // version
            1 +              // compression id
@@ -140,22 +140,23 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
     // check
-    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
-    channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
+    long written = channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
+    written += channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     // compression meta block
     int length = Integer.BYTES + Integer.BYTES * mappings.size() + Short.BYTES * offsets.size();
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(length)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(mappings.size())));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(length)));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(mappings.size())));
     for (int i = 0; i < mappings.size(); i++) {
-      channel.write(ByteBuffer.wrap(Ints.toByteArray(mappings.get(i))));
+      written += channel.write(ByteBuffer.wrap(Ints.toByteArray(mappings.get(i))));
     }
     for (int i = 0; i < offsets.size(); i++) {
-      channel.write(ByteBuffer.wrap(Shorts.toByteArray((short) offsets.get(i))));
+      written += channel.write(ByteBuffer.wrap(Shorts.toByteArray((short) offsets.get(i))));
     }
     // data block
-    flattener.writeToChannel(channel);
+    written += flattener.writeToChannel(channel);
+    return written;
   }
 }

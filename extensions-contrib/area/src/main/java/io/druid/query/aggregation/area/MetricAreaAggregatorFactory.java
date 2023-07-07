@@ -21,6 +21,7 @@ package io.druid.query.aggregation.area;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -35,8 +36,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+@JsonTypeName("areaAgg")
 public class MetricAreaAggregatorFactory extends AggregatorFactory
 {
+  public static final ValueDesc TYPE = ValueDesc.of("metricArea");
+
   private static final byte CACHE_TYPE_ID = 0x33;
   protected final String name;
   protected final String fieldName;
@@ -139,7 +143,7 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("metricArea");
+    return TYPE;
   }
 
   @Override

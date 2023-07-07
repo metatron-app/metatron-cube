@@ -248,7 +248,7 @@ public class DruidTable implements TranslatableTable
       descriptors.put(column, analysis.getDescriptor());
       cardinalities.put(column, analysis.getCardinality());
     }
-    RowSignature.Builder builder = RowSignature.builderFrom(segment.asSignature(null));
+    RowSignature.Builder builder = RowSignature.builderFrom(segment.asSignature(null).explodeStruct());
     return new Holder(builder.sort().build(), cardinalities, descriptors, segment.getNumRows());
   }
 

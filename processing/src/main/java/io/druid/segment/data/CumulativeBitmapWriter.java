@@ -100,7 +100,7 @@ public class CumulativeBitmapWriter implements ColumnPartWriter<ImmutableBitmap>
   }
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     int length = VLongUtils.getVIntSize(thresholds.size());
     for (int i = 0; i < thresholds.size(); i++) {
@@ -110,16 +110,17 @@ public class CumulativeBitmapWriter implements ColumnPartWriter<ImmutableBitmap>
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    bitmapWriter.writeToChannel(channel);
+    long written = bitmapWriter.writeToChannel(channel);
     BytesOutputStream output = new BytesOutputStream();
     output.writeVarInt(thresholds.size());
     for (int i = 0; i < thresholds.size(); i++) {
       output.writeVarInt(thresholds.get(i));
     }
-    channel.write(ByteBuffer.wrap(output.toByteArray()));
-    cumulativeWriter.writeToChannel(channel);
+    written += channel.write(ByteBuffer.wrap(output.toByteArray()));
+    written += cumulativeWriter.writeToChannel(channel);
+    return written;
   }
 
   @Override

@@ -86,7 +86,7 @@ public class CompressedGenericColumnPartSupplier implements ColumnPartProvider<G
   @SuppressWarnings("unchecked")
   public GenericColumn get()
   {
-    ValueDesc type = ValueDesc.of(serde.getTypeName());
+    ValueDesc type = serde.getType();
     ObjectStrategy strategy = ObjectStrategies.singleThreaded(serde.getObjectStrategy());
     return new GenericColumn.Compressed(type, strategy, mapping, offsets, indexed.dedicated(), compressionType)
     {

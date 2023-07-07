@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.variance;
 
 import io.druid.common.guava.Comparators;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricExtractor;
@@ -37,9 +38,9 @@ public class VarianceSerde implements ComplexMetricSerde
       Comparators.NULL_FIRST(VarianceAggregatorCollector.COMPARATOR);
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return "variance";
+    return VarianceAggregatorFactory.TYPE;
   }
 
   @Override

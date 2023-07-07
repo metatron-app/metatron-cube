@@ -32,6 +32,7 @@ import com.google.common.collect.Maps;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.utils.Runnables;
 import org.joda.time.DateTime;
@@ -108,7 +109,7 @@ public class StreamJsonExplodinInputRowParser extends StreamJsonInputRowParser
       {
         Map<String, Object> node = null;
         try {
-          node = parser.readValueAs(REF);
+          node = parser.readValueAs(ObjectMappers.MAP_REF);
           final List<Runnable> exploding = iterate(node, Lists.newArrayList());
           final Map<String, Object> merged = Rows.mergePartitions(node);
           if (exploding.isEmpty()) {

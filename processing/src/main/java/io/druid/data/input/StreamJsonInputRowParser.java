@@ -25,11 +25,11 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.type.TypeReference;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import org.joda.time.DateTime;
@@ -45,10 +45,6 @@ import java.util.Set;
 @JsonTypeName("json.stream")
 public class StreamJsonInputRowParser implements InputRowParser.Streaming<Object>
 {
-  protected static final TypeReference<Map<String, Object>> REF = new TypeReference<Map<String, Object>>()
-  {
-  };
-
   protected final TimestampSpec timestampSpec;
   protected final DimensionsSpec dimensionsSpec;
   protected final boolean ignoreInvalidRows;
@@ -123,7 +119,7 @@ public class StreamJsonInputRowParser implements InputRowParser.Streaming<Object
       @Override
       public boolean hasNext()
       {
-        return !parser.isClosed() && token == JsonToken.START_OBJECT;
+        return !parser.isClosed() && token != null && token == JsonToken.START_OBJECT;
       }
 
       @Override
@@ -131,7 +127,7 @@ public class StreamJsonInputRowParser implements InputRowParser.Streaming<Object
       {
         Map<String, Object> event = null;
         try {
-          event = parser.readValueAs(REF);
+          event = parser.readValueAs(ObjectMappers.MAP_REF);
           token = parser.nextToken();
           Map<String, Object> merged = Rows.mergePartitions(event);
           DateTime dateTime = timestampSpec.extractTimestamp(merged);
@@ -141,7 +137,7 @@ public class StreamJsonInputRowParser implements InputRowParser.Streaming<Object
             }
             return null;
           }
-          return new MapBasedInputRow(dateTime, dimensions, merged);
+          return new MapBasedInputRow.Nested(dateTime, dimensions, merged);
         }
         catch (IOException e) {
           if (!ignoreInvalidRows) {

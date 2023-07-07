@@ -23,6 +23,9 @@ import com.google.common.base.Supplier;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.ValueDesc;
 
+import java.util.List;
+import java.util.Map;
+
 public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
 {
   interface Scannable<T> extends ObjectColumnSelector<T>, io.druid.common.Scannable<T>
@@ -64,5 +67,16 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
         return supplier.get();
       }
     };
+  }
+
+  interface StructColumnSelector extends ObjectColumnSelector
+  {
+    List<String> getFieldNames();
+
+    ValueDesc getType(String field);
+
+    ObjectColumnSelector getField(String field);
+
+    Map<String, Object> getStats(String field);
   }
 }

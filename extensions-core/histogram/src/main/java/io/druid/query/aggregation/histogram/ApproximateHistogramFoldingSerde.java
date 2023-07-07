@@ -21,6 +21,7 @@ package io.druid.query.aggregation.histogram;
 
 import com.google.common.base.Throwables;
 import io.druid.common.guava.Comparators;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricExtractor;
@@ -37,9 +38,9 @@ public class ApproximateHistogramFoldingSerde implements ComplexMetricSerde
       ApproximateHistogramAggregator.COMPARATOR);
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return "approximateHistogram";
+    return ApproximateHistogramAggregatorFactory.TYPE;
   }
 
   public Class<? extends ApproximateHistogramHolder> getClazz()

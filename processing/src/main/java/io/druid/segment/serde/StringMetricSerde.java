@@ -44,9 +44,9 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
   public static final StringMetricSerde INSTANCE = new StringMetricSerde();
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return ValueDesc.STRING_TYPE;
+    return ValueDesc.STRING;
   }
 
   @Override
@@ -63,7 +63,7 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
   }
 
   @Override
-  public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
+  public ColumnBuilder deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
     final byte versionFromBuffer = buffer.get();
     if (versionFromBuffer == GenericIndexed.version) {
@@ -88,6 +88,7 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
     } else {
       throw new IAE("Unknown version[%s]", versionFromBuffer);
     }
+    return builder;
   }
 
   @Override

@@ -30,14 +30,14 @@ public class SimpleRelaySerializer implements ColumnPartSerde.Serializer
   public SimpleRelaySerializer(byte[] contents) {this.contents = contents;}
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     return contents.length;
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(contents));
+    return channel.write(ByteBuffer.wrap(contents));
   }
 }

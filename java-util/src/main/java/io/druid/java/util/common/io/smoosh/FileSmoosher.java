@@ -311,12 +311,12 @@ public class FileSmoosher implements Closeable
     return new SmooshedFileMapper(baseDir, ImmutableList.copyOf(outFiles), ImmutableMap.copyOf(internalFiles));
   }
 
-  public static void transfer(WritableByteChannel output, ReadableByteChannel input) throws IOException
+  public static long transfer(WritableByteChannel output, ReadableByteChannel input) throws IOException
   {
     if (output instanceof SmooshedWriter && input instanceof FileChannel) {
-      ((SmooshedWriter) output).transferFrom((FileChannel) input);
+      return ((SmooshedWriter) output).transferFrom((FileChannel) input);
     } else {
-      ByteStreams.copy(input, output);
+      return ByteStreams.copy(input, output);
     }
   }
 }

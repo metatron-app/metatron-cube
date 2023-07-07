@@ -31,7 +31,7 @@ public interface ColumnPartWriter<T> extends ColumnPartSerde.Serializer, Closeab
 
   void add(T obj) throws IOException;
 
-  void close() throws IOException;
+  default void close() throws IOException {}
 
   interface LongType extends ColumnPartWriter<Long>
   {
@@ -46,12 +46,6 @@ public interface ColumnPartWriter<T> extends ColumnPartSerde.Serializer, Closeab
   interface DoubleType extends ColumnPartWriter<Double>
   {
     void add(double obj) throws IOException;
-  }
-
-  abstract class Abstract<T> implements ColumnPartSerde.Serializer, ColumnPartWriter<T>
-  {
-    @Override
-    public void close() throws IOException {}
   }
 
   interface Compressed<T> extends ColumnPartWriter<T>

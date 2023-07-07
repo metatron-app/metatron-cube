@@ -128,7 +128,7 @@ public class HllSketchUnionPostAggregator extends PostAggregator.Abstract
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    return ValueDesc.of(HllSketchModule.TYPE_NAME);
+    return HllSketchModule.TYPE;
   }
 
   @Override

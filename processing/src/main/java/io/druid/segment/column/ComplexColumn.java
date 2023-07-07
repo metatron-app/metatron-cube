@@ -24,10 +24,11 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
+import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -38,6 +39,17 @@ public interface ComplexColumn extends ColumnAccess
   CompressionStrategy compressionType();
 
   int size();
+
+  interface StructColumn extends ComplexColumn
+  {
+    List<String> getFieldNames();
+
+    ValueDesc getType(String field);
+
+    Column getField(String field);
+
+    Map<String, Object> getStats(String field);
+  }
 
   class Compressed extends ColumnAccess.Compressed implements ComplexColumn
   {

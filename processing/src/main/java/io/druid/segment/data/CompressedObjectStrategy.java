@@ -46,7 +46,6 @@ import java.util.Map;
 public abstract class CompressedObjectStrategy<T extends Buffer> implements ObjectStrategy<ResourceHolder<T>>
 {
   private static final Logger log = new Logger(CompressedObjectStrategy.class);
-  public static final CompressionStrategy DEFAULT_COMPRESSION_STRATEGY = CompressionStrategy.LZ4;
 
   public static EnumSet<CompressionStrategy> COMPRESS = EnumSet.complementOf(EnumSet.of(CompressionStrategy.NONE));
 
@@ -79,7 +78,7 @@ public abstract class CompressedObjectStrategy<T extends Buffer> implements Obje
         return LZ4Compressor.defaultCompressor;
       }
     },
-    // disabled cause it's super stupid (why cannot decompress read-only heap buffer ??)
+    // disabled because it's super stupid (why cannot decompress read-only heap buffer ??)
     ZSTD((byte) 0x2) {
       @Override
       public Decompressor getDecompressor()

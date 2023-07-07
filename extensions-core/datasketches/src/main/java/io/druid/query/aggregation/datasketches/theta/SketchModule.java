@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
+import io.druid.data.ValueDesc;
 import io.druid.initialization.DruidModule;
 import io.druid.query.sketch.SummaryPostProcessor;
 import io.druid.query.sketch.SummaryQuery;
@@ -33,13 +34,13 @@ import java.util.List;
 
 public class SketchModule implements DruidModule
 {
-  public static final String THETA_SKETCH = "thetaSketch";
+  public static final ValueDesc THETA_SKETCH = ValueDesc.of("thetaSketch");
 
-  public static final String THETA_SKETCH_MERGE_AGG = "thetaSketchMerge";
-  public static final String THETA_SKETCH_BUILD_AGG = "thetaSketchBuild";
+  public static final ValueDesc THETA_SKETCH_MERGE_AGG = ValueDesc.of("thetaSketchMerge");
+  public static final ValueDesc THETA_SKETCH_BUILD_AGG = ValueDesc.of("thetaSketchBuild");
 
-  public static final String THETA_SKETCH_ESTIMATE_POST_AGG = "thetaSketchEstimate";
-  public static final String THETA_SKETCH_SET_OP_POST_AGG = "thetaSketchSetOp";
+  public static final ValueDesc THETA_SKETCH_ESTIMATE_POST_AGG = ValueDesc.of("thetaSketchEstimate");
+  public static final ValueDesc THETA_SKETCH_SET_OP_POST_AGG = ValueDesc.of("thetaSketchSetOp");
 
   @Override
   public void configure(Binder binder)
@@ -63,9 +64,9 @@ public class SketchModule implements DruidModule
     return Arrays.<Module>asList(
         new SimpleModule("ThetaSketchModule")
             .registerSubtypes(
-                new NamedType(SketchMergeAggregatorFactory.class, THETA_SKETCH),
-                new NamedType(SketchEstimatePostAggregator.class, THETA_SKETCH_ESTIMATE_POST_AGG),
-                new NamedType(SketchSetPostAggregator.class, THETA_SKETCH_SET_OP_POST_AGG)
+                new NamedType(SketchMergeAggregatorFactory.class, THETA_SKETCH.typeName()),
+                new NamedType(SketchEstimatePostAggregator.class, THETA_SKETCH_ESTIMATE_POST_AGG.typeName()),
+                new NamedType(SketchSetPostAggregator.class, THETA_SKETCH_SET_OP_POST_AGG.typeName())
             )
             .registerSubtypes(SummaryQuery.class)
             .registerSubtypes(SummaryPostProcessor.class)

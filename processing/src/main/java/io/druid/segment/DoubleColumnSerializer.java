@@ -74,7 +74,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
         }
 
         @Override
-        public long getSerializedSize() throws IOException
+        public long getSerializedSize()
         {
           long serialized = super.getSerializedSize();
           serialized += Integer.BYTES;
@@ -83,12 +83,13 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
         }
 
         @Override
-        public void writeToChannel(WritableByteChannel channel) throws IOException
+        public long writeToChannel(WritableByteChannel channel) throws IOException
         {
-          super.writeToChannel(channel);
+          long written = super.writeToChannel(channel);
           byte[] serialized = serdeFactory.getObjectStrategy().toBytes(nulls);
-          channel.write(ByteBuffer.wrap(Ints.toByteArray(serialized.length)));
-          channel.write(ByteBuffer.wrap(serialized));
+          written += channel.write(ByteBuffer.wrap(Ints.toByteArray(serialized.length)));
+          written += channel.write(ByteBuffer.wrap(serialized));
+          return written;
         }
 
         @Override
@@ -173,7 +174,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Builder buildDescriptor(ValueDesc desc, Builder builder)
+  public Builder buildDescriptor(Builder builder)
   {
     builder.setValueType(ValueDesc.DOUBLE);
     builder.addSerde(new DoubleGenericColumnPartSerde(IndexIO.BYTE_ORDER, this));
@@ -194,7 +195,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     return writer.getSerializedSize();
   }
@@ -213,8 +214,8 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    writer.writeToChannel(channel);
+    return writer.writeToChannel(channel);
   }
 }

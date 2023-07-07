@@ -42,7 +42,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Streams arrays of objects out in the binary format described by GenericIndexed
  */
-public class SketchWriter extends ColumnPartWriter.Abstract<Pair<String, Integer>>
+public class SketchWriter implements ColumnPartWriter<Pair<String, Integer>>
 {
   static Logger LOG = new Logger(SketchWriter.class);
 
@@ -112,22 +112,23 @@ public class SketchWriter extends ColumnPartWriter.Abstract<Pair<String, Integer
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
     byte flag = 0;
-    channel.write(ByteBuffer.wrap(new byte[]{version, flag}));
+    long written = channel.write(ByteBuffer.wrap(new byte[]{version, flag}));
 
     // size + quantile
     final int quantileLen = Ints.checkedCast(quantileOut.getCount());
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(quantileLen)));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(quantileLen)));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("quantile")))) {
-      FileSmoosher.transfer(channel, input);
+      written += FileSmoosher.transfer(channel, input);
     }
     // size + theta
     final int thetaLen = Ints.checkedCast(thetaOut.getCount());
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(thetaLen)));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(thetaLen)));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("theta")))) {
-      FileSmoosher.transfer(channel, input);
+      written += FileSmoosher.transfer(channel, input);
     }
+    return written;
   }
 }

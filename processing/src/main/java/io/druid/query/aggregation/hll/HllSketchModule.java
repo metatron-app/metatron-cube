@@ -22,6 +22,7 @@ package io.druid.query.aggregation.hll;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.yahoo.sketches.hll.HllSketch;
+import io.druid.data.ValueDesc;
 import io.druid.segment.serde.ComplexMetrics;
 
 /**
@@ -32,12 +33,12 @@ import io.druid.segment.serde.ComplexMetrics;
  */
 public class HllSketchModule extends SimpleModule
 {
-  public static final String TYPE_NAME = "HLLSketch"; // common type name to be associated with segment data
-  public static final String BUILD_TYPE_NAME = "HLLSketchBuild";
-  public static final String MERGE_TYPE_NAME = "HLLSketchMerge";
-  public static final String TO_STRING_TYPE_NAME = "HLLSketchToString";
-  public static final String UNION_TYPE_NAME = "HLLSketchUnion";
-  public static final String ESTIMATE_WITH_BOUNDS_TYPE_NAME = "HLLSketchEstimateWithBounds";
+  public static final ValueDesc TYPE = ValueDesc.of("HLLSketch"); // common type name to be associated with segment data
+  public static final ValueDesc BUILD_TYPE = ValueDesc.of("HLLSketchBuild");
+  public static final ValueDesc MERGE_TYPE = ValueDesc.of("HLLSketchMerge");
+  public static final ValueDesc TO_STRING_TYPE = ValueDesc.of("HLLSketchToString");
+  public static final ValueDesc UNION_TYPE = ValueDesc.of("HLLSketchUnion");
+  public static final ValueDesc ESTIMATE_WITH_BOUNDS_TYPE = ValueDesc.of("HLLSketchEstimateWithBounds");
 
   public static final byte HLL_SKETCH_BUILD_CACHE_TYPE_ID = 0x2E;
   public static final byte HLL_SKETCH_MERGE_CACHE_TYPE_ID = 0x2F;
@@ -48,22 +49,21 @@ public class HllSketchModule extends SimpleModule
   public HllSketchModule()
   {
     super("HllSketchModule");
-    if (ComplexMetrics.getSerdeForType(TYPE_NAME) == null) {
-      ComplexMetrics.registerSerde(TYPE_NAME, new HllSketchMergeComplexMetricSerde());
+    if (ComplexMetrics.getSerdeForType(TYPE) == null) {
+      ComplexMetrics.registerSerde(TYPE, new HllSketchMergeComplexMetricSerde());
     }
-    if (ComplexMetrics.getSerdeForType(BUILD_TYPE_NAME) == null) {
-      ComplexMetrics.registerSerde(BUILD_TYPE_NAME, new HllSketchBuildComplexMetricSerde());
+    if (ComplexMetrics.getSerdeForType(BUILD_TYPE) == null) {
+      ComplexMetrics.registerSerde(BUILD_TYPE, new HllSketchBuildComplexMetricSerde());
     }
-    if (ComplexMetrics.getSerdeForType(MERGE_TYPE_NAME) == null) {
-      ComplexMetrics.registerSerde(MERGE_TYPE_NAME, new HllSketchMergeComplexMetricSerde());
+    if (ComplexMetrics.getSerdeForType(MERGE_TYPE) == null) {
+      ComplexMetrics.registerSerde(MERGE_TYPE, new HllSketchMergeComplexMetricSerde());
     }
     registerSubtypes(
-        new NamedType(HllSketchMergeAggregatorFactory.class, MERGE_TYPE_NAME),
-        new NamedType(HllSketchBuildAggregatorFactory.class, BUILD_TYPE_NAME),
-        new NamedType(HllSketchMergeAggregatorFactory.class, TYPE_NAME),
-        new NamedType(HllSketchToStringPostAggregator.class, TO_STRING_TYPE_NAME),
-        new NamedType(HllSketchUnionPostAggregator.class, UNION_TYPE_NAME),
-        new NamedType(HllSketchToEstimateWithBoundsPostAggregator.class, ESTIMATE_WITH_BOUNDS_TYPE_NAME)
+        new NamedType(HllSketchMergeAggregatorFactory.class, MERGE_TYPE.typeName()),
+        new NamedType(HllSketchBuildAggregatorFactory.class, BUILD_TYPE.typeName()),
+        new NamedType(HllSketchToStringPostAggregator.class, TO_STRING_TYPE.typeName()),
+        new NamedType(HllSketchUnionPostAggregator.class, UNION_TYPE.typeName()),
+        new NamedType(HllSketchToEstimateWithBoundsPostAggregator.class, ESTIMATE_WITH_BOUNDS_TYPE.typeName())
     );
     addSerializer(HllSketch.class, new HllSketchJsonSerializer());
   }

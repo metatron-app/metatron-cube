@@ -162,6 +162,11 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         .addIndex("cdis_i", "cdis_schema.json", "cdis.tbl", false);
   }
 
+  public TestQuerySegmentWalker addUps()
+  {
+    return addIndex("ups", "ups_schema.json", "ups.tbl", true);
+  }
+
   public TestQuerySegmentWalker addTpchIndex()
   {
     return addIndex("lineitem", "lineitem_schema.json", "lineitem.tbl", true)

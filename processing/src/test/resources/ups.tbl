@@ -1,0 +1,76 @@
+{
+  "user_cid": "ilSFLwxxxxx+I8oxOPsf9l9xxxxxx==",
+  "user_tid": "xxx91yy",
+  "birthdate": "1989-01-12",
+  "gender": "FEMALE",
+  "email": "xxx91yy@naver.com",
+  "ci_profile": {
+    "base": false,
+    "family": {
+      "bf_m1_call_cnt_fmly": 0,
+      "bf_m1_call_cnt_hhld": 0,
+      "bf_m1_call_duration_fmly": 0,
+      "bf_m1_call_duration_hhld": 0,
+      "fmly_memb_cnt": 3,
+      "hhld_memb_cnt": 1,
+      "child_y": true,
+      "adult_child_y": null,
+      "young_child_y": true,
+      "married": null
+    }
+  },
+  "adot_usage": {
+      "life_cycle": "휴면",
+      "quest": {
+        "cone": {
+          "received": 100,
+          "retention": 100,
+          "received_percentile": 49
+        }
+      },
+      "residence_time": {
+        "summary": {
+          "daily_avg_time_sec": null,
+          "percentile": null
+        },
+        "detail": {
+
+        }
+      },
+      "stickness": {
+        "day_7": 0,
+        "day_30": 0
+      }
+    }
+}
+
+{
+  "user_cid": "ilSFLwyyyy+I8oxOPsf9l9yyyyx==",
+  "user_tid": "yyy91xx",
+  "birthdate": "1993-09-12",
+  "gender": "MALE",
+  "email": "yyy91xx@naver.com",
+  "adot_usage": {
+      "life_cycle": "안휴면",
+      "quest": {
+        "cone": {
+          "received": 10,
+          "retention": null,
+          "received_percentile": 4
+        }
+      },
+      "residence_time": {
+        "summary": {
+          "daily_avg_time_sec": null,
+          "percentile": null
+        },
+        "detail": {
+
+        }
+      },
+      "stickness": {
+        "day_7": 1,
+        "day_30": 0
+      }
+    }
+}

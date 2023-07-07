@@ -50,7 +50,7 @@ public class ComplexMetrics
     if (type.isPrimitive()) {
       return type.comparator();
     } else {
-      final ComplexMetricSerde serde = getSerdeForType(type.typeName());
+      final ComplexMetricSerde serde = getSerdeForType(type);
       final ObjectStrategy strategy = serde == null ? null : serde.getObjectStrategy();
       return strategy instanceof Comparator ? (Comparator) strategy : null;
     }
@@ -94,9 +94,19 @@ public class ComplexMetrics
     complexSerializerFactories.put(type, factory);
   }
 
+  public static void registerSerde(ValueDesc type, ComplexMetricSerde serde)
+  {
+    registerSerde(type, serde, true);
+  }
+
   public static void registerSerde(String type, ComplexMetricSerde serde)
   {
     registerSerde(type, serde, true);
+  }
+
+  public static void registerSerde(ValueDesc type, ComplexMetricSerde serde, boolean addArray)
+  {
+    registerSerde(type.typeName(), serde, addArray);
   }
 
   public static void registerSerde(String type, ComplexMetricSerde serde, boolean addArray)

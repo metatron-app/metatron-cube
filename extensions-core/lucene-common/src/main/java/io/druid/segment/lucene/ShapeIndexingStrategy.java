@@ -30,7 +30,6 @@ import com.google.common.base.Strings;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.query.GeomUtils;
 import io.druid.query.ShapeFormat;
 import io.druid.segment.serde.ComplexMetrics;
@@ -200,7 +199,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       StructMetricSerde serde = (StructMetricSerde) Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
       wktIndex = serde.indexOf(fieldName);
       Preconditions.checkArgument(wktIndex >= 0, "invalid fieldName %s in %s", fieldName, type);
-      Preconditions.checkArgument(serde.type(wktIndex) == ValueType.STRING, "%s is not string", fieldName);
+      Preconditions.checkArgument(serde.type(wktIndex).isString(), "%s is not string", fieldName);
     } else {
       wktIndex = -1;
     }

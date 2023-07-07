@@ -260,11 +260,12 @@ public class VSizedInt implements IndexedInts, Comparable<VSizedInt>, Shared
     return 1 + 1 + 4 + buffer.remaining();
   }
 
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(buffer.remaining())));
-    channel.write(buffer.asReadOnlyBuffer());
+    long written = channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(buffer.remaining())));
+    written += channel.write(buffer.asReadOnlyBuffer());
+    return written;
   }
 
   public static VSizedInt readFromByteBuffer(ByteBuffer buffer)
@@ -310,9 +311,9 @@ public class VSizedInt implements IndexedInts, Comparable<VSizedInt>, Shared
     }
 
     @Override
-    public void writeToChannel(WritableByteChannel channel) throws IOException
+    public long writeToChannel(WritableByteChannel channel) throws IOException
     {
-      delegate.writeToChannel(channel);
+      return delegate.writeToChannel(channel);
     }
 
     @Override

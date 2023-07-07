@@ -85,7 +85,7 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<C
   @SuppressWarnings("unchecked")
   public ComplexColumn get()
   {
-    ValueDesc type = ValueDesc.of(serde.getTypeName());
+    ValueDesc type = serde.getType();
     ObjectStrategy strategy = ObjectStrategies.singleThreaded(serde.getObjectStrategy());
     return new ComplexColumn.Compressed(type, strategy, mapping, offsets, indexed.dedicated(), compressionType);
   }

@@ -47,11 +47,12 @@ public class ByteBufferSerializer<T>
     return bufferToUse;
   }
 
-  public static <T> void writeToChannel(T obj, ObjectStrategy<T> strategy, WritableByteChannel channel)
+  public static <T> long writeToChannel(T obj, ObjectStrategy<T> strategy, WritableByteChannel channel)
       throws IOException
   {
     final byte[] toWrite = strategy.toBytes(obj);
-    channel.write(ByteBuffer.allocate(Integer.BYTES).putInt(0, toWrite.length));
-    channel.write(ByteBuffer.wrap(toWrite));
+    long written = channel.write(ByteBuffer.allocate(Integer.BYTES).putInt(0, toWrite.length));
+    written += channel.write(ByteBuffer.wrap(toWrite));
+    return written;
   }
 }

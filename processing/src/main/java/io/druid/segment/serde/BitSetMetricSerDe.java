@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.data.ObjectStrategy;
@@ -35,12 +36,10 @@ import java.util.Objects;
 
 public class BitSetMetricSerDe implements ComplexMetricSerde
 {
-  public static final String BITSET = "bitset";
-
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return BITSET;
+    return ValueDesc.BITSET;
   }
 
   @Override

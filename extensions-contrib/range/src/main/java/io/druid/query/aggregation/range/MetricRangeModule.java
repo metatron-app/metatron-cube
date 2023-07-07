@@ -36,8 +36,8 @@ public class MetricRangeModule implements DruidModule
   {
     return ImmutableList.of(
         new SimpleModule().registerSubtypes(
-            new NamedType(MetricRangeAggregatorFactory.class, "rangeAgg"),
-            new NamedType(MetricRangePostAggregator.class, "rangePost")
+            MetricRangeAggregatorFactory.class,
+            MetricRangePostAggregator.class
         )
     );
   }
@@ -45,8 +45,8 @@ public class MetricRangeModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (ComplexMetrics.getSerdeForType("metricRange") == null) {
-      ComplexMetrics.registerSerde("metricRange", new MetricRangeSerde());
+    if (ComplexMetrics.getSerdeForType(MetricRangeAggregatorFactory.TYPE) == null) {
+      ComplexMetrics.registerSerde(MetricRangeAggregatorFactory.TYPE, new MetricRangeSerde());
     }
   }
 }

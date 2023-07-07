@@ -21,6 +21,7 @@ package io.druid.query.aggregation.range;
 
 import io.druid.common.guava.Comparators;
 import io.druid.data.Rows;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricExtractor;
@@ -32,11 +33,9 @@ import java.util.List;
 
 public class MetricRangeSerde implements ComplexMetricSerde
 {
-  private static Comparator<MetricRange> comparator = Comparators.NULL_FIRST(
-      (mr1, mr2) -> MetricRangeAggregator.COMPARATOR.compare(mr1, mr2)
-  );
+  private static final Comparator<MetricRange> comparator = Comparators.NULL_FIRST(MetricRangeAggregator.COMPARATOR);
 
-  private ObjectStrategy<MetricRange> strategy = new ObjectStrategy.CompareSupport<MetricRange>()
+  private final ObjectStrategy<MetricRange> strategy = new ObjectStrategy.CompareSupport<MetricRange>()
   {
     @Override
     public Class<MetricRange> getClazz()
@@ -69,9 +68,9 @@ public class MetricRangeSerde implements ComplexMetricSerde
   };
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return "metricRange";
+    return MetricRangeAggregatorFactory.TYPE;
   }
 
   @Override

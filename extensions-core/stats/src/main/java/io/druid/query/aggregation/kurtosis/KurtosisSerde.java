@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.kurtosis;
 
 import io.druid.common.guava.Comparators;
+import io.druid.data.ValueDesc;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricSerde;
 
@@ -34,9 +35,9 @@ public class KurtosisSerde implements ComplexMetricSerde
       Comparators.NULL_FIRST(KurtosisAggregatorCollector.COMPARATOR);
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return "kurtosis";
+    return KurtosisAggregatorFactory.TYPE;
   }
 
   @Override

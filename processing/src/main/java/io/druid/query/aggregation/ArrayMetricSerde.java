@@ -62,14 +62,14 @@ public class ArrayMetricSerde implements ComplexMetricSerde
     Preconditions.checkNotNull(serde, "complex serde is null");
     this.elementType = ValueType.COMPLEX;
     this.arrayType = ValueDesc.ofArray(serde.getTypeName());
-    this.extractor = serde.getExtractor(null);
+    this.extractor = serde.getExtractor(Arrays.asList());
     this.strategy = serde.getObjectStrategy();
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return arrayType.typeName();
+    return arrayType;
   }
 
   @Override
@@ -240,8 +240,6 @@ public class ArrayMetricSerde implements ComplexMetricSerde
   @Override
   public String toString()
   {
-    return "ArrayMetricSerde{" +
-           "typeName='" + getTypeName() + '\'' +
-           "}";
+    return "ArrayMetricSerde{typeName='" + arrayType + '\'' + "}";
   }
 }

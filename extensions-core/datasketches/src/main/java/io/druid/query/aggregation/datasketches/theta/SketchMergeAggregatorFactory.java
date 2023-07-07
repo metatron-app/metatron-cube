@@ -301,11 +301,7 @@ public class SketchMergeAggregatorFactory extends AggregatorFactory
   @Override
   public ValueDesc getOutputType()
   {
-    if (isInputThetaSketch) {
-      return ValueDesc.of(SketchModule.THETA_SKETCH_MERGE_AGG);
-    } else {
-      return ValueDesc.of(SketchModule.THETA_SKETCH_BUILD_AGG);
-    }
+    return isInputThetaSketch ? SketchModule.THETA_SKETCH_MERGE_AGG : SketchModule.THETA_SKETCH_BUILD_AGG;
   }
 
   @Override

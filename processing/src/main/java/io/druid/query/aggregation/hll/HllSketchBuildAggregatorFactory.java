@@ -51,7 +51,7 @@ public class HllSketchBuildAggregatorFactory extends HllSketchAggregatorFactory
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of(HllSketchModule.BUILD_TYPE_NAME);
+    return HllSketchModule.BUILD_TYPE;
   }
 
   @Override

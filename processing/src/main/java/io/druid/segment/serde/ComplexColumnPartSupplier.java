@@ -32,9 +32,9 @@ public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColu
   private final ValueDesc type;
   private final GenericIndexed column;
 
-  public ComplexColumnPartSupplier(String typeName, GenericIndexed column)
+  public ComplexColumnPartSupplier(ValueDesc type, GenericIndexed column)
   {
-    this.type = ValueDesc.of(typeName);
+    this.type = type;
     this.column = column;
   }
 

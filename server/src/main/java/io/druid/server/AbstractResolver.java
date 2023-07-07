@@ -99,7 +99,7 @@ public abstract class AbstractResolver implements FileLoadSpec.Resolver
       final String key = entry.getKey();
       if (key.startsWith("extract.") || key.startsWith("evaluate.")) {
         final String[] values = Objects.toString(entry.getValue()).split(",");
-        final String columnName = key.substring(key.indexOf('.') + 1, key.length());
+        final String columnName = key.substring(key.indexOf('.') + 1);
         final String columnType = values[0];
         final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(columnType);
         if (serde == null) {
@@ -143,7 +143,7 @@ public abstract class AbstractResolver implements FileLoadSpec.Resolver
     Map<String, Object> map = Maps.newHashMap();
     for (Map.Entry<String, Object> entry : Maps.filterKeys(properties, k -> k.startsWith(prefix)).entrySet()) {
       String name = entry.getKey();
-      String key = name.substring(prefix.length(), name.length());
+      String key = name.substring(prefix.length());
       int index = key.indexOf('.');
       if (index < 0) {
         map.put(key, entry.getValue());

@@ -19,6 +19,7 @@
 
 package io.druid.segment.serde;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.segment.bitmap.BitSetInvertedIndexingSpec;
@@ -46,24 +47,27 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "bsb", value = BitSlicedBitmaps.SerDe.class),
     @JsonSubTypes.Type(name = "boolean", value = BooleanColumnPartSerde.class),
     @JsonSubTypes.Type(name = "bitsetInverted", value = BitSetInvertedIndexingSpec.SerDe.class),
+    @JsonSubTypes.Type(name = "struct", value = StructColumnPartSerde.class),
 })
 public interface ColumnPartSerde
 {
   byte LZF_FIXED = 0x1;     // DO NOT USE ON GenericIndexed (this fuck conflicts with GenericIndexed.version)
   byte WITH_COMPRESSION_ID = 0x2;
 
+  @JsonIgnore
   default Serializer getSerializer()
   {
     throw new UnsupportedOperationException("getSerializer");
   }
 
+  @JsonIgnore
   Deserializer getDeserializer();
 
   interface Serializer
   {
-    long getSerializedSize() throws IOException;
+    long getSerializedSize();
 
-    void writeToChannel(WritableByteChannel channel) throws IOException;
+    long writeToChannel(WritableByteChannel channel) throws IOException;
 
     default Map<String, Object> getSerializeStats() { return null;}
   }

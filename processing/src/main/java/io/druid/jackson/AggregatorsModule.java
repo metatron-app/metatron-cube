@@ -28,8 +28,15 @@ import io.druid.data.input.BulkRow;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.ExpressionTimestampSpec;
 import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.ProtoBufInputRowParser;
 import io.druid.data.input.RequestLogParseSpec;
 import io.druid.data.input.Row;
+import io.druid.data.input.StreamJsonInputRowParser;
+import io.druid.data.input.impl.CSVInputRowParser;
+import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.input.impl.MapInputRowParser;
+import io.druid.data.input.impl.NoopInputRowParser;
+import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.query.HashPartitionedQuery;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
@@ -137,14 +144,15 @@ public class AggregatorsModule extends SimpleModule
     if (ComplexMetrics.getSerdeForType(TypedSketch.SAMPLING) == null) {
       ComplexMetrics.registerSerde(TypedSketch.SAMPLING, new TypedSketchMetricSerDes.Sampling(), false);
     }
-    if (ComplexMetrics.getSerdeForType(BitSetMetricSerDe.BITSET) == null) {
-      ComplexMetrics.registerSerde(BitSetMetricSerDe.BITSET, new BitSetMetricSerDe(), false);
+    if (ComplexMetrics.getSerdeForType(ValueDesc.BITSET) == null) {
+      ComplexMetrics.registerSerde(ValueDesc.BITSET, new BitSetMetricSerDe(), false);
     }
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);
     setMixInAnnotation(PostAggregator.class, PostAggregatorMixin.class);
     setMixInAnnotation(Row.class, RowMixIn.class);
     setMixInAnnotation(RowSignature.class, RowSignatureMixIn.class);
+    setMixInAnnotation(InputRowParser.class, InputRowParserMixIn.class);
 
     // for test
     registerSubtypes(ExpressionTimestampSpec.class);
@@ -224,6 +232,19 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "schema", value = Schema.class)
   })
   public static interface RowSignatureMixIn
+  {
+  }
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = StringInputRowParser.class)
+  @JsonSubTypes(value = {
+      @JsonSubTypes.Type(name = "string", value = StringInputRowParser.class),
+      @JsonSubTypes.Type(name = "map", value = MapInputRowParser.class),
+      @JsonSubTypes.Type(name = "noop", value = NoopInputRowParser.class),
+      @JsonSubTypes.Type(name = "csv.stream", value = CSVInputRowParser.class),
+      @JsonSubTypes.Type(name = "protobuf", value = ProtoBufInputRowParser.class),
+      @JsonSubTypes.Type(name = "json.stream", value = StreamJsonInputRowParser.class)
+  })
+  public static interface InputRowParserMixIn
   {
   }
 }

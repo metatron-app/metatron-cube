@@ -83,13 +83,14 @@ public class VSizeIntWriter extends SingleValueIndexedIntsWriter
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
     long numBytesWritten = valuesOut.getCount();
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(numBytesWritten))));
+    long written = channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(numBytesWritten))));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(valueFileName))) {
-      FileSmoosher.transfer(channel, input);
+      written += FileSmoosher.transfer(channel, input);
     }
+    return written;
   }
 }

@@ -94,13 +94,15 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
            baseIntBuffers.getSerializedSize(); // data
   }
 
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  @Override
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
-    channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
-    baseIntBuffers.writeToChannel(channel);
+    long written = channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
+    written += channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
+    written += baseIntBuffers.writeToChannel(channel);
+    return written;
   }
 
   @Override

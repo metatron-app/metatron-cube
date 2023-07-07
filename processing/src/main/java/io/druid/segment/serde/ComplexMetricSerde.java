@@ -36,7 +36,12 @@ import java.util.List;
  */
 public interface ComplexMetricSerde
 {
-  String getTypeName();
+  ValueDesc getType();
+
+  default String getTypeName()
+  {
+    return getType().typeName();
+  }
 
   default ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
@@ -46,16 +51,16 @@ public interface ComplexMetricSerde
   /**
    * Deserializes a ByteBuffer and adds it to the ColumnBuilder.  This method allows for the ComplexMetricSerde
    * to implement it's own versioning scheme to allow for changes of binary format in a forward-compatible manner.
-   *
-   * @param buffer  the buffer to deserialize
+   *  @param buffer  the buffer to deserialize
    * @param builder ColumnBuilder to add the column to
+   * @return
    */
   @SuppressWarnings("unchecked")
-  default void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
+  default ColumnBuilder deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
-    builder.setComplexColumn(
+    return builder.setComplexColumn(
         new ComplexColumnPartSupplier(
-            getTypeName(),
+            getType(),
             GenericIndexed.read(buffer, getObjectStrategy())
         )
     );
@@ -76,9 +81,9 @@ public interface ComplexMetricSerde
   public static class Dummy implements ComplexMetricSerde
   {
     @Override
-    public String getTypeName()
+    public ValueDesc getType()
     {
-      return "object";
+      return ValueDesc.of("object");
     }
 
     @Override
@@ -97,14 +102,14 @@ public interface ComplexMetricSerde
   {
     @Override
     @SuppressWarnings("unchecked")
-    public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
+    public ColumnBuilder deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
     {
       final byte versionFromBuffer = buffer.get();
       if (versionFromBuffer == GenericIndexed.version) {
         GenericIndexed<?> indexed = GenericIndexed.readIndex(buffer, getObjectStrategy());
         builder.setType(ValueDesc.STRING)
                .setHasMultipleValues(false)
-               .setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), indexed));
+               .setComplexColumn(new ComplexColumnPartSupplier(getType(), indexed));
       } else if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
         CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
         ByteBuffer compressMeta = ByteBufferSerializer.prepareForRead(buffer);
@@ -122,6 +127,7 @@ public interface ComplexMetricSerde
       } else {
         throw new IAE("Unknown version[%s]", versionFromBuffer);
       }
+      return builder;
     }
   }
 }

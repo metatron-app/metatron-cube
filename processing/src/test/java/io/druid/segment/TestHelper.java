@@ -560,14 +560,14 @@ public class TestHelper
       final Object ev = expectedMap.get(key);
       final Object rv = actualMap.get(key);
 
-      if (ev instanceof Float && rv instanceof Double || ev instanceof Double && rv instanceof Float) {
+      if (ev instanceof Float || ev instanceof Double || rv instanceof Double || rv instanceof Float) {
         Assert.assertEquals(
             String.format("%s: key[%s]", msg, key),
             ((Number) ev).doubleValue(),
             ((Number) rv).doubleValue(),
             ((Number) ev).doubleValue() * 1e-6
         );
-      } else if (ev instanceof Long && rv instanceof Integer || ev instanceof Integer && rv instanceof Long) {
+      } else if (ev instanceof Long || ev instanceof Integer || rv instanceof Integer || rv instanceof Long) {
         Assert.assertEquals(
             String.format("%s: key[%s]", msg, key),
             ((Number) ev).longValue(),
@@ -869,9 +869,9 @@ public class TestHelper
 
   public static void validate(String message, Object ev, Object rv)
   {
-    if (ev instanceof Float && rv instanceof Double || ev instanceof Double && rv instanceof Float) {
+    if (ev instanceof Float || ev instanceof Double || rv instanceof Double || rv instanceof Float) {
       Assert.assertEquals(message, ((Number) ev).doubleValue(), ((Number) rv).doubleValue(), 0.0001);
-    } else if (ev instanceof Long && rv instanceof Integer || ev instanceof Integer && rv instanceof Long) {
+    } else if (ev instanceof Long || ev instanceof Integer || rv instanceof Integer || rv instanceof Long) {
       Assert.assertEquals(message, ((Number) ev).longValue(), ((Number) rv).longValue());
     } else if (ev instanceof String && rv instanceof UTF8Bytes || ev instanceof UTF8Bytes && rv instanceof String) {
       Assert.assertEquals(message, Objects.toString(ev, null), Objects.toString(rv, null));

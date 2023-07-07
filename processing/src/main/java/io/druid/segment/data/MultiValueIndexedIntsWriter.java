@@ -25,7 +25,7 @@ import io.druid.java.util.common.IAE;
 import java.io.IOException;
 import java.util.List;
 
-public abstract class MultiValueIndexedIntsWriter extends ColumnPartWriter.Abstract
+public abstract class MultiValueIndexedIntsWriter implements ColumnPartWriter
 {
   @Override
   public void add(Object obj) throws IOException

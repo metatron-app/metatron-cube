@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
@@ -213,6 +214,38 @@ public class RowSignature implements TypeResolver
   }
 
   public static final RowSignature EMPTY = of(Arrays.asList(), Arrays.asList());
+
+  public RowSignature explodeStruct()
+  {
+    if (columnTypes.stream().noneMatch(x -> x.isStruct())) {
+      return this;
+    }
+    Builder builder = new Builder();
+    for (int i = 0; i < columnNames.size(); i++) {
+      String name = columnNames.get(i);
+      ValueDesc type = columnTypes.get(i);
+      builder.append(name, type);
+      if (type.isStruct()) {
+        appendStruct(builder, name + ".", type);
+      }
+    }
+    return builder.build();
+  }
+
+  RowSignature.Builder appendStruct(RowSignature.Builder builder, String prefix, ValueDesc type)
+  {
+    String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+    if (description == null) {
+      return builder;   // cannot
+    }
+    for (int i = 1; i < description.length; i++) {
+      String element = description[i].trim();
+      int index = element.indexOf(":");
+      Preconditions.checkArgument(index > 0, "'fieldName:fieldType' for field declaration");
+      builder.append(prefix + element.substring(0, index).trim(), ValueDesc.of(element.substring(index + 1).trim()));
+    }
+    return builder;
+  }
 
   // this is needed to be implemented by all post processors, but let's do it step by step
   public static interface Evolving

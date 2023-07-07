@@ -985,7 +985,7 @@ public class IndexIO
                   .setType(ValueDesc.of(metricHolder.getTypeName()))
                   .setComplexColumn(
                       new ComplexColumnPartSupplier(
-                          metricHolder.getTypeName(), (GenericIndexed) metricHolder.complexType
+                          ValueDesc.of(metricHolder.getType()), (GenericIndexed) metricHolder.complexType
                       )
                   )
                   .build()

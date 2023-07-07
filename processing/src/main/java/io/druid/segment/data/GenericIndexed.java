@@ -683,12 +683,13 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{version, (byte) flag}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + 4)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(size)));
-    channel.write(theBuffer.asReadOnlyBuffer());
+    long written = channel.write(ByteBuffer.wrap(new byte[]{version, (byte) flag}));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + 4)));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(size)));
+    written += channel.write(theBuffer.asReadOnlyBuffer());
+    return written;
   }
 
   @Override

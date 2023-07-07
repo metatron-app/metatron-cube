@@ -22,6 +22,7 @@ package io.druid.query.aggregation.hll;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.hll.HllSketch;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.data.ObjectStrategy;
@@ -33,9 +34,9 @@ import java.util.List;
 public class HllSketchMergeComplexMetricSerde implements ComplexMetricSerde
 {
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return HllSketchModule.TYPE_NAME; // must be common type name
+    return HllSketchModule.TYPE; // must be common type name
   }
 
   @Override

@@ -108,7 +108,7 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
   }
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     return 1 +             // version
            Integer.BYTES + // numInserted
@@ -118,12 +118,13 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(chunkFactor)));
-    channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
-    flattener.writeToChannel(channel);
+    long written = channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(numInserted)));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(chunkFactor)));
+    written += channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
+    written += flattener.writeToChannel(channel);
+    return written;
   }
 }

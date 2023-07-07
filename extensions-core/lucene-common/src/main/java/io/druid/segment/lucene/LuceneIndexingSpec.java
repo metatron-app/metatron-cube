@@ -40,6 +40,7 @@ import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.data.IOPeon;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -141,6 +142,9 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
     return new MetricColumnSerializer()
     {
       @Override
+      public void open(IOPeon ioPeon) throws IOException {}
+
+      @Override
       public void serialize(int rowNum, Object obj) throws IOException
       {
         final Document doc = new Document();
@@ -162,7 +166,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       }
 
       @Override
-      public ColumnDescriptor.Builder buildDescriptor(ValueDesc desc, ColumnDescriptor.Builder builder)
+      public ColumnDescriptor.Builder buildDescriptor(ColumnDescriptor.Builder builder)
       {
         if (writer.getDocStats().numDocs > 0) {
           builder.addSerde(getSerde(writer))
@@ -213,15 +217,15 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       return new Serializer()
       {
         @Override
-        public long getSerializedSize() throws IOException
+        public long getSerializedSize()
         {
           return Lucenes.sizeOf(luceneIndexer);
         }
 
         @Override
-        public void writeToChannel(WritableByteChannel channel) throws IOException
+        public long writeToChannel(WritableByteChannel channel) throws IOException
         {
-          Lucenes.writeTo(luceneIndexer, channel);
+          return Lucenes.writeTo(luceneIndexer, channel);
         }
       };
     }

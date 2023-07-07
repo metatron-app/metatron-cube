@@ -81,18 +81,19 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
       return new Serializer()
       {
         @Override
-        public long getSerializedSize() throws IOException
+        public long getSerializedSize()
         {
           bitmapPayload = HistogramBitmaps.getStrategy(serdeFactory, valueType).toBytes(bitmaps);
           return Integer.BYTES + bitmapPayload.length;
         }
 
         @Override
-        public void writeToChannel(WritableByteChannel channel) throws IOException
+        public long writeToChannel(WritableByteChannel channel) throws IOException
         {
-          channel.write(ByteBuffer.wrap(Ints.toByteArray(bitmapPayload.length)));
-          channel.write(ByteBuffer.wrap(bitmapPayload));
+          long written = channel.write(ByteBuffer.wrap(Ints.toByteArray(bitmapPayload.length)));
+          written += channel.write(ByteBuffer.wrap(bitmapPayload));
           bitmapPayload = null;
+          return written;
         }
       };
     }

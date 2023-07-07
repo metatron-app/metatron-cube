@@ -74,11 +74,12 @@ public class CompressedVSizedIndexedIntSupplier implements WritableSupplier<Inde
     return 1 + offsetSupplier.getSerializedSize() + valueSupplier.getSerializedSize();
   }
 
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{version}));
-    offsetSupplier.writeToChannel(channel);
-    valueSupplier.writeToChannel(channel);
+    long written = channel.write(ByteBuffer.wrap(new byte[]{version}));
+    written += offsetSupplier.writeToChannel(channel);
+    written += valueSupplier.writeToChannel(channel);
+    return written;
   }
 
   @Override

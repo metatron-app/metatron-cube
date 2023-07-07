@@ -21,6 +21,7 @@ package io.druid.query.aggregation.datasketches.theta;
 
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.sketch.ThetaOperations;
 import io.druid.segment.data.ObjectStrategy;
@@ -34,7 +35,7 @@ public class SketchMergeComplexMetricSerde implements ComplexMetricSerde
   private final SketchObjectStrategy strategy = new SketchObjectStrategy();
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
     return SketchModule.THETA_SKETCH;
   }

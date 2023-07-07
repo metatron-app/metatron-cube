@@ -90,7 +90,6 @@ import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -100,7 +99,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 public class IndexMergerV9 extends IndexMerger
@@ -537,7 +535,7 @@ public class IndexMergerV9 extends IndexMerger
       writer.close();
 
       ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-      writer.buildDescriptor(metricTypeNames.get(metric), builder);
+      writer.buildDescriptor(builder);
 
       makeColumn(v9Smoosher, metric, builder.build(includeStats));
       log.info("Completed metric column[%s] in %,d millis.", metric, System.currentTimeMillis() - metricStartTime);
@@ -562,7 +560,7 @@ public class IndexMergerV9 extends IndexMerger
     timeWriter.close();
 
     ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-    timeWriter.buildDescriptor(ValueDesc.LONG, builder);
+    timeWriter.buildDescriptor(builder);
 
     makeColumn(v9Smoosher, columnName, builder.build(includeStats));
     log.info("Completed time column in %,d millis.", System.currentTimeMillis() - startTime);
@@ -865,34 +863,36 @@ public class IndexMergerV9 extends IndexMerger
   private MetricColumnSerializer setupMetricsWriter(IOPeon ioPeon, String metric, ValueDesc type, IndexSpec indexSpec)
       throws IOException
   {
-    final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
+    final BitmapSerdeFactory bitmap = indexSpec.getBitmapSerdeFactory();
     final SecondaryIndexingSpec secondary = indexSpec.getSecondaryIndexingSpec(metric);
+    final CompressionStrategy compression = indexSpec.getCompressionStrategy(metric);
+    final CompressionStrategy metCompression = compression != null ? compression : indexSpec.getMetricCompressionStrategy();
     final boolean allowNullForNumbers = indexSpec.isAllowNullForNumbers();
-    final CompressionStrategy compression = indexSpec.getCompressionStrategy(metric, null);
-    final CompressionStrategy metCompression = Optional.ofNullable(compression).orElse(indexSpec.getMetricCompressionStrategy());
 
     final MetricColumnSerializer writer;
     switch (type.type()) {
       case BOOLEAN:
-        writer = BooleanColumnSerializer.create(serdeFactory);
+        writer = BooleanColumnSerializer.create(bitmap);
         break;
       case LONG:
-        writer = LongColumnSerializer.create(metric, metCompression, serdeFactory, secondary, allowNullForNumbers);
+        writer = LongColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
         break;
       case FLOAT:
-        writer = FloatColumnSerializer.create(metric, metCompression, serdeFactory, secondary, allowNullForNumbers);
+        writer = FloatColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
         break;
       case DOUBLE:
-        writer = DoubleColumnSerializer.create(metric, metCompression, serdeFactory, secondary, allowNullForNumbers);
+        writer = DoubleColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
         break;
       case STRING:
         writer = ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, secondary, compression);
         break;
       case COMPLEX:
-        final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
-        if (serde == null) {
-          throw new ISE("Unknown type[%s]", type);
+        if (type.isStruct()) {
+          return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(ioPeon, n, t, indexSpec));
         }
+        final ComplexMetricSerde serde = Preconditions.checkNotNull(
+            ComplexMetrics.getSerdeForType(type), "Unknown type[%s]", type
+        );
         // todo : compression (ComplexMetricSerde is not implementing this except StringMetricSerde)
         writer = ComplexColumnSerializer.create(metric, serde, secondary, compression);
         break;
@@ -922,16 +922,16 @@ public class IndexMergerV9 extends IndexMerger
       int cardinality = dimCardinalities.get(dim);
       ColumnCapabilities capabilities = dimCapabilities == null ? null : dimCapabilities.get(dimIndex);
       String filenameBase = String.format("%s.forward_dim", dim);
-      CompressionStrategy compression = cardinality < SKIP_COMPRESSION_THRESHOLD ? dimCompression : null;
+      CompressionStrategy compression = cardinality < SKIP_COMPRESSION_THRESHOLD ? dimCompression : CompressionStrategy.UNCOMPRESSED;
       ColumnPartWriter writer;
       if (capabilities != null && capabilities.hasMultipleValues()) {
-        writer = compression != null
-                 ? CompressedVSizeIntsV3Writer.create(ioPeon, filenameBase, cardinality, compression)
-                 : new VSizeIntsWriter(ioPeon, filenameBase, cardinality);
+        writer = compression == CompressionStrategy.UNCOMPRESSED
+                 ? new VSizeIntsWriter(ioPeon, filenameBase, cardinality)
+                 : CompressedVSizeIntsV3Writer.create(ioPeon, filenameBase, cardinality, compression);
       } else {
-        writer = compression != null
-                 ? CompressedVSizeIntWriter.create(ioPeon, filenameBase, cardinality, compression)
-                 : new VSizeIntWriter(ioPeon, filenameBase, cardinality);
+        writer = compression == CompressionStrategy.UNCOMPRESSED
+                 ? new VSizeIntWriter(ioPeon, filenameBase, cardinality)
+                 : CompressedVSizeIntWriter.create(ioPeon, filenameBase, cardinality, compression);
       }
       writer.open();
       // we will close these writers in another method after we added all the values

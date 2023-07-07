@@ -39,6 +39,8 @@ import java.util.List;
 @JsonTypeName("digestQuantileAgg")
 public class DruidTDigestAggregatorFactory extends AggregatorFactory
 {
+  public static final ValueDesc TYPE = ValueDesc.of("DruidTDigest");
+
   private static final byte CACHE_TYPE_ID = 0xA;
 
   protected final String name;
@@ -133,7 +135,7 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("DruidTDigest");
+    return TYPE;
   }
 
   @Override

@@ -22,7 +22,6 @@ package io.druid.segment;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedFloatsSupplierSerializer;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.IOPeon;
 
 import java.io.File;
@@ -34,7 +33,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  */
 @Deprecated
-public class FloatMetricColumnSerializer extends MetricColumnSerializer.Abstract
+public class FloatMetricColumnSerializer extends MetricColumnSerializer.Deprecated
 {
   private final String metricName;
   private final File outDir;
@@ -52,7 +51,7 @@ public class FloatMetricColumnSerializer extends MetricColumnSerializer.Abstract
   {
     writer = CompressedFloatsSupplierSerializer.create(
         ioPeon, String.format("%s_little", metricName), IndexIO.BYTE_ORDER,
-        CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY
+        IndexSpec.DEFAULT_COMPRESSION
     );
 
     writer.open();

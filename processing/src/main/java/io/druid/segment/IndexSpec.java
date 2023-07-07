@@ -24,26 +24,22 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.serde.ColumnPartSerde;
 
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * IndexSpec defines segment storage format options to be used at indexing time,
@@ -55,26 +51,15 @@ public class IndexSpec
 {
   private static final Logger LOG = new Logger(IndexSpec.class);
 
+  public static final CompressionStrategy DEFAULT_COMPRESSION = CompressionStrategy.LZ4;
+
+  public static final Set<String> COMPRESSION_NAMES = Arrays.stream(CompressionStrategy.values())
+                                                             .map(x -> x.name().toLowerCase())
+                                                             .collect(Collectors.toSet());
+
+  public static final String UNCOMPRESSED = CompressionStrategy.UNCOMPRESSED.name().toLowerCase();
+
   public static final IndexSpec DEFAULT = new IndexSpec();
-
-  public static final String UNCOMPRESSED = "uncompressed";
-  public static final CompressionStrategy DEFAULT_METRIC_COMPRESSION = CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY;
-  public static final String DEFAULT_DIMENSION_COMPRESSION = CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY.name().toLowerCase();
-
-  private static final Set<String> COMPRESSION_NAMES = Sets.newHashSet(
-      Iterables.transform(
-          Arrays.asList(CompressionStrategy.values()),
-          new Function<CompressionStrategy, String>()
-          {
-            @Nullable
-            @Override
-            public String apply(CompressionStrategy input)
-            {
-              return input.name().toLowerCase();
-            }
-          }
-      )
-  );
 
   private final BitmapSerdeFactory bitmapSerdeFactory;
   private final String dimensionCompression;
@@ -117,15 +102,19 @@ public class IndexSpec
       @JsonProperty("expectedFSTReductions") Map<String, Float> expectedFSTReductions
   )
   {
-    Preconditions.checkArgument(dimensionCompression == null || dimensionCompression.equals(UNCOMPRESSED) || COMPRESSION_NAMES.contains(dimensionCompression),
-                                "Unknown compression type[%s]", dimensionCompression);
+    Preconditions.checkArgument(
+        dimensionCompression == null || COMPRESSION_NAMES.contains(dimensionCompression.toLowerCase()),
+        "Unknown dimension compression type[%s]", dimensionCompression
+    );
 
-    Preconditions.checkArgument(metricCompression == null || COMPRESSION_NAMES.contains(metricCompression),
-                                "Unknown compression type[%s]", metricCompression);
+    Preconditions.checkArgument(
+        metricCompression == null || COMPRESSION_NAMES.contains(metricCompression.toLowerCase()),
+        "Unknown metric compression type[%s]", metricCompression
+    );
 
     this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new RoaringBitmapSerdeFactory();
-    this.dimensionCompression = dimensionCompression;
-    this.metricCompression = metricCompression;
+    this.dimensionCompression = dimensionCompression == null ? null : dimensionCompression.toLowerCase();
+    this.metricCompression = metricCompression == null ? null : metricCompression.toLowerCase();
     this.secondaryIndexing = secondaryIndexing;
     this.columnCompression = columnCompression;
     this.cuboidSpecs = cuboidSpecs;
@@ -230,29 +219,26 @@ public class IndexSpec
     return null;
   }
 
-  public CompressionStrategy getCompressionStrategy(String column, CompressionStrategy defaultStrategy)
+  public CompressionStrategy getCompressionStrategy(String column)
   {
     String strategy = columnCompression == null ? null : columnCompression.get(column);
-    return strategy == null ? defaultStrategy : CompressionStrategy.valueOf(strategy.toUpperCase());
+    return strategy == null ? null : CompressionStrategy.valueOf(strategy.toUpperCase());
   }
 
   public CompressionStrategy getMetricCompressionStrategy()
   {
-    return metricCompression == null ? DEFAULT_METRIC_COMPRESSION :
-           CompressionStrategy.valueOf(metricCompression.toUpperCase());
+    return compressionStrategyForName(metricCompression);
   }
 
-  // todo : it's compression on row ids, not on dictionary
+  // compression on row ids, not on dictionary
   public CompressionStrategy getDimensionCompressionStrategy()
   {
-    return dimensionCompression == null ?
-           dimensionCompressionStrategyForName(DEFAULT_DIMENSION_COMPRESSION) :
-           dimensionCompressionStrategyForName(dimensionCompression);
+    return compressionStrategyForName(dimensionCompression);
   }
 
-  private static CompressionStrategy dimensionCompressionStrategyForName(String compression)
+  private static CompressionStrategy compressionStrategyForName(String compression)
   {
-    return compression.equals(UNCOMPRESSED) ? null : CompressionStrategy.valueOf(compression.toUpperCase());
+    return compression == null ? DEFAULT_COMPRESSION : CompressionStrategy.valueOf(compression.toUpperCase());
   }
 
   public Map<String, Map<String, String>> getColumnDescriptors()

@@ -69,7 +69,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     this.serde = serde;
     this.compression = compression;
     this.secondary = indexingSpec == null ? MetricColumnSerializer.DUMMY :
-                     indexingSpec.serializer(columnName, ValueDesc.of(serde.getTypeName()));
+                     indexingSpec.serializer(columnName, serde.getType());
   }
 
   @Override
@@ -98,16 +98,17 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException
+  public Builder buildDescriptor(Builder builder) throws IOException
   {
-    if (desc.isString()) {
+    ValueDesc type = serde.getType();
+    if (type.isString()) {
       builder.setValueType(ValueDesc.STRING);
       builder.addSerde(new StringColumnPartSerde(this));
     } else {
-      builder.setValueType(desc);
-      builder.addSerde(new ComplexColumnPartSerde(desc.typeName(), this));
+      builder.setValueType(type);
+      builder.addSerde(new ComplexColumnPartSerde(type.typeName(), this));
     }
-    return secondary.buildDescriptor(desc, builder);
+    return secondary.buildDescriptor(builder);
   }
 
   @Override
@@ -118,15 +119,15 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     return writer.getSerializedSize();
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    writer.writeToChannel(channel);
+    return writer.writeToChannel(channel);
   }
 
   @Override

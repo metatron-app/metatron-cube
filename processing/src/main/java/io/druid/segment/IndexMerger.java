@@ -66,7 +66,6 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedLongsSupplierSerializer;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
@@ -88,7 +87,6 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -676,7 +674,7 @@ public class IndexMerger
       );
 
       ColumnPartWriter timeWriter = CompressedLongsSupplierSerializer.create(
-          ioPeon, "little_end_time", IndexIO.BYTE_ORDER, CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY
+          ioPeon, "little_end_time", IndexIO.BYTE_ORDER, IndexSpec.DEFAULT_COMPRESSION
       );
 
       timeWriter.open();
@@ -702,11 +700,9 @@ public class IndexMerger
             metWriters.add(new DoubleMetricColumnSerializer(metric, v8OutDir));
             break;
           case COMPLEX:
-            final String typeName = type.typeName();
-            ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
-
+            ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
             if (serde == null) {
-              throw new ISE("Unknown type[%s]", typeName);
+              throw new ISE("Unknown type[%s]", type);
             }
 
             metWriters.add(new ComplexMetricColumnSerializer(metric, v8OutDir, serde));

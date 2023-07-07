@@ -86,7 +86,7 @@ public class SketchSetPostAggregator extends PostAggregator.Abstract
   @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
-    return ValueDesc.of(SketchModule.THETA_SKETCH);
+    return SketchModule.THETA_SKETCH;
   }
 
   @Override

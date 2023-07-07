@@ -63,7 +63,7 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Builder buildDescriptor(ValueDesc desc, Builder builder)
+  public Builder buildDescriptor(Builder builder)
   {
     builder.setValueType(ValueDesc.BOOLEAN);
     builder.addSerde(new BooleanColumnPartSerde(IndexIO.BYTE_ORDER, this));
@@ -83,9 +83,9 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    writer.writeToChannel(channel);
+    return writer.writeToChannel(channel);
   }
 
   @Override
@@ -99,7 +99,7 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
     );
   }
 
-  private static class BooleanWriter extends ColumnPartWriter.Abstract<Boolean>
+  private static class BooleanWriter implements ColumnPartWriter<Boolean>
   {
     private final BitmapFactory factory;
 
@@ -147,7 +147,7 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
     }
 
     @Override
-    public void writeToChannel(WritableByteChannel channel) throws IOException
+    public long writeToChannel(WritableByteChannel channel) throws IOException
     {
       final byte[] valuesBytes = values.isEmpty() ? null : values.toBytes();
       final byte[] nullsBytes = nulls.isEmpty() ? null : nulls.toBytes();
@@ -170,6 +170,7 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
         output.write(nullsBytes);
       }
       output.flush();
+      return Integer.BYTES + serialized;
     }
   }
 }

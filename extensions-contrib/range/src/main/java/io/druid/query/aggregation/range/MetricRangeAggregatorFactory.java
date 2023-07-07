@@ -21,6 +21,7 @@ package io.druid.query.aggregation.range;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -36,8 +37,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+@JsonTypeName("rangeAgg")
 public class MetricRangeAggregatorFactory extends AggregatorFactory implements CubeSupport
 {
+  public static final ValueDesc TYPE = ValueDesc.of("metricRange");
+
   private static final byte CACHE_TYPE_ID = 0x32;
   protected final String name;
   protected final String fieldName;
@@ -159,7 +163,7 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory implements C
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("metricRange");
+    return TYPE;
   }
 
   @Override

@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.hyperloglog;
 
 import io.druid.common.utils.Murmur3;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.StringUtils;
 import io.druid.segment.data.ObjectStrategy;
@@ -34,9 +35,9 @@ import java.util.List;
 public class HyperUniquesSerde extends ComplexMetricSerde.CompressionSupport
 {
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return HyperLogLogCollector.HLL_TYPE_NAME;
+    return HyperLogLogCollector.HLL_TYPE;
   }
 
   @Override

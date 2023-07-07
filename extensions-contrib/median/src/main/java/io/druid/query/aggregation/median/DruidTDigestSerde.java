@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.median;
 
 import io.druid.common.guava.Comparators;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricExtractor;
@@ -32,12 +33,12 @@ import java.util.List;
 
 public class DruidTDigestSerde implements ComplexMetricSerde
 {
-  private static Comparator<DruidTDigest> comparator = Comparators.NULL_FIRST(DruidTDigestAggregator.COMPARATOR);
+  private static final Comparator<DruidTDigest> comparator = Comparators.NULL_FIRST(DruidTDigestAggregator.COMPARATOR);
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return "DruidTDigest";
+    return DruidTDigestAggregatorFactory.TYPE;
   }
 
   @Override

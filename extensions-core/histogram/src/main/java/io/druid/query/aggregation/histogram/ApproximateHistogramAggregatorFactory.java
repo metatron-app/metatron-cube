@@ -43,6 +43,11 @@ import java.util.List;
 @JsonTypeName("approxHistogram")
 public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
 {
+  public static ValueDesc TYPE = ValueDesc.of("approximateHistogram");
+  public static ValueDesc BASE64 = ValueDesc.of("approximateBase64Histogram");
+  public static ValueDesc COMPACT = ValueDesc.of("approximateCompactHistogram");
+  public static ValueDesc COMPACT_BASE64 = ValueDesc.of("approximateBase64Histogram");
+
   private static final byte CACHE_TYPE_ID = 12;
 
   protected final String name;
@@ -211,7 +216,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   @Override
   public ValueDesc finalizedType()
   {
-    return ValueDesc.of("approximateHistogram");
+    return TYPE;
   }
 
   @JsonProperty
@@ -282,10 +287,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of(
-        compact ? base64 ? "approximateBase64CompactHistogram" : "approximateCompactHistogram" :
-        base64 ? "approximateBase64Histogram" : "approximateHistogram"
-    );
+
+    return compact ? base64 ? COMPACT_BASE64 : COMPACT : base64 ? BASE64 : TYPE;
   }
 
   @Override

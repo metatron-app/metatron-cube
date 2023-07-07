@@ -94,7 +94,7 @@ public class BitSetInvertedIndexingSpec implements SecondaryIndexingSpec
       }
 
       @Override
-      public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException
+      public Builder buildDescriptor(Builder builder) throws IOException
       {
         String fileName = String.format("met_%s.inverted", columnName);
         GenericIndexedWriter<ImmutableBitmap> writer = GenericIndexedWriter.v2(ioPeon, fileName, STRATEGY);

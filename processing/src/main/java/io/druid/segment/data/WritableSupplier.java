@@ -26,5 +26,5 @@ import java.nio.channels.WritableByteChannel;
 
 public interface WritableSupplier<T> extends ColumnPartProvider<T>
 {
-  void writeToChannel(WritableByteChannel channel) throws IOException;
+  long writeToChannel(WritableByteChannel channel) throws IOException;
 }

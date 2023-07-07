@@ -48,6 +48,8 @@ import java.util.Objects;
 @JsonTypeName("covariance")
 public class CovarianceAggregatorFactory extends AggregatorFactory implements SQLSupport
 {
+  public static final ValueDesc TYPE = ValueDesc.of("covariance", CovarianceAggregatorCollector.class);
+
   protected static final byte CACHE_TYPE_ID = 22;
 
   protected final String name;

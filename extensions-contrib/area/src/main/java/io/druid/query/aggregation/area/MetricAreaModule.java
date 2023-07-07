@@ -20,7 +20,6 @@
 package io.druid.query.aggregation.area;
 
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
@@ -36,8 +35,8 @@ public class MetricAreaModule implements DruidModule
   {
     return ImmutableList.of(
         new SimpleModule().registerSubtypes(
-            new NamedType(MetricAreaAggregatorFactory.class, "areaAgg"),
-            new NamedType(MetricAreaPostAggregator.class, "areaPost")
+            MetricAreaAggregatorFactory.class,
+            MetricAreaPostAggregator.class
         )
     );
   }
@@ -45,8 +44,8 @@ public class MetricAreaModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (ComplexMetrics.getSerdeForType("metricArea") == null) {
-      ComplexMetrics.registerSerde("metricArea", new MetricAreaSerde());
+    if (ComplexMetrics.getSerdeForType(MetricAreaAggregatorFactory.TYPE) == null) {
+      ComplexMetrics.registerSerde(MetricAreaAggregatorFactory.TYPE, new MetricAreaSerde());
     }
   }
 }

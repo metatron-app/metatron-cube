@@ -32,7 +32,7 @@ import java.util.Arrays;
 
 /**
  */
-public class ByteBufferWriter<T> extends ColumnPartWriter.Abstract<T>
+public class ByteBufferWriter<T> implements ColumnPartWriter<T>
 {
   private final IOPeon ioPeon;
   private final String filenameBase;
@@ -92,12 +92,14 @@ public class ByteBufferWriter<T> extends ColumnPartWriter.Abstract<T>
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
+    long written = 0;
     for (String name : Arrays.asList("header", "value")) {
       try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename(name)))) {
-        FileSmoosher.transfer(channel, input);
+        written += FileSmoosher.transfer(channel, input);
       }
     }
+    return written;
   }
 }

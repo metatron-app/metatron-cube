@@ -219,7 +219,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           new Serializer()
           {
             @Override
-            public long getSerializedSize() throws IOException
+            public long getSerializedSize()
             {
               long size = Byte.BYTES + Integer.BYTES;
               if (dictionary != null) {
@@ -238,23 +238,24 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
-            public void writeToChannel(WritableByteChannel channel) throws IOException
+            public long writeToChannel(WritableByteChannel channel) throws IOException
             {
-              channel.write(ByteBuffer.wrap(new byte[]{VERSION.LEGACY_COMPRESSED.asByte()}));
-              channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
+              long written = channel.write(ByteBuffer.wrap(new byte[]{VERSION.LEGACY_COMPRESSED.asByte()}));
+              written += channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
 
               if (dictionary != null) {
-                dictionary.writeToChannel(channel);
+                written += dictionary.writeToChannel(channel);
               }
               if (values != null) {
-                values.writeToChannel(channel);
+                written += values.writeToChannel(channel);
               }
               if (bitmaps != null) {
-                bitmaps.writeToChannel(channel);
+                written += bitmaps.writeToChannel(channel);
               }
               if (rindices != null) {
-                rindices.writeToChannel(channel);
+                written += rindices.writeToChannel(channel);
               }
+              return written;
             }
           }
       );
@@ -381,38 +382,39 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
-            public void writeToChannel(WritableByteChannel channel) throws IOException
+            public long writeToChannel(WritableByteChannel channel) throws IOException
             {
-              channel.write(ByteBuffer.wrap(new byte[]{version.asByte()}));
+              long written = channel.write(ByteBuffer.wrap(new byte[]{version.asByte()}));
               if (version.compareTo(VERSION.LEGACY_COMPRESSED) >= 0) {
-                channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
+                written += channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
               }
 
               if (dictionary != null) {
-                dictionary.writeToChannel(channel);
+                written += dictionary.writeToChannel(channel);
               }
 
               if (version == VERSION.LEGACY_MULTI_VALUE || Feature.MULTI_VALUE.isSet(flags)) {
                 if (multiValuedColumn != null) {
-                  multiValuedColumn.writeToChannel(channel);
+                  written += multiValuedColumn.writeToChannel(channel);
                 }
               } else {
                 if (singleValuedColumn != null) {
-                  singleValuedColumn.writeToChannel(channel);
+                  written += singleValuedColumn.writeToChannel(channel);
                 }
               }
 
               if (bitmaps != null) {
-                bitmaps.writeToChannel(channel);
+                written += bitmaps.writeToChannel(channel);
               }
 
               if (spatialIndex != null) {
-                ByteBufferSerializer.writeToChannel(
+                written += ByteBufferSerializer.writeToChannel(
                     spatialIndex,
                     new IndexedRTree.ImmutableRTreeObjectStrategy(bitmapSerdeFactory.getBitmapFactory()),
                     channel
                 );
               }
+              return written;
             }
           }
       );

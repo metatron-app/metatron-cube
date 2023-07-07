@@ -49,6 +49,8 @@ import java.util.Objects;
 @JsonTypeName("kurtosis")
 public class KurtosisAggregatorFactory extends AggregatorFactory implements SQLSupport, CubeSupport
 {
+  public static final ValueDesc TYPE = ValueDesc.of("kurtosis", KurtosisAggregatorCollector.class);
+
   protected static final byte CACHE_TYPE_ID = 23;
 
   protected final String name;
@@ -86,7 +88,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory implements SQLS
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("kurtosis", KurtosisAggregatorCollector.class);
+    return TYPE;
   }
 
   @Override

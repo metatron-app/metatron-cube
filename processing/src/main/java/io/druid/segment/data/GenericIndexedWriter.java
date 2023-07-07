@@ -42,7 +42,7 @@ import static io.druid.segment.data.GenericIndexed.Feature.VSIZED_VALUE;
 /**
  * Streams arrays of objects out in the binary format described by GenericIndexed
  */
-public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
+public abstract class GenericIndexedWriter<T> implements ColumnPartWriter<T>
 {
   public static GenericIndexedWriter<String> forDictionaryV1(IOPeon ioPeon, String filenameBase)
   {
@@ -151,12 +151,13 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
     // called after getSerializedSize()
-    ioPeon.copyTo(channel, makeFilename("meta"));
-    ioPeon.copyTo(channel, makeFilename("header"));
-    ioPeon.copyTo(channel, makeFilename("values"));
+    long written = ioPeon.copyTo(channel, makeFilename("meta"));
+    written += ioPeon.copyTo(channel, makeFilename("header"));
+    written += ioPeon.copyTo(channel, makeFilename("values"));
+    return written;
   }
 
   // this is just for index merger.. which only uses size() and get()
@@ -357,14 +358,15 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
     }
 
     @Override
-    public void writeToChannel(WritableByteChannel channel) throws IOException
+    public long writeToChannel(WritableByteChannel channel) throws IOException
     {
       if (noHeader()) {
         // called after getSerializedSize()
-        ioPeon.copyTo(channel, metaFile);
-        ioPeon.copyTo(channel, valuesFile);
+        long written = ioPeon.copyTo(channel, metaFile);
+        written += ioPeon.copyTo(channel, valuesFile);
+        return written;
       } else {
-        super.writeToChannel(channel);
+        return super.writeToChannel(channel);
       }
     }
   }

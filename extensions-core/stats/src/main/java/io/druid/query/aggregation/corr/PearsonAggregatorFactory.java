@@ -47,6 +47,8 @@ import java.util.Objects;
 @JsonTypeName("pearson")
 public class PearsonAggregatorFactory extends AggregatorFactory implements SQLSupport
 {
+  public static final ValueDesc TYPE = ValueDesc.of("pearson", PearsonAggregatorCollector.class);
+
   protected static final byte CACHE_TYPE_ID = 21;
 
   protected final String name;
@@ -92,7 +94,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory implements SQLSu
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("pearson", PearsonAggregatorCollector.class);
+    return TYPE;
   }
 
   @Override

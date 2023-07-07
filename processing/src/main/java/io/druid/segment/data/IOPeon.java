@@ -50,10 +50,10 @@ public interface IOPeon extends Closeable
     return Channels.newChannel(makeOutputStream(fileName));
   }
 
-  default void copyTo(WritableByteChannel channel, String fileName) throws IOException
+  default long copyTo(WritableByteChannel channel, String fileName) throws IOException
   {
     try (ReadableByteChannel input = makeInputChannel(fileName)) {
-      FileSmoosher.transfer(channel, input);
+      return FileSmoosher.transfer(channel, input);
     }
   }
 }

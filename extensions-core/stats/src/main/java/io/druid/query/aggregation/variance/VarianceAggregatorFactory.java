@@ -53,6 +53,8 @@ import java.util.stream.LongStream;
 @JsonTypeName("variance")
 public class VarianceAggregatorFactory extends GenericAggregatorFactory implements AggregatorFactory.Vectorizable, SQLSupport
 {
+  public static final ValueDesc TYPE = ValueDesc.of("variance", VarianceAggregatorCollector.class);
+
   protected static final byte CACHE_TYPE_ID = 16;
 
   protected final String estimator;
@@ -91,8 +93,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   @Override
   protected ValueDesc toOutputType(ValueDesc inputType)
   {
-    ValueDesc variance = ValueDesc.of("variance", VarianceAggregatorCollector.class);
-    return inputType.isArray() ? variance.subElement(ValueDesc.UNKNOWN) : variance;
+    return inputType.isArray() ? TYPE.subElement(ValueDesc.UNKNOWN) : TYPE;
   }
 
   @Override

@@ -19,6 +19,7 @@
 
 package io.druid.query.sketch;
 
+import io.druid.data.ValueDesc;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricSerde;
 
@@ -29,7 +30,7 @@ public class TypedSketchMetricSerDes
   public static class Theta extends ComplexMetricSerde.CompressionSupport
   {
     @Override
-    public String getTypeName()
+    public ValueDesc getType()
     {
       return TypedSketch.THETA;
     }
@@ -63,7 +64,7 @@ public class TypedSketchMetricSerDes
   public static class Quantile extends ComplexMetricSerde.CompressionSupport
   {
     @Override
-    public String getTypeName()
+    public ValueDesc getType()
     {
       return TypedSketch.QUANTILE;
     }
@@ -97,7 +98,7 @@ public class TypedSketchMetricSerDes
   public static class Frequency extends ComplexMetricSerde.CompressionSupport
   {
     @Override
-    public String getTypeName()
+    public ValueDesc getType()
     {
       return TypedSketch.FREQUENCY;
     }
@@ -131,7 +132,7 @@ public class TypedSketchMetricSerDes
   public static class Sampling extends ComplexMetricSerde.CompressionSupport
   {
     @Override
-    public String getTypeName()
+    public ValueDesc getType()
     {
       return TypedSketch.SAMPLING;
     }

@@ -28,7 +28,6 @@ import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -115,7 +114,7 @@ public class CompressedVSizeIntsV3Writer extends MultiValueIndexedIntsWriter imp
   }
 
   @Override
-  public long getSerializedSize() throws IOException
+  public long getSerializedSize()
   {
     return 1 +   // version
            offsetWriter.getSerializedSize() +
@@ -123,10 +122,11 @@ public class CompressedVSizeIntsV3Writer extends MultiValueIndexedIntsWriter imp
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION}));
-    offsetWriter.writeToChannel(channel);
-    valueWriter.writeToChannel(channel);
+    long written = channel.write(ByteBuffer.wrap(new byte[]{VERSION}));
+    written += offsetWriter.writeToChannel(channel);
+    written += valueWriter.writeToChannel(channel);
+    return written;
   }
 }

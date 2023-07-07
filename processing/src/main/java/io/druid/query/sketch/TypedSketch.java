@@ -48,18 +48,18 @@ import java.util.List;
  */
 public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 {
-  public static final String THETA = "typedSketch.theta";
-  public static final String QUANTILE = "typedSketch.quantile";
-  public static final String FREQUENCY = "typedSketch.frequency";
-  public static final String SAMPLING = "typedSketch.sampling";
+  public static final ValueDesc THETA = ValueDesc.of("typedSketch.theta");
+  public static final ValueDesc QUANTILE = ValueDesc.of("typedSketch.quantile");
+  public static final ValueDesc FREQUENCY = ValueDesc.of("typedSketch.frequency");
+  public static final ValueDesc SAMPLING = ValueDesc.of("typedSketch.sampling");
 
   public static ValueDesc of(SketchOp op)
   {
     switch (op) {
-      case THETA: return ValueDesc.of(THETA);
-      case QUANTILE: return ValueDesc.of(QUANTILE);
-      case FREQUENCY: return ValueDesc.of(FREQUENCY);
-      case SAMPLING: return ValueDesc.of(SAMPLING);
+      case THETA: return THETA;
+      case QUANTILE: return QUANTILE;
+      case FREQUENCY: return FREQUENCY;
+      case SAMPLING: return SAMPLING;
     }
     throw new UnsupportedOperationException("not supports: " + op);
   }

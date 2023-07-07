@@ -128,11 +128,12 @@ public class CompressedVSizedIndexedIntV3Supplier implements WritableSupplier<In
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{VERSION}));
-    offsetSupplier.writeToChannel(channel);
-    valueSupplier.writeToChannel(channel);
+    long written = channel.write(ByteBuffer.wrap(new byte[]{VERSION}));
+    written += offsetSupplier.writeToChannel(channel);
+    written += valueSupplier.writeToChannel(channel);
+    return written;
   }
 
   @Override

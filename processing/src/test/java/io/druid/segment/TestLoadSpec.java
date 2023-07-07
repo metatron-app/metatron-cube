@@ -96,9 +96,12 @@ public class TestLoadSpec extends IncrementalIndexSchema
     parsing.put("timestampSpec", timestampSpec);
     parsing.put("columns", columns);
 
-    InputRowParser rowParser = parser.containsKey("type") ? mapper.convertValue(parsing, InputRowParser.class) : null;
+    InputRowParser<?> rowParser = null;
+    if (parser.containsKey("type")) {
+      rowParser = mapper.convertValue(parsing, InputRowParser.class);   // "type"
+    }
     if (rowParser == null) {
-      rowParser = new StringInputRowParser(mapper.convertValue(parsing, ParseSpec.class), null);
+      rowParser = new StringInputRowParser(mapper.convertValue(parsing, ParseSpec.class), null);  // "format"
     }
     return InputRowParsers.wrap(
         rowParser,

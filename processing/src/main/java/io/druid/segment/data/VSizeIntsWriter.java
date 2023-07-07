@@ -131,12 +131,14 @@ public class VSizeIntsWriter extends MultiValueIndexedIntsWriter implements Clos
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
+    long written = 0;
     for (String fileName : Arrays.asList(metaFileName, headerFileName, valuesFileName)) {
       try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(fileName))) {
-        FileSmoosher.transfer(channel, input);
+        written += FileSmoosher.transfer(channel, input);
       }
     }
+    return written;
   }
 }

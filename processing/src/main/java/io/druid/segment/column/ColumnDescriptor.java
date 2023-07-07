@@ -67,10 +67,9 @@ public class ColumnDescriptor extends ColumnMeta
     return parts;
   }
 
-  public long numBytes() throws IOException
+  public long numBytes()
   {
     long retVal = 0;
-
     for (ColumnPartSerde part : parts) {
       retVal += part.getSerializer().getSerializedSize();
     }
@@ -78,11 +77,13 @@ public class ColumnDescriptor extends ColumnMeta
     return retVal;
   }
 
-  public void write(WritableByteChannel channel) throws IOException
+  public long write(WritableByteChannel channel) throws IOException
   {
+    long written = 0;
     for (ColumnPartSerde part : parts) {
-      part.getSerializer().writeToChannel(channel);
+      written += part.getSerializer().writeToChannel(channel);
     }
+    return written;
   }
 
   public Column read(String columnName, ByteBuffer buffer, BitmapSerdeFactory serdeFactory) throws IOException

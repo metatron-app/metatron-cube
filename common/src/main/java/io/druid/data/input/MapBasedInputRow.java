@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 import io.druid.common.DateTimes;
 import org.joda.time.DateTime;
 
@@ -75,5 +76,51 @@ public class MapBasedInputRow extends MapBasedRow implements InputRow
            ", event=" + getEvent() +
            ", dimensions=" + dimensions +
            '}';
+  }
+
+  public static class Nested extends MapBasedInputRow {
+
+    public Nested(long timestamp, List<String> dimensions, Map<String, Object> event)
+    {
+      super(timestamp, dimensions, event);
+    }
+
+    public Nested(DateTime timestamp, List<String> dimensions, Map<String, Object> event)
+    {
+      super(timestamp, dimensions, event);
+    }
+
+    @Override
+    public Object getRaw(String column)
+    {
+      int ix = column.indexOf('.');
+      if (ix < 0) {
+        return super.getRaw(column);
+      }
+      int prev = 0;
+      Object nested = super.getRaw(column.substring(prev, ix));
+      for (ix = column.indexOf('.', prev = ix + 1); ix > 0 && nested != null;
+           ix = column.indexOf('.', prev = ix + 1)) {
+        nested = unnest(nested, column.substring(prev, ix));
+      }
+      if (nested instanceof Map) {
+        return ((Map) nested).get(column.substring(prev));
+      }
+      return null;
+    }
+
+    private Object unnest(Object nested, String name)
+    {
+      if (nested instanceof Map) {
+        return ((Map) nested).get(name);
+      }
+      if (nested instanceof List) {
+        Integer x = Ints.tryParse(name);
+        if (x != null) {
+          return ((List) nested).get(x);
+        }
+      }
+      return null;
+    }
   }
 }

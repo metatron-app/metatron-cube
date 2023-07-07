@@ -24,7 +24,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.IAE;
@@ -37,41 +36,43 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  */
-public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<String, ValueType>>
+public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<String, ValueDesc>>
 {
   private final String elementType;
 
   private final String[] fieldNames;
-  private final ValueType[] fieldTypes;
+  private final ValueDesc[] fieldTypes;
 
   public StructMetricSerde(String[] elements)
   {
+    Preconditions.checkArgument(elements[0].equals(ValueDesc.STRUCT_TYPE));
     Preconditions.checkArgument(elements.length <= 255, "cannot exceed 255 elements");
-    fieldNames = new String[elements.length];
-    fieldTypes = new ValueType[elements.length];
+    fieldNames = new String[elements.length - 1];
+    fieldTypes = new ValueDesc[elements.length - 1];
 
-    for (int i = 0; i < elements.length; i++) {
-      String element = elements[i].trim();
+    for (int i = 0; i < fieldNames.length; i++) {
+      String element = elements[i + 1].trim();
       int index = element.indexOf(":");
       Preconditions.checkArgument(index > 0, "'fieldName:fieldType' for field declaration");
       fieldNames[i] = element.substring(0, index).trim();
-      fieldTypes[i] = ValueType.fromString(element.substring(index + 1).trim());
+      fieldTypes[i] = ValueDesc.of(element.substring(index + 1).trim());
       Preconditions.checkArgument(fieldTypes[i].isPrimitive());
     }
-    this.elementType = StringUtils.join(elements, ',');
+    this.elementType = StringUtils.join(Arrays.copyOfRange(elements, 1, elements.length), ',');
   }
 
   @Override
-  public String getTypeName()
+  public ValueDesc getType()
   {
-    return ValueDesc.STRUCT_TYPE + "(" + elementType + ")";
+    return ValueDesc.ofStruct(fieldNames, fieldTypes);
   }
 
-  public ValueType getTypeOf(String fieldName)
+  public ValueDesc getTypeOf(String fieldName)
   {
     return type(indexOf(fieldName));
   }
@@ -81,7 +82,7 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
     return Arrays.asList(fieldNames).indexOf(fieldName);
   }
 
-  public ValueType type(int index)
+  public ValueDesc type(int index)
   {
     return index < 0 ? null : fieldTypes[index];
   }
@@ -91,15 +92,15 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
     return fieldNames;
   }
 
-  public ValueType[] getFieldTypes()
+  public ValueDesc[] getFieldTypes()
   {
     return fieldTypes;
   }
 
   @Override
-  public Iterator<Pair<String, ValueType>> iterator()
+  public Iterator<Pair<String, ValueDesc>> iterator()
   {
-    return new Iterator<Pair<String, ValueType>>()
+    return new Iterator<Pair<String, ValueDesc>>()
     {
       private int index;
 
@@ -110,7 +111,7 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
       }
 
       @Override
-      public Pair<String, ValueType> next()
+      public Pair<String, ValueDesc> next()
       {
         return Pair.of(fieldNames[index], fieldTypes[index++]);
       }
@@ -125,24 +126,22 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
       @Override
       public Object extractValue(Row inputRow, String metricName)
       {
-        Object raw = inputRow.getRaw(metricName);
-        return raw == null ? null : extractElement(raw);
+        return extractElement(inputRow.getRaw(metricName));
       }
 
-      @SuppressWarnings("unchecked")
-      private Object[] extractElement(Object value)
+      private Object extractElement(Object value)
       {
-        final Object[] struct = new Object[fieldNames.length];
-        if (value == null) {
-          return struct;
+        if (value == null || value instanceof Map) {
+          return value;
         }
+        final Object[] struct = new Object[fieldNames.length];
         if (value instanceof List) {
           List list = (List) value;
           int length = Math.min(list.size(), fieldTypes.length);
           for (int i = 0; i < length; i++) {
-            switch (fieldTypes[i]) {
-              case FLOAT:
-                struct[i] = Rows.parseFloat(list.get(i));
+            switch (fieldTypes[i].type()) {
+              case BOOLEAN:
+                struct[i] = Rows.parseBoolean(list.get(i));
                 break;
               case LONG:
                 struct[i] = Rows.parseLong(list.get(i));
@@ -160,7 +159,10 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
         } else if (value.getClass().isArray()) {
           int length = Math.min(Array.getLength(value), fieldTypes.length);
           for (int i = 0; i < length; i++) {
-            switch (fieldTypes[i]) {
+            switch (fieldTypes[i].type()) {
+              case BOOLEAN:
+                struct[i] = Rows.parseBoolean(Array.get(value, i));
+                break;
               case FLOAT:
                 struct[i] = Rows.parseFloat(Array.get(value, i));
                 break;
@@ -201,7 +203,7 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
       {
         Object[] struct = new Object[fieldNames.length];
         for (int i = 0; i < struct.length; i++) {
-          switch (fieldTypes[i]) {
+          switch (fieldTypes[i].type()) {
             case FLOAT:
               struct[i] = buffer.getFloat();
               break;
@@ -226,7 +228,7 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
       {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         for (int i = 0; i < struct.length; i++) {
-          switch (fieldTypes[i]) {
+          switch (fieldTypes[i].type()) {
             case FLOAT:
               out.writeFloat((Float) struct[i]);
               break;
@@ -283,7 +285,7 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
     @Override
     public ComplexMetricSerde create(String[] elements)
     {
-      return new StructMetricSerde(Arrays.copyOfRange(elements, 1, elements.length));
+      return new StructMetricSerde(elements);
     }
   }
 }

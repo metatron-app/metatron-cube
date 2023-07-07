@@ -21,7 +21,7 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import org.junit.Assert;
 import org.junit.Test;
@@ -36,8 +36,8 @@ public class IndexSpecTest
 
     final IndexSpec spec = objectMapper.readValue(json, IndexSpec.class);
     Assert.assertEquals(new RoaringBitmapSerdeFactory(), spec.getBitmapSerdeFactory());
-    Assert.assertEquals(CompressedObjectStrategy.CompressionStrategy.LZ4, spec.getDimensionCompressionStrategy());
-    Assert.assertEquals(CompressedObjectStrategy.CompressionStrategy.LZF, spec.getMetricCompressionStrategy());
+    Assert.assertEquals(CompressionStrategy.LZ4, spec.getDimensionCompressionStrategy());
+    Assert.assertEquals(CompressionStrategy.LZF, spec.getMetricCompressionStrategy());
 
     Assert.assertEquals(spec, objectMapper.readValue(objectMapper.writeValueAsBytes(spec), IndexSpec.class));
   }
@@ -51,7 +51,7 @@ public class IndexSpecTest
     final IndexSpec spec = objectMapper.readValue(json, IndexSpec.class);
 
     Assert.assertEquals(IndexSpec.UNCOMPRESSED, spec.getDimensionCompression());
-    Assert.assertNull(spec.getDimensionCompressionStrategy());
+    Assert.assertEquals(CompressionStrategy.UNCOMPRESSED, spec.getDimensionCompressionStrategy());
     Assert.assertEquals(spec, objectMapper.readValue(objectMapper.writeValueAsBytes(spec), IndexSpec.class));
   }
 
@@ -59,7 +59,7 @@ public class IndexSpecTest
   public void testDefaults() throws Exception
   {
     final IndexSpec spec = IndexSpec.DEFAULT;
-    Assert.assertEquals(CompressedObjectStrategy.CompressionStrategy.LZ4, spec.getDimensionCompressionStrategy());
-    Assert.assertEquals(CompressedObjectStrategy.CompressionStrategy.LZ4, spec.getMetricCompressionStrategy());
+    Assert.assertEquals(CompressionStrategy.LZ4, spec.getDimensionCompressionStrategy());
+    Assert.assertEquals(CompressionStrategy.LZ4, spec.getMetricCompressionStrategy());
   }
 }

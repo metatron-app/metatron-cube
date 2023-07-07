@@ -108,13 +108,14 @@ public class CompressedFloatsIndexedSupplier implements ColumnPartProvider<Index
   }
 
   @Override
-  public void writeToChannel(WritableByteChannel channel) throws IOException
+  public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
-    channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
-    baseFloatBuffers.writeToChannel(channel);
+    long written = channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
+    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
+    written += channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
+    written += baseFloatBuffers.writeToChannel(channel);
+    return written;
   }
 
   @Override

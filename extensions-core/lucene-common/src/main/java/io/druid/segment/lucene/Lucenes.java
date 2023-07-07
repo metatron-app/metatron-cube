@@ -290,22 +290,27 @@ public class Lucenes
     return pointConfigs;
   }
 
-  public static int sizeOf(IndexWriter writer) throws IOException
+  public static int sizeOf(IndexWriter writer)
   {
     Directory directory = writer.getDirectory();
-    String[] files = directory.listAll();
-    int length = Integer.BYTES + Integer.BYTES; // total size + number of files
-    for (String file : files) {
-      length += Integer.BYTES;  // length of file-name
-      length += StringUtils.estimatedBinaryLengthAsUTF8(file);  // file-name
-      length += Integer.BYTES + Integer.BYTES;  // offset + length
-      length += directory.fileLength(file);
+    try {
+      String[] files = directory.listAll();
+      int length = Integer.BYTES + Integer.BYTES; // total size + number of files
+      for (String file : files) {
+        length += Integer.BYTES;  // length of file-name
+        length += StringUtils.estimatedBinaryLengthAsUTF8(file);  // file-name
+        length += Integer.BYTES + Integer.BYTES;  // offset + length
+        length += directory.fileLength(file);
+      }
+      return length;
     }
-    return length;
+    catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   @SuppressWarnings("unchecked")
-  public static void writeTo(IndexWriter writer, WritableByteChannel channel) throws IOException
+  public static long writeTo(IndexWriter writer, WritableByteChannel channel) throws IOException
   {
     Directory directory = writer.getDirectory();
     String[] files = directory.listAll();
@@ -349,6 +354,7 @@ public class Lucenes
     }
     output.flush();
     output.close();
+    return sizeOf(writer);
   }
 
   public static DirectoryReader readFrom(final ByteBuffer buffer)
