@@ -38,29 +38,6 @@ import java.nio.channels.WritableByteChannel;
  */
 public class CompressedComplexColumnSerializer implements ColumnPartWriter
 {
-  @SuppressWarnings(value = "unchecked")
-  public static ColumnPartWriter create(
-      IOPeon ioPeon,
-      String filenameBase,
-      CompressionStrategy compression,
-      ComplexMetricSerde serde
-  ) throws IOException
-  {
-    if (compression != null && compression != CompressionStrategy.UNCOMPRESSED && serde instanceof CompressionSupport) {
-      return new CompressedComplexColumnSerializer(
-          GenericIndexedWriter.v2(
-              ioPeon,
-              filenameBase,
-              new SizePrefixedCompressedObjectStrategy(compression)
-          ),
-          compression,
-          (CompressionSupport) serde
-      );
-    } else {
-      return GenericIndexedWriter.v2(ioPeon, filenameBase, serde.getObjectStrategy());
-    }
-  }
-
   private final ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener;
   private final CompressionStrategy compression;
   private final ObjectStrategy strategy;
@@ -72,7 +49,7 @@ public class CompressedComplexColumnSerializer implements ColumnPartWriter
   private final IntList mappings;   // thresholds for blocks
   private final IntList offsets;    // offsets in each block
 
-  private CompressedComplexColumnSerializer(
+  public CompressedComplexColumnSerializer(
       ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener,
       CompressionStrategy compression,
       CompressionSupport serde

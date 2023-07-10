@@ -57,8 +57,6 @@ public class IndexSpec
                                                              .map(x -> x.name().toLowerCase())
                                                              .collect(Collectors.toSet());
 
-  public static final String UNCOMPRESSED = CompressionStrategy.UNCOMPRESSED.name().toLowerCase();
-
   public static final IndexSpec DEFAULT = new IndexSpec();
 
   private final BitmapSerdeFactory bitmapSerdeFactory;

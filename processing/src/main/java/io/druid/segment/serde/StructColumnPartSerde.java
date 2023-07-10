@@ -33,7 +33,7 @@ import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
-import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -175,9 +175,9 @@ public class StructColumnPartSerde implements ColumnPartSerde
     }
 
     @Override
-    public CompressedObjectStrategy.CompressionStrategy compressionType()
+    public CompressionStrategy compressionType()
     {
-      return CompressedObjectStrategy.CompressionStrategy.NONE;
+      return null;
     }
 
     @Override
@@ -197,6 +197,13 @@ public class StructColumnPartSerde implements ColumnPartSerde
     {
       Column column = fields.get(field);
       return column == null ? null : column.getType();
+    }
+
+    @Override
+    public CompressionStrategy compressionType(String field)
+    {
+      Column column = fields.get(field);
+      return column == null ? null : column.compressionType();
     }
 
     @Override

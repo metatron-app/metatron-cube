@@ -26,6 +26,7 @@ import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnStats;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.Dictionary;
 
 import java.io.IOException;
@@ -151,6 +152,19 @@ class SimpleColumn implements Column
   public boolean hasComplexColumn()
   {
     return complexColumn != null;
+  }
+
+  @Override
+  public CompressionStrategy compressionType()
+  {
+    if (genericColumn != null) {
+      return genericColumn.compressionType();
+    } else if (complexColumn != null) {
+      return complexColumn.compressionType();
+    } else if (dictionaryEncodedColumn != null) {
+      return dictionaryEncodedColumn.compressionType();
+    }
+    return null;
   }
 
   @Override

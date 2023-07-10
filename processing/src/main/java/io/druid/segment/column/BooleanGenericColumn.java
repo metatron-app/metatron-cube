@@ -47,7 +47,7 @@ public class BooleanGenericColumn implements GenericColumn
   @Override
   public CompressionStrategy compressionType()
   {
-    return CompressionStrategy.UNCOMPRESSED;
+    return CompressionStrategy.NONE;
   }
 
   @Override

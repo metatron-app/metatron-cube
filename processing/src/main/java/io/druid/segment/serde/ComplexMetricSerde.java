@@ -59,7 +59,7 @@ public interface ComplexMetricSerde
   default ColumnBuilder deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
     return builder.setComplexColumn(
-        new ComplexColumnPartSupplier(
+        new NotCompressedComplexColumnPartSupplier(
             getType(),
             GenericIndexed.read(buffer, getObjectStrategy())
         )
@@ -109,7 +109,7 @@ public interface ComplexMetricSerde
         GenericIndexed<?> indexed = GenericIndexed.readIndex(buffer, getObjectStrategy());
         builder.setType(ValueDesc.STRING)
                .setHasMultipleValues(false)
-               .setComplexColumn(new ComplexColumnPartSupplier(getType(), indexed));
+               .setComplexColumn(new NotCompressedComplexColumnPartSupplier(getType(), indexed));
       } else if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
         CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
         ByteBuffer compressMeta = ByteBufferSerializer.prepareForRead(buffer);

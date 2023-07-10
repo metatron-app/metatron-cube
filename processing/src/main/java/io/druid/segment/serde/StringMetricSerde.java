@@ -23,12 +23,10 @@ import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
-import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.SizePrefixedCompressedObjectStrategy;
@@ -70,7 +68,7 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
       GenericIndexed<String> indexed = GenericIndexed.readIndex(buffer, ObjectStrategy.STRING_STRATEGY);
       builder.setType(ValueDesc.STRING)
              .setHasMultipleValues(false)
-             .setGenericColumn(new StringColumnPartSupplier(indexed, CompressionStrategy.UNCOMPRESSED));
+             .setGenericColumn(new StringColumnPartSupplier(indexed, CompressionStrategy.NONE));
     } else if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
       CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
       ByteBuffer compressMeta = ByteBufferSerializer.prepareForRead(buffer);
@@ -95,18 +93,5 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
   public ObjectStrategy<String> getObjectStrategy()
   {
     return ObjectStrategy.STRING_STRATEGY;
-  }
-
-  public static <T> ColumnPartProvider<Dictionary<T>> deserializeDictionary(
-      ByteBuffer buffer,
-      ObjectStrategy<T> strategy
-  )
-  {
-    final byte versionFromBuffer = buffer.get();
-    if (versionFromBuffer == GenericIndexed.version) {
-      return GenericIndexed.readIndex(buffer, strategy).asColumnPartProvider();
-    } else {
-      throw new IAE("Unknown version[%s]", versionFromBuffer);
-    }
   }
 }

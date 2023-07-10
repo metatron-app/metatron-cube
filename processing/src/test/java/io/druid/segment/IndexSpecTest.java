@@ -50,7 +50,6 @@ public class IndexSpecTest
 
     final IndexSpec spec = objectMapper.readValue(json, IndexSpec.class);
 
-    Assert.assertEquals(IndexSpec.UNCOMPRESSED, spec.getDimensionCompression());
     Assert.assertEquals(CompressionStrategy.UNCOMPRESSED, spec.getDimensionCompressionStrategy());
     Assert.assertEquals(spec, objectMapper.readValue(objectMapper.writeValueAsBytes(spec), IndexSpec.class));
   }

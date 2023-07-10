@@ -81,7 +81,7 @@ import io.druid.segment.data.VintValues;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
 import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSerde;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
+import io.druid.segment.serde.NotCompressedComplexColumnPartSupplier;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
 import io.druid.segment.serde.DoubleGenericColumnPartSerde;
 import io.druid.segment.serde.DoubleGenericColumnSupplier;
@@ -983,7 +983,7 @@ public class IndexIO
               Suppliers.ofInstance(new ColumnBuilder(metric)
                   .setType(ValueDesc.of(metricHolder.getTypeName()))
                   .setComplexColumn(
-                      new ComplexColumnPartSupplier(
+                      new NotCompressedComplexColumnPartSupplier(
                           ValueDesc.of(metricHolder.getType()), (GenericIndexed) metricHolder.complexType
                       )
                   )

@@ -30,13 +30,13 @@ public abstract class IntsWriter implements ColumnPartWriter
 {
   public static IntsWriter create(IOPeon ioPeon, String filenameBase, int maxValue, CompressionStrategy compression)
   {
-    if (compression == CompressionStrategy.UNCOMPRESSED) {
+    if (compression == CompressionStrategy.NONE) {
       return new VintsWriter(ioPeon, filenameBase, maxValue);
     }
     return new CompressedVintsWriter(
         compression,
         CompressedIntWriter.create(ioPeon, String.format("%s.offsets", filenameBase), compression),
-        CompressedVintWriter.create(ioPeon, String.format("%s.values", filenameBase), maxValue, compression)
+        IntWriter.create(ioPeon, String.format("%s.values", filenameBase), maxValue, compression)
     );
   }
 

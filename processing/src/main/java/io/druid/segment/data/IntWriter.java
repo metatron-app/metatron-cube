@@ -29,7 +29,7 @@ public abstract class IntWriter implements ColumnPartWriter
 {
   public static IntWriter create(IOPeon ioPeon, String filenameBase, int maxValue, CompressionStrategy compression)
   {
-    if (compression == CompressionStrategy.UNCOMPRESSED) {
+    if (compression == CompressionStrategy.NONE) {
       return new VintWriter(ioPeon, filenameBase, maxValue);
     }
     return new CompressedVintWriter(

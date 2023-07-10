@@ -40,6 +40,7 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedVintsReader;
 import io.druid.segment.data.CumulativeBitmapWriter;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.IntValues;
@@ -447,7 +448,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
         builder.setType(ValueDesc.STRING);
 
         if (!Feature.NO_DICTIONARY.isSet(rFlags)) {
-          builder.setDictionary(StringMetricSerde.deserializeDictionary(buffer, ObjectStrategy.STRING_STRATEGY));
+          builder.setDictionary(readDictionary(buffer));
         }
 
         final boolean hasMultipleValues = Feature.hasAny(rFlags, Feature.MULTI_VALUE, Feature.MULTI_VALUE_V3);
@@ -488,6 +489,16 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
               buffer, new IndexedRTree.ImmutableRTreeObjectStrategy(bitmapSerdeFactory.getBitmapFactory())
           );
           builder.setSpatialIndex(new SpatialIndexColumnPartSupplier(rSpatialIndex));
+        }
+      }
+
+      private ColumnPartProvider<Dictionary<String>> readDictionary(ByteBuffer buffer)
+      {
+        final byte versionFromBuffer = buffer.get();
+        if (versionFromBuffer == GenericIndexed.version) {
+          return GenericIndexed.readIndex(buffer, ObjectStrategy.STRING_STRATEGY).asColumnPartProvider();
+        } else {
+          throw new IAE("Unknown version[%s]", versionFromBuffer);
         }
       }
 

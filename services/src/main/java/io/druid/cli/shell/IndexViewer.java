@@ -460,7 +460,7 @@ public class IndexViewer extends CommonShell.WithUtils
           builder.append("  type : %s (%,d bytes)", desc, columnSize);
         }
       } else {
-        compressionType = compressionType != null ? compressionType : CompressionStrategy.UNCOMPRESSED;
+        compressionType = compressionType != null ? compressionType : CompressionStrategy.NONE;
         builder.append("  type : %s (compression = %s, %,d bytes)", desc, compressionType, columnSize);
       }
       Map<String, Object> columnStats = column.getColumnStats();

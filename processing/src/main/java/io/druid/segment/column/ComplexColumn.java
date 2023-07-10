@@ -36,7 +36,7 @@ public interface ComplexColumn extends ColumnAccess
 {
   ValueDesc getType();
 
-  CompressionStrategy compressionType();
+  CompressionStrategy compressionType();  // just for index viewer
 
   int size();
 
@@ -45,6 +45,8 @@ public interface ComplexColumn extends ColumnAccess
     List<String> getFieldNames();
 
     ValueDesc getType(String field);
+
+    CompressionStrategy compressionType(String field);
 
     Column getField(String field);
 

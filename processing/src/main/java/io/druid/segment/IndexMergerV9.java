@@ -920,7 +920,7 @@ public class IndexMergerV9 extends IndexMerger
       int cardinality = dimCardinalities.get(dim);
       ColumnCapabilities capabilities = dimCapabilities == null ? null : dimCapabilities.get(dimIndex);
       String filenameBase = String.format("%s.forward_dim", dim);
-      CompressionStrategy compression = cardinality < SKIP_COMPRESSION_THRESHOLD ? dimCompression : CompressionStrategy.UNCOMPRESSED;
+      CompressionStrategy compression = cardinality < SKIP_COMPRESSION_THRESHOLD ? dimCompression : CompressionStrategy.NONE;
       ColumnPartWriter writer;
       if (capabilities != null && capabilities.hasMultipleValues()) {
         writer = IntsWriter.create(ioPeon, filenameBase, cardinality, compression);

@@ -22,17 +22,17 @@ package io.druid.segment.serde;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.ComplexColumn;
-import io.druid.segment.column.IndexedComplexColumn;
+import io.druid.segment.column.NotCompressedComplexColumn;
 import io.druid.segment.data.GenericIndexed;
 
 /**
  */
-public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColumn>
+public class NotCompressedComplexColumnPartSupplier implements ColumnPartProvider<ComplexColumn>
 {
   private final ValueDesc type;
   private final GenericIndexed column;
 
-  public ComplexColumnPartSupplier(ValueDesc type, GenericIndexed column)
+  public NotCompressedComplexColumnPartSupplier(ValueDesc type, GenericIndexed column)
   {
     this.type = type;
     this.column = column;
@@ -53,12 +53,12 @@ public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColu
   @Override
   public Class<? extends ComplexColumn> provides()
   {
-    return IndexedComplexColumn.class;
+    return NotCompressedComplexColumn.class;
   }
 
   @Override
   public ComplexColumn get()
   {
-    return new IndexedComplexColumn(type, column.dedicated());
+    return new NotCompressedComplexColumn(type, column.dedicated());
   }
 }

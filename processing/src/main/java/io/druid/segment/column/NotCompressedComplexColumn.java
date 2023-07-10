@@ -29,12 +29,12 @@ import java.io.IOException;
 
 /**
 */
-public class IndexedComplexColumn implements ComplexColumn, ColumnAccess.WithRawAccess
+public class NotCompressedComplexColumn implements ComplexColumn, ColumnAccess.WithRawAccess
 {
   private final GenericIndexed<?> column;
   private final ValueDesc type;
 
-  public IndexedComplexColumn(ValueDesc type, GenericIndexed<?> column)
+  public NotCompressedComplexColumn(ValueDesc type, GenericIndexed<?> column)
   {
     this.column = column;
     this.type = type;
@@ -49,7 +49,7 @@ public class IndexedComplexColumn implements ComplexColumn, ColumnAccess.WithRaw
   @Override
   public CompressionStrategy compressionType()
   {
-    return CompressionStrategy.UNCOMPRESSED;
+    return CompressionStrategy.NONE;
   }
 
   @Override

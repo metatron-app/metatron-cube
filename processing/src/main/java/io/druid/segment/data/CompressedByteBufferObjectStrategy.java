@@ -28,7 +28,11 @@ public class CompressedByteBufferObjectStrategy extends FixedSizeCompressedObjec
 {
   public static final Ordering<Comparable> ORDERING = Ordering.natural().nullsFirst();
 
-  public static CompressedByteBufferObjectStrategy getBufferForOrder(final ByteOrder order, final CompressionStrategy compression, final int sizePer)
+  public static CompressedByteBufferObjectStrategy getBufferForOrder(
+      final ByteOrder order,
+      final CompressionStrategy compression,
+      final int sizePer
+  )
   {
     return new CompressedByteBufferObjectStrategy(order, compression, sizePer);
   }

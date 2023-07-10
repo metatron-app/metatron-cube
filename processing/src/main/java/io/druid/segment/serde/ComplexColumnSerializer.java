@@ -29,7 +29,10 @@ import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedComplexColumnSerializer;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
+import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
+import io.druid.segment.data.SizePrefixedCompressedObjectStrategy;
+import io.druid.segment.serde.ComplexMetricSerde.CompressionSupport;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
@@ -44,7 +47,8 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
       CompressionStrategy compression
   )
   {
-    return new ComplexColumnSerializer(filenameBase, serde, indexingSpec, compression);
+    CompressionStrategy strategy = compression == null ? CompressionStrategy.NONE : compression;
+    return new ComplexColumnSerializer(filenameBase, serde, indexingSpec, strategy);
   }
 
   private final String columnName;
@@ -75,10 +79,22 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   @Override
   public void open(IOPeon ioPeon) throws IOException
   {
-    String filenameBase = String.format("%s.complex_column", columnName);
-    writer = CompressedComplexColumnSerializer.create(ioPeon, filenameBase, compression, serde);
+    writer = create(ioPeon, String.format("%s.complex_column", columnName));
     writer.open();
     secondary.open(ioPeon);
+  }
+
+  @SuppressWarnings("unchecked")
+  private ColumnPartWriter create(IOPeon ioPeon, String filenameBase) throws IOException
+  {
+    if (compression == CompressionStrategy.NONE || !(serde instanceof CompressionSupport)) {
+      return GenericIndexedWriter.v2(ioPeon, filenameBase, serde.getObjectStrategy());
+    }
+    return new CompressedComplexColumnSerializer(
+        GenericIndexedWriter.v2(ioPeon, filenameBase, new SizePrefixedCompressedObjectStrategy(compression)),
+        compression,
+        (CompressionSupport) serde
+    );
   }
 
   @SuppressWarnings(value = "unchecked")
