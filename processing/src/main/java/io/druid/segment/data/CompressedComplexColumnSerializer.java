@@ -27,7 +27,6 @@ import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
-import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetricSerde.CompressionSupport;
 
 import java.io.IOException;

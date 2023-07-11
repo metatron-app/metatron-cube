@@ -61,7 +61,6 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
       Preconditions.checkArgument(index > 0, "'fieldName:fieldType' for field declaration");
       fieldNames[i] = element.substring(0, index).trim();
       fieldTypes[i] = ValueDesc.of(element.substring(index + 1).trim());
-      Preconditions.checkArgument(fieldTypes[i].isPrimitive());
     }
     this.elementType = StringUtils.join(Arrays.copyOfRange(elements, 1, elements.length), ',');
   }

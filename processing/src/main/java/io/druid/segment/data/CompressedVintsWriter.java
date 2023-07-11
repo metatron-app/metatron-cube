@@ -31,7 +31,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.List;
 
-public class CompressedVintsWriter extends IntsWriter implements ColumnPartWriter.Compressed
+public class CompressedVintsWriter implements IntsWriter, ColumnPartWriter.Compressed
 {
   private static final byte VERSION = CompressedVIntsSupplierV3.VERSION;
 
@@ -66,7 +66,7 @@ public class CompressedVintsWriter extends IntsWriter implements ColumnPartWrite
   }
 
   @Override
-  protected void addValues(List<Integer> vals) throws IOException
+  public void add(List<Integer> vals) throws IOException
   {
     if (vals == null) {
       vals = Collections.emptyList();
@@ -76,6 +76,19 @@ public class CompressedVintsWriter extends IntsWriter implements ColumnPartWrite
       valueWriter.add(val);
     }
     offset += vals.size();
+  }
+
+  @Override
+  public void add(int[] vals) throws IOException
+  {
+    if (vals == null) {
+      vals = EMPTY_ROW;
+    }
+    offsetWriter.add(offset);
+    for (int i = 0; i < vals.length; i++) {
+      valueWriter.add(vals[i]);
+    }
+    offset += vals.length;
   }
 
   @Override

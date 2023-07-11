@@ -54,6 +54,32 @@ public class StructTest extends CalciteQueryTestHelper
   }
 
   @Test
+  public void tesDimensions() throws Exception
+  {
+    testQuery(
+        "SELECT \"ci_profile.life_style\", \"adot_usage.life_cycle\" from ups where \"ci_profile.life_style\" = '영화관'",
+        new Object[][] {
+            {"[캠핑, 영화관, 청년1인가구]", "휴면"},
+            {"[영화관, 청년2인가구]", "안휴면"}
+        }
+    );
+    hook.verifyHooked(
+        "Zqr9LlJ1p4Gh8gsXLleC6Q==",
+        "StreamQuery{dataSource='ups', filter=ci_profile.life_style=='영화관', columns=[ci_profile.life_style, adot_usage.life_cycle]}"
+    );
+    testQuery(
+        "SELECT \"ci_profile.life_style\", \"adot_usage.life_cycle\" from ups where \"ci_profile.life_style\" = '캠핑'",
+        new Object[][] {
+            {"[캠핑, 영화관, 청년1인가구]", "휴면"}
+        }
+    );
+    hook.verifyHooked(
+        "AKo3jcUAHWRdMefjvxXyew==",
+        "StreamQuery{dataSource='ups', filter=ci_profile.life_style=='캠핑', columns=[ci_profile.life_style, adot_usage.life_cycle]}"
+    );
+  }
+
+  @Test
   public void tesBasic() throws Exception
   {
     testQuery(

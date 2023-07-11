@@ -66,11 +66,14 @@ public class ListIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       }
 
       @Override
-      public ColumnDescriptor.Builder buildDescriptor(ColumnDescriptor.Builder builder)
+      public ColumnDescriptor.Builder buildDescriptor(
+          IOPeon ioPeon,
+          ColumnDescriptor.Builder builder
+      )
           throws IOException
       {
         for (MetricColumnSerializer serializer : serializers) {
-          builder = serializer.buildDescriptor(builder);
+          builder = serializer.buildDescriptor(ioPeon, builder);
         }
         return builder;
       }

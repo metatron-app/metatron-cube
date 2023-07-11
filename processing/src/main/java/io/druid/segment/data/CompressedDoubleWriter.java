@@ -26,13 +26,12 @@ import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedDoubleWriter implements ColumnPartWriter.DoubleType
+public class CompressedDoubleWriter implements ColumnPartWriter.DoubleType, ColumnPartWriter.Compressed<Double>
 {
   private final int sizePer;
   private final ColumnPartWriter<ResourceHolder<DoubleBuffer>> flattener;
@@ -57,14 +56,15 @@ public class CompressedDoubleWriter implements ColumnPartWriter.DoubleType
   }
 
   @Override
+  public CompressedObjectStrategy.CompressionStrategy appliedCompression()
+  {
+    return compression;
+  }
+
+  @Override
   public void open() throws IOException
   {
     flattener.open();
-  }
-
-  public int size()
-  {
-    return numInserted;
   }
 
   @Override

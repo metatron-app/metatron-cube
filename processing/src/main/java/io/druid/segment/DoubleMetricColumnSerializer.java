@@ -20,7 +20,6 @@
 package io.druid.segment;
 
 import io.druid.common.utils.SerializerUtils;
-import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.ColumnPartWriter.DoubleType;
 import io.druid.segment.data.IOPeon;
 

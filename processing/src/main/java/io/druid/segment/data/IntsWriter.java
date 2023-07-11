@@ -19,16 +19,17 @@
 
 package io.druid.segment.data;
 
-import com.google.common.primitives.Ints;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 import java.io.IOException;
 import java.util.List;
 
-public abstract class IntsWriter implements ColumnPartWriter
+public interface IntsWriter extends ColumnPartWriter
 {
-  public static IntsWriter create(IOPeon ioPeon, String filenameBase, int maxValue, CompressionStrategy compression)
+  int[] EMPTY_ROW = new int[0];
+
+  static IntsWriter create(IOPeon ioPeon, String filenameBase, int maxValue, CompressionStrategy compression)
   {
     if (compression == CompressionStrategy.NONE) {
       return new VintsWriter(ioPeon, filenameBase, maxValue);
@@ -41,18 +42,19 @@ public abstract class IntsWriter implements ColumnPartWriter
   }
 
   @Override
-  public void add(Object obj) throws IOException
+  @SuppressWarnings("unchecked")
+  default void add(Object obj) throws IOException
   {
-    if (obj == null) {
-      addValues(null);
-    } else if (obj instanceof int[]) {
-      addValues(Ints.asList((int[]) obj));
+    if (obj == null || obj instanceof int[]) {
+      add((int[]) obj);
     } else if (obj instanceof List) {
-      addValues((List<Integer>) obj);
+      add((List<Integer>) obj);
     } else {
       throw new IAE("unsupported multi-value type: " + obj.getClass());
     }
   }
 
-  protected abstract void addValues(List<Integer> vals) throws IOException;
+  void add(List<Integer> vals) throws IOException;
+
+  void add(int[] vals) throws IOException;
 }

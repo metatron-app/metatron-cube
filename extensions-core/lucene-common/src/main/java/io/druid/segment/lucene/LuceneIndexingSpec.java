@@ -166,7 +166,10 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       }
 
       @Override
-      public ColumnDescriptor.Builder buildDescriptor(ColumnDescriptor.Builder builder)
+      public ColumnDescriptor.Builder buildDescriptor(
+          IOPeon ioPeon,
+          ColumnDescriptor.Builder builder
+      )
       {
         if (writer.getDocStats().numDocs > 0) {
           builder.addSerde(getSerde(writer))

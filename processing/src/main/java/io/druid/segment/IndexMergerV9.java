@@ -206,8 +206,8 @@ public class IndexMergerV9 extends IndexMerger
       );
 
       /************ Finalize Build Columns *************/
-      makeTimeColumn(v9Smoosher, progress, Column.TIME_COLUMN_NAME, timeWriter, true);
-      makeMetricsColumns(v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters, true);
+      makeTimeColumn(ioPeon, v9Smoosher, progress, Column.TIME_COLUMN_NAME, timeWriter, true);
+      makeMetricsColumns(ioPeon, v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters, true);
       makeDimensionColumns(
           v9Smoosher, progress, indexSpec, dimensions, dimensionSkipFlag, dimCapabilities,
           dictionaryWriters, dictionaryFSTs, dimWriters, bitmapIndexWriters, spatialIndexWriters, true
@@ -327,11 +327,12 @@ public class IndexMergerV9 extends IndexMerger
           Map<String, ValueDesc> cubeMetricTypes = Maps.newHashMap();
           List<MetricColumnSerializer> cubeMetricWriters = Lists.newArrayList();
           for (AggregatorFactory aggregator : query.getAggregatorSpecs()) {
-            cubeMetricWriters.add(
-                setupMetricsWriter(ioPeon, aggregator.getName(), aggregator.getOutputType(), indexer)
-            );
+            cubeMetricWriters.add(setupMetricsWriter(aggregator.getName(), aggregator.getOutputType(), indexer, false));
             cubeMetrics.add(aggregator.getName());
             cubeMetricTypes.put(aggregator.getName(), aggregator.getOutputType());
+          }
+          for (MetricColumnSerializer writer : cubeMetricWriters) {
+            writer.open(ioPeon);
           }
 
           List<ColumnPartWriter<ImmutableBitmap>> cubeBitmapWriters = setupBitmapIndexWriters(
@@ -355,8 +356,8 @@ public class IndexMergerV9 extends IndexMerger
           }
 
           String timeColumn = Cuboids.dimension(cubeId, Column.TIME_COLUMN_NAME);
-          makeTimeColumn(v9Smoosher, progress, timeColumn, cubeTimeWriter, false);
-          makeMetricsColumns(v9Smoosher, progress, cubeMetrics, cubeMetricTypes, cubeMetricWriters, false);
+          makeTimeColumn(ioPeon, v9Smoosher, progress, timeColumn, cubeTimeWriter, false);
+          makeMetricsColumns(ioPeon, v9Smoosher, progress, cubeMetrics, cubeMetricTypes, cubeMetricWriters, false);
           makeDimensionColumns(
               v9Smoosher, progress, indexer,
               cubeDims, null, null, null, null, cubeDimWriters, cubeBitmapWriters, null, false
@@ -494,8 +495,9 @@ public class IndexMergerV9 extends IndexMerger
       final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
       builder.setValueType(ValueDesc.STRING);
       builder.setHasMultipleValues(hasMultiValue);
-      final DictionaryEncodedColumnPartSerde.SerializerBuilder partBuilder = DictionaryEncodedColumnPartSerde
-          .serializerBuilder()
+
+      final DictionaryEncodedColumnPartSerde.SerdeBuilder partBuilder = DictionaryEncodedColumnPartSerde
+          .builder()
           .withDictionary(dictionaryWriter)
           .withValue(dimWriter, hasMultiValue, compression != null)
           .withBitmapIndex(bitmapIndexWriter)
@@ -514,6 +516,7 @@ public class IndexMergerV9 extends IndexMerger
   }
 
   private void makeMetricsColumns(
+      final IOPeon ioPeon,
       final FileSmoosher v9Smoosher,
       final ProgressIndicator progress,
       final List<String> mergedMetrics,
@@ -533,7 +536,7 @@ public class IndexMergerV9 extends IndexMerger
       writer.close();
 
       ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-      writer.buildDescriptor(builder);
+      writer.buildDescriptor(ioPeon, builder);
 
       makeColumn(v9Smoosher, metric, builder.build(includeStats));
       log.info("Completed metric column[%s] in %,d millis.", metric, System.currentTimeMillis() - metricStartTime);
@@ -544,6 +547,7 @@ public class IndexMergerV9 extends IndexMerger
 
 
   private void makeTimeColumn(
+      final IOPeon ioPeon,
       final FileSmoosher v9Smoosher,
       final ProgressIndicator progress,
       final String columnName,
@@ -558,7 +562,7 @@ public class IndexMergerV9 extends IndexMerger
     timeWriter.close();
 
     ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-    timeWriter.buildDescriptor(builder);
+    timeWriter.buildDescriptor(ioPeon, builder);
 
     makeColumn(v9Smoosher, columnName, builder.build(includeStats));
     log.info("Completed time column in %,d millis.", System.currentTimeMillis() - startTime);
@@ -845,20 +849,23 @@ public class IndexMergerV9 extends IndexMerger
 
   private List<MetricColumnSerializer> setupMetricsWriters(
       final IOPeon ioPeon,
-      final List<String> mergedMetrics,
+      final List<String> metrics,
       final Map<String, ValueDesc> metricTypeNames,
       final IndexSpec indexSpec
   ) throws IOException
   {
-    final List<MetricColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
-    for (String metric : mergedMetrics) {
+    final List<MetricColumnSerializer> metWriters = Lists.newArrayListWithCapacity(metrics.size());
+    for (String metric : metrics) {
       final ValueDesc type = metricTypeNames.get(metric);
-      metWriters.add(setupMetricsWriter(ioPeon, metric, type, indexSpec));
+      metWriters.add(setupMetricsWriter(metric, type, indexSpec, false));
+    }
+    for (MetricColumnSerializer writer : metWriters) {
+      writer.open(ioPeon);
     }
     return metWriters;
   }
 
-  private MetricColumnSerializer setupMetricsWriter(IOPeon ioPeon, String metric, ValueDesc type, IndexSpec indexSpec)
+  private MetricColumnSerializer setupMetricsWriter(String metric, ValueDesc type, IndexSpec indexSpec, boolean nested)
       throws IOException
   {
     final BitmapSerdeFactory bitmap = indexSpec.getBitmapSerdeFactory();
@@ -867,39 +874,28 @@ public class IndexMergerV9 extends IndexMerger
     final CompressionStrategy metCompression = compression != null ? compression : indexSpec.getMetricCompressionStrategy();
     final boolean allowNullForNumbers = indexSpec.isAllowNullForNumbers();
 
-    final MetricColumnSerializer writer;
     switch (type.type()) {
       case BOOLEAN:
-        writer = BooleanColumnSerializer.create(bitmap);
-        break;
+        return BooleanColumnSerializer.create(bitmap);
       case LONG:
-        writer = LongColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
-        break;
+        return LongColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
       case FLOAT:
-        writer = FloatColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
-        break;
+        return FloatColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
       case DOUBLE:
-        writer = DoubleColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
-        break;
+        return DoubleColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
       case STRING:
-        writer = ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, secondary, compression);
-        break;
+        if (nested) {
+          return TagColumnSerializer.create(metric, type, compression, bitmap);
+        }
+        return ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, secondary, compression);
       case COMPLEX:
         if (type.isStruct()) {
-          return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(ioPeon, n, t, indexSpec));
+          return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec, true));
         }
-        final ComplexMetricSerde serde = Preconditions.checkNotNull(
-            ComplexMetrics.getSerdeForType(type), "Unknown type[%s]", type
-        );
-        // todo : compression (ComplexMetricSerde is not implementing this except StringMetricSerde)
-        writer = ComplexColumnSerializer.create(metric, serde, secondary, compression);
-        break;
+        return ComplexColumnSerializer.create(metric, type, secondary, compression);
       default:
         throw new ISE("Unknown type[%s]", type);
     }
-    // we will close these writers in another method after we added all the metrics
-    writer.open(ioPeon);
-    return writer;
   }
 
   // heuristic

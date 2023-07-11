@@ -19,6 +19,7 @@
 
 package io.druid.segment.serde;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnStats;
@@ -41,14 +42,25 @@ import java.util.Map;
 public class ComplexColumnSerializer implements GenericColumnSerializer
 {
   public static ComplexColumnSerializer create(
-      String filenameBase,
+      String metric,
+      ValueDesc type,
+      SecondaryIndexingSpec indexingSpec,
+      CompressionStrategy compression
+  )
+  {
+    ComplexMetricSerde serde = Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type), "Unknown type[%s]", type);
+    return create(metric, serde, indexingSpec, compression);
+  }
+
+  public static ComplexColumnSerializer create(
+      String metric,
       ComplexMetricSerde serde,
       SecondaryIndexingSpec indexingSpec,
       CompressionStrategy compression
   )
   {
     CompressionStrategy strategy = compression == null ? CompressionStrategy.NONE : compression;
-    return new ComplexColumnSerializer(filenameBase, serde, indexingSpec, strategy);
+    return new ComplexColumnSerializer(metric, serde, indexingSpec, strategy);
   }
 
   private final String columnName;
@@ -114,7 +126,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Builder buildDescriptor(Builder builder) throws IOException
+  public Builder buildDescriptor(IOPeon ioPeon, Builder builder) throws IOException
   {
     ValueDesc type = serde.getType();
     if (type.isString()) {
@@ -124,7 +136,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
       builder.setValueType(type);
       builder.addSerde(new ComplexColumnPartSerde(type.typeName(), this));
     }
-    return secondary.buildDescriptor(builder);
+    return secondary.buildDescriptor(ioPeon, builder);
   }
 
   @Override

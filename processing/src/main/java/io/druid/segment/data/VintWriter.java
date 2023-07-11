@@ -20,7 +20,7 @@
 package io.druid.segment.data;
 
 import com.google.common.io.CountingOutputStream;
-import com.google.common.primitives.Ints;
+import io.druid.common.utils.IOUtils;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
 
 import java.io.IOException;
@@ -32,7 +32,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Streams integers out in the binary format described by VSizeIndexedInts
  */
-public class VintWriter extends IntWriter
+public class VintWriter implements IntWriter
 {
   private static final byte VERSION = VintValues.VERSION;
 
@@ -41,6 +41,7 @@ public class VintWriter extends IntWriter
   private final int numBytes;
 
   private CountingOutputStream valuesOut;
+  private int numInserted;
 
   public VintWriter(IOPeon ioPeon, String filenameBase, int maxValue)
   {
@@ -55,11 +56,19 @@ public class VintWriter extends IntWriter
     valuesOut = new CountingOutputStream(ioPeon.makeOutputStream(valueFileName));
   }
 
+  private final byte[] scratch = new byte[Integer.BYTES];
+
   @Override
   public void add(int val) throws IOException
   {
-    byte[] intAsBytes = Ints.toByteArray(val);
-    valuesOut.write(intAsBytes, intAsBytes.length - numBytes, numBytes);
+    valuesOut.write(IOUtils.intTo(val, scratch), Integer.BYTES - numBytes, numBytes);
+    numInserted++;
+  }
+
+  @Override
+  public int count()
+  {
+    return numInserted;
   }
 
   @Override
@@ -82,7 +91,7 @@ public class VintWriter extends IntWriter
   {
     long numBytesWritten = valuesOut.getCount();
     long written = channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
-    written += channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(numBytesWritten))));
+    written += channel.write(ByteBuffer.wrap(IOUtils.intTo(numBytesWritten, scratch)));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(valueFileName))) {
       written += FileSmoosher.transfer(channel, input);
     }

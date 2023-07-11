@@ -25,9 +25,9 @@ import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 import java.io.IOException;
 
-public abstract class IntWriter implements ColumnPartWriter
+public interface IntWriter extends ColumnPartWriter
 {
-  public static IntWriter create(IOPeon ioPeon, String filenameBase, int maxValue, CompressionStrategy compression)
+  static IntWriter create(IOPeon ioPeon, String filenameBase, int maxValue, CompressionStrategy compression)
   {
     if (compression == CompressionStrategy.NONE) {
       return new VintWriter(ioPeon, filenameBase, maxValue);
@@ -43,7 +43,7 @@ public abstract class IntWriter implements ColumnPartWriter
   }
 
   @Override
-  public void add(Object obj) throws IOException
+  default void add(Object obj) throws IOException
   {
     if (obj == null) {
       add(0);
@@ -61,5 +61,7 @@ public abstract class IntWriter implements ColumnPartWriter
     }
   }
 
-  public abstract void add(int val) throws IOException;
+  void add(int val) throws IOException;
+
+  int count();
 }

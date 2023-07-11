@@ -31,7 +31,7 @@ import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedFloatWriter implements ColumnPartWriter.FloatType
+public class CompressedFloatWriter implements ColumnPartWriter.FloatType, ColumnPartWriter.Compressed<Float>
 {
   private final int sizePer;
   private final ColumnPartWriter<ResourceHolder<FloatBuffer>> flattener;
@@ -56,14 +56,15 @@ public class CompressedFloatWriter implements ColumnPartWriter.FloatType
   }
 
   @Override
+  public CompressedObjectStrategy.CompressionStrategy appliedCompression()
+  {
+    return compression;
+  }
+
+  @Override
   public void open() throws IOException
   {
     flattener.open();
-  }
-
-  public int size()
-  {
-    return numInserted;
   }
 
   @Override

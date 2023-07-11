@@ -35,7 +35,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Streams array of integers out in the binary format described by CompressedIntsIndexedSupplier
  */
-public class CompressedIntWriter extends IntWriter
+public class CompressedIntWriter implements IntWriter
 {
   public static CompressedIntWriter create(IOPeon ioPeon, String filenameBase, CompressionStrategy compression)
   {
@@ -86,6 +86,12 @@ public class CompressedIntWriter extends IntWriter
     }
     endBuffer.put(val);
     numInserted++;
+  }
+
+  @Override
+  public int count()
+  {
+    return numInserted;
   }
 
   @Override

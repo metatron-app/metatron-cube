@@ -20,6 +20,7 @@
 package io.druid.common.utils;
 
 import com.google.common.base.Throwables;
+import com.google.common.primitives.Ints;
 
 import java.io.Closeable;
 import java.util.concurrent.Callable;
@@ -51,5 +52,19 @@ public class IOUtils extends org.apache.commons.io.IOUtils
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  public static byte[] intTo(long offset, byte[] scratch)
+  {
+    return intTo(Ints.checkedCast(offset), scratch);
+  }
+
+  public static byte[] intTo(int offset, byte[] scratch)
+  {
+    scratch[0] = (byte) (offset >> 24);
+    scratch[1] = (byte) (offset >> 16);
+    scratch[2] = (byte) (offset >> 8);
+    scratch[3] = (byte) offset;
+    return scratch;
   }
 }

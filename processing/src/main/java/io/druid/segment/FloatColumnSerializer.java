@@ -168,7 +168,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Builder buildDescriptor(Builder builder)
+  public Builder buildDescriptor(IOPeon ioPeon, Builder builder)
   {
     builder.setValueType(ValueDesc.FLOAT);
     builder.addSerde(new FloatGenericColumnPartSerde(IndexIO.BYTE_ORDER, this));

@@ -738,8 +738,8 @@ public class IndexIO
 
           final CompressedObjectStrategy.CompressionStrategy compressionStrategy = indexSpec.getDimensionCompressionStrategy();
 
-          final DictionaryEncodedColumnPartSerde.LegacySerializerBuilder columnPartBuilder = DictionaryEncodedColumnPartSerde
-              .legacySerializerBuilder()
+          final DictionaryEncodedColumnPartSerde.LegacySerdeBuilder columnPartBuilder = DictionaryEncodedColumnPartSerde
+              .legacyBuilder()
               .withDictionary(dictionary)
               .withBitmapSerdeFactory(bitmapSerdeFactory)
               .withBitmaps(bitmaps)

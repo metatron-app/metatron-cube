@@ -63,7 +63,7 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Builder buildDescriptor(Builder builder)
+  public Builder buildDescriptor(IOPeon ioPeon, Builder builder)
   {
     builder.setValueType(ValueDesc.BOOLEAN);
     builder.addSerde(new BooleanColumnPartSerde(IndexIO.BYTE_ORDER, this));

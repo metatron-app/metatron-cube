@@ -18,7 +18,10 @@
       "young_child_y": true,
       "married": false
     },
-    "segment": "노년_영유아 부모"
+    "life_style": [ "캠핑", "영화관", "청년1인가구" ],
+    "segment": "노년_영유아 부모",
+    "shopping_channel": [ "소비_온라인_종합쇼핑몰" ],
+    "transport": [ "기차", "택시", "지하철" ]
   },
   "adot_usage": {
       "life_cycle": "휴면",
@@ -65,7 +68,10 @@
       "young_child_y": null,
       "married": null
     },
-    "segment": "중년_영유아 부모"
+    "life_style": [ "영화관", "청년2인가구" ],
+    "segment": "중년_영유아 부모",
+    "shopping_channel": [ "시장" ],
+    "transport": [ "버스", "지하철" ]
   },
   "adot_usage": {
       "life_cycle": "안휴면",

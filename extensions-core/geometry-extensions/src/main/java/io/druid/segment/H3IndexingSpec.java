@@ -156,7 +156,10 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       }
 
       @Override
-      public ColumnDescriptor.Builder buildDescriptor(ColumnDescriptor.Builder builder)
+      public ColumnDescriptor.Builder buildDescriptor(
+          IOPeon ioPeon,
+          ColumnDescriptor.Builder builder
+      )
       {
         return builder.addSerde(new SerDe(writer))
                       .addDescriptor(descriptor(columnName));

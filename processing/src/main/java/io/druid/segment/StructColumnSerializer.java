@@ -47,16 +47,14 @@ public class StructColumnSerializer implements MetricColumnSerializer
       fieldNames.add(pair.lhs);
       serializers.add(factory.create(prefix + pair.lhs, pair.rhs));
     }
-    return new StructColumnSerializer(struct.getType(), fieldNames, serializers);
+    return new StructColumnSerializer(fieldNames, serializers);
   }
 
-  private final ValueDesc type;
   private final String[] fieldNames;
   private final MetricColumnSerializer[] serializers;
 
-  public StructColumnSerializer(ValueDesc type, List<String> fieldNames, List<MetricColumnSerializer> serializers)
+  public StructColumnSerializer(List<String> fieldNames, List<MetricColumnSerializer> serializers)
   {
-    this.type = type;
     this.fieldNames = fieldNames.toArray(new String[0]);
     this.serializers = serializers.toArray(new MetricColumnSerializer[0]);
   }
@@ -64,7 +62,9 @@ public class StructColumnSerializer implements MetricColumnSerializer
   @Override
   public void open(IOPeon ioPeon) throws IOException
   {
-    // opend already
+    for (MetricColumnSerializer serializer : serializers) {
+      serializer.open(ioPeon);
+    }
   }
 
   @Override
@@ -109,13 +109,16 @@ public class StructColumnSerializer implements MetricColumnSerializer
   }
 
   @Override
-  public ColumnDescriptor.Builder buildDescriptor(ColumnDescriptor.Builder builder) throws IOException
+  public ColumnDescriptor.Builder buildDescriptor(IOPeon ioPeon, ColumnDescriptor.Builder builder) throws IOException
   {
+    ValueDesc[] fieldType = new ValueDesc[serializers.length];
     List<ColumnDescriptor> descriptors = Lists.newArrayList();
     for (int i = 0; i < serializers.length; i++) {
-      descriptors.add(serializers[i].buildDescriptor(new ColumnDescriptor.Builder()).build());
+      ColumnDescriptor descriptor = serializers[i].buildDescriptor(ioPeon, new ColumnDescriptor.Builder()).build();
+      fieldType[i]= descriptor.getValueType();
+      descriptors.add(descriptor);
     }
-    builder.setValueType(type);
+    builder.setValueType(ValueDesc.ofStruct(fieldNames, fieldType));
     builder.addSerde(new StructColumnPartSerde(Arrays.asList(fieldNames), descriptors));
     return builder;
   }

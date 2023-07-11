@@ -172,7 +172,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Builder buildDescriptor(Builder builder)
+  public Builder buildDescriptor(IOPeon ioPeon, Builder builder)
   {
     builder.setValueType(ValueDesc.LONG);
     builder.addSerde(new LongGenericColumnPartSerde(IndexIO.BYTE_ORDER, this));

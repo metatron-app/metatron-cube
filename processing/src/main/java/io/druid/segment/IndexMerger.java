@@ -571,7 +571,7 @@ public class IndexMerger
       final Map<String, Integer> dimensionCardinalities = Maps.newHashMap();
       final List<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(indexes.size());
       final boolean[] convertMissingDimsFlags = new boolean[mergedDimensions.size()];
-      final List<MutableBitmap> nullRowsList = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      final MutableBitmap[] nullRowsList = new MutableBitmap[mergedDimensions.size()];
       final boolean[] dimHasNullFlags = new boolean[mergedDimensions.size()];
 
       for (int i = 0; i < indexes.size(); ++i) {
@@ -580,7 +580,7 @@ public class IndexMerger
 
       for (int dimIndex = 0; dimIndex < mergedDimensions.size(); ++dimIndex) {
         final String dimension = mergedDimensions.get(dimIndex);
-        nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
+        nullRowsList[dimIndex] = indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap();
 
         ColumnPartWriter<String> writer = GenericIndexedWriter.forDictionaryV1(ioPeon, dimension);
         writer.open();
@@ -679,25 +679,27 @@ public class IndexMerger
 
       timeWriter.open();
 
-      List<VintsWriter> forwardDimWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
-      for (String dimension : mergedDimensions) {
+      VintsWriter[] forwardDimWriters = new VintsWriter[mergedDimensions.size()];
+      for (int i = 0; i < forwardDimWriters.length; i++) {
+        String dimension= mergedDimensions.get(i);
         VintsWriter writer = new VintsWriter(ioPeon, dimension, dimensionCardinalities.get(dimension));
         writer.open();
-        forwardDimWriters.add(writer);
+        forwardDimWriters[i] = writer;
       }
 
-      List<MetricColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
-      for (String metric : mergedMetrics) {
+      MetricColumnSerializer[] metWriters = new MetricColumnSerializer[mergedMetrics.size()];
+      for (int i = 0; i < metWriters.length; i++) {
+        String metric = mergedMetrics.get(i);
         ValueDesc type = metricTypeNames.get(metric);
         switch (type.type()) {
           case LONG:
-            metWriters.add(new LongMetricColumnSerializer(metric, v8OutDir));
+            metWriters[i] = new LongMetricColumnSerializer(metric, v8OutDir);
             break;
           case FLOAT:
-            metWriters.add(new FloatMetricColumnSerializer(metric, v8OutDir));
+            metWriters[i] = new FloatMetricColumnSerializer(metric, v8OutDir);
             break;
           case DOUBLE:
-            metWriters.add(new DoubleMetricColumnSerializer(metric, v8OutDir));
+            metWriters[i] = new DoubleMetricColumnSerializer(metric, v8OutDir);
             break;
           case COMPLEX:
             ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
@@ -705,7 +707,7 @@ public class IndexMerger
               throw new ISE("Unknown type[%s]", type);
             }
 
-            metWriters.add(new ComplexMetricColumnSerializer(metric, v8OutDir, serde));
+            metWriters[i] = new ComplexMetricColumnSerializer(metric, v8OutDir, serde);
             break;
           default:
             throw new ISE("Unknown type[%s]", type);
@@ -726,22 +728,19 @@ public class IndexMerger
 
         final Object[] metrics = theRow.getMetrics();
         for (int i = 0; i < metrics.length; ++i) {
-          metWriters.get(i).serialize(rowCount, metrics[i]);
+          metWriters[i].serialize(rowCount, metrics[i]);
         }
 
         final int[][] dims = theRow.getDims();
         for (int i = 0; i < dims.length; ++i) {
-          List<Integer> listToWrite = (i >= dims.length || dims[i] == null)
-                                      ? null
-                                      : Ints.asList(dims[i]);
-          forwardDimWriters.get(i).write(listToWrite);
-          if (listToWrite == null || listToWrite.isEmpty()) {
+          forwardDimWriters[i].add(dims[i]);
+          if (dims[i] == null || dims[i].length == 0) {
             // empty row; add to the nullRows bitmap
-            nullRowsList.get(i).add(rowCount);
-          } else if (dimHasNullFlags[i] && listToWrite.size() == 1 && listToWrite.get(0) == 0) {
+            nullRowsList[i].add(rowCount);
+          } else if (dimHasNullFlags[i] && dims[i].length == 1 && dims[i][0] == 0) {
             // If this dimension has the null/empty str in its dictionary, a row with a single-valued dimension
             // that matches the null/empty str's dictionary ID should also be added to nullRowsList.
-            nullRowsList.get(i).add(rowCount);
+            nullRowsList[i].add(rowCount);
           }
         }
 
@@ -762,7 +761,7 @@ public class IndexMerger
       IndexIO.checkFileSize(timeFile);
 
       for (int i = 0; i < mergedDimensions.size(); ++i) {
-        VintsWriter writer = forwardDimWriters.get(i);
+        VintsWriter writer = forwardDimWriters[i];
         writer.close();
         try (WritableByteChannel channel = Channels.newChannel(dimOuts.get(i).rhs.openStream())) {
           writer.writeToChannel(channel);
@@ -796,7 +795,7 @@ public class IndexMerger
         long dimStartTime = System.currentTimeMillis();
         String dimension = mergedDimensions.get(i);
 
-        File dimOutFile = dimOuts.get(i).lhs;
+        final File dimOutFile = dimOuts.get(i).lhs;
         final MappedByteBuffer dimValsMapped = Files.map(dimOutFile);
 
         final String string = SerializerUtils.readString(dimValsMapped);
@@ -850,7 +849,7 @@ public class IndexMerger
           final MutableBitmap bitmap = toBitmap(convertedInverteds, bitmapFactory.makeEmptyMutableBitmap());
 
           if (dictId == 0 && (Iterables.getFirst(dimVals, "") == null)) {
-            bitmap.or(nullRowsList.get(i));
+            bitmap.or(nullRowsList[i]);
           }
 
           writer.add(bitmapFactory.makeImmutableBitmap(bitmap));

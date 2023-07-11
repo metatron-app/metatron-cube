@@ -27,13 +27,12 @@ import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.LongBuffer;
 import java.nio.channels.WritableByteChannel;
 
 /**
  */
-public class CompressedLongWriter implements ColumnPartWriter.LongType
+public class CompressedLongWriter implements ColumnPartWriter.LongType, ColumnPartWriter.Compressed<Long>
 {
   private final int sizePer;
   private final ColumnPartWriter<ResourceHolder<LongBuffer>> flattener;
@@ -58,14 +57,15 @@ public class CompressedLongWriter implements ColumnPartWriter.LongType
   }
 
   @Override
+  public CompressedObjectStrategy.CompressionStrategy appliedCompression()
+  {
+    return compression;
+  }
+
+  @Override
   public void open() throws IOException
   {
     flattener.open();
-  }
-
-  public int size()
-  {
-    return numInserted;
   }
 
   @Override

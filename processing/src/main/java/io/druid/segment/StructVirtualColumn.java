@@ -111,9 +111,6 @@ public class StructVirtualColumn implements VirtualColumn
       return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
     }
     final ValueDesc fieldType = serde.type(index);
-    Preconditions.checkArgument(
-        fieldType.isPrimitive(), "only primitive types are allowed in struct (was %s)", fieldType
-    );
     if (selector instanceof StructColumnSelector) {
       return ((StructColumnSelector) selector).getField(fieldName);
     }

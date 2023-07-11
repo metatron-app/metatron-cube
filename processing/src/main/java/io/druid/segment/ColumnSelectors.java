@@ -43,6 +43,7 @@ import io.druid.segment.bitmap.Bitmaps;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ComplexColumn;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.DoubleScanner;
 import io.druid.segment.column.FloatScanner;
 import io.druid.segment.column.GenericColumn;
@@ -802,6 +803,8 @@ public class ColumnSelectors
       return asSelector(column.getGenericColumn(), offset);
     } else if (column.hasComplexColumn()) {
       return asSelector(column.getComplexColumn(), offset);
+    } else if (column.hasDictionaryEncodedColumn()) {
+      return asSelector(column.getDictionaryEncoded(), offset);
     }
     throw new UOE("?? %s", column);
   }
@@ -1447,6 +1450,44 @@ public class ColumnSelectors
       public Object get()
       {
         return column.getValue(offset.get());
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asSelector(DictionaryEncodedColumn column, Offset offset)
+  {
+    if (column == null) {
+      return UNKNOWN;
+    }
+    Dictionary<String> dictionary = column.dictionary();
+    if (column.hasMultipleValues()) {
+      return new ObjectColumnSelector.Typed(ValueDesc.MV_STRING)
+      {
+        @Override
+        public Object get()
+        {
+          final IndexedInts indexed = column.getMultiValueRow(offset.get());
+          final int length = indexed.size();
+          if (length == 0) {
+            return null;
+          } else if (indexed.size() == 1) {
+            return dictionary.get(indexed.get(0));
+          } else {
+            final Object[] array = new Object[length];
+            for (int i = 0; i < array.length; i++) {
+              array[i] = dictionary.get(indexed.get(i));
+            }
+            return Arrays.asList(array);
+          }
+        }
+      };
+    }
+    return new ObjectColumnSelector.Typed(ValueDesc.STRING)
+    {
+      @Override
+      public Object get()
+      {
+        return dictionary.get(column.getSingleValueRow(offset.get()));
       }
     };
   }

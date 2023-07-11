@@ -22,7 +22,7 @@ package io.druid.segment.data;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closeables;
 import com.google.common.io.CountingOutputStream;
-import com.google.common.primitives.Ints;
+import io.druid.common.utils.IOUtils;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
 
 import java.io.Closeable;
@@ -37,20 +37,21 @@ import java.util.List;
 /**
  * Streams arrays of objects out in the binary format described by VSizeIndexed
  */
-public class VintsWriter extends IntsWriter implements Closeable
+public class VintsWriter implements IntsWriter, Closeable
 {
   private static final byte VERSION = 0x1;
   private static final byte[] EMPTY_ARRAY = new byte[]{};
 
-  private final int maxId;
-
-  private CountingOutputStream headerOut = null;
-  private CountingOutputStream valuesOut = null;
-  int numWritten = 0;
   private final IOPeon ioPeon;
   private final String metaFileName;
   private final String headerFileName;
   private final String valuesFileName;
+  private final int maxId;
+  private final int numBytes;
+
+  private CountingOutputStream headerOut;
+  private CountingOutputStream valuesOut;
+  private int numWritten;
 
   public VintsWriter(IOPeon ioPeon, String filenameBase, int maxId)
   {
@@ -59,6 +60,7 @@ public class VintsWriter extends IntsWriter implements Closeable
     this.headerFileName = String.format("%s.header", filenameBase);
     this.valuesFileName = String.format("%s.values", filenameBase);
     this.maxId = maxId;
+    this.numBytes = VintValues.getNumBytesForMax(maxId);
   }
 
   @Override
@@ -68,19 +70,30 @@ public class VintsWriter extends IntsWriter implements Closeable
     valuesOut = new CountingOutputStream(ioPeon.makeOutputStream(valuesFileName));
   }
 
-  @Override
-  protected void addValues(List<Integer> val) throws IOException
-  {
-    write(val);
-  }
+  private final byte[] scratch = new byte[Integer.BYTES];
 
-  public void write(List<Integer> ints) throws IOException
+  @Override
+  public void add(List<Integer> val) throws IOException
   {
-    byte[] bytesToWrite = ints == null ? EMPTY_ARRAY : VintValues.getBytesNoPaddingfromList(ints, maxId);
+    byte[] bytesToWrite = val == null ? EMPTY_ARRAY : VintValues.getBytesNoPaddingfromList(val, maxId);
 
     valuesOut.write(bytesToWrite);
+    headerOut.write(IOUtils.intTo(valuesOut.getCount(), scratch));
 
-    headerOut.write(Ints.toByteArray((int) valuesOut.getCount()));
+    ++numWritten;
+  }
+
+  @Override
+  public void add(int[] vals) throws IOException
+  {
+    if (vals == null) {
+      vals = EMPTY_ROW;
+    }
+    for (int i = 0; i < vals.length; i++) {
+      byte[] intAsBytes = IOUtils.intTo(vals[i], scratch);
+      valuesOut.write(intAsBytes, intAsBytes.length - numBytes, numBytes);
+    }
+    headerOut.write(IOUtils.intTo(valuesOut.getCount(), scratch));
 
     ++numWritten;
   }
@@ -95,23 +108,20 @@ public class VintsWriter extends IntsWriter implements Closeable
     Closeables.close(headerOut, false);
     Closeables.close(valuesOut, false);
 
-    final long numBytesWritten = headerOut.getCount() + valuesOut.getCount();
+    final long written = headerOut.getCount() + valuesOut.getCount();
 
     Preconditions.checkState(
-        headerOut.getCount() == (numWritten * 4L),
+        headerOut.getCount() == numWritten * 4L,
         "numWritten[%s] number of rows should have [%s] bytes written to headerOut, had[%s]",
         numWritten,
         numWritten * 4,
         headerOut.getCount()
     );
-    Preconditions.checkState(
-        numBytesWritten < Integer.MAX_VALUE, "Wrote[%s] bytes, which is too many.", numBytesWritten
-    );
 
     try (OutputStream metaOut = ioPeon.makeOutputStream(metaFileName)) {
       metaOut.write(new byte[]{VERSION, numBytesForMax});
-      metaOut.write(Ints.toByteArray((int) numBytesWritten + 4));
-      metaOut.write(Ints.toByteArray(numWritten));
+      metaOut.write(IOUtils.intTo(written + Integer.BYTES, scratch));
+      metaOut.write(IOUtils.intTo(numWritten, scratch));
     }
   }
 

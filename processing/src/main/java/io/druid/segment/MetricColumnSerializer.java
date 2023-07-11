@@ -40,23 +40,22 @@ public interface MetricColumnSerializer extends Closeable
     public void serialize(int rowNum, Object aggs) throws IOException {}
 
     @Override
-    public Builder buildDescriptor(Builder builder) throws IOException {return builder;}
+    public Builder buildDescriptor(IOPeon ioPeon, Builder builder) throws IOException {return builder;}
   };
 
   void open(IOPeon ioPeon) throws IOException;
 
   void serialize(int rowNum, Object aggs) throws IOException;
 
-  @Override
   default void close() throws IOException {}
 
-  Builder buildDescriptor(Builder builder) throws IOException;
+  Builder buildDescriptor(IOPeon ioPeon, Builder builder) throws IOException;
 
   // for deprecated classes
   abstract class Deprecated implements MetricColumnSerializer
   {
     @Override
-    public Builder buildDescriptor(Builder builder) throws IOException
+    public Builder buildDescriptor(IOPeon ioPeon, Builder builder) throws IOException
     {
       throw new UnsupportedOperationException("buildDescriptor");
     }

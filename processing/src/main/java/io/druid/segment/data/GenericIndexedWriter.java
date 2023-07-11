@@ -24,6 +24,7 @@ import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BufferRef;
+import io.druid.common.utils.IOUtils;
 import io.druid.data.VLongUtils;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.ByteBufferUtils;
@@ -93,7 +94,7 @@ public abstract class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     return String.format("%s.%s", filenameBase, suffix);
   }
 
-  private final byte[] scratch = new byte[Integer.BYTES];
+  final byte[] scratch = new byte[Integer.BYTES];
 
   @Override
   public void add(T object) throws IOException
@@ -101,19 +102,8 @@ public abstract class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     final byte[] bytes = strategy.toBytes(object);
     writeValueLength(valuesOut, bytes.length);
     valuesOut.write(bytes);
-
-    final int offset = Ints.checkedCast(valuesOut.getCount());
-    headerOut.write(toInt(offset));
+    headerOut.write(IOUtils.intTo(valuesOut.getCount(), scratch));
     numRow++;
-  }
-
-  final byte[] toInt(int offset)
-  {
-    scratch[0] = (byte) (offset >> 24);
-    scratch[1] = (byte) (offset >> 16);
-    scratch[2] = (byte) (offset >> 8);
-    scratch[3] = (byte) offset;
-    return scratch;
   }
 
   protected abstract int flag();
@@ -133,8 +123,8 @@ public abstract class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     try (OutputStream metaOut = ioPeon.makeOutputStream(makeFilename("meta"))) {
       metaOut.write(GenericIndexed.version);
       metaOut.write(flag());
-      metaOut.write(Ints.toByteArray(payload + Integer.BYTES));
-      metaOut.write(Ints.toByteArray(numRow));
+      metaOut.write(IOUtils.intTo(payload + Integer.BYTES, scratch));
+      metaOut.write(IOUtils.intTo(numRow, scratch));
     }
   }
 
@@ -228,7 +218,7 @@ public abstract class GenericIndexedWriter<T> implements ColumnPartWriter<T>
     @Override
     protected void writeValueLength(OutputStream valuesOut, int length) throws IOException
     {
-      valuesOut.write(toInt(length));
+      valuesOut.write(IOUtils.intTo(length, scratch));
     }
 
     @Override

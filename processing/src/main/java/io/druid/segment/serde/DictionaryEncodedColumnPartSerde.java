@@ -167,261 +167,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     return byteOrder;
   }
 
-  public static SerializerBuilder serializerBuilder()
-  {
-    return new SerializerBuilder();
-  }
-
-  public static class SerializerBuilder
-  {
-    private int flags = Feature.NO_DICTIONARY.set(NO_FLAGS, true);
-
-    private ColumnPartSerde.Serializer dictionary;
-    private ColumnPartSerde.Serializer values;
-    private ColumnPartSerde.Serializer bitmaps;
-    private ColumnPartSerde.Serializer rindices;
-
-    public SerializerBuilder withDictionary(ColumnPartSerde.Serializer dictionary)
-    {
-      this.dictionary = dictionary;
-      this.flags = Feature.NO_DICTIONARY.set(flags, dictionary == null);
-      return this;
-    }
-
-    public SerializerBuilder withBitmapIndex(ColumnPartSerde.Serializer bitmaps)
-    {
-      this.bitmaps = bitmaps;
-      this.flags = Feature.CUMULATIVE_BITMAPS.set(flags, bitmaps instanceof CumulativeBitmapWriter);
-      return this;
-    }
-
-    public SerializerBuilder withSpatialIndex(ColumnPartSerde.Serializer rindices)
-    {
-      this.rindices = rindices;
-      this.flags = Feature.SPATIAL_INDEX.set(flags, rindices != null);
-      return this;
-    }
-
-    public SerializerBuilder withValue(ColumnPartSerde.Serializer valueWriter, boolean hasMultiValue, boolean compressed)
-    {
-      this.values = valueWriter;
-      if (hasMultiValue && compressed) {
-        this.flags = Feature.MULTI_VALUE_V3.set(flags, true);
-      }
-      this.flags = Feature.UNCOMPRESSED.set(flags, !compressed);
-      return this;
-    }
-
-    public DictionaryEncodedColumnPartSerde build(BitmapSerdeFactory serdeFactory)
-    {
-      return new DictionaryEncodedColumnPartSerde(
-          IndexIO.BYTE_ORDER,
-          serdeFactory,
-          new Serializer()
-          {
-            @Override
-            public long getSerializedSize()
-            {
-              long size = Byte.BYTES + Integer.BYTES;
-              if (dictionary != null) {
-                size += dictionary.getSerializedSize();
-              }
-              if (values != null) {
-                size += values.getSerializedSize();
-              }
-              if (bitmaps != null) {
-                size += bitmaps.getSerializedSize();
-              }
-              if (rindices != null) {
-                size += rindices.getSerializedSize();
-              }
-              return size;
-            }
-
-            @Override
-            public long writeToChannel(WritableByteChannel channel) throws IOException
-            {
-              long written = channel.write(ByteBuffer.wrap(new byte[]{VERSION.LEGACY_COMPRESSED.asByte()}));
-              written += channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
-
-              if (dictionary != null) {
-                written += dictionary.writeToChannel(channel);
-              }
-              if (values != null) {
-                written += values.writeToChannel(channel);
-              }
-              if (bitmaps != null) {
-                written += bitmaps.writeToChannel(channel);
-              }
-              if (rindices != null) {
-                written += rindices.writeToChannel(channel);
-              }
-              return written;
-            }
-          }
-      );
-    }
-  }
-
-  public static LegacySerializerBuilder legacySerializerBuilder()
-  {
-    return new LegacySerializerBuilder();
-  }
-
-  public static class LegacySerializerBuilder
-  {
-    private VERSION version = null;
-    private int flags = NO_FLAGS;
-    private GenericIndexed<String> dictionary = null;
-    private WritableSupplier<IntValues> singleValuedColumn = null;
-    private WritableSupplier<IntsValues> multiValuedColumn = null;
-    private BitmapSerdeFactory bitmapSerdeFactory = null;
-    private GenericIndexed<ImmutableBitmap> bitmaps = null;
-    private ImmutableRTree spatialIndex = null;
-    private ByteOrder byteOrder = null;
-
-    private LegacySerializerBuilder()
-    {
-    }
-
-    public LegacySerializerBuilder withDictionary(GenericIndexed<String> dictionary)
-    {
-      this.dictionary = dictionary;
-      return this;
-    }
-
-    public LegacySerializerBuilder withBitmapSerdeFactory(BitmapSerdeFactory bitmapSerdeFactory)
-    {
-      this.bitmapSerdeFactory = bitmapSerdeFactory;
-      return this;
-    }
-
-    public LegacySerializerBuilder withBitmaps(GenericIndexed<ImmutableBitmap> bitmaps)
-    {
-      this.bitmaps = bitmaps;
-      return this;
-    }
-
-    public LegacySerializerBuilder withSpatialIndex(ImmutableRTree spatialIndex)
-    {
-      this.spatialIndex = spatialIndex;
-      this.flags = Feature.SPATIAL_INDEX.set(flags, spatialIndex != null);
-      return this;
-    }
-
-    public LegacySerializerBuilder withByteOrder(ByteOrder byteOrder)
-    {
-      this.byteOrder = byteOrder;
-      return this;
-    }
-
-    public LegacySerializerBuilder withSingleValuedColumn(VintValues singleValuedColumn)
-    {
-      Preconditions.checkState(multiValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
-      this.version = VERSION.LEGACY_SINGLE_VALUE;
-      this.singleValuedColumn = singleValuedColumn;
-      return this;
-    }
-
-    public LegacySerializerBuilder withSingleValuedColumn(CompressedVintsReader singleValuedColumn)
-    {
-      Preconditions.checkState(multiValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
-      this.version = VERSION.LEGACY_COMPRESSED;
-      this.singleValuedColumn = singleValuedColumn;
-      return this;
-    }
-
-    public LegacySerializerBuilder withMultiValuedColumn(VintsValues multiValuedColumn)
-    {
-      Preconditions.checkState(singleValuedColumn == null, "Cannot set both multiValuedColumn and singleValuedColumn");
-      this.version = VERSION.LEGACY_MULTI_VALUE;
-      this.multiValuedColumn = multiValuedColumn;
-      return this;
-    }
-
-    public LegacySerializerBuilder withMultiValuedColumn(CompressedVintsSupplier multiValuedColumn)
-    {
-      Preconditions.checkState(singleValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
-      this.version = VERSION.LEGACY_COMPRESSED;
-      this.flags = Feature.MULTI_VALUE.set(flags, true);
-      this.multiValuedColumn = multiValuedColumn;
-      return this;
-    }
-
-    public DictionaryEncodedColumnPartSerde build()
-    {
-      Preconditions.checkArgument(
-          singleValuedColumn != null ^ multiValuedColumn != null,
-          "Exactly one of singleValCol[%s] or multiValCol[%s] must be set",
-          singleValuedColumn, multiValuedColumn
-      );
-
-      return new DictionaryEncodedColumnPartSerde(
-          byteOrder,
-          bitmapSerdeFactory,
-          new Serializer()
-          {
-            @Override
-            public long getSerializedSize()
-            {
-              long size = 1 + // version
-                          (version.compareTo(VERSION.LEGACY_COMPRESSED) >= 0 ? Integer.BYTES : 0);// flag if version >= compressed
-
-              size += dictionary.getSerializedSize();
-
-              if (version == VERSION.LEGACY_MULTI_VALUE || Feature.MULTI_VALUE.isSet(flags)) {
-                size += multiValuedColumn.getSerializedSize();
-              } else {
-                size += singleValuedColumn.getSerializedSize();
-              }
-
-              size += bitmaps.getSerializedSize();
-              if (spatialIndex != null) {
-                size += spatialIndex.size() + Integer.BYTES;
-              }
-              return size;
-            }
-
-            @Override
-            public long writeToChannel(WritableByteChannel channel) throws IOException
-            {
-              long written = channel.write(ByteBuffer.wrap(new byte[]{version.asByte()}));
-              if (version.compareTo(VERSION.LEGACY_COMPRESSED) >= 0) {
-                written += channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
-              }
-
-              if (dictionary != null) {
-                written += dictionary.writeToChannel(channel);
-              }
-
-              if (version == VERSION.LEGACY_MULTI_VALUE || Feature.MULTI_VALUE.isSet(flags)) {
-                if (multiValuedColumn != null) {
-                  written += multiValuedColumn.writeToChannel(channel);
-                }
-              } else {
-                if (singleValuedColumn != null) {
-                  written += singleValuedColumn.writeToChannel(channel);
-                }
-              }
-
-              if (bitmaps != null) {
-                written += bitmaps.writeToChannel(channel);
-              }
-
-              if (spatialIndex != null) {
-                written += ByteBufferSerializer.writeToChannel(
-                    spatialIndex,
-                    new IndexedRTree.ImmutableRTreeObjectStrategy(bitmapSerdeFactory.getBitmapFactory()),
-                    channel
-                );
-              }
-              return written;
-            }
-          }
-      );
-    }
-  }
-
   @Override
   public Serializer getSerializer()
   {
@@ -526,5 +271,262 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
         }
       }
     };
+  }
+
+  public static SerdeBuilder builder()
+  {
+    return new SerdeBuilder();
+  }
+
+  public static class SerdeBuilder
+  {
+    private int flags = Feature.NO_DICTIONARY.set(NO_FLAGS, true);
+
+    private ColumnPartSerde.Serializer dictionary;
+    private ColumnPartSerde.Serializer values;
+    private ColumnPartSerde.Serializer bitmaps;
+    private ColumnPartSerde.Serializer rindices;
+
+    public SerdeBuilder withDictionary(ColumnPartSerde.Serializer dictionary)
+    {
+      this.dictionary = dictionary;
+      this.flags = Feature.NO_DICTIONARY.set(flags, dictionary == null);
+      return this;
+    }
+
+    public SerdeBuilder withBitmapIndex(ColumnPartSerde.Serializer bitmaps)
+    {
+      this.bitmaps = bitmaps;
+      this.flags = Feature.CUMULATIVE_BITMAPS.set(flags, bitmaps instanceof CumulativeBitmapWriter);
+      return this;
+    }
+
+    public SerdeBuilder withSpatialIndex(ColumnPartSerde.Serializer rindices)
+    {
+      this.rindices = rindices;
+      this.flags = Feature.SPATIAL_INDEX.set(flags, rindices != null);
+      return this;
+    }
+
+    public SerdeBuilder withValue(ColumnPartSerde.Serializer valueWriter, boolean hasMultiValue, boolean compressed)
+    {
+      this.values = valueWriter;
+      if (hasMultiValue) {
+        this.flags = Feature.MULTI_VALUE_V3.set(flags, true);
+      }
+      this.flags = Feature.UNCOMPRESSED.set(flags, !compressed);
+      return this;
+    }
+
+    public DictionaryEncodedColumnPartSerde build(BitmapSerdeFactory serdeFactory)
+    {
+      return new DictionaryEncodedColumnPartSerde(
+          IndexIO.BYTE_ORDER,
+          serdeFactory,
+          new Serializer()
+          {
+            @Override
+            public long getSerializedSize()
+            {
+              long size = Byte.BYTES + Integer.BYTES;
+              if (dictionary != null) {
+                size += dictionary.getSerializedSize();
+              }
+              if (values != null) {
+                size += values.getSerializedSize();
+              }
+              if (bitmaps != null) {
+                size += bitmaps.getSerializedSize();
+              }
+              if (rindices != null) {
+                size += rindices.getSerializedSize();
+              }
+              return size;
+            }
+
+            @Override
+            public long writeToChannel(WritableByteChannel channel) throws IOException
+            {
+              long written = channel.write(ByteBuffer.wrap(new byte[]{VERSION.LEGACY_COMPRESSED.asByte()}));
+              written += channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
+
+              if (dictionary != null) {
+                written += dictionary.writeToChannel(channel);
+              }
+              if (values != null) {
+                written += values.writeToChannel(channel);
+              }
+              if (bitmaps != null) {
+                written += bitmaps.writeToChannel(channel);
+              }
+              if (rindices != null) {
+                written += rindices.writeToChannel(channel);
+              }
+              return written;
+            }
+          }
+      );
+    }
+  }
+
+  public static LegacySerdeBuilder legacyBuilder()
+  {
+    return new LegacySerdeBuilder();
+  }
+
+  public static class LegacySerdeBuilder
+  {
+    private VERSION version = null;
+    private int flags = NO_FLAGS;
+    private GenericIndexed<String> dictionary = null;
+    private WritableSupplier<IntValues> singleValuedColumn = null;
+    private WritableSupplier<IntsValues> multiValuedColumn = null;
+    private BitmapSerdeFactory bitmapSerdeFactory = null;
+    private GenericIndexed<ImmutableBitmap> bitmaps = null;
+    private ImmutableRTree spatialIndex = null;
+    private ByteOrder byteOrder = null;
+
+    private LegacySerdeBuilder()
+    {
+    }
+
+    public LegacySerdeBuilder withDictionary(GenericIndexed<String> dictionary)
+    {
+      this.dictionary = dictionary;
+      return this;
+    }
+
+    public LegacySerdeBuilder withBitmapSerdeFactory(BitmapSerdeFactory bitmapSerdeFactory)
+    {
+      this.bitmapSerdeFactory = bitmapSerdeFactory;
+      return this;
+    }
+
+    public LegacySerdeBuilder withBitmaps(GenericIndexed<ImmutableBitmap> bitmaps)
+    {
+      this.bitmaps = bitmaps;
+      return this;
+    }
+
+    public LegacySerdeBuilder withSpatialIndex(ImmutableRTree spatialIndex)
+    {
+      this.spatialIndex = spatialIndex;
+      this.flags = Feature.SPATIAL_INDEX.set(flags, spatialIndex != null);
+      return this;
+    }
+
+    public LegacySerdeBuilder withByteOrder(ByteOrder byteOrder)
+    {
+      this.byteOrder = byteOrder;
+      return this;
+    }
+
+    public LegacySerdeBuilder withSingleValuedColumn(VintValues singleValuedColumn)
+    {
+      Preconditions.checkState(multiValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
+      this.version = VERSION.LEGACY_SINGLE_VALUE;
+      this.singleValuedColumn = singleValuedColumn;
+      return this;
+    }
+
+    public LegacySerdeBuilder withSingleValuedColumn(CompressedVintsReader singleValuedColumn)
+    {
+      Preconditions.checkState(multiValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
+      this.version = VERSION.LEGACY_COMPRESSED;
+      this.singleValuedColumn = singleValuedColumn;
+      return this;
+    }
+
+    public LegacySerdeBuilder withMultiValuedColumn(VintsValues multiValuedColumn)
+    {
+      Preconditions.checkState(singleValuedColumn == null, "Cannot set both multiValuedColumn and singleValuedColumn");
+      this.version = VERSION.LEGACY_MULTI_VALUE;
+      this.multiValuedColumn = multiValuedColumn;
+      return this;
+    }
+
+    public LegacySerdeBuilder withMultiValuedColumn(CompressedVintsSupplier multiValuedColumn)
+    {
+      Preconditions.checkState(singleValuedColumn == null, "Cannot set both singleValuedColumn and multiValuedColumn");
+      this.version = VERSION.LEGACY_COMPRESSED;
+      this.flags = Feature.MULTI_VALUE.set(flags, true);
+      this.multiValuedColumn = multiValuedColumn;
+      return this;
+    }
+
+    public DictionaryEncodedColumnPartSerde build()
+    {
+      Preconditions.checkArgument(
+          singleValuedColumn != null ^ multiValuedColumn != null,
+          "Exactly one of singleValCol[%s] or multiValCol[%s] must be set",
+          singleValuedColumn, multiValuedColumn
+      );
+
+      return new DictionaryEncodedColumnPartSerde(
+          byteOrder,
+          bitmapSerdeFactory,
+          new Serializer()
+          {
+            @Override
+            public long getSerializedSize()
+            {
+              long size = 1 + // version
+                          (version.compareTo(VERSION.LEGACY_COMPRESSED) >= 0
+                           ? Integer.BYTES
+                           : 0);// flag if version >= compressed
+
+              size += dictionary.getSerializedSize();
+
+              if (version == VERSION.LEGACY_MULTI_VALUE || Feature.MULTI_VALUE.isSet(flags)) {
+                size += multiValuedColumn.getSerializedSize();
+              } else {
+                size += singleValuedColumn.getSerializedSize();
+              }
+
+              size += bitmaps.getSerializedSize();
+              if (spatialIndex != null) {
+                size += spatialIndex.size() + Integer.BYTES;
+              }
+              return size;
+            }
+
+            @Override
+            public long writeToChannel(WritableByteChannel channel) throws IOException
+            {
+              long written = channel.write(ByteBuffer.wrap(new byte[]{version.asByte()}));
+              if (version.compareTo(VERSION.LEGACY_COMPRESSED) >= 0) {
+                written += channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
+              }
+
+              if (dictionary != null) {
+                written += dictionary.writeToChannel(channel);
+              }
+
+              if (version == VERSION.LEGACY_MULTI_VALUE || Feature.MULTI_VALUE.isSet(flags)) {
+                if (multiValuedColumn != null) {
+                  written += multiValuedColumn.writeToChannel(channel);
+                }
+              } else {
+                if (singleValuedColumn != null) {
+                  written += singleValuedColumn.writeToChannel(channel);
+                }
+              }
+
+              if (bitmaps != null) {
+                written += bitmaps.writeToChannel(channel);
+              }
+
+              if (spatialIndex != null) {
+                written += ByteBufferSerializer.writeToChannel(
+                    spatialIndex,
+                    new IndexedRTree.ImmutableRTreeObjectStrategy(bitmapSerdeFactory.getBitmapFactory()),
+                    channel
+                );
+              }
+              return written;
+            }
+          }
+      );
+    }
   }
 }

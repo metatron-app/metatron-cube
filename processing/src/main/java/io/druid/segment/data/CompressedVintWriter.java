@@ -33,7 +33,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Streams array of integers out in the binary format described by CompressedVSizeIntsIndexedSupplier
  */
-public class CompressedVintWriter extends IntWriter implements ColumnPartWriter.Compressed
+public class CompressedVintWriter implements IntWriter, ColumnPartWriter.Compressed
 {
   private final int numBytes;
   private final int chunkFactor;
@@ -96,6 +96,12 @@ public class CompressedVintWriter extends IntWriter implements ColumnPartWriter.
       endBuffer.put(intBuffer.array(), 0, numBytes);
     }
     numInserted++;
+  }
+
+  @Override
+  public int count()
+  {
+    return numInserted;
   }
 
   @Override

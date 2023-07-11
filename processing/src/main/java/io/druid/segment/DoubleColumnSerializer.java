@@ -168,7 +168,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Builder buildDescriptor(Builder builder)
+  public Builder buildDescriptor(IOPeon ioPeon, Builder builder)
   {
     builder.setValueType(ValueDesc.DOUBLE);
     builder.addSerde(new DoubleGenericColumnPartSerde(IndexIO.BYTE_ORDER, this));
