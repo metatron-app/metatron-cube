@@ -187,15 +187,17 @@ public class RowResolver implements TypeResolver
     return schema instanceof Schema ? ((Schema) schema).getAggregators() : Collections.emptyMap();
   }
 
-  public Iterable<String> getAllColumnNames()
+  public Iterable<String> getAllColumnNames(List<VirtualColumn> vcs)
   {
-    final Set<String> virtualColumnNames = virtualColumns.getVirtualColumnNames();
-    if (!virtualColumnNames.isEmpty()) {
-      Set<String> names = Sets.newLinkedHashSet(virtualColumnNames);
-      names.addAll(schema.getColumnNames()); // override
-      return names;
+    if (vcs.isEmpty()) {
+      return schema.getColumnNames();
     }
-    return schema.getColumnNames();
+    Set<String> names = Sets.newLinkedHashSet();
+    vcs.stream()
+       .filter(vc -> virtualColumns.getVirtualColumn(vc.getOutputName()) != null)
+       .forEach(vc -> names.add(vc.getOutputName()));
+    names.addAll(schema.getColumnNames()); // override
+    return names;
   }
 
   public VirtualColumn getVirtualColumn(String columnName)

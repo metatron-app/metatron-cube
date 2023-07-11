@@ -1363,7 +1363,9 @@ public class ColumnSelectors
     if (column instanceof ComplexColumn.StructColumn) {
       return new ObjectColumnSelector.StructColumnSelector()
       {
-        private final ComplexColumn.StructColumn struct = (ComplexColumn.StructColumn) column;
+        final ComplexColumn.StructColumn struct = (ComplexColumn.StructColumn) column;
+        final ObjectColumnSelector[] fields = struct.getFieldNames().stream()
+                                                    .map(f -> getField(f)).toArray(x -> new ObjectColumnSelector[x]);
 
         @Override
         public ValueDesc type()
@@ -1374,7 +1376,11 @@ public class ColumnSelectors
         @Override
         public Object get()
         {
-          return struct.getValue(offset.get());   // throws exception
+          Object[] array = new Object[fields.length];
+          for (int i = 0; i < array.length; i++) {
+            array[i] = fields[i].get();
+          }
+          return Arrays.asList(array);
         }
 
         @Override

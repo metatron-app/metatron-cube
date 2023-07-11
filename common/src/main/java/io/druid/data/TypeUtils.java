@@ -27,6 +27,8 @@ import java.util.List;
  */
 public class TypeUtils
 {
+  // struct(a:b,c:d) --> struct, a:b, c:d
+  // struct(a:b,family:struct(c:d,e:f)) --> struct a:b family:struct(c:d,e:f)
   public static String[] splitDescriptiveType(String string)
   {
     if (string == null) {
@@ -39,6 +41,7 @@ public class TypeUtils
     }
     final String type = string.substring(0, index1);
     final String description = string.substring(index1 + 1, string.length() - 1);
+    // a:b,family:struct(c:d,e:f)
     final List<String> elements = TypeUtils.splitWithEscape(description, ',');
     elements.add(0, type);
 
@@ -50,6 +53,13 @@ public class TypeUtils
     List<String> splits = Lists.newArrayList();
     int prev = 0;
     for (int i = seekWithEscape(string, prev, target); i >= 0; i = seekWithEscape(string, prev, target)) {
+      int lx = seekWithEscape(string, prev, '(');
+      if (lx > 0 && lx < i) {
+        int rx = seekWithEscape(string, lx + 1, ')');
+        if (rx > 0) {
+          i = rx + 1;
+        }
+      }
       splits.add(trimStartingSpaces(string.substring(prev, i)));
       prev = i + 1;
     }

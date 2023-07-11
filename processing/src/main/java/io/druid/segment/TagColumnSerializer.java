@@ -30,7 +30,6 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
@@ -64,21 +63,17 @@ public class TagColumnSerializer implements MetricColumnSerializer
     return new TagColumnSerializer(metric, maxValue, compression == null ? CompressionStrategy.NONE : compression, bitmap);
   }
 
-  private final Object2IntMap<String> hash = new Object2IntOpenHashMap<>();
   private final String metric;
   private final int maxValue;
   private final CompressionStrategy compression;
   private final BitmapSerdeFactory factory;
 
-  private IntWriter offsets;
+  private final Object2IntMap<String> hash = new Object2IntOpenHashMap<>();
+
+  private IntWriter sizes;
   private IntWriter values;
 
-  public TagColumnSerializer(
-      String metric,
-      int maxValue,
-      CompressionStrategy compression,
-      BitmapSerdeFactory factory
-  )
+  public TagColumnSerializer(String metric, int maxValue, CompressionStrategy compression, BitmapSerdeFactory factory)
   {
     this.metric = metric;
     this.maxValue = maxValue;
@@ -89,8 +84,8 @@ public class TagColumnSerializer implements MetricColumnSerializer
   @Override
   public void open(IOPeon ioPeon) throws IOException
   {
-    offsets = IntWriter.create(ioPeon, suffix(".o"), maxValue, CompressionStrategy.NONE);
-    offsets.open();
+    sizes = IntWriter.create(ioPeon, suffix(".s"), maxValue, CompressionStrategy.NONE);
+    sizes.open();
     values = IntWriter.create(ioPeon, suffix(".v"), maxValue, CompressionStrategy.NONE);
     values.open();
   }
@@ -117,12 +112,17 @@ public class TagColumnSerializer implements MetricColumnSerializer
       List<Object> document = (List<Object>) aggs;
       for (int i = 0; i < document.size(); i++) {
         values.add(register(document.get(i)));
-        size++;
       }
+      size += document.size();
     } else if (aggs.getClass().isArray()) {
       int length = Array.getLength(aggs);
       for (int i = 0; i < length; i++) {
         values.add(register(Array.get(aggs, i)));
+      }
+      size += length;
+    } else if (aggs instanceof Iterable) {
+      for (Object value : (Iterable) aggs) {
+        values.add(register(value));
         size++;
       }
     } else {
@@ -132,13 +132,13 @@ public class TagColumnSerializer implements MetricColumnSerializer
     if (hash.size() > maxValue) {
       throw new ISE("Exceeding maxValue [%s]", maxValue);
     }
-    offsets.add(size);
+    sizes.add(size);
   }
 
   @Override
   public void close() throws IOException
   {
-    offsets.close();
+    sizes.close();
     values.close();
   }
 
@@ -171,7 +171,8 @@ public class TagColumnSerializer implements MetricColumnSerializer
     builder.setValueType(ValueDesc.DIM_STRING);
 
     byte numBytes = VintValues.getNumBytesForMax(maxValue);
-    if (offsets.count() == values.count()) {
+    if (sizes.count() == values.count()) {
+      // single-valued
       VintValues values = new VintValues(Files.map(ioPeon.getFile(suffix(".v.values"))), numBytes);
       IntWriter rewritten = IntWriter.create(ioPeon, metric, mapping.length, compression);
       rewritten.open();
@@ -181,15 +182,16 @@ public class TagColumnSerializer implements MetricColumnSerializer
         mutables[mapping[ix]].add(id);
       }
       rewritten.close();
-      serde.withValue(rewritten, false, rewritten instanceof ColumnPartWriter.Compressed);
+      serde.withValue(rewritten, false);
     } else {
-      VintValues offsets = new VintValues(Files.map(ioPeon.getFile(suffix(".o.values"))), numBytes);
+      // multi-valued
+      VintValues sizes = new VintValues(Files.map(ioPeon.getFile(suffix(".s.values"))), numBytes);
       VintValues values = new VintValues(Files.map(ioPeon.getFile(suffix(".v.values"))), numBytes);
       IntsWriter rewritten = IntsWriter.create(ioPeon, metric, mapping.length, compression);
       rewritten.open();
       int offset = 0;
-      for (int id = 0; id < offsets.size(); id++) {
-        int[] ixs = new int[offsets.get(id)];
+      for (int id = 0; id < sizes.size(); id++) {
+        int[] ixs = new int[sizes.get(id)];
         for (int i = 0; i < ixs.length; i++) {
           ixs[i] = mapping[values.get(offset++)];
           mutables[ixs[i]].add(id);
@@ -197,9 +199,11 @@ public class TagColumnSerializer implements MetricColumnSerializer
         rewritten.add(ixs);
       }
       rewritten.close();
-      serde.withValue(rewritten, true, rewritten instanceof ColumnPartWriter.Compressed);
+      serde.withValue(rewritten, true);
     }
-    GenericIndexedWriter<ImmutableBitmap> bitmaps = GenericIndexedWriter.v2(ioPeon, suffix(".bitmaps"), factory.getObjectStrategy());
+    GenericIndexedWriter<ImmutableBitmap> bitmaps = GenericIndexedWriter.v2(
+        ioPeon, suffix(".bitmaps"), factory.getObjectStrategy()
+    );
     bitmaps.open();
     for (int i = 0; i < mutables.length; i++) {
       bitmaps.add(factory.getBitmapFactory().makeImmutableBitmap(mutables[i]));

@@ -22,6 +22,7 @@ package io.druid.sql.calcite;
 import io.druid.data.Pair;
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -53,8 +54,38 @@ public class StructTest extends CalciteQueryTestHelper
     throw ex;
   }
 
+  @Before
+  public void before()
+  {
+    hook.clear();
+  }
+
   @Test
-  public void tesDimensions() throws Exception
+  public void testBasic() throws Exception
+  {
+    testQuery(
+        "SELECT user_cid,\"adot_usage.life_cycle\" from ups where \"adot_usage.quest.cone.received\" <= 100",
+        new Object[][] {
+            {"ilSFLwxxxxx+I8oxOPsf9l9xxxxxx==", "휴면"},
+            {"ilSFLwyyyy+I8oxOPsf9l9yyyyx==", "안휴면"}
+        }
+    );
+    hook.verifyHooked(
+        "hYxEQ2AScutFVnTRb0XW2g==",
+        "StreamQuery{dataSource='ups', filter=BoundDimFilter{adot_usage.quest.cone.received <= 100(numeric)}, columns=[user_cid, adot_usage.life_cycle]}"
+    );
+    testQuery(
+        "SELECT \"adot_usage.quest.cone\" from ups where \"adot_usage.stickness.day_7\" > 0",
+        new Object[]{list(10, null, 4)}
+    );
+    hook.verifyHooked(
+        "JI1o91Y3WtAVrqqb6zDT5w==",
+        "StreamQuery{dataSource='ups', filter=BoundDimFilter{0 < adot_usage.stickness.day_7(numeric)}, columns=[v0], virtualColumns=[ExprVirtualColumn{expression='ARRAY(\"adot_usage.quest.cone.received\",\"adot_usage.quest.cone.retention\",\"adot_usage.quest.cone.received_percentile\")', outputName='v0'}]}"
+    );
+  }
+
+  @Test
+  public void testDimensions() throws Exception
   {
     testQuery(
         "SELECT \"ci_profile.life_style\", \"adot_usage.life_cycle\" from ups where \"ci_profile.life_style\" = '영화관'",
@@ -80,31 +111,7 @@ public class StructTest extends CalciteQueryTestHelper
   }
 
   @Test
-  public void tesBasic() throws Exception
-  {
-    testQuery(
-        "SELECT user_cid,\"adot_usage.life_cycle\" from ups where \"adot_usage.quest.cone.received\" <= 100",
-        new Object[][] {
-            {"ilSFLwxxxxx+I8oxOPsf9l9xxxxxx==", "휴면"},
-            {"ilSFLwyyyy+I8oxOPsf9l9yyyyx==", "안휴면"}
-        }
-    );
-    hook.verifyHooked(
-        "hYxEQ2AScutFVnTRb0XW2g==",
-        "StreamQuery{dataSource='ups', filter=BoundDimFilter{adot_usage.quest.cone.received <= 100(numeric)}, columns=[user_cid, adot_usage.life_cycle]}"
-    );
-    testQuery(
-        "SELECT \"adot_usage.quest.cone\" from ups where \"adot_usage.stickness.day_7\" > 0",
-        new Object[]{list(10, null, 4)}
-    );
-    hook.verifyHooked(
-        "JI1o91Y3WtAVrqqb6zDT5w==",
-        "StreamQuery{dataSource='ups', filter=BoundDimFilter{0 < adot_usage.stickness.day_7(numeric)}, columns=[v0], virtualColumns=[ExprVirtualColumn{expression='ARRAY(\"adot_usage.quest.cone.received\",\"adot_usage.quest.cone.retention\",\"adot_usage.quest.cone.received_percentile\")', outputName='v0'}]}"
-    );
-  }
-
-  @Test
-  public void tesBoolean() throws Exception
+  public void testBooleans() throws Exception
   {
     testQuery(
         "SELECT \"ci_profile.base\",\"ci_profile.family.child_y\",\"ci_profile.family.adult_child_y\",\"ci_profile.family.married\" from ups where \"adot_usage.stickness.day_7\" < 1000",
@@ -116,6 +123,24 @@ public class StructTest extends CalciteQueryTestHelper
     hook.verifyHooked(
         "2ob5tJUEWj+xyzoc8dZ4Kw==",
         "StreamQuery{dataSource='ups', filter=BoundDimFilter{adot_usage.stickness.day_7 < 1000(numeric)}, columns=[ci_profile.base, ci_profile.family.child_y, ci_profile.family.adult_child_y, ci_profile.family.married]}"
+    );
+  }
+
+  @Test
+  public void testGroupBy() throws Exception
+  {
+    testQuery(
+        "SELECT \"ci_profile.life_style\", sum(\"adot_usage.quest.cone.received\") from ups group by 1",
+        new Object[][] {
+            {"영화관", 110L},
+            {"청년1인가구", 100L},
+            {"청년2인가구", 10L},
+            {"캠핑", 100L}
+        }
+    );
+    hook.verifyHooked(
+        "8rbDO7SXyFLkLk5C6K3HDg==",
+        "GroupByQuery{dataSource='ups', dimensions=[DefaultDimensionSpec{dimension='ci_profile.life_style', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='adot_usage.quest.cone.received', inputType='long'}], outputColumns=[d0, a0]}"
     );
   }
 }

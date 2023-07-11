@@ -23,8 +23,8 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.segment.ExternalIndexProvider;
+import io.druid.segment.column.ComplexColumn.StructColumn;
 import io.druid.segment.data.BitSlicedBitmap;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.Dictionary;
 
@@ -94,5 +94,10 @@ public interface Column
       return getComplexColumn().getType();
     }
     return ValueDesc.of(valueType);
+  }
+
+  default Column getField(String fieldName)
+  {
+    return getType().isStruct() ? ((StructColumn) getComplexColumn()).getField(fieldName) : null;
   }
 }

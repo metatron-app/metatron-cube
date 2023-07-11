@@ -38,6 +38,7 @@ import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedVintsReader;
 import io.druid.segment.data.CumulativeBitmapWriter;
 import io.druid.segment.data.Dictionary;
@@ -308,12 +309,13 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       return this;
     }
 
-    public SerdeBuilder withValue(ColumnPartSerde.Serializer valueWriter, boolean hasMultiValue, boolean compressed)
+    public SerdeBuilder withValue(ColumnPartSerde.Serializer valueWriter, boolean hasMultiValue)
     {
       this.values = valueWriter;
       if (hasMultiValue) {
         this.flags = Feature.MULTI_VALUE_V3.set(flags, true);
       }
+      boolean compressed = valueWriter instanceof ColumnPartWriter.Compressed;
       this.flags = Feature.UNCOMPRESSED.set(flags, !compressed);
       return this;
     }

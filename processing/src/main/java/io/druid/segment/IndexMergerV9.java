@@ -483,8 +483,6 @@ public class IndexMergerV9 extends IndexMerger
           bitmapIndexWriters == null ? null : bitmapIndexWriters.get(i);
       final ColumnPartWriter<ImmutableRTree> spatialIndexWriter =
           spatialIndexWriters == null ? null : spatialIndexWriters.get(i);
-      final CompressionStrategy compression =
-          dimWriter instanceof Compressed ? ((Compressed) dimWriter).appliedCompression() : null;
 
       dimWriter.close();
       bitmapIndexWriter.close();
@@ -499,7 +497,7 @@ public class IndexMergerV9 extends IndexMerger
       final DictionaryEncodedColumnPartSerde.SerdeBuilder partBuilder = DictionaryEncodedColumnPartSerde
           .builder()
           .withDictionary(dictionaryWriter)
-          .withValue(dimWriter, hasMultiValue, compression != null)
+          .withValue(dimWriter, hasMultiValue)
           .withBitmapIndex(bitmapIndexWriter)
           .withSpatialIndex(spatialIndexWriter);
 

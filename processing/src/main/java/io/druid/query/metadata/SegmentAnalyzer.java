@@ -42,6 +42,7 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -65,16 +66,17 @@ public class SegmentAnalyzer
     final QueryableIndex index = segment.asQueryableIndex(false);
     final StorageAdapter adapter = segment.asStorageAdapter(false);
 
-    final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
+    final List<VirtualColumn> vcs = query.getVirtualColumns();
+    final RowResolver resolver = RowResolver.of(segment, vcs);
 
     final List<String> columns;
     if (GuavaUtils.isNullOrEmpty(query.getColumns())) {
       final ColumnIncluderator predicate = query.getToInclude();
       if (predicate == null) {
-        columns = Lists.newArrayList(resolver.getAllColumnNames());
+        columns = Lists.newArrayList(resolver.getAllColumnNames(vcs));
       } else {
         columns = Lists.newArrayList();
-        for (String columnName : resolver.getAllColumnNames()) {
+        for (String columnName : resolver.getAllColumnNames(vcs)) {
           if (predicate.include(columnName)) {
             columns.add(columnName);
           }

@@ -33,7 +33,6 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.BooleanGenericColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ComplexColumn.StructColumn;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.column.SecondaryIndex;
@@ -197,17 +196,7 @@ public class QueryableIndexSelector implements BitmapIndexSelector
   @Override
   public Column getColumn(String dimension)
   {
-    Column column = index.getColumn(dimension);
-    if (column == null) {
-      for (int ix = dimension.indexOf('.'); ix > 0; ix = dimension.indexOf('.', ix + 1)) {
-        Column nested = index.getColumn(dimension.substring(0, ix));
-        if (nested != null && nested.getType().isStruct()) {
-          StructColumn struct = (StructColumn) nested.getComplexColumn();
-          return struct.getField(dimension.substring(ix + 1));
-        }
-      }
-    }
-    return column;
+    return index.getColumn(dimension);
   }
 
   @Override

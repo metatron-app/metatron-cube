@@ -454,8 +454,8 @@ public class IndexViewer extends CommonShell.WithUtils
       LineBuilder builder = new LineBuilder(writer);
       if (dimensionsType) {
         if (cuboidSpec == null) {
-          boolean multipleValued = capabilities.hasMultipleValues();
-          builder.append("  type : %s (multiValued = %s, %,d bytes)", desc, multipleValued, columnSize);
+          boolean multiValued = capabilities.hasMultipleValues();
+          builder.append("  type : %s (multiValued = %s, %,d bytes)", desc, multiValued, columnSize);
         } else {
           builder.append("  type : %s (%,d bytes)", desc, columnSize);
         }

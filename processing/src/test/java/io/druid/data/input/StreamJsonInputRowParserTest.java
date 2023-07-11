@@ -63,15 +63,15 @@ public class StreamJsonInputRowParserTest
     Assert.assertTrue(parser.accept(input1));
     List<InputRow> parsed = Lists.newArrayList(parser.parseStream(input1));
     Assert.assertEquals(3, parsed.size());
-    Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:01:12"), dimensions, row1), parsed.get(0));
-    Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:02:12"), dimensions, row2), parsed.get(1));
+    Assert.assertEquals(new MapBasedInputRow.Nested(new DateTime("2020-04-28T00:01:12"), dimensions, row1), parsed.get(0));
+    Assert.assertEquals(new MapBasedInputRow.Nested(new DateTime("2020-04-28T00:02:12"), dimensions, row2), parsed.get(1));
     Assert.assertNull(parsed.get(2));
 
     Assert.assertTrue(parser.accept(input2));
     parsed = Lists.newArrayList(parser.parseStream(input2));
     Assert.assertEquals(3, parsed.size());
-    Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:01:12"), dimensions, row1), parsed.get(0));
-    Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:02:12"), dimensions, row2), parsed.get(1));
+    Assert.assertEquals(new MapBasedInputRow.Nested(new DateTime("2020-04-28T00:01:12"), dimensions, row1), parsed.get(0));
+    Assert.assertEquals(new MapBasedInputRow.Nested(new DateTime("2020-04-28T00:02:12"), dimensions, row2), parsed.get(1));
     Assert.assertNull(parsed.get(2));
   }
 

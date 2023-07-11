@@ -232,9 +232,9 @@ public class RowSignature implements TypeResolver
     return builder.build();
   }
 
-  RowSignature.Builder appendStruct(RowSignature.Builder builder, String prefix, ValueDesc type)
+  RowSignature.Builder appendStruct(RowSignature.Builder builder, String prefix, ValueDesc struct)
   {
-    String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+    String[] description = TypeUtils.splitDescriptiveType(struct.typeName());
     if (description == null) {
       return builder;   // cannot
     }
@@ -242,7 +242,12 @@ public class RowSignature implements TypeResolver
       String element = description[i].trim();
       int index = element.indexOf(":");
       Preconditions.checkArgument(index > 0, "'fieldName:fieldType' for field declaration");
-      builder.append(prefix + element.substring(0, index).trim(), ValueDesc.of(element.substring(index + 1).trim()));
+      String name = prefix + element.substring(0, index).trim();
+      ValueDesc type = ValueDesc.of(element.substring(index + 1).trim());
+      builder.append(name, type);
+      if (type.isStruct()) {
+        appendStruct(builder, name + ".", type);  // nested
+      }
     }
     return builder;
   }

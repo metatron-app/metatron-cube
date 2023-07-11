@@ -23,6 +23,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
@@ -38,11 +39,18 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  */
 public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<String, ValueDesc>>
 {
+  public static Iterable<Pair<String, ValueDesc>> parse(ValueDesc type)
+  {
+    String[] elements = TypeUtils.splitDescriptiveType(type.typeName());
+    return elements == null ? Arrays.asList() : new StructMetricSerde(elements);
+  }
+
   private final String elementType;
 
   private final String[] fieldNames;
@@ -84,6 +92,11 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
   public ValueDesc type(int index)
   {
     return index < 0 ? null : fieldTypes[index];
+  }
+
+  public ValueDesc type(int index, Function<ValueDesc, ValueDesc> fn)
+  {
+    return index < 0 ? null : fn.apply(fieldTypes[index]);
   }
 
   public String[] getFieldNames()

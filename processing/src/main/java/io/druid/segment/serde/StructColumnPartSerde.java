@@ -162,7 +162,8 @@ public class StructColumnPartSerde implements ColumnPartSerde
     private final List<String> fieldNames;
     private final Map<String, Column> fields;
 
-    public StructColumn(ValueDesc type, List<String> fieldNames, Map<String, Column> fields) {
+    public StructColumn(ValueDesc type, List<String> fieldNames, Map<String, Column> fields)
+    {
       this.type = type;
       this.fieldNames = fieldNames;
       this.fields = fields;
@@ -195,27 +196,34 @@ public class StructColumnPartSerde implements ColumnPartSerde
     @Override
     public ValueDesc getType(String field)
     {
-      Column column = fields.get(field);
+      Column column = getField(field);
       return column == null ? null : column.getType();
     }
 
     @Override
     public CompressionStrategy compressionType(String field)
     {
-      Column column = fields.get(field);
+      Column column = getField(field);
       return column == null ? null : column.compressionType();
     }
 
     @Override
     public Column getField(String field)
     {
-      return fields.get(field);
+      Column column = fields.get(field);
+      for (int ix = field.indexOf('.'); column == null && ix > 0; ix = field.indexOf('.', ix + 1)) {
+        column = fields.get(field.substring(0, ix));
+        if (column != null) {
+          column = column.getField(field.substring(ix + 1));
+        }
+      }
+      return column;
     }
 
     @Override
     public Map<String, Object> getStats(String field)
     {
-      Column column = fields.get(field);
+      Column column = getField(field);
       return column == null ? null : column.getColumnStats();
     }
 

@@ -26,6 +26,11 @@
   "adot_usage": {
       "life_cycle": "휴면",
       "quest": {
+        "cube": {
+          "received": 0,
+          "retention": 0,
+          "received_percentile": 0.0
+        },
         "cone": {
           "received": 100,
           "retention": 100,
@@ -76,6 +81,11 @@
   "adot_usage": {
       "life_cycle": "안휴면",
       "quest": {
+        "cube": {
+          "received": 0,
+          "retention": 0,
+          "received_percentile": 0.0
+        },
         "cone": {
           "received": 10,
           "retention": null,

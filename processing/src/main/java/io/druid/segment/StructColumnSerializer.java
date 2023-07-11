@@ -78,7 +78,7 @@ public class StructColumnSerializer implements MetricColumnSerializer
     } else if (aggs instanceof Map) {
       Map<String, Object> document = (Map<String, Object>) aggs;
       for (int i = 0; i < fieldNames.length; i++) {
-        serializers[i].serialize(rowNum, document.get(fieldNames[i]));
+        serializers[i].serialize(rowNum, get(document, fieldNames[i]));
       }
     } else if (aggs instanceof List) {
       List<Object> document = (List<Object>) aggs;
@@ -90,6 +90,19 @@ public class StructColumnSerializer implements MetricColumnSerializer
         serializers[i].serialize(rowNum, Array.get(aggs, i));
       }
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Object get(Map<String, Object> document, String field)
+  {
+    int ix = field.indexOf('.');
+    for (; ix > 0; ix = field.indexOf('.', ix + 1)) {
+      Object value = document.get(field.substring(0, ix));
+      if (value instanceof Map) {
+        return get((Map<String, Object>) value, field.substring(ix + 1));
+      }
+    }
+    return document.get(field);
   }
 
   @Override

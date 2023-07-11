@@ -31,8 +31,8 @@ import io.druid.segment.ObjectColumnSelector.StructColumnSelector;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -63,14 +63,31 @@ public class StructVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.startsWith(outputName));
-    final ValueDesc columnType = types.resolve(columnName);
+    ValueDesc columnType = types.resolve(columnName, ValueDesc.UNKNOWN);
     Preconditions.checkArgument(columnType.isStruct(), "%s is not struct type", columnName);
     if (column.equals(outputName)) {
       return columnType;
     }
-    final String fieldName = column.substring(columnName.length() + 1);
-    final StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
-    return serde.getTypeOf(fieldName);
+    return nested(columnType, column.substring(columnName.length() + 1));
+  }
+
+  private ValueDesc nested(ValueDesc columnType, String field)
+  {
+    StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
+    int ix = -1;
+    int index = serde.indexOf(field);
+    if (index < 0) {
+      for (ix = field.indexOf('.'); ix > 0; ix = field.indexOf('.', ix + 1)) {
+        index = serde.indexOf(field.substring(0, ix));
+        if (index > 0) {
+          break;
+        }
+      }
+    }
+    if (index < 0) {
+      return ValueDesc.UNKNOWN;
+    }
+    return ix > 0 ? nested(serde.type(index), field.substring(ix + 1)) : serde.type(index);
   }
 
   @Override
@@ -85,36 +102,36 @@ public class StructVirtualColumn implements VirtualColumn
 
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
     if (dimension.equals(outputName)) {
-      if (selector instanceof StructColumnSelector) {
-        StructColumnSelector struct = (StructColumnSelector) selector;
-        ObjectColumnSelector[] fields = struct.getFieldNames().stream()
-                                              .map(f -> struct.getField(f)).toArray(x -> new ObjectColumnSelector[x]);
-        return new ObjectColumnSelector.Typed(struct.type())
-        {
-          @Override
-          public Object get()
-          {
-            Object[] array = new Object[fields.length];
-            for (int i = 0; i < array.length; i++) {
-              array[i] = fields[i].get();
-            }
-            return Arrays.asList(array);
-          }
-        };
-      }
       return selector;
     }
     final String fieldName = dimension.substring(columnName.length() + 1);
-    final StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
-    final int index = serde.indexOf(fieldName);
-    if (index < 0) {
-      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
-    }
-    final ValueDesc fieldType = serde.type(index);
     if (selector instanceof StructColumnSelector) {
       return ((StructColumnSelector) selector).getField(fieldName);
     }
-    return new ObjectColumnSelector.Typed(fieldType)
+    return nested(selector, fieldName);
+  }
+
+  // for incremental index -_-;;;;
+  private ObjectColumnSelector nested(ObjectColumnSelector selector, String field)
+  {
+    StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(selector.type());
+    int ix = -1;
+    int index = serde.indexOf(field);
+    if (index < 0) {
+      for (ix = field.indexOf('.'); ix > 0; ix = field.indexOf('.', ix + 1)) {
+        index = serde.indexOf(field.substring(0, ix));
+        if (index > 0) {
+          break;
+        }
+      }
+    }
+    if (index < 0) {
+      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+    }
+    final int vindex = index;
+    final String fieldName = ix < 0 ? field : field.substring(0, ix);
+    final ValueDesc fieldType = serde.type(index, f -> f.isString() ? ValueDesc.MV_STRING : f);
+    final ObjectColumnSelector nested = new ObjectColumnSelector.Typed(fieldType)
     {
       @Override
       public Object get()
@@ -123,12 +140,16 @@ public class StructVirtualColumn implements VirtualColumn
         if (o == null) {
           return null;
         } else if (o instanceof List) {
-          return ((List) o).get(index);
-        } else {
-          return ((Object[]) o)[index];
+          return ((List) o).get(vindex);
+        } else if (o instanceof Object[]) {
+          return ((Object[]) o)[vindex];
+        } else if (o instanceof Map) {
+          return ((Map) o).get(fieldName);
         }
+        return null;
       }
     };
+    return ix > 0 ? nested(nested, field.substring(ix + 1)) : nested;
   }
 
   @Override

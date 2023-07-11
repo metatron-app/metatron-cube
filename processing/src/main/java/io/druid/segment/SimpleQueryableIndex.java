@@ -170,15 +170,27 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public ColumnMeta getColumnMeta(String columnName)
   {
-    final Supplier<Column> supplier = columns.get(columnName);
-    return supplier == null ? null : supplier.get().getMetaData();
+    final Column column = getColumn(columnName);
+    return column == null ? null : column.getMetaData();
   }
 
   @Override
   public Column getColumn(String columnName)
   {
-    final Supplier<Column> supplier = columns.get(columnName);
-    return supplier == null ? null : supplier.get();
+    Supplier<Column> supplier = columns.get(columnName);
+    if (supplier == null) {
+      for (int ix = columnName.indexOf('.'); ix > 0; ix = columnName.indexOf('.', ix + 1)) {
+        supplier = columns.get(columnName.substring(0, ix));
+        if (supplier != null) {
+          Column column = supplier.get().getField(columnName.substring(ix + 1));
+          if (column != null) {
+            return column;
+          }
+        }
+      }
+      return null;
+    }
+    return supplier.get();
   }
 
   @Override

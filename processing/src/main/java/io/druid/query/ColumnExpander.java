@@ -28,6 +28,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -46,7 +47,7 @@ public class ColumnExpander
     if (query instanceof Query.ColumnsSupport) {
       Query.ColumnsSupport<T> columnsSupport = (Query.ColumnsSupport<T>) query;
       if (GuavaUtils.isNullOrEmpty(columnsSupport.getColumns())) {
-        query = columnsSupport.withColumns(ImmutableList.copyOf(supplier.get().getAllColumnNames()));
+        query = columnsSupport.withColumns(ImmutableList.copyOf(supplier.get().getAllColumnNames(Arrays.asList())));
       }
     }
     if (query instanceof Query.DimensionSupport) {
