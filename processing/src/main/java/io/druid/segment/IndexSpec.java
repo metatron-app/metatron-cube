@@ -74,7 +74,7 @@ public class IndexSpec
    */
   public IndexSpec()
   {
-    this(null, null, null, null, null, null, false, null);
+    this(null, null, null, null, null, null, true, null);
   }
 
   /**

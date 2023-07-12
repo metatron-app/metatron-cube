@@ -21,9 +21,5 @@
   "queryGran": "NONE",
   "segmentGran": "ALL",
   "fixedSchema": true,
-  "rollup": false,
-  "indexSpec": {
-    "allowNullForNumbers": true,
-    "bitmap": { "type": "roaring" }
-  }
+  "rollup": false
 }

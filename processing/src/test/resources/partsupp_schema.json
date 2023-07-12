@@ -23,8 +23,6 @@
   "fixedSchema": true,
   "rollup": false,
   "indexSpec": {
-    "allowNullForNumbers": true,
-    "bitmap": { "type": "roaring" },
     "columnCompression": {
       "PS_COMMENT": "lz4"
     }

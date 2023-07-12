@@ -22,8 +22,6 @@
   "fixedSchema": true,
   "rollup": false,
   "indexSpec": {
-    "allowNullForNumbers": true,
-    "bitmap": { "type": "roaring" },
     "columnCompression": {
       "C_COMMENT": "lz4"
     }

@@ -27,8 +27,6 @@
   "fixedSchema": true,
   "rollup": false,
   "indexSpec": {
-    "allowNullForNumbers": true,
-    "bitmap": { "type": "roaring" },
     "secondaryIndexing": {
       "gis": {
         "type": "lucene7",

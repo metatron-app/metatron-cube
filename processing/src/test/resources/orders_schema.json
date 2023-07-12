@@ -22,9 +22,5 @@
   "queryGran": "NONE",
   "segmentGran": "YEAR",
   "fixedSchema": true,
-  "rollup": false,
-  "indexSpec": {
-    "allowNullForNumbers": true,
-    "bitmap": { "type": "roaring" }
-  }
+  "rollup": false
 }

@@ -126,7 +126,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
       {
         return new Iterator<Rowboat>()
         {
-          final GenericColumn timestamps = input.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
+          final GenericColumn.TimestampType timestamps = input.getTimestamp();
           final ColumnAccess[] metrics;
 
           final DictionaryEncodedColumn[] dictionaryEncodedColumns;
@@ -201,7 +201,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
               metricArray[metricLookup[i]] = metrics[i].getValue(currRow);
             }
 
-            final long timestamp = timestamps.getLong(currRow);
+            final long timestamp = timestamps.timestamp(currRow);
             return new Rowboat(timestamp, dims, metricArray, currRow++);
           }
 
