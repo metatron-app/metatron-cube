@@ -85,6 +85,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -144,14 +145,15 @@ public class BrokerQueryResource extends QueryResource
       @Context final HttpServletRequest req // used only to get request content-type and remote address
   ) throws IOException
   {
-    final RequestContext context = new RequestContext(req, pretty != null);
+    RequestContext context = new RequestContext(req, pretty != null);
+    Query<?> query;
     try {
-      Query<?> query = context.getInputMapper(false).readValue(in, Query.class);
-      return context.ok(getTargetLocations(DataSources.getName(query), query.getIntervals()));
+      query = context.getInputMapper(false).readValue(in, Query.class);
     }
     catch (Exception e) {
-      return context.gotError(e);
+      return context.gotError(e, Status.BAD_REQUEST);
     }
+    return context.ok(getTargetLocations(DataSources.getName(query), query.getIntervals()));
   }
 
   @GET
@@ -161,7 +163,7 @@ public class BrokerQueryResource extends QueryResource
       @QueryParam("datasource") String datasource,
       @QueryParam("intervals") String intervals,
       @QueryParam("pretty") String pretty,
-      @Context final HttpServletRequest req
+      @Context HttpServletRequest req
   ) throws IOException
   {
     final RequestContext context = new RequestContext(req, pretty != null);
@@ -333,9 +335,15 @@ public class BrokerQueryResource extends QueryResource
     final ForwardingSegmentWalker forward = (ForwardingSegmentWalker) segmentWalker;
     final RequestContext context = new RequestContext(req, pretty != null);
 
+    final Pair<Query, Sequence> pair;
+    try {
+      pair = loadSpec.readFrom(forward);
+    }
+    catch (IOException e) {
+      return context.gotError(e, Status.BAD_REQUEST);
+    }
     log.info("Start loading.. %s into index", loadSpec.getPaths());
     try {
-      final Pair<Query, Sequence> pair = loadSpec.readFrom(forward);
       final Query query = pair.lhs;         // dummy forward query
       final Sequence sequence = pair.rhs;   // progressing sequence
       final QueryRunner runner = forward.handle(query, QueryRunners.wrap(sequence));

@@ -76,6 +76,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
@@ -159,7 +160,7 @@ public class QueryResource
       throw new ForbiddenException(authResult.toString());
     }
     queryManager.cancel(queryId);
-    return Response.status(Response.Status.ACCEPTED).build();
+    return Response.status(Status.ACCEPTED).build();
   }
 
   @GET
@@ -168,7 +169,7 @@ public class QueryResource
   public Response dumpQueries(@Context final HttpServletRequest req)
   {
     queryManager.dumpAll();
-    return Response.status(Response.Status.ACCEPTED).build();
+    return Response.status(Status.ACCEPTED).build();
   }
 
   @GET
@@ -239,7 +240,7 @@ public class QueryResource
     }
     catch (Exception e) {
       log.warn(e, "Failed to read query instance");
-      return context.gotError(e);
+      return context.gotError(e, Status.BAD_REQUEST);
     }
     if (log.isDebugEnabled()) {
       log.info("Got query [%s]", query);
@@ -258,7 +259,7 @@ public class QueryResource
       final Query prepared = prepareQuery(query, context);
       final Access access = lifecycle.authorize(prepared, req);
       if (access != null && !access.isAllowed()) {
-        return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
+        return Response.status(Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
 
       final AtomicReference<Thread> writer = new AtomicReference<>();
@@ -499,8 +500,16 @@ public class QueryResource
 
     Response gotError(Throwable e) throws IOException
     {
+      return gotError(e, Status.INTERNAL_SERVER_ERROR);
+    }
+
+    Response gotError(Throwable e, Status status) throws IOException
+    {
       // contents seemed not delivered with serverError
-      return Response.ok(outputWriter().writeValueAsBytes(QueryException.wrapIfNeeded(e, node)), contentType).build();
+      return Response.status(Status.BAD_REQUEST)
+                     .entity(outputWriter().writeValueAsBytes(QueryException.wrapIfNeeded(e, node)))
+                     .type(contentType)
+                     .build();
     }
   }
 

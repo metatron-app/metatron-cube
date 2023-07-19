@@ -32,6 +32,7 @@ import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -222,7 +223,11 @@ public class QueryResourceTest
         testServletRequest
     );
     Assert.assertNotNull(response);
-    Assert.assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
+    Assert.assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+    QueryException error = QueryException.read((byte[]) response.getEntity(), jsonMapper);
+    Assert.assertEquals(error.getErrorClass(), "com.fasterxml.jackson.core.JsonParseException");
+    Assert.assertEquals(error.getServiceName(), "dummy");
+    Assert.assertEquals(error.getHost(), "dummy:0");
   }
 
   @Test
@@ -306,7 +311,7 @@ public class QueryResourceTest
 
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 3_000L)
   public void testSecuredCancelQuery() throws Exception
   {
     final CountDownLatch waitForCancellationLatch = new CountDownLatch(1);
