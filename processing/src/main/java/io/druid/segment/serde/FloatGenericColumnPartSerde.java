@@ -150,7 +150,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                 }
 
                 @Override
-                public int size()
+                public int numRows()
                 {
                   return numRows;
                 }
@@ -181,7 +181,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                 @Override
                 public void scan(IntIterator iterator, FloatScanner scanner)
                 {
-                  final IntIterator it = IntIterators.except(iterator, bitmap, size());
+                  final IntIterator it = IntIterators.except(iterator, bitmap, numRows());
                   final Int2FloatFunction supplier = x -> bufferToUse.get(x);
                   if (it == null) {
                     for (int i = 0; i < numRows; i++) {
@@ -203,7 +203,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                 @Override
                 public DoubleStream stream(IntIterator iterator)
                 {
-                  return IntIterators.filteredStream(iterator, bitmap, size()).mapToDouble(x -> bufferToUse.get(x));
+                  return IntIterators.filteredStream(iterator, bitmap, numRows()).mapToDouble(x -> bufferToUse.get(x));
                 }
               };
             }

@@ -165,13 +165,13 @@ public interface GenericColumn extends ComplexColumn
 
   interface TimestampType extends Closeable
   {
-    int size();
+    int numRows();
 
     long timestamp(int offset);
 
     default int ascend(long timestamp, int offset)
     {
-      final int numRows = size();
+      final int numRows = numRows();
       for (int i = offset; i < numRows; i++) {
         if (timestamp(i) >= timestamp) {
           return i;

@@ -56,7 +56,7 @@ public class IndexedStringsGenericColumn implements GenericColumn, Indexed.Scann
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
     return indexed.size();
   }
@@ -71,6 +71,12 @@ public class IndexedStringsGenericColumn implements GenericColumn, Indexed.Scann
   public Object getValue(int rowNum)
   {
     return getString(rowNum);
+  }
+
+  @Override
+  public int size()
+  {
+    return indexed.size();
   }
 
   @Override

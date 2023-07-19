@@ -106,6 +106,8 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       ValueDesc valueType = schema.resolve(metric, ValueDesc.UNKNOWN);
       if (valueType.isArray()) {
         mapping.put(metric, ArrayVirtualColumn.implicit(metric));   // implicit array vc
+      } else if (valueType.isMap()) {
+        mapping.put(metric, MapVirtualColumn.implict(metric));      // implicit map vc
       } else if (valueType.isStruct()) {
         mapping.put(metric, StructVirtualColumn.implicit(metric));  // implicit struct vc
       } else if (valueType.isBitSet()) {
@@ -117,7 +119,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 
   public static boolean needImplicitVC(ValueDesc valueType)
   {
-    return valueType.isArray() || valueType.isStruct() || valueType.isBitSet();
+    return valueType.isArray() || valueType.isMap() || valueType.isStruct() || valueType.isBitSet();
   }
 
   public static List<VirtualColumn> override(List<VirtualColumn> original, List<VirtualColumn> overriding)
@@ -137,10 +139,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return mimicDimensionSelector(ValueDesc.LONG, () -> selector.get());
   }
 
-  public static DimensionSelector toDimensionSelector(
-      final ObjectColumnSelector selector,
-      final ExtractionFn extractionFn
-  )
+  public static DimensionSelector toDimensionSelector(ObjectColumnSelector selector, ExtractionFn extractionFn)
   {
     if (selector == null) {
       if (extractionFn == null) {
@@ -154,8 +153,8 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     final ValueDesc type = selector.type();
     if (type.isPrimitive()) {
       return new SingleValued(type, selector);
-    } else if (type.isMultiValued()) {
-      return new MulitiValued(type, selector);
+    } else if (type.isMultiValued() || type.isArray()) {
+      return new MulitiValued(type.subElement(), selector);
     } else {
       return new SingleValued(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
     }
@@ -323,17 +322,27 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     };
   }
 
-  public static ColumnSelectorFactory wrap(List<IndexProvidingSelector> selectors, final ColumnSelectorFactory factory)
+  public static ColumnSelectorFactory wrap(Cursor factory, List<VirtualColumn> virtualColumns)
   {
-    if (selectors.isEmpty()) {
+    if (virtualColumns.isEmpty()) {
       return factory;
     }
-    final Map<String, ColumnSelectorFactory> delegate = Maps.newHashMap();
-    for (IndexProvidingSelector selector : selectors) {
-      ColumnSelectorFactory wrapped = selector.wrapFactory(factory);
-      for (String targetColumn : selector.targetColumns()) {
-        Preconditions.checkArgument(delegate.put(targetColumn, wrapped) == null);
+    final Map<String, VirtualColumn> sources = Maps.newHashMap();
+    final Map<String, ColumnSelectorFactory> targets = Maps.newHashMap();
+    for (VirtualColumn column : virtualColumns) {
+      if (column instanceof VirtualColumn.IndexProvider) {
+        VirtualColumn.IndexProvider provider = (VirtualColumn.IndexProvider) column;
+        if (provider.sourceColumn() != null) {
+          Preconditions.checkArgument(sources.put(provider.sourceColumn(), provider) == null);
+        }
+        ColumnSelectorFactory overriden = provider.override(factory);
+        for (String targetColumn : provider.targetColumns()) {
+          Preconditions.checkArgument(targets.put(targetColumn, overriden) == null);
+        }
       }
+    }
+    if (sources.isEmpty() && targets.isEmpty()) {
+      return factory;
     }
     return new ColumnSelectorFactory.ExprSupport()
     {
@@ -344,49 +353,43 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
+      public ValueDesc resolve(String columnName)
       {
-        return factory.makeDimensionSelector(dimensionSpec);
+        return targets.getOrDefault(columnName, factory).resolve(columnName);
+      }
+
+      @Override
+      public DimensionSelector makeDimensionSelector(DimensionSpec dimension)
+      {
+        VirtualColumn vc = sources.get(dimension.getDimension());
+        if (vc != null) {
+          return vc.asDimension(dimension, factory);
+        }
+        return factory.makeDimensionSelector(dimension);
       }
 
       @Override
       public FloatColumnSelector makeFloatColumnSelector(String columnName)
       {
-        ColumnSelectorFactory wrapped = delegate.get(columnName);
-        if (wrapped != null) {
-          return wrapped.makeFloatColumnSelector(columnName);
-        }
-        return factory.makeFloatColumnSelector(columnName);
+        return targets.getOrDefault(columnName, factory).makeFloatColumnSelector(columnName);
       }
 
       @Override
       public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
       {
-        ColumnSelectorFactory wrapped = delegate.get(columnName);
-        if (wrapped != null) {
-          return wrapped.makeDoubleColumnSelector(columnName);
-        }
-        return factory.makeDoubleColumnSelector(columnName);
+        return targets.getOrDefault(columnName, factory).makeDoubleColumnSelector(columnName);
       }
 
       @Override
       public LongColumnSelector makeLongColumnSelector(String columnName)
       {
-        ColumnSelectorFactory wrapped = delegate.get(columnName);
-        if (wrapped != null) {
-          return wrapped.makeLongColumnSelector(columnName);
-        }
-        return factory.makeLongColumnSelector(columnName);
+        return targets.getOrDefault(columnName, factory).makeLongColumnSelector(columnName);
       }
 
       @Override
       public ObjectColumnSelector makeObjectColumnSelector(String columnName)
       {
-        ColumnSelectorFactory wrapped = delegate.get(columnName);
-        if (wrapped != null) {
-          return wrapped.makeObjectColumnSelector(columnName);
-        }
-        return factory.makeObjectColumnSelector(columnName);
+        return targets.getOrDefault(columnName, factory).makeObjectColumnSelector(columnName);
       }
 
       @Override
@@ -396,9 +399,9 @@ public class VirtualColumns implements Iterable<VirtualColumn>
         if (dependents.isEmpty()) {
           return factory.makePredicateMatcher(filter);
         }
-        ColumnSelectorFactory prev = delegate.getOrDefault(dependents.get(0), factory);
+        ColumnSelectorFactory prev = targets.getOrDefault(dependents.get(0), factory);
         for (int i = 1; i < dependents.size(); i++) {
-          ColumnSelectorFactory current = delegate.getOrDefault(dependents.get(i), factory);
+          ColumnSelectorFactory current = targets.getOrDefault(dependents.get(i), factory);
           if (prev != null && prev != current) {
             throw new IllegalArgumentException("cannot access two independent factories");
           }
@@ -412,16 +415,6 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       {
         return factory.getDescriptor(columnName);
       }
-
-      @Override
-      public ValueDesc resolve(String columnName)
-      {
-        ColumnSelectorFactory wrapped = delegate.get(columnName);
-        if (wrapped != null) {
-          return wrapped.resolve(columnName);
-        }
-        return factory.resolve(columnName);
-      }
     };
   }
 
@@ -429,93 +422,6 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   public Iterator<VirtualColumn> iterator()
   {
     return virtualColumns.values().iterator();
-  }
-
-  public static class VirtualColumnAsColumnSelectorFactory extends ColumnSelectorFactory.ExprUnSupport
-  {
-    private final VirtualColumn virtualColumn;
-    private final ColumnSelectorFactory factory;
-    private final String dimensionColumn;
-    private final Set<String> metricColumns;
-
-    public VirtualColumnAsColumnSelectorFactory(
-        VirtualColumn virtualColumn,
-        ColumnSelectorFactory factory,
-        String dimensionColumn,
-        Set<String> metricColumns
-    )
-    {
-      this.virtualColumn = virtualColumn;
-      this.factory = factory;
-      this.dimensionColumn = dimensionColumn;
-      this.metricColumns = metricColumns;
-    }
-
-    @Override
-    public Iterable<String> getColumnNames()
-    {
-      return factory.getColumnNames();
-    }
-
-    @Override
-    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
-    {
-      if (dimensionColumn.equals(dimensionSpec.getDimension())) {
-        return virtualColumn.asDimension(dimensionSpec.getDimension(), dimensionSpec.getExtractionFn(), factory);
-      }
-      return factory.makeDimensionSelector(dimensionSpec);
-    }
-
-    @Override
-    public FloatColumnSelector makeFloatColumnSelector(String columnName)
-    {
-      if (metricColumns.contains(columnName)) {
-        return virtualColumn.asFloatMetric(columnName, factory);
-      }
-      return factory.makeFloatColumnSelector(columnName);
-    }
-
-    @Override
-    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
-    {
-      if (metricColumns.contains(columnName)) {
-        return virtualColumn.asDoubleMetric(columnName, factory);
-      }
-      return factory.makeDoubleColumnSelector(columnName);
-    }
-
-    @Override
-    public LongColumnSelector makeLongColumnSelector(String columnName)
-    {
-      if (metricColumns.contains(columnName)) {
-        return virtualColumn.asLongMetric(columnName, factory);
-      }
-      return factory.makeLongColumnSelector(columnName);
-    }
-
-    @Override
-    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
-    {
-      if (metricColumns.contains(columnName)) {
-        return virtualColumn.asMetric(columnName, factory);
-      }
-      return factory.makeObjectColumnSelector(columnName);
-    }
-
-    @Override
-    public Map<String, String> getDescriptor(String columnName)
-    {
-      return factory.getDescriptor(columnName);
-    }
-
-    @Override
-    public ValueDesc resolve(String columnName)
-    {
-      if (metricColumns.contains(columnName)) {
-        return virtualColumn.resolveType(columnName, factory);
-      }
-      return factory.resolve(columnName);
-    }
   }
 
   private final Map<String, VirtualColumn> virtualColumns;
@@ -541,5 +447,89 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   public Set<String> getVirtualColumnNames()
   {
     return ImmutableSet.copyOf(virtualColumns.keySet());
+  }
+
+  public static ColumnSelectorFactory wrap(
+      VirtualColumn source,
+      ColumnSelectorFactory factory,
+      String dimension,
+      Set<String> metrics
+  )
+  {
+    return new VirtualColumnAsColumnSelectorFactory(source, factory, dimension, metrics);
+  }
+
+  private static class VirtualColumnAsColumnSelectorFactory extends ColumnSelectorFactories.Delegated
+  {
+    private final VirtualColumn virtualColumn;
+    private final String dimensionColumn;
+    private final Set<String> metricColumns;
+
+    private VirtualColumnAsColumnSelectorFactory(
+        VirtualColumn virtualColumn,
+        ColumnSelectorFactory factory,
+        String dimensionColumn,
+        Set<String> metricColumns
+    )
+    {
+      super(factory);
+      this.virtualColumn = virtualColumn;
+      this.dimensionColumn = dimensionColumn;
+      this.metricColumns = metricColumns;
+    }
+
+    @Override
+    public DimensionSelector makeDimensionSelector(DimensionSpec dimension)
+    {
+      if (dimensionColumn.equals(dimension.getDimension())) {
+        return virtualColumn.asDimension(dimension, delegate);
+      }
+      return super.makeDimensionSelector(dimension);
+    }
+
+    @Override
+    public FloatColumnSelector makeFloatColumnSelector(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.asFloatMetric(columnName, delegate);
+      }
+      return super.makeFloatColumnSelector(columnName);
+    }
+
+    @Override
+    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.asDoubleMetric(columnName, delegate);
+      }
+      return super.makeDoubleColumnSelector(columnName);
+    }
+
+    @Override
+    public LongColumnSelector makeLongColumnSelector(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.asLongMetric(columnName, delegate);
+      }
+      return super.makeLongColumnSelector(columnName);
+    }
+
+    @Override
+    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.asMetric(columnName, delegate);
+      }
+      return super.makeObjectColumnSelector(columnName);
+    }
+
+    @Override
+    public ValueDesc resolve(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.resolveType(columnName, delegate);
+      }
+      return super.resolve(columnName);
+    }
   }
 }

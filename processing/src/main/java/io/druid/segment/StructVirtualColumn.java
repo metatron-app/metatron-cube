@@ -22,12 +22,15 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
-import io.druid.query.extraction.ExtractionFn;
-import io.druid.segment.ObjectColumnSelector.StructColumnSelector;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.ComplexColumnSelector.StructColumnSelector;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 
@@ -73,6 +76,16 @@ public class StructVirtualColumn implements VirtualColumn
 
   private ValueDesc nested(ValueDesc columnType, String field)
   {
+    if (columnType.isMap()) {
+      String[] description = TypeUtils.splitDescriptiveType(columnType.typeName());
+      if (field.equals(Row.MAP_KEY)) {
+        return description == null ? ValueDesc.STRING : ValueDesc.of(description[1]);
+      }
+      if (field.equals(Row.MAP_VALUE)) {
+        return description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]);
+      }
+      return ValueDesc.UNKNOWN;
+    }
     StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
     int ix = -1;
     int index = serde.indexOf(field);
@@ -106,7 +119,7 @@ public class StructVirtualColumn implements VirtualColumn
     }
     final String fieldName = dimension.substring(columnName.length() + 1);
     if (selector instanceof StructColumnSelector) {
-      return ((StructColumnSelector) selector).getField(fieldName);
+      return ((StructColumnSelector) selector).fieldSelector(fieldName);
     }
     return nested(selector, fieldName);
   }
@@ -114,7 +127,31 @@ public class StructVirtualColumn implements VirtualColumn
   // for incremental index -_-;;;;
   private ObjectColumnSelector nested(ObjectColumnSelector selector, String field)
   {
-    StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(selector.type());
+    ValueDesc type = selector.type();
+    if (type.isMap()) {
+      if (Row.MAP_KEY.equals(field)) {
+        String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+        return ObjectColumnSelector.typed(
+            description == null ? ValueDesc.STRING : ValueDesc.of(description[1]),
+            () -> {
+              Map v = (Map) selector.get();
+              return v == null ? null : Lists.newArrayList(v.keySet());
+            }
+        );
+      }
+      if (Row.MAP_VALUE.equals(field)) {
+        String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+        return ObjectColumnSelector.typed(
+            description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]),
+            () -> {
+              Map v = (Map) selector.get();
+              return v == null ? null : Lists.newArrayList(v.values());
+            }
+        );
+      }
+      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+    }
+    StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(type);
     int ix = -1;
     int index = serde.indexOf(field);
     if (index < 0) {
@@ -186,14 +223,14 @@ public class StructVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(DimensionSpec dimension, ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = asMetric(dimension, factory);
+    final ObjectColumnSelector selector = asMetric(dimension.getDimension(), factory);
     final ValueDesc type = selector.type();
     if (type.isMap() || type.isStruct() || type.isArray()) {
       throw new IAE("%s cannot be used as a dimension", type);
     }
-    return VirtualColumns.toDimensionSelector(selector, extractionFn);
+    return VirtualColumns.toDimensionSelector(selector, dimension.getExtractionFn());
   }
 
   @Override
@@ -201,7 +238,6 @@ public class StructVirtualColumn implements VirtualColumn
   {
     return new StructVirtualColumn(columnName, outputName);
   }
-
 
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)

@@ -39,6 +39,7 @@ import io.druid.query.aggregation.Aggregators;
 import io.druid.query.dimension.DictionaryID;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.Cursor;
+import io.druid.segment.Cursors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.Segment;
@@ -117,7 +118,7 @@ public class VectorizedGroupByQueryEngine
 
     try (ResourceHolder<ByteBuffer> holder = bufferPool.take()) {
       final ByteBuffer buffer = holder.get();
-      final IntIterable iterable = IntIterable.wrap(cursor);
+      final IntIterable iterable = Cursors.wrap(cursor);
 
       final IntBuffer ordering = buffer.asIntBuffer();    // row to batch
       final Int2LongFunction keyMaker = keys(iterable, buffer.asLongBuffer(), selectors, bits);

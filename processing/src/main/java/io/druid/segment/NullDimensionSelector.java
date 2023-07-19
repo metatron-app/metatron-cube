@@ -21,10 +21,35 @@ package io.druid.segment;
 
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.data.IndexedInts;
+
+import java.util.Objects;
 
 public class NullDimensionSelector implements DimensionSelector
 {
+  static DimensionSelector of(ValueDesc desc, ExtractionFn extractionFn)
+  {
+    if (extractionFn == null || StringUtils.isNullOrEmpty(extractionFn.apply(null))) {
+      return new NullDimensionSelector(desc);
+    }
+    return new NullDimensionSelector(desc)
+    {
+      private final Object value = extractionFn.apply(null);
+
+      @Override
+      public Object lookupName(int id)
+      {
+        return value;
+      }
+
+      @Override
+      public int lookupId(Object name)
+      {
+        return Objects.equals(value, name) ? 0 : -1;
+      }
+    };
+  }
   public static final DimensionSelector STRING_TYPE = new NullDimensionSelector(ValueDesc.STRING);
 
   public static final IndexedInts SINGLETON = IndexedInts.from(0);

@@ -56,21 +56,14 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-
+    ObjectColumnSelector<ApproximateHistogramHolder> selector = metricFactory.makeObjectColumnSelector(fieldName);
     if (selector == null) {
-      // gracefully handle undefined metrics
-
-      selector = new ObjectColumnSelector.Typed(compact ? COMPACT : TYPE)
-      {
-        @Override
-        public ApproximateHistogramHolder get()
-        {
-          return compact ? new ApproximateCompactHistogram(0) : new ApproximateHistogram(0);
-        }
-      };
+      selector = ObjectColumnSelector.typed(
+          compact ? COMPACT : TYPE, () -> compact ? new ApproximateCompactHistogram(0) : new ApproximateHistogram(0)
+      );
     }
 
     final ValueDesc type = selector.type();
@@ -93,21 +86,12 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-
+    ObjectColumnSelector<ApproximateHistogramHolder> selector = metricFactory.makeObjectColumnSelector(fieldName);
     if (selector == null) {
-      // gracefully handle undefined metrics
-
-      selector = new ObjectColumnSelector.Typed<ApproximateHistogram>(TYPE)
-      {
-        @Override
-        public ApproximateHistogram get()
-        {
-          return new ApproximateHistogram(0);
-        }
-      };
+      selector = ObjectColumnSelector.typed(TYPE, () -> new ApproximateHistogram(0));
     }
 
     final ValueDesc type = selector.type();
@@ -194,8 +178,8 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     result = 31 * result + (fieldName != null ? fieldName.hashCode() : 0);
     result = 31 * result + resolution;
     result = 31 * result + numBuckets;
-    result = 31 * result + (lowerLimit != +0.0f ? Float.floatToIntBits(lowerLimit) : 0);
-    result = 31 * result + (upperLimit != +0.0f ? Float.floatToIntBits(upperLimit) : 0);
+    result = 31 * result + Float.floatToIntBits(lowerLimit);
+    result = 31 * result + Float.floatToIntBits(upperLimit);
     result = 31 * result + Objects.hashCode(predicate);
     return result;
   }

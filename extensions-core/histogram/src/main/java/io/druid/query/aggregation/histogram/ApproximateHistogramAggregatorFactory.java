@@ -83,8 +83,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     this.numBuckets = numBuckets == null ? ApproximateHistogram.DEFAULT_BUCKET_SIZE : numBuckets;
     this.lowerLimit = lowerLimit == null ? Float.NEGATIVE_INFINITY : lowerLimit;
     this.upperLimit = upperLimit == null ? Float.POSITIVE_INFINITY : upperLimit;
-    this.compact = compact == null ? false: compact;
-    this.base64 = base64 == null ? false: base64;
+    this.compact = compact != null && compact;
+    this.base64 = base64 != null && base64;
     this.predicate = predicate;
 
     Preconditions.checkArgument(this.resolution > 0, "resolution must be greater than 1");
@@ -356,8 +356,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     result = 31 * result + (fieldName != null ? fieldName.hashCode() : 0);
     result = 31 * result + resolution;
     result = 31 * result + numBuckets;
-    result = 31 * result + (lowerLimit != +0.0f ? Float.floatToIntBits(lowerLimit) : 0);
-    result = 31 * result + (upperLimit != +0.0f ? Float.floatToIntBits(upperLimit) : 0);
+    result = 31 * result + Float.floatToIntBits(lowerLimit);
+    result = 31 * result + Float.floatToIntBits(upperLimit);
     return result;
   }
 

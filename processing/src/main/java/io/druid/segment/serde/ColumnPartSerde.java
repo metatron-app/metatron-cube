@@ -48,6 +48,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "boolean", value = BooleanColumnPartSerde.class),
     @JsonSubTypes.Type(name = "bitsetInverted", value = BitSetInvertedIndexingSpec.SerDe.class),
     @JsonSubTypes.Type(name = "struct", value = StructColumnPartSerde.class),
+    @JsonSubTypes.Type(name = "map", value = MapColumnPartSerde.class),
 })
 public interface ColumnPartSerde
 {

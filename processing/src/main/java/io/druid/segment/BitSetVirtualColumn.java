@@ -28,6 +28,7 @@ import io.druid.common.guava.BufferRef;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.data.IndexedInts;
 
@@ -89,12 +90,12 @@ public class BitSetVirtualColumn implements VirtualColumn
       final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
       if (selector instanceof ObjectColumnSelector.WithRawAccess) {
         final ObjectColumnSelector.WithRawAccess rawAccess = (ObjectColumnSelector.WithRawAccess) selector;
-        return ColumnSelectors.asSelector(ValueDesc.BOOLEAN, () -> {
+        return ObjectColumnSelector.typed(ValueDesc.BOOLEAN, () -> {
           final BufferRef ref = rawAccess.getAsRef();
           return ref.length() == 0 ? null : ref.getBool(access);
         });
       }
-      return ColumnSelectors.asSelector(ValueDesc.BOOLEAN, () -> {
+      return ObjectColumnSelector.typed(ValueDesc.BOOLEAN, () -> {
         final BitSet bitSet = (BitSet) selector.get();
         return bitSet == null ? null : bitSet.get(access);
       });
@@ -103,9 +104,10 @@ public class BitSetVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(DimensionSpec dimension, ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = asMetric(dimension, factory);
+    ObjectColumnSelector selector = asMetric(dimension.getDimension(), factory);
+    ExtractionFn extractionFn = dimension.getExtractionFn();
     if (selector == null) {
       if (extractionFn == null) {
         return NullDimensionSelector.STRING_TYPE;

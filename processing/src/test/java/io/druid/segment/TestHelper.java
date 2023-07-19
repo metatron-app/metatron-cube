@@ -935,7 +935,7 @@ public class TestHelper
   {
     if (o == null) {
       b.append("null");
-    } else if (o instanceof String) {
+    } else if (o instanceof String || o instanceof Map) {
       b.append('"').append(o).append('"');
     } else if (o instanceof DateTime) {
       b.append("new DateTime(").append('"').append(o).append('"').append(')');

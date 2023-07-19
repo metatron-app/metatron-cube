@@ -34,17 +34,18 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
-import io.druid.segment.IndexProvidingSelector.IndexHolder;
 import io.druid.segment.data.IndexedInts;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  *
  */
-public class KeyIndexedVirtualColumn implements VirtualColumn
+public class KeyIndexedVirtualColumn implements VirtualColumn.IndexProvider
 {
   private static final byte VC_TYPE_ID = 0x02;
 
@@ -101,16 +102,10 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     if (valueDimensions.contains(column)) {
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(column));
 
-      return new ObjectColumnSelector()
+      return new ObjectColumnSelector.Typed(selector.type().unwrapDimension())
       {
         private transient int version;
         private transient IndexedInts values;
-
-        @Override
-        public ValueDesc type()
-        {
-          return ValueDesc.assertPrimitive(selector.type());
-        }
 
         @Override
         public Object get()
@@ -156,45 +151,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(
-      final String dimension,
-      final ExtractionFn extractionFn,
-      final ColumnSelectorFactory factory
-  )
+  public DimensionSelector asDimension(DimensionSpec dimension, ColumnSelectorFactory factory)
   {
-    if (!dimension.equals(outputName)) {
+    if (!outputName.equals(dimension.getDimension())) {
       throw new IllegalStateException("Only can be called as a group-by/top-N dimension");
     }
-    final DimensionSelector selector = toFilteredSelector(factory, extractionFn);
-
-    return new IndexProvidingSelector.Delegated(selector)
-    {
-      @Override
-      public IndexedInts getRow()
-      {
-        return indexer.indexed(super.getRow());
-      }
-
-      @Override
-      public ColumnSelectorFactory wrapFactory(final ColumnSelectorFactory factory)
-      {
-        return new VirtualColumns.VirtualColumnAsColumnSelectorFactory(
-            KeyIndexedVirtualColumn.this, factory, outputName, valueColumns
-        );
-      }
-
-      @Override
-      public Set<String> targetColumns()
-      {
-        return valueColumns;
-      }
-
-      @Override
-      public boolean hasFilter()
-      {
-        return keyFilter != null;
-      }
-    };
+    return wrap(toFilteredSelector(factory, dimension.getExtractionFn()));
   }
 
   @Override
@@ -308,5 +270,77 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
            ", valueMetrics=" + valueMetrics +
            ", outputName='" + outputName + '\'' +
            '}';
+  }
+
+  @Override
+  public String sourceColumn()
+  {
+    return keyDimension;
+  }
+
+  @Override
+  public Set<String> targetColumns()
+  {
+    return valueColumns;
+  }
+
+  public DimensionSelector wrap(DimensionSelector selector)
+  {
+    return wrap(selector, indexer);
+  }
+
+  public static DimensionSelector wrap(DimensionSelector selector, IndexHolder indexer)
+  {
+    return new DimensionSelector.Delegated(selector)
+    {
+      @Override
+      public IndexedInts getRow()
+      {
+        return indexer.indexed(super.getRow());
+      }
+    };
+  }
+
+  public Function<IndexedInts, IndexedInts> indexer()
+  {
+    return indexer::indexed;
+  }
+
+  // single threaded by group-by engine.. no need to be volatile
+  static class IndexHolder
+  {
+    int version;
+    int index;
+
+    int index()
+    {
+      return index;
+    }
+
+    IndexedInts indexed(final IndexedInts delegate)
+    {
+      version++;
+      return new IndexedInts()
+      {
+        @Override
+        public int size()
+        {
+          return delegate.size();
+        }
+
+        @Override
+        public int get(int index)
+        {
+          IndexHolder.this.index = index;
+          return delegate.get(index);
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+          delegate.close();
+        }
+      };
+    }
   }
 }

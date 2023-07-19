@@ -52,19 +52,15 @@ import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
-import io.druid.segment.column.IntIntConsumer;
-import io.druid.segment.column.IntScanner;
 import io.druid.segment.column.RowSupplier;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
-import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -347,7 +343,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public ScanContext scanContext()
                     {
-                      return new ScanContext(scanning, bitmap, context.ranges(), span, index.getNumRows());
+                      return new ScanContext(scanning, bitmap, context.ranges(), span, index.getNumRows(), context);
                     }
 
                     @Override
@@ -420,6 +416,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
+                    public ColumnSelectorFactory forAggregators()
+                    {
+                      return VirtualColumns.wrap(this, resolver.getVirtualColumns());
+                    }
+
+                    @Override
                     public Iterable<String> getColumnNames()
                     {
                       return index.getColumnNames();
@@ -448,14 +450,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (holder == null) {
                         VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
                         if (virtualColumn != null) {
-                          return virtualColumn.asDimension(dimension, extractionFn, this);
+                          return virtualColumn.asDimension(dimensionSpec, this);
                         }
                         return NullDimensionSelector.STRING_TYPE;
                       }
                       if (VirtualColumns.needImplicitVC(holder.getType())) {
                         VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
                         if (virtualColumn != null) {
-                          return virtualColumn.asDimension(dimension, extractionFn, this);
+                          return virtualColumn.asDimension(dimensionSpec, this);
                         }
                       }
 
@@ -466,242 +468,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         // todo: group-by columns are converted to string
                         return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension), extractionFn);
                       }
-
-                      final Dictionary<String> dictionary = encoded.dictionary().dedicated();
-                      if (holder.getCapabilities().hasMultipleValues()) {
-                        if (extractionFn != null) {
-                          return new DimensionSelector()
-                          {
-                            @Override
-                            public IndexedInts getRow()
-                            {
-                              return encoded.getMultiValueRow(offset());
-                            }
-
-                            @Override
-                            public int getValueCardinality()
-                            {
-                              return dictionary.size();
-                            }
-
-                            @Override
-                            public Object lookupName(int id)
-                            {
-                              return extractionFn.apply(dictionary.get(id));
-                            }
-
-                            @Override
-                            public ValueDesc type()
-                            {
-                              return ValueDesc.STRING;
-                            }
-
-                            @Override
-                            public int lookupId(Object name)
-                            {
-                              throw new UnsupportedOperationException(
-                                  "cannot perform lookup when applying an extraction function"
-                              );
-                            }
-
-                            @Override
-                            public boolean withSortedDictionary()
-                            {
-                              return dictionary.isSorted() && extractionFn.preservesOrdering();
-                            }
-                          };
-                        } else {
-                          return new DimensionSelector.WithRawAccess()
-                          {
-                            @Override
-                            public Dictionary getDictionary()
-                            {
-                              return dictionary;
-                            }
-
-                            @Override
-                            public IndexedInts getRow()
-                            {
-                              return encoded.getMultiValueRow(offset());
-                            }
-
-                            @Override
-                            public int getValueCardinality()
-                            {
-                              return dictionary.size();
-                            }
-
-                            @Override
-                            public Object lookupName(int id)
-                            {
-                              return dictionary.get(id);
-                            }
-
-                            @Override
-                            public ValueDesc type()
-                            {
-                              return ValueDesc.STRING;
-                            }
-
-                            @Override
-                            public byte[] getAsRaw(int id)
-                            {
-                              return dictionary.getAsRaw(id);
-                            }
-
-                            @Override
-                            public BufferRef getAsRef(int id)
-                            {
-                              return dictionary.getAsRef(id);
-                            }
-
-                            @Override
-                            public int lookupId(Object name)
-                            {
-                              return dictionary.indexOf((String) name);
-                            }
-
-                            @Override
-                            public boolean withSortedDictionary()
-                            {
-                              return dictionary.isSorted();
-                            }
-                          };
-                        }
-                      } else {
-                        // using an anonymous class is faster than creating a class that stores a copy of the value
-                        final RowSupplier supplier = encoded.row(context.selectivity());
-                        final IndexedInts row = IndexedInts.from(() -> supplier.row(offset()));
-                        if (extractionFn != null) {
-                          return new DimensionSelector()
-                          {
-                            @Override
-                            public IndexedInts getRow()
-                            {
-                              return row;
-                            }
-
-                            @Override
-                            public int getValueCardinality()
-                            {
-                              return dictionary.size();
-                            }
-
-                            @Override
-                            public Object lookupName(int id)
-                            {
-                              return extractionFn.apply(dictionary.get(id));
-                            }
-
-                            @Override
-                            public ValueDesc type()
-                            {
-                              return ValueDesc.STRING;
-                            }
-
-                            @Override
-                            public int lookupId(Object name)
-                            {
-                              throw new UnsupportedOperationException(
-                                  "cannot perform lookup when applying an extraction function"
-                              );
-                            }
-
-                            @Override
-                            public boolean withSortedDictionary()
-                            {
-                              return dictionary.isSorted() && extractionFn.preservesOrdering();
-                            }
-                          };
-                        } else {
-                          return new DimensionSelector.Scannable()
-                          {
-                            @Override
-                            public RowSupplier rows()
-                            {
-                              return supplier;
-                            }
-
-                            @Override
-                            public Dictionary getDictionary()
-                            {
-                              return dictionary;
-                            }
-
-                            @Override
-                            public IndexedInts getRow()
-                            {
-                              return row;
-                            }
-
-                            @Override
-                            public int getValueCardinality()
-                            {
-                              return dictionary.size();
-                            }
-
-                            @Override
-                            public Object lookupName(int id)
-                            {
-                              return dictionary.get(id);
-                            }
-
-                            @Override
-                            public ValueDesc type()
-                            {
-                              return ValueDesc.STRING;
-                            }
-
-                            @Override
-                            public byte[] getAsRaw(int id)
-                            {
-                              return dictionary.getAsRaw(id);
-                            }
-
-                            @Override
-                            public BufferRef getAsRef(int id)
-                            {
-                              return dictionary.getAsRef(id);
-                            }
-
-                            @Override
-                            public void scan(Tools.Scanner scanner)
-                            {
-                              dictionary.scan(row.get(0), scanner);
-                            }
-
-                            @Override
-                            public <R> R apply(Tools.Function<R> function)
-                            {
-                              return dictionary.apply(row.get(0), function);
-                            }
-
-                            @Override
-                            public int lookupId(Object name)
-                            {
-                              return dictionary.indexOf((String) name);
-                            }
-
-                            @Override
-                            public boolean withSortedDictionary()
-                            {
-                              return dictionary.isSorted();
-                            }
-
-                            @Override
-                            public void scan(IntIterator iterator, IntScanner scanner)
-                            {
-                              encoded.scan(iterator, scanner);
-                            }
-
-                            @Override
-                            public void consume(IntIterator iterator, IntIntConsumer consumer)
-                            {
-                              encoded.consume(iterator, consumer);
-                            }
-                          };
-                        }
-                      }
+                      return DimensionSelector.asSelector(encoded, extractionFn, scanContext(), offset);
                     }
 
                     @Override
@@ -790,7 +557,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return new ObjectColumnSelector.WithRawAccess<String>()
                           {
                             private final Dictionary<String> dictionary = encoded.dictionary().dedicated();
-                            private final RowSupplier row = encoded.row(context.selectivity());
+                            private final RowSupplier row = encoded.row(context);
 
                             @Override
                             public ValueDesc type()

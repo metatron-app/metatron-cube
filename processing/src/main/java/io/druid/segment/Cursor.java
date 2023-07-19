@@ -42,4 +42,6 @@ public interface Cursor extends ColumnSelectorFactory
   default IntFunction attachment(String name) { return null;}
 
   abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor { }
+
+  ColumnSelectorFactory forAggregators();   // for group-by & top-n queries
 }

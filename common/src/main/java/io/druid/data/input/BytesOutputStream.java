@@ -23,6 +23,8 @@ import com.google.common.io.ByteArrayDataOutput;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
+import io.druid.data.ValueType;
+import io.druid.java.util.common.UOE;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -213,12 +215,17 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   @Override
   public void writeShort(int v)
   {
-    final int x = count;
+    writeShort(count, v);
+    count += Short.BYTES;
+  }
+
+  public void writeShort(int position, int v)
+  {
+    final int x = position;
     ensureCapacity(x + Short.BYTES);
     final byte[] b = buf;
     b[x] = (byte) (v >>> 8);
     b[x + 1] = (byte) v;
-    count += Short.BYTES;
   }
 
   @Override
@@ -229,6 +236,26 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
     }
     catch (IOException impossible) {
       throw new AssertionError(impossible);
+    }
+  }
+
+  public void write(Object v, ValueType type)
+  {
+    switch (type) {
+      case FLOAT:
+        writeFloat((Float) v);
+        break;
+      case DOUBLE:
+        writeDouble((Double) v);
+        break;
+      case LONG:
+        writeLong((Long) v);
+        break;
+      case BOOLEAN:
+        writeBoolean((Boolean) v);
+        break;
+      default:
+        throw new UOE("not supported type [%s]", type);
     }
   }
 

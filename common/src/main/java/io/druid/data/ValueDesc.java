@@ -56,7 +56,6 @@ public class ValueDesc implements Serializable, Cacheable
   public static final String DATETIME_TYPE = "datetime";
 
   // non primitives
-  private static final String MAP_TYPE = "map";
   private static final String ARRAY_TYPE = "array";
   private static final String INDEXED_ID_TYPE = "indexed";
   private static final String BITSET_TYPE = "bitset";
@@ -74,6 +73,7 @@ public class ValueDesc implements Serializable, Cacheable
   private static final String DIMENSION_PREFIX = "dimension.";
 
   // descriptive type
+  public static final String MAP_TYPE = "map";
   public static final String DECIMAL_TYPE = "decimal";
   public static final String STRUCT_TYPE = "struct";
 

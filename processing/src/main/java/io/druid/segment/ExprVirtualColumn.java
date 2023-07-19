@@ -27,7 +27,6 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
-import io.druid.query.extraction.ExtractionFn;
 
 import java.util.Objects;
 
@@ -55,30 +54,6 @@ public class ExprVirtualColumn implements VirtualColumn
   public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
     return ColumnSelectors.wrapAsObjectSelector(factory.makeMathExpressionSelector(expression));
-  }
-
-  @Override
-  public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
-  {
-    return ColumnSelectors.wrapAsFloatSelector(factory.makeMathExpressionSelector(expression));
-  }
-
-  @Override
-  public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
-  {
-    return ColumnSelectors.wrapAsDoubleSelector(factory.makeMathExpressionSelector(expression));
-  }
-
-  @Override
-  public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
-  {
-    return ColumnSelectors.wrapAsLongSelector(factory.makeMathExpressionSelector(expression));
-  }
-
-  @Override
-  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
-  {
-    return VirtualColumns.toDimensionSelector(asMetric(dimension, factory), extractionFn);
   }
 
   @Override

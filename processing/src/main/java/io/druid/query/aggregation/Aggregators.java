@@ -143,68 +143,6 @@ public class Aggregators
     }
   }
 
-  public static class DelegatedAggregator<T> implements Aggregator<T>
-  {
-    final Aggregator<T> delegate;
-
-    public DelegatedAggregator(Aggregator<T> delegate)
-    {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public T aggregate(T current)
-    {
-      return delegate.aggregate(current);
-    }
-
-    @Override
-    public Object get(T current)
-    {
-      return delegate.get(current);
-    }
-
-    @Override
-    public void clear(boolean close)
-    {
-      delegate.clear(close);
-    }
-  }
-
-  public static class DelegatedBufferAggregator implements BufferAggregator
-  {
-    private final BufferAggregator delegate;
-
-    public DelegatedBufferAggregator(BufferAggregator delegate)
-    {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public void init(ByteBuffer buf, int position0, int position1)
-    {
-      delegate.init(buf, position0, position1);
-    }
-
-    @Override
-    public void aggregate(ByteBuffer buf, int position0, int position1)
-    {
-      delegate.aggregate(buf, position0, position1);
-    }
-
-    @Override
-    public Object get(ByteBuffer buf, int position0, int position1)
-    {
-      return delegate.get(buf, position0, position1);
-    }
-
-    @Override
-    public void clear(boolean close)
-    {
-      delegate.clear(close);
-    }
-  }
-
   public static enum RelayType
   {
     ONLY_ONE, FIRST, LAST, MIN, MAX, TIME_MIN, TIME_MAX;

@@ -70,7 +70,10 @@ public interface ColumnSelectorFactory extends TypeResolver
   ObjectColumnSelector makeObjectColumnSelector(String columnName);
   ExprEvalColumnSelector makeMathExpressionSelector(String expression);
   ExprEvalColumnSelector makeMathExpressionSelector(Expr expression);
-  ValueMatcher makePredicateMatcher(DimFilter filter);
+
+  default ValueMatcher makePredicateMatcher(DimFilter filter) {
+    return filter.toFilter(this).makeMatcher(this);
+  }
 
   default Column getColumn(String columnName) {return null;}
   default ColumnMeta getMeta(String columnName) {return null;}
@@ -78,16 +81,7 @@ public interface ColumnSelectorFactory extends TypeResolver
   default Map<String, String> getDescriptor(String columnName) {return null;}
   default Map<String, Object> getStats(String columnName) {return null;}
 
-  abstract class Predicate implements ColumnSelectorFactory
-  {
-    @Override
-    public ValueMatcher makePredicateMatcher(DimFilter filter)
-    {
-      return filter.toFilter(this).makeMatcher(this);
-    }
-  }
-
-  abstract class ExprSupport extends Predicate
+  abstract class ExprSupport implements ColumnSelectorFactory
   {
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(final String expression)
@@ -126,7 +120,7 @@ public interface ColumnSelectorFactory extends TypeResolver
     }
   }
 
-  abstract class ExprUnSupport extends Predicate
+  abstract class ExprUnSupport implements ColumnSelectorFactory
   {
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)

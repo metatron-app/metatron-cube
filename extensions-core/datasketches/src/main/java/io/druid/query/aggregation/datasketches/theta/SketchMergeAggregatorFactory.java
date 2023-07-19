@@ -95,7 +95,6 @@ public class SketchMergeAggregatorFactory extends AggregatorFactory
     this.errorBoundsStdDev = errorBoundsStdDev;
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
@@ -112,7 +111,6 @@ public class SketchMergeAggregatorFactory extends AggregatorFactory
     return Aggregators.wrap(matcher, SketchAggregator.create(selector, size));
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {

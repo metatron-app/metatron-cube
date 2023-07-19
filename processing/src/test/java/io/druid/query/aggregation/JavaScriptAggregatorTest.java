@@ -49,7 +49,7 @@ public class JavaScriptAggregatorTest
   protected static final Map<String, String> sumLogATimesBPlusTen = Maps.newHashMap();
   protected static final Map<String, String> scriptDoubleSum = Maps.newHashMap();
 
-  final ColumnSelectorFactory DUMMY_COLUMN_SELECTOR_FACTORY = new ColumnSelectorFactory.Predicate()
+  final ColumnSelectorFactory DUMMY_COLUMN_SELECTOR_FACTORY = new ColumnSelectorFactory()
   {
     @Override
     public Iterable<String> getColumnNames()

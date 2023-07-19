@@ -108,6 +108,18 @@ public class StructTest extends CalciteQueryTestHelper
         "AKo3jcUAHWRdMefjvxXyew==",
         "StreamQuery{dataSource='ups', filter=ci_profile.life_style=='캠핑', columns=[ci_profile.life_style, adot_usage.life_cycle]}"
     );
+
+    // map
+    testQuery(
+        "SELECT \"ci_profile.xdr_category\", \"adot_usage.life_cycle\" from ups where \"ci_profile.xdr_category.__key\" = 'bf_m1_app_dt_ratio_cat_03'",
+        new Object[][] {
+            {"{bf_m1_app_dt_ratio_cat_01=0.87, bf_m1_app_dt_ratio_cat_03=0.83, bf_m1_app_dt_ratio_cat_04=0.8, bf_m1_app_dt_ratio_cat_06=0.17, bf_m1_app_dt_ratio_cat_08=0.83}", "안휴면"}
+        }
+    );
+    hook.verifyHooked(
+        "Dby7odomifRVJGT0zz6g/Q==",
+        "StreamQuery{dataSource='ups', filter=ci_profile.xdr_category.__key=='bf_m1_app_dt_ratio_cat_03', columns=[ci_profile.xdr_category, adot_usage.life_cycle]}"
+    );
   }
 
   @Test
@@ -141,6 +153,23 @@ public class StructTest extends CalciteQueryTestHelper
     hook.verifyHooked(
         "8rbDO7SXyFLkLk5C6K3HDg==",
         "GroupByQuery{dataSource='ups', dimensions=[DefaultDimensionSpec{dimension='ci_profile.life_style', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='adot_usage.quest.cone.received', inputType='long'}], outputColumns=[d0, a0]}"
+    );
+
+    // map
+    testQuery(
+        "SELECT \"ci_profile.xdr_category.__key\", sum(\"ci_profile.xdr_category.__value\") from ups group by 1",
+        new Object[][] {
+            {"bf_m1_app_dt_ratio_cat_01", 1.7400000095367432D},
+            {"bf_m1_app_dt_ratio_cat_03", 0.8299999833106995D},
+            {"bf_m1_app_dt_ratio_cat_04", 1.6299999952316284D},
+            {"bf_m1_app_dt_ratio_cat_05", 0.800000011920929D},
+            {"bf_m1_app_dt_ratio_cat_06", 0.3400000035762787D},
+            {"bf_m1_app_dt_ratio_cat_08", 1.659999966621399D}
+        }
+    );
+    hook.verifyHooked(
+        "oOFwos475/lciYgcC50N0g==",
+        "GroupByQuery{dataSource='ups', dimensions=[DefaultDimensionSpec{dimension='ci_profile.xdr_category.__key', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='ci_profile.xdr_category.__value', inputType='double'}], outputColumns=[d0, a0]}"
     );
   }
 }

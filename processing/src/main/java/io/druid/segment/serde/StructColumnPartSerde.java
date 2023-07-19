@@ -182,7 +182,7 @@ public class StructColumnPartSerde implements ColumnPartSerde
     }
 
     @Override
-    public int size()
+    public int numRows()
     {
       return Iterables.getFirst(fields.values(), null).getNumRows();
     }

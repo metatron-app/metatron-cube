@@ -26,7 +26,6 @@ import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.DelegatedDimensionSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -206,7 +205,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
     {
       final IndexedInts row = IndexedInts.from(() -> selector.getRow().get(index));
 
-      return new DelegatedDimensionSelector(selector)
+      return new DimensionSelector.Delegated(selector)
       {
         @Override
         public IndexedInts getRow()

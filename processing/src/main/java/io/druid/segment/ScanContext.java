@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.bitmap.Bitmaps;
+import io.druid.segment.filter.FilterContext;
 import org.roaringbitmap.IntIterator;
 
 import java.util.Map;
@@ -33,12 +34,15 @@ public class ScanContext
   private final int[] range;
   private final int numRows;
 
+  private final FilterContext context;
+
   public ScanContext(
       Scanning scanning,
       ImmutableBitmap bitmap,
       Map<String, ImmutableBitmap> ranges,
       int[] range,
-      int numRows
+      int numRows,
+      FilterContext context
   )
   {
     this.scanning = scanning;
@@ -46,6 +50,7 @@ public class ScanContext
     this.ranges = ranges;
     this.range = range;
     this.numRows = numRows;
+    this.context = context;
   }
 
   public Scanning scanning()
@@ -81,5 +86,10 @@ public class ScanContext
   public boolean awareTargetRows()
   {
     return scanning.awareTargetRows();
+  }
+
+  public FilterContext filtering()
+  {
+    return context;
   }
 }

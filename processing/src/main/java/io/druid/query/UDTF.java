@@ -26,7 +26,6 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.select.TableFunctionSpec;
 import io.druid.segment.Cursor;
-import io.druid.segment.DelegatedDimensionSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.Dictionary;
@@ -126,7 +125,7 @@ public interface UDTF
       return current >= limit;
     }
 
-    private class SingleValued extends DelegatedDimensionSelector implements DimensionSelector.SingleValued
+    private class SingleValued extends DimensionSelector.Delegated implements DimensionSelector.SingleValued
     {
       public SingleValued(DimensionSelector delegate)
       {

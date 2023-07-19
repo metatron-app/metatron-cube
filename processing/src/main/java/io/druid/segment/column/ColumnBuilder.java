@@ -28,7 +28,6 @@ import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
-import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IntValues;
 import io.druid.segment.data.IntsValues;
 import io.druid.segment.serde.DictionaryEncodedColumnSupplier;
@@ -63,6 +62,11 @@ public class ColumnBuilder
   public ColumnBuilder(String name)
   {
     this.name = Preconditions.checkNotNull(name, "name must be set");
+  }
+
+  public String getName()
+  {
+    return name;
   }
 
   public boolean isTimestamp()

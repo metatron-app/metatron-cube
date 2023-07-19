@@ -170,7 +170,7 @@ public abstract class GenericAggregatorFactory extends NumericEvalSupport
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);
 
-    return new Aggregators.DelegatedAggregator(factorize(factory, elementType))
+    return new Aggregator.Delegated(factorize(factory, elementType))
     {
       @Override
       public Object aggregate(Object current)
@@ -201,7 +201,7 @@ public abstract class GenericAggregatorFactory extends NumericEvalSupport
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);
 
-    return new Aggregators.DelegatedBufferAggregator(factorizeBuffered(factory, elementType))
+    return new BufferAggregator.Delegated(factorizeBuffered(factory, elementType))
     {
       @Override
       public void aggregate(ByteBuffer buf, int position0, int position1)

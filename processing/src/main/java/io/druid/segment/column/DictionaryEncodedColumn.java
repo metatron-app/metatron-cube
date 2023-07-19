@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IntsValues;
+import io.druid.segment.filter.FilterContext;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
@@ -174,9 +175,9 @@ public final class DictionaryEncodedColumn implements Closeable
   private static final int ID_CACHE_SIZE = 128;
   private static final float MINIMUM_SELECTIVITY = 0.25f;
 
-  public RowSupplier row(float selectivity)
+  public RowSupplier row(FilterContext context)
   {
-    if (selectivity < MINIMUM_SELECTIVITY) {
+    if (context == null || context.selectivity() < MINIMUM_SELECTIVITY) {
       return x -> column.get(x);
     }
     final IndexedInts source = IndexedInts.prepare(column, ID_CACHE_SIZE);

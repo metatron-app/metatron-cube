@@ -34,6 +34,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.IAE;
 import io.druid.query.QueryException;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
@@ -46,6 +47,7 @@ import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.ordering.Direction;
 import io.druid.segment.Capabilities;
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -285,7 +287,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               @Override
               public ScanContext scanContext()
               {
-                return new ScanContext(scanning, null, null, new int[] {0, size() - 1}, size());
+                return new ScanContext(scanning, null, null, new int[] {0, size() - 1}, size(), null);
               }
 
               @Override
@@ -339,6 +341,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
+              public ColumnSelectorFactory forAggregators()
+              {
+                return VirtualColumns.wrap(this, resolver.getVirtualColumns());
+              }
+
+              @Override
               public Iterable<String> getColumnNames()
               {
                 return Iterables.concat(index.getDimensionNames(), index.getMetricNames());
@@ -367,7 +375,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (VirtualColumns.needImplicitVC(type)) {
                   VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
                   if (virtualColumn != null) {
-                    return virtualColumn.asDimension(dimension, extractionFn, this);
+                    return virtualColumn.asDimension(dimensionSpec, this);
                   }
                 }
 
@@ -375,7 +383,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (dimensionDesc == null) {
                   VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
                   if (virtualColumn != null) {
-                    return virtualColumn.asDimension(dimension, extractionFn, this);
+                    return virtualColumn.asDimension(dimensionSpec, this);
                   }
                   if (index.getMetricIndex(dimension) >= 0) {
                     // todo: group-by columns are converted to string
@@ -614,7 +622,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   if (dimensionDesc != null) {
                     ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
                     if (capabilities.hasMultipleValues() || !capabilities.getType().isNumeric()) {
-                      throw new IllegalArgumentException("cannot make long selector from dimension " + columnName);
+                      throw new IAE("cannot make long selector from column [%s]", columnName);
                     }
                     return ColumnSelectors.asLong(makeObjectColumnSelector(columnName));
                   }

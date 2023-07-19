@@ -31,15 +31,14 @@ import io.druid.common.guava.DSuppliers.HandOver;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
-import io.druid.query.extraction.ExtractionFn;
-import io.druid.segment.data.IndexedInts;
+import io.druid.query.dimension.DimensionSpec;
 
 import java.util.List;
 import java.util.Set;
 
 /**
  */
-public class LateralViewVirtualColumn implements VirtualColumn
+public class LateralViewVirtualColumn implements VirtualColumn.IndexProvider
 {
   private static final byte VC_TYPE_ID = 0x03;
 
@@ -128,7 +127,7 @@ public class LateralViewVirtualColumn implements VirtualColumn
     }
     return new ObjectColumnSelector<Object>()
     {
-      private transient ObjectColumnSelector[] selectors;
+      private ObjectColumnSelector[] selectors;
 
       @Override
       public ValueDesc type()
@@ -173,12 +172,12 @@ public class LateralViewVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(DimensionSpec dimension, ColumnSelectorFactory factory)
   {
-    if (!dimension.equals(outputName)) {
+    if (!outputName.equals(dimension.getDimension())) {
       throw new IllegalStateException("Only can be called as a group-by/top-N dimension");
     }
-    if (extractionFn != null) {
+    if (dimension.getExtractionFn() != null) {
       throw new UnsupportedOperationException("not supported yet");
     }
     final List<String> targetColumns = Lists.newArrayList();
@@ -193,31 +192,8 @@ public class LateralViewVirtualColumn implements VirtualColumn
     }
     indexer.columnNames.set(targetColumns);
 
-    final Set<String> metricColumns = ImmutableSet.of(metricName);
-    final DimensionSelector selector = VirtualColumns.toFixedDimensionSelector(targetColumns);
-
-    return new IndexProvidingSelector.Delegated(selector)
-    {
-      @Override
-      public final IndexedInts getRow()
-      {
-        return indexer.indexed(super.getRow());
-      }
-
-      @Override
-      public final ColumnSelectorFactory wrapFactory(final ColumnSelectorFactory factory)
-      {
-        return new VirtualColumns.VirtualColumnAsColumnSelectorFactory(
-            LateralViewVirtualColumn.this, factory, outputName, metricColumns
-        );
-      }
-
-      @Override
-      public Set<String> targetColumns()
-      {
-        return metricColumns;
-      }
-    };
+    DimensionSelector selector = VirtualColumns.toFixedDimensionSelector(targetColumns);
+    return KeyIndexedVirtualColumn.wrap(selector, indexer);
   }
 
   @Override
@@ -284,7 +260,19 @@ public class LateralViewVirtualColumn implements VirtualColumn
            '}';
   }
 
-  private static class LVIndexHolder extends IndexProvidingSelector.IndexHolder
+  @Override
+  public String sourceColumn()
+  {
+    return null;
+  }
+
+  @Override
+  public Set<String> targetColumns()
+  {
+    return ImmutableSet.of(metricName);
+  }
+
+  private static class LVIndexHolder extends KeyIndexedVirtualColumn.IndexHolder
   {
     private final HandOver<List<String>> columnNames = new HandOver<>();
   }

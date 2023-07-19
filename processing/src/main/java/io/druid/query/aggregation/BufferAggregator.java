@@ -132,4 +132,38 @@ public interface BufferAggregator
       }
     };
   }
+
+  class Delegated implements BufferAggregator
+  {
+    private final BufferAggregator delegate;
+
+    public Delegated(BufferAggregator delegate)
+    {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void init(ByteBuffer buf, int position0, int position1)
+    {
+      delegate.init(buf, position0, position1);
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position0, int position1)
+    {
+      delegate.aggregate(buf, position0, position1);
+    }
+
+    @Override
+    public Object get(ByteBuffer buf, int position0, int position1)
+    {
+      return delegate.get(buf, position0, position1);
+    }
+
+    @Override
+    public void clear(boolean close)
+    {
+      delegate.clear(close);
+    }
+  }
 }

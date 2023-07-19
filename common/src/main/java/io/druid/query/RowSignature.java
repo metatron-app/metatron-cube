@@ -31,6 +31,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import org.apache.commons.lang.StringUtils;
@@ -215,9 +216,9 @@ public class RowSignature implements TypeResolver
 
   public static final RowSignature EMPTY = of(Arrays.asList(), Arrays.asList());
 
-  public RowSignature explodeStruct()
+  public RowSignature explodeNested()
   {
-    if (columnTypes.stream().noneMatch(x -> x.isStruct())) {
+    if (columnTypes.stream().noneMatch(x -> x.isStruct() || x.isMap())) {
       return this;
     }
     Builder builder = new Builder();
@@ -227,6 +228,8 @@ public class RowSignature implements TypeResolver
       builder.append(name, type);
       if (type.isStruct()) {
         appendStruct(builder, name + ".", type);
+      } else if (type.isMap()) {
+        appendMap(builder, name + ".", type);
       }
     }
     return builder.build();
@@ -246,9 +249,22 @@ public class RowSignature implements TypeResolver
       ValueDesc type = ValueDesc.of(element.substring(index + 1).trim());
       builder.append(name, type);
       if (type.isStruct()) {
-        appendStruct(builder, name + ".", type);  // nested
+        appendStruct(builder, name + ".", type);
+      } else if (type.isMap()) {
+        appendMap(builder, name + ".", type);
       }
     }
+    return builder;
+  }
+
+  RowSignature.Builder appendMap(RowSignature.Builder builder, String prefix, ValueDesc struct)
+  {
+    String[] description = TypeUtils.splitDescriptiveType(struct.typeName());
+    if (description == null) {
+      return builder;   // cannot
+    }
+    builder.append(prefix + Row.MAP_KEY, ValueDesc.of(description[1]));
+    builder.append(prefix + Row.MAP_VALUE, ValueDesc.of(description[2]));
     return builder;
   }
 

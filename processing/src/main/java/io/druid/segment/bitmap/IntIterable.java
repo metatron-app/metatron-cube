@@ -124,31 +124,6 @@ public interface IntIterable
     }
   }
 
-  static IntIterable wrap(Cursor cursor)
-  {
-    if (cursor.isDone()) {
-      return EMPTY;
-    }
-    ScanContext context = cursor.scanContext();
-    if (context.is(Scanning.FULL)) {
-      return () -> null;
-    }
-    if (context.awareTargetRows()) {
-      AtomicBoolean first = new AtomicBoolean(true);
-      return () -> {
-        if (!first.compareAndSet(true, false)) {
-          cursor.reset();
-        }
-        return IntIterators.wrap(cursor);
-      };
-    }
-    final BitSet rows = new BitSet();
-    for (; !cursor.isDone(); cursor.advance()) {
-      rows.set(cursor.offset());
-    }
-    return () -> BitSets.iterator(rows);
-  }
-
   static IntIterable except(IntIterable cursor, ImmutableBitmap skip, int size)
   {
     return () -> IntIterators.except(cursor.iterator(), skip, size);

@@ -20,6 +20,7 @@
 package io.druid.segment.data;
 
 import io.druid.common.guava.BinaryRef;
+import io.druid.data.input.BytesOutputStream;
 
 import java.nio.ByteBuffer;
 
@@ -90,6 +91,122 @@ public interface ObjectStrategy<T>
     public byte[] toBytes(Object val)
     {
       throw new UnsupportedOperationException("toBytes");
+    }
+  };
+
+  ObjectStrategy<byte[]> RAW = new ObjectStrategy<byte[]>()
+  {
+    @Override
+    public Class<byte[]> getClazz()
+    {
+      return byte[].class;
+    }
+
+    @Override
+    public byte[] fromByteBuffer(ByteBuffer buffer, int numBytes)
+    {
+      int postion = buffer.position();
+      byte[] bv = new byte[numBytes];
+      for (int i = 0; i < bv.length; i++, postion++) {
+        bv[i] = buffer.get(postion);
+      }
+      return bv;
+    }
+
+    @Override
+    public byte[] toBytes(byte[] val)
+    {
+      return val;
+    }
+  };
+
+  ObjectStrategy<float[]> FLOAT_ARRAY = new ObjectStrategy<float[]>()
+  {
+    @Override
+    public Class<float[]> getClazz()
+    {
+      return float[].class;
+    }
+
+    @Override
+    public float[] fromByteBuffer(ByteBuffer buffer, int numBytes)
+    {
+      int postion = buffer.position();
+      float[] fvs = new float[numBytes / Float.BYTES];
+      for (int i = 0; i < fvs.length; i++, postion += Float.BYTES) {
+        fvs[i] = buffer.getFloat(postion);
+      }
+      return fvs;
+    }
+
+    @Override
+    public byte[] toBytes(float[] val)
+    {
+      BytesOutputStream bout = new BytesOutputStream(val.length * Float.BYTES);
+      for (int i = 0; i < val.length; i++) {
+        bout.writeFloat(val[i]);
+      }
+      return bout.toByteArray();
+    }
+  };
+
+  ObjectStrategy<double[]> DOUBLE_ARRAY = new ObjectStrategy<double[]>()
+  {
+    @Override
+    public Class<double[]> getClazz()
+    {
+      return double[].class;
+    }
+
+    @Override
+    public double[] fromByteBuffer(ByteBuffer buffer, int numBytes)
+    {
+      int postion = buffer.position();
+      double[] fvs = new double[numBytes / Double.BYTES];
+      for (int i = 0; i < fvs.length; i++, postion += Double.BYTES) {
+        fvs[i] = buffer.getDouble(postion);
+      }
+      return fvs;
+    }
+
+    @Override
+    public byte[] toBytes(double[] val)
+    {
+      BytesOutputStream bout = new BytesOutputStream(val.length * Double.BYTES);
+      for (int i = 0; i < val.length; i++) {
+        bout.writeDouble(val[i]);
+      }
+      return bout.toByteArray();
+    }
+  };
+
+  ObjectStrategy<long[]> LONG_ARRAY = new ObjectStrategy<long[]>()
+  {
+    @Override
+    public Class<long[]> getClazz()
+    {
+      return long[].class;
+    }
+
+    @Override
+    public long[] fromByteBuffer(ByteBuffer buffer, int numBytes)
+    {
+      int postion = buffer.position();
+      long[] fvs = new long[numBytes / Long.BYTES];
+      for (int i = 0; i < fvs.length; i++, postion += Long.BYTES) {
+        fvs[i] = buffer.getLong(postion);
+      }
+      return fvs;
+    }
+
+    @Override
+    public byte[] toBytes(long[] val)
+    {
+      BytesOutputStream bout = new BytesOutputStream(val.length * Long.BYTES);
+      for (int i = 0; i < val.length; i++) {
+        bout.writeLong(val[i]);
+      }
+      return bout.toByteArray();
     }
   };
 }

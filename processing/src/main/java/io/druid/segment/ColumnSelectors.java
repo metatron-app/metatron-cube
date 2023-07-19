@@ -21,8 +21,9 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.BufferRef;
@@ -64,6 +65,7 @@ import org.apache.commons.lang.mutable.MutableLong;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -486,7 +488,7 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector nullObjectSelector(final ValueDesc valueType)
   {
-    return asSelector(valueType, () -> null);
+    return ObjectColumnSelector.typed(valueType, () -> null);
   }
 
   public static ValueMatcher toMatcher(String expression, ColumnSelectorFactory metricFactory)
@@ -503,26 +505,12 @@ public class ColumnSelectors
       final Function<I, O> function
   )
   {
-    return new ObjectColumnSelector.Typed<O>(outType)
-    {
-      @Override
-      public O get()
-      {
-        return function.apply(selector.get());
-      }
-    };
+    return ObjectColumnSelector.typed(outType, () -> function.apply(selector.get()));
   }
 
   public static ObjectColumnSelector asValued(final ObjectColumnSelector<IndexedID> selector)
   {
-    return new ObjectColumnSelector.Typed(ValueDesc.STRING)
-    {
-      @Override
-      public Object get()
-      {
-        return selector.get().getAsName();
-      }
-    };
+    return ObjectColumnSelector.string(() -> selector.get().getAsName());
   }
 
   public static ObjectColumnSelector asArray(final ObjectColumnSelector<List> selector, final ValueDesc element)
@@ -683,18 +671,6 @@ public class ColumnSelectors
           }
           return org.apache.commons.lang.StringUtils.join(array, separator);
         }
-      }
-    };
-  }
-
-  public static <T> ObjectColumnSelector<T> asSelector(ValueDesc type, Supplier<T> supplier)
-  {
-    return new ObjectColumnSelector.Typed<T>(type)
-    {
-      @Override
-      public T get()
-      {
-        return supplier.get();
       }
     };
   }
@@ -1361,11 +1337,17 @@ public class ColumnSelectors
       return UNKNOWN;
     }
     if (column instanceof ComplexColumn.StructColumn) {
-      return new ObjectColumnSelector.StructColumnSelector()
+      return new ComplexColumnSelector.StructColumnSelector()
       {
         final ComplexColumn.StructColumn struct = (ComplexColumn.StructColumn) column;
         final ObjectColumnSelector[] fields = struct.getFieldNames().stream()
-                                                    .map(f -> getField(f)).toArray(x -> new ObjectColumnSelector[x]);
+                                                    .map(f -> fieldSelector(f)).toArray(x -> new ObjectColumnSelector[x]);
+
+        @Override
+        public Offset offset()
+        {
+          return offset;
+        }
 
         @Override
         public ValueDesc type()
@@ -1374,7 +1356,7 @@ public class ColumnSelectors
         }
 
         @Override
-        public Object get()
+        public List get()
         {
           Object[] array = new Object[fields.length];
           for (int i = 0; i < array.length; i++) {
@@ -1396,15 +1378,75 @@ public class ColumnSelectors
         }
 
         @Override
-        public ObjectColumnSelector getField(String field)
+        public Column getField(String field)
         {
-          return asSelector(struct.getField(field), offset);
+          return struct.getField(field);
+        }
+      };
+    }
+    if (column instanceof ComplexColumn.MapColumn) {
+      return new ComplexColumnSelector.MapColumnSelector()
+      {
+        final ComplexColumn.MapColumn map = (ComplexColumn.MapColumn) column;
+        final ObjectColumnSelector key = asSelector(map.getKey().getDictionaryEncoded(), offset);
+        final ObjectColumnSelector value = asSelector(map.getValue().getComplexColumn(), offset);
+
+        @Override
+        public Offset offset()
+        {
+          return offset;
         }
 
         @Override
-        public Map<String, Object> getStats(String field)
+        public ValueDesc type()
         {
-          return struct.getStats(field);
+          return map.getType();
+        }
+
+        @Override
+        public Map get()
+        {
+          Object keys = key.get();
+          Object values = value.get();
+          if (values instanceof List) {
+            List list = (List) values;
+            int length = list.size();
+            if (length == 0) {
+              return ImmutableMap.of();
+            }
+            if (length == 1) {
+              return ImmutableMap.of(Objects.toString(keys), list.get(0));
+            }
+            Map<String, Object> map = Maps.newLinkedHashMap();
+            for (int i = 0; i < length; i++) {
+              map.put(Objects.toString(((List)keys).get(i)), list.get(i));
+            }
+            return map;
+          }
+          int length = Array.getLength(values);
+          if (length == 0) {
+            return ImmutableMap.of();
+          }
+          if (length == 1) {
+            return ImmutableMap.of(Objects.toString(keys), Array.get(values, 0));
+          }
+          Map<String, Object> map = Maps.newLinkedHashMap();
+          for (int i = 0; i < length; i++) {
+            map.put(Objects.toString(((List)keys).get(i)), Array.get(values, i));
+          }
+          return map;
+        }
+
+        @Override
+        public Column getKey()
+        {
+          return map.getKey();
+        }
+
+        @Override
+        public Column getValue()
+        {
+          return map.getValue();
         }
       };
     }
@@ -1488,13 +1530,6 @@ public class ColumnSelectors
         }
       };
     }
-    return new ObjectColumnSelector.Typed(ValueDesc.STRING)
-    {
-      @Override
-      public Object get()
-      {
-        return dictionary.get(column.getSingleValueRow(offset.get()));
-      }
-    };
+    return ObjectColumnSelector.string(() -> dictionary.get(column.getSingleValueRow(offset.get())));
   }
 }

@@ -24,7 +24,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.common.Cacheable;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.dimension.DimensionSpec;
+
+import java.util.Set;
 
 /**
  */
@@ -68,10 +70,22 @@ public interface VirtualColumn extends Cacheable
     return ColumnSelectors.asLong(asMetric(dimension, factory));
   }
 
-  default DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
+  default DimensionSelector asDimension(DimensionSpec dimension, ColumnSelectorFactory factory)
   {
-    return VirtualColumns.toDimensionSelector(asMetric(dimension, factory), extractionFn);
+    return VirtualColumns.toDimensionSelector(asMetric(dimension.getDimension(), factory), dimension.getExtractionFn());
   }
 
   VirtualColumn duplicate();
+
+  interface IndexProvider extends VirtualColumn
+  {
+    String sourceColumn();
+
+    Set<String> targetColumns();
+
+    default ColumnSelectorFactory override(ColumnSelectorFactory factory)
+    {
+      return VirtualColumns.wrap(IndexProvider.this, factory, getOutputName(), targetColumns());
+    }
+  }
 }

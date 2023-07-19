@@ -51,7 +51,7 @@ public class BooleanGenericColumn implements GenericColumn
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
     return numRows;
   }

@@ -56,7 +56,7 @@ public final class IndexedFloatsGenericColumn extends GenericColumn.FloatType
   }
 
   @Override
-  public int size()
+  public int numRows()
   {
     return column.size();
   }
@@ -92,19 +92,19 @@ public final class IndexedFloatsGenericColumn extends GenericColumn.FloatType
   @Override
   public void scan(IntIterator iterator, FloatScanner scanner)
   {
-    column.scan(IntIterators.except(iterator, nulls, size()), scanner);
+    column.scan(IntIterators.except(iterator, nulls, numRows()), scanner);
   }
 
   @Override
   public void consume(IntIterator iterator, IntDoubleConsumer consumer)
   {
-    column.consume(IntIterators.except(iterator, nulls, size()), consumer);
+    column.consume(IntIterators.except(iterator, nulls, numRows()), consumer);
   }
 
   @Override
   public DoubleStream stream(IntIterator iterator)
   {
-    return column.stream(IntIterators.except(iterator, nulls, size()));
+    return column.stream(IntIterators.except(iterator, nulls, numRows()));
   }
 
   @Override

@@ -205,4 +205,32 @@ public interface Aggregator<T>
       }
     };
   }
+
+  class Delegated<T> implements Aggregator<T>
+  {
+    final Aggregator<T> delegate;
+
+    public Delegated(Aggregator<T> delegate)
+    {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public T aggregate(T current)
+    {
+      return delegate.aggregate(current);
+    }
+
+    @Override
+    public Object get(T current)
+    {
+      return delegate.get(current);
+    }
+
+    @Override
+    public void clear(boolean close)
+    {
+      delegate.clear(close);
+    }
+  }
 }

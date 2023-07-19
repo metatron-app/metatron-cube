@@ -38,6 +38,8 @@ import java.util.List;
 public interface Row extends Comparable<Row>, Expr.NumericBinding
 {
   String TIME_COLUMN_NAME = "__time";
+  String MAP_KEY = "__key";
+  String MAP_VALUE = "__value";
 
   /**
    * Returns the timestamp from the epoch in milliseconds.  If the event happened _right now_, this would return the

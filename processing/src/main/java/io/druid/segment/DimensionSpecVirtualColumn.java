@@ -26,6 +26,7 @@ import com.google.common.base.Suppliers;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 
@@ -58,7 +59,7 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
   @Override
   public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
-    return ColumnSelectors.asMultiValued(asDimension(dimension, null, factory));
+    return ColumnSelectors.asMultiValued(asDimension(DefaultDimensionSpec.of(dimension), factory));
   }
 
   @Override
@@ -80,18 +81,15 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(
-      final String dimension,
-      final ExtractionFn extractionFn,
-      final ColumnSelectorFactory factory
-  )
+  public DimensionSelector asDimension(DimensionSpec dimension, ColumnSelectorFactory factory)
   {
-    Preconditions.checkArgument(dimension.equals(outputName));
+    Preconditions.checkArgument(outputName.equals(dimension.getDimension()));
     DimensionSelector selector = factory.makeDimensionSelector(dimensionSpec);
+    ExtractionFn extractionFn = dimension.getExtractionFn();
     if (extractionFn == null) {
       return selector;
     }
-    return new DelegatedDimensionSelector(selector)
+    return new DimensionSelector.Delegated(selector)
     {
       @Override
       public Object lookupName(int id)

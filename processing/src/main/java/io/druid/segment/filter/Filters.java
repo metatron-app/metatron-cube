@@ -73,7 +73,6 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.query.ordering.Direction;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
-import io.druid.segment.DelegatedDimensionSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -207,7 +206,7 @@ public class Filters
       return ColumnSelectors.asArray(selector, type.subElement(ValueDesc.UNKNOWN));
     }
     // toString, whatsoever
-    return ColumnSelectors.asSelector(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
+    return ObjectColumnSelector.string(() -> Objects.toString(selector.get(), null));
   }
 
   @SuppressWarnings("unchecked")
@@ -318,7 +317,7 @@ public class Filters
 
   public static DimensionSelector combineIx(final DimensionSelector selector, final IntPredicate predicate)
   {
-    return new DelegatedDimensionSelector(selector)
+    return new DimensionSelector.Delegated(selector)
     {
       private final IntList scratch = new IntList();
 

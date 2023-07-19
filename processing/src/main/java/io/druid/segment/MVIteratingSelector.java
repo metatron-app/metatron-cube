@@ -19,7 +19,6 @@
 
 package io.druid.segment;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
@@ -35,7 +34,7 @@ import io.druid.segment.filter.Filters;
 import java.util.Map;
 import java.util.Set;
 
-public class MVIteratingSelector extends DelegatedDimensionSelector implements Supplier<IndexedID>
+public class MVIteratingSelector extends DimensionSelector.Delegated
 {
   private final MVIterator iterator;
   private ValueMatcher matcher;
@@ -58,20 +57,19 @@ public class MVIteratingSelector extends DelegatedDimensionSelector implements S
     return iterator.update(super.getRow());
   }
 
-  public void augment(ValueMatcher matcher)
+  public IndexedID iterator()
+  {
+    return iterator;
+  }
+
+  private void augment(ValueMatcher matcher)
   {
     this.matcher = ValueMatchers.and(this.matcher, matcher);
   }
 
-  public ObjectColumnSelector asObjectSelector()
+  private ObjectColumnSelector asObjectSelector()
   {
-    return ColumnSelectors.asSelector(ValueDesc.INDEXED_ID, this);
-  }
-
-  @Override
-  public IndexedID get()
-  {
-    return iterator;
+    return ObjectColumnSelector.typed(ValueDesc.INDEXED_ID, this::iterator);
   }
 
   private class MVIterator implements IndexedID, IndexedInts

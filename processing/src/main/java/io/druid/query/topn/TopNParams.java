@@ -51,7 +51,7 @@ public class TopNParams
     this.cursor = cursor;
     this.cardinality = cardinality;
     this.numValuesPerPass = numValuesPerPass;
-    this.factory = BaseTopNAlgorithm.wrap(cursor, dimSelector);
+    this.factory = cursor.forAggregators();
     this.aggregators = Aggregators.makeAggregators(factories, factory);
   }
 

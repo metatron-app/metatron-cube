@@ -26,7 +26,12 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.select.TableFunctionSpec;
+import io.druid.segment.bitmap.BitSets;
+import io.druid.segment.bitmap.IntIterable;
+import io.druid.segment.bitmap.IntIterators;
 
+import java.util.BitSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 
 public class Cursors
@@ -183,9 +188,40 @@ public class Cursors
     }
 
     @Override
+    public ColumnSelectorFactory forAggregators()
+    {
+      return this;    // todo UDTF + VC?
+    }
+
+    @Override
     public ScanContext scanContext()
     {
       return delegated.scanContext();
     }
+  }
+
+  public static IntIterable wrap(Cursor cursor)
+  {
+    if (cursor.isDone()) {
+      return IntIterable.EMPTY;
+    }
+    ScanContext context = cursor.scanContext();
+    if (context.is(Scanning.FULL)) {
+      return () -> null;
+    }
+    if (context.awareTargetRows()) {
+      AtomicBoolean first = new AtomicBoolean(true);
+      return () -> {
+        if (!first.compareAndSet(true, false)) {
+          cursor.reset();
+        }
+        return IntIterators.wrap(cursor);
+      };
+    }
+    final BitSet rows = new BitSet();
+    for (; !cursor.isDone(); cursor.advance()) {
+      rows.set(cursor.offset());
+    }
+    return () -> BitSets.iterator(rows);
   }
 }

@@ -36,9 +36,9 @@ public interface ComplexColumn extends ColumnAccess
 {
   ValueDesc getType();
 
-  CompressionStrategy compressionType();  // just for index viewer
+  int numRows();
 
-  int size();
+  CompressionStrategy compressionType();  // just for index viewer
 
   interface StructColumn extends ComplexColumn
   {
@@ -51,6 +51,22 @@ public interface ComplexColumn extends ColumnAccess
     Column getField(String field);
 
     Map<String, Object> getStats(String field);
+  }
+
+  interface MapColumn extends ComplexColumn
+  {
+    Column getKey();
+
+    Column getValue();
+
+    default ValueDesc getValueType()
+    {
+      return getValue().getType();
+    }
+
+    CompressionStrategy keyCompressionType();
+
+    CompressionStrategy valueCompressionType();
   }
 
   class Compressed extends ColumnAccess.Compressed implements ComplexColumn
@@ -82,12 +98,6 @@ public interface ComplexColumn extends ColumnAccess
     public CompressionStrategy compressionType()
     {
       return compression;
-    }
-
-    @Override
-    public int size()
-    {
-      return numRows();
     }
   }
 }

@@ -193,7 +193,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
             iterator = context.dictionaryIterator(dimension);
           } else {
             final IntSet set = new IntOpenHashSet();
-            final RowSupplier supplier = encoded.row(context.selectivity());
+            final RowSupplier supplier = encoded.row(context);
             encoded.scan(context.rowIterator(), (x, v) -> set.add(supplier.row(x)));
             iterator = IntIterators.from(IntList.of(set.toIntArray()).sort());
           }

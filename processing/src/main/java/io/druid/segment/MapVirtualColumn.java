@@ -27,6 +27,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.data.IndexedInts;
@@ -35,13 +36,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+
+import static io.druid.data.input.Row.MAP_KEY;
+import static io.druid.data.input.Row.MAP_VALUE;
 
 /**
  */
-public class MapVirtualColumn implements VirtualColumn
+public class MapVirtualColumn implements VirtualColumn.IndexProvider
 {
-  private static final String MAP_KEY = "__key";
-  private static final String MAP_VALUE = "__value";
+  public static VirtualColumn implict(String metric)
+  {
+    return new ImplicitMapVirtualColumn(metric);
+  }
 
   private static final byte VC_TYPE_ID = 0x00;
 
@@ -49,6 +56,8 @@ public class MapVirtualColumn implements VirtualColumn
   private final String keyDimension;
   private final String valueDimension;
   private final String valueMetric;
+
+  private final KeyIndexedVirtualColumn keyIndexed;
 
   @JsonCreator
   public MapVirtualColumn(
@@ -69,6 +78,7 @@ public class MapVirtualColumn implements VirtualColumn
     this.valueDimension = valueDimension;
     this.valueMetric = valueMetric;
     this.outputName = outputName;
+    this.keyIndexed = asKeyIndexed();
   }
 
   @Override
@@ -256,12 +266,15 @@ public class MapVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(DimensionSpec dimensionSpec, ColumnSelectorFactory factory)
   {
+    String dimension = dimensionSpec.getDimension();
+    ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
     Preconditions.checkArgument(dimension.startsWith(outputName));
-    final int index = dimension.indexOf('.', outputName.length());
+
+    int index = dimension.indexOf('.', outputName.length());
     if (index < 0) {
-      return asKeyIndexed().asDimension(dimension, extractionFn, factory);
+      return keyIndexed.asDimension(dimensionSpec, factory);
     }
     String target = dimension.substring(index + 1);
     if (MAP_KEY.equals(target)) {
@@ -290,7 +303,7 @@ public class MapVirtualColumn implements VirtualColumn
                   .append(keyDimension, valueDimension, valueMetric, outputName);
   }
 
-  public KeyIndexedVirtualColumn asKeyIndexed()
+  private KeyIndexedVirtualColumn asKeyIndexed()
   {
     return new KeyIndexedVirtualColumn(
         keyDimension,
@@ -373,5 +386,23 @@ public class MapVirtualColumn implements VirtualColumn
            ", valueMetric='" + valueMetric + '\'' +
            ", outputName='" + outputName + '\'' +
            '}';
+  }
+
+  @Override
+  public String sourceColumn()
+  {
+    return keyDimension;
+  }
+
+  @Override
+  public Set<String> targetColumns()
+  {
+    return keyIndexed.targetColumns();
+  }
+
+  @Override
+  public ColumnSelectorFactory override(ColumnSelectorFactory factory)
+  {
+    return keyIndexed.override(factory);
   }
 }

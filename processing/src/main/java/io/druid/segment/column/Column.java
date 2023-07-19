@@ -23,6 +23,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.segment.ExternalIndexProvider;
+import io.druid.segment.column.ComplexColumn.MapColumn;
 import io.druid.segment.column.ComplexColumn.StructColumn;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
@@ -98,6 +99,18 @@ public interface Column
 
   default Column getField(String fieldName)
   {
-    return getType().isStruct() ? ((StructColumn) getComplexColumn()).getField(fieldName) : null;
+    ValueDesc type = getType();
+    if (type.isStruct()) {
+      return ((StructColumn) getComplexColumn()).getField(fieldName);
+    }
+    if (type.isMap()) {
+      MapColumn column = (MapColumn) getComplexColumn();
+      if (Row.MAP_KEY.equals(fieldName)) {
+        return column.getKey();
+      } else if (Row.MAP_VALUE.equals(fieldName)) {
+        return column.getValue();
+      }
+    }
+    return null;
   }
 }

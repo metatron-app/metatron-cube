@@ -27,7 +27,6 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.IndexProvidingSelector;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -38,14 +37,6 @@ import java.util.List;
 public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Parameters extends TopNParams>
     implements TopNAlgorithm<DimValSelector, Parameters>
 {
-  protected static ColumnSelectorFactory wrap(ColumnSelectorFactory factory, DimensionSelector selector)
-  {
-    if (selector instanceof IndexProvidingSelector) {
-      return ((IndexProvidingSelector) selector).wrapFactory(factory);
-    }
-    return factory;
-  }
-
   protected static BufferAggregator[] makeBufferAggregators(
       ColumnSelectorFactory cursor,
       List<AggregatorFactory> aggregatorSpecs

@@ -26,7 +26,6 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.inject.Inject;
 import io.druid.cache.SessionCache;
@@ -64,10 +63,8 @@ import io.druid.segment.Cuboids;
 import io.druid.segment.Cursor;
 import io.druid.segment.Cursors;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.IndexProvidingSelector;
 import io.druid.segment.Rowboat;
 import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -83,7 +80,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.IntFunction;
@@ -234,22 +230,12 @@ public class GroupByQueryEngine
       IntList svDimensions = IntList.sizeOf(selectors.length);
       IntList mvDimensions = IntList.sizeOf(selectors.length);
 
-      List<IndexProvidingSelector> providers = Lists.newArrayList();
-      Set<String> indexedColumns = Sets.newHashSet();
-
+      ColumnSelectorFactory factory = cursor.forAggregators();
       Supplier<TypeResolver> resolver = Suppliers.ofInstance(source);
       for (int i = 0; i < selectors.length; i++) {
         DimensionSpec dimensionSpec = dimensionSpecs.get(i);
-        selectors[i] = cursor.makeDimensionSelector(dimensionSpec);
+        selectors[i] = factory.makeDimensionSelector(dimensionSpec);
         dimensionTypes[i] = dimensionSpec.resolve(resolver);
-        if (selectors[i] instanceof IndexProvidingSelector) {
-          IndexProvidingSelector provider = (IndexProvidingSelector) selectors[i];
-          if (indexedColumns.removeAll(provider.targetColumns())) {
-            throw new IllegalArgumentException("Found conflicts between index providers");
-          }
-          indexedColumns.addAll(provider.targetColumns());
-          providers.add(provider);
-        }
         if (selectors[i] instanceof DimensionSelector.SingleValued) {
           svDimensions.add(i);
         } else {
@@ -332,7 +318,6 @@ public class GroupByQueryEngine
         this.rowUpdater = new RowUpdater(pool);
       }
 
-      final ColumnSelectorFactory factory = VirtualColumns.wrap(providers, cursor);
       final List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
       aggregators = new BufferAggregator[aggregatorSpecs.size()];
       increments = new int[aggregatorSpecs.size() + 1];

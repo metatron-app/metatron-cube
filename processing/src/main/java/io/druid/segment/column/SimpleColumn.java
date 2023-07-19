@@ -114,7 +114,7 @@ class SimpleColumn implements Column
   {
     if (genericColumn != null) {
       try (GenericColumn column = genericColumn.get()) {
-        return column.size();
+        return column.numRows();
       }
       catch (Throwable e) {
         // ignore

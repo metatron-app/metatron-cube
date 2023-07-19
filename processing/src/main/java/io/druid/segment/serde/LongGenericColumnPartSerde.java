@@ -184,7 +184,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
     }
 
     @Override
-    public int size()
+    public int numRows()
     {
       return numRows;
     }
@@ -215,7 +215,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
     @Override
     public void scan(IntIterator iterator, LongScanner scanner)
     {
-      final IntIterator it = IntIterators.except(iterator, nulls, size());
+      final IntIterator it = IntIterators.except(iterator, nulls, numRows());
       final Int2LongFunction supplier = x -> buffer.get(x);
       if (it == null) {
         for (int i = 0; i < numRows; i++) {
@@ -231,7 +231,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
     @Override
     public void consume(IntIterator iterator, IntLongConsumer consumer)
     {
-      final IntIterator it = IntIterators.except(iterator, nulls, size());
+      final IntIterator it = IntIterators.except(iterator, nulls, numRows());
       if (it == null) {
         for (int i = 0; i < numRows; i++) {
           consumer.apply(i, buffer.get(i));
@@ -247,7 +247,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
     @Override
     public LongStream stream(IntIterator iterator)
     {
-      return IntIterators.filteredStream(iterator, nulls, size()).mapToLong(x -> buffer.get(x));
+      return IntIterators.filteredStream(iterator, nulls, numRows()).mapToLong(x -> buffer.get(x));
     }
 
     private static abstract class Timestamp extends LongTypeGenericColumn implements TimestampType

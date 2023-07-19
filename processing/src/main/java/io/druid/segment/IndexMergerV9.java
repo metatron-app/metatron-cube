@@ -890,6 +890,9 @@ public class IndexMergerV9 extends IndexMerger
         if (type.isStruct()) {
           return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec, true));
         }
+        if (type.isMap()) {
+          return MapColumnSerializer.create(metric, type, compression, bitmap);
+        }
         return ComplexColumnSerializer.create(metric, type, secondary, compression);
       default:
         throw new ISE("Unknown type[%s]", type);

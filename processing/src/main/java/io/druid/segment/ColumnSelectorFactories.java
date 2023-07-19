@@ -222,6 +222,12 @@ public class ColumnSelectorFactories
     {
       throw new UnsupportedOperationException("reset");
     }
+
+    @Override
+    public ColumnSelectorFactory forAggregators()
+    {
+      return delegate instanceof Cursor ? ((Cursor) delegate).forAggregators() : delegate;
+    }
   }
 
   public static abstract class ArrayIndexed extends ColumnSelectorFactory.ExprUnSupport
@@ -388,7 +394,7 @@ public class ColumnSelectorFactories
       final int index = resolver.getColumnNames().indexOf(columnName);
       if (index >= 0) {
         final ValueDesc resolved = resolver.getColumnTypes().get(index);
-        return ColumnSelectors.asSelector(resolved, () -> in.get()[index]);
+        return ObjectColumnSelector.typed(resolved, () -> in.get()[index]);
       }
       final VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
       if (virtualColumn != null) {
@@ -429,12 +435,12 @@ public class ColumnSelectorFactories
         final ValueDesc resolved = resolver.getColumnTypes().get(index);
         if (Column.TIME_COLUMN_NAME.equals(columnName)) {
           if (resolved.isDateTime()) {
-            return ColumnSelectors.asSelector(ValueDesc.DATETIME, () -> in.get().getTimestamp());
+            return ObjectColumnSelector.typed(ValueDesc.DATETIME, () -> in.get().getTimestamp());
           } else {
-            return ColumnSelectors.asSelector(ValueDesc.LONG, () -> in.get().getTimestampFromEpoch());
+            return ObjectColumnSelector.typed(ValueDesc.LONG, () -> in.get().getTimestampFromEpoch());
           }
         }
-        return ColumnSelectors.asSelector(resolved, () -> in.get().getRaw(columnName));
+        return ObjectColumnSelector.typed(resolved, () -> in.get().getRaw(columnName));
       }
       final VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
       if (virtualColumn != null) {
@@ -583,37 +589,37 @@ public class ColumnSelectorFactories
     public ObjectColumnSelector makeObjectColumnSelector(final String column)
     {
       if (Column.TIME_COLUMN_NAME.equals(column)) {
-        return ColumnSelectors.asSelector(ValueDesc.LONG, () -> in.get().getTimestampFromEpoch());
+        return ObjectColumnSelector.typed(ValueDesc.LONG, () -> in.get().getTimestampFromEpoch());
       }
       final ValueDesc type = resolve(column, ValueDesc.UNKNOWN);
       if (type.isDimension()) {
-        return ColumnSelectors.asSelector(type, () -> in.get().getDimension(column));
+        return ObjectColumnSelector.typed(type, () -> in.get().getDimension(column));
       }
       switch (type.type()) {
         case BOOLEAN:
-          return ColumnSelectors.asSelector(type, () -> in.get().getBoolean(column));
+          return ObjectColumnSelector.typed(type, () -> in.get().getBoolean(column));
         case FLOAT:
-          return ColumnSelectors.asSelector(type, () -> in.get().getFloat(column));
+          return ObjectColumnSelector.typed(type, () -> in.get().getFloat(column));
         case LONG:
-          return ColumnSelectors.asSelector(type, () -> in.get().getLong(column));
+          return ObjectColumnSelector.typed(type, () -> in.get().getLong(column));
         case DOUBLE:
-          return ColumnSelectors.asSelector(type, () -> in.get().getDouble(column));
+          return ObjectColumnSelector.typed(type, () -> in.get().getDouble(column));
         case STRING:
-          return ColumnSelectors.asSelector(type, () -> in.get().getString(column));
+          return ObjectColumnSelector.typed(type, () -> in.get().getString(column));
       }
 
       if (type.isUnknown() || type.isPrimitive() || !deserializeComplexMetrics) {
-        return ColumnSelectors.asSelector(type, () -> in.get().getRaw(column));
+        return ObjectColumnSelector.typed(type, () -> in.get().getRaw(column));
       }
       final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
       if (serde == null) {
-        throw new ISE("Don't know how to handle type[%s]", type);
+        return ObjectColumnSelector.typed(type, () -> in.get().get(column));
       }
       final ComplexMetricExtractor extractor = serde.getExtractor(factory.getExtractHints());
       if (extractor == null) {
         throw new ISE("Don't know how to handle type[%s].%s", type, factory.getExtractHints());
       }
-      return ColumnSelectors.asSelector(type, () -> extractor.extractValue(in.get(), column));
+      return ObjectColumnSelector.typed(type, () -> extractor.extractValue(in.get(), column));
     }
 
     @Override
@@ -831,7 +837,7 @@ public class ColumnSelectorFactories
               @Override
               public ScanContext scanContext()
               {
-                return new ScanContext(Scanning.OTHER, null, null, null, -1);
+                return new ScanContext(Scanning.OTHER, null, null, null, -1, null);
               }
             };
           }

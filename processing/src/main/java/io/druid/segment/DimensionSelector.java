@@ -23,16 +23,20 @@ import io.druid.common.guava.BufferRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.bitmap.BitSets;
+import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.IntIntConsumer;
 import io.druid.segment.column.IntScanner;
 import io.druid.segment.column.RowSupplier;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
+import io.druid.segment.data.Offset;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.roaringbitmap.IntIterator;
 
 import java.util.BitSet;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 
 /**
@@ -154,6 +158,52 @@ public interface DimensionSelector
     }
   }
 
+  class Delegated implements DimensionSelector
+  {
+    protected final DimensionSelector delegate;
+
+    public Delegated(DimensionSelector delegate)
+    {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public IndexedInts getRow()
+    {
+      return delegate.getRow();
+    }
+
+    @Override
+    public int getValueCardinality()
+    {
+      return delegate.getValueCardinality();
+    }
+
+    @Override
+    public Object lookupName(int id)
+    {
+      return delegate.lookupName(id);
+    }
+
+    @Override
+    public ValueDesc type()
+    {
+      return delegate.type();
+    }
+
+    @Override
+    public int lookupId(Object name)
+    {
+      return delegate.lookupId(name);
+    }
+
+    @Override
+    public boolean withSortedDictionary()
+    {
+      return delegate.withSortedDictionary();
+    }
+  }
+
   interface Mimic extends DimensionSelector, ObjectColumnSelector
   {
   }
@@ -185,5 +235,258 @@ public interface DimensionSelector
       }
     }
     return rawAccess;
+  }
+
+  static DimensionSelector asSelector(
+      DictionaryEncodedColumn encoded, ExtractionFn extractionFn, ScanContext context, Offset offset)
+  {
+    return asSelector(encoded, extractionFn, context, offset, Function.identity());
+  }
+
+  static DimensionSelector asSelector(
+      DictionaryEncodedColumn encoded,
+      ExtractionFn extractionFn,
+      ScanContext context,
+      Offset offset,
+      Function<IndexedInts, IndexedInts> indexer
+  )
+  {
+    final Dictionary<String> dictionary = encoded.dictionary().dedicated();
+    if (encoded.hasMultipleValues()) {
+      if (extractionFn != null) {
+        return new DimensionSelector()
+        {
+          @Override
+          public IndexedInts getRow()
+          {
+            return indexer.apply(encoded.getMultiValueRow(offset.get()));
+          }
+
+          @Override
+          public int getValueCardinality()
+          {
+            return dictionary.size();
+          }
+
+          @Override
+          public Object lookupName(int id)
+          {
+            return extractionFn.apply(dictionary.get(id));
+          }
+
+          @Override
+          public ValueDesc type()
+          {
+            return ValueDesc.STRING;
+          }
+
+          @Override
+          public int lookupId(Object name)
+          {
+            throw new UnsupportedOperationException(
+                "cannot perform lookup when applying an extraction function"
+            );
+          }
+
+          @Override
+          public boolean withSortedDictionary()
+          {
+            return dictionary.isSorted() && extractionFn.preservesOrdering();
+          }
+        };
+      } else {
+        return new DimensionSelector.WithRawAccess()
+        {
+          @Override
+          public Dictionary getDictionary()
+          {
+            return dictionary;
+          }
+
+          @Override
+          public IndexedInts getRow()
+          {
+            return indexer.apply(encoded.getMultiValueRow(offset.get()));
+          }
+
+          @Override
+          public int getValueCardinality()
+          {
+            return dictionary.size();
+          }
+
+          @Override
+          public Object lookupName(int id)
+          {
+            return dictionary.get(id);
+          }
+
+          @Override
+          public ValueDesc type()
+          {
+            return ValueDesc.STRING;
+          }
+
+          @Override
+          public byte[] getAsRaw(int id)
+          {
+            return dictionary.getAsRaw(id);
+          }
+
+          @Override
+          public BufferRef getAsRef(int id)
+          {
+            return dictionary.getAsRef(id);
+          }
+
+          @Override
+          public int lookupId(Object name)
+          {
+            return dictionary.indexOf((String) name);
+          }
+
+          @Override
+          public boolean withSortedDictionary()
+          {
+            return dictionary.isSorted();
+          }
+        };
+      }
+    } else {
+      if (extractionFn != null) {
+        final RowSupplier supplier = encoded.row(context.filtering());
+        final IndexedInts row = IndexedInts.from(() -> supplier.row(offset.get()));
+        return new DimensionSelector()
+        {
+          @Override
+          public IndexedInts getRow()
+          {
+            return indexer.apply(row);
+          }
+
+          @Override
+          public int getValueCardinality()
+          {
+            return dictionary.size();
+          }
+
+          @Override
+          public Object lookupName(int id)
+          {
+            return extractionFn.apply(dictionary.get(id));
+          }
+
+          @Override
+          public ValueDesc type()
+          {
+            return ValueDesc.STRING;
+          }
+
+          @Override
+          public int lookupId(Object name)
+          {
+            throw new UnsupportedOperationException(
+                "cannot perform lookup when applying an extraction function"
+            );
+          }
+
+          @Override
+          public boolean withSortedDictionary()
+          {
+            return dictionary.isSorted() && extractionFn.preservesOrdering();
+          }
+        };
+      } else {
+        // using an anonymous class is faster than creating a class that stores a copy of the value
+        final RowSupplier supplier = encoded.row(context.filtering());
+        final IndexedInts row = IndexedInts.from(() -> supplier.row(offset.get()));
+        return new DimensionSelector.Scannable()
+        {
+          @Override
+          public RowSupplier rows()
+          {
+            return supplier;
+          }
+
+          @Override
+          public Dictionary getDictionary()
+          {
+            return dictionary;
+          }
+
+          @Override
+          public IndexedInts getRow()
+          {
+            return indexer.apply(row);
+          }
+
+          @Override
+          public int getValueCardinality()
+          {
+            return dictionary.size();
+          }
+
+          @Override
+          public Object lookupName(int id)
+          {
+            return dictionary.get(id);
+          }
+
+          @Override
+          public ValueDesc type()
+          {
+            return ValueDesc.STRING;
+          }
+
+          @Override
+          public byte[] getAsRaw(int id)
+          {
+            return dictionary.getAsRaw(id);
+          }
+
+          @Override
+          public BufferRef getAsRef(int id)
+          {
+            return dictionary.getAsRef(id);
+          }
+
+          @Override
+          public void scan(Tools.Scanner scanner)
+          {
+            dictionary.scan(row.get(0), scanner);
+          }
+
+          @Override
+          public <R> R apply(Tools.Function<R> function)
+          {
+            return dictionary.apply(row.get(0), function);
+          }
+
+          @Override
+          public int lookupId(Object name)
+          {
+            return dictionary.indexOf((String) name);
+          }
+
+          @Override
+          public boolean withSortedDictionary()
+          {
+            return dictionary.isSorted();
+          }
+
+          @Override
+          public void scan(IntIterator iterator, IntScanner scanner)
+          {
+            encoded.scan(iterator, scanner);
+          }
+
+          @Override
+          public void consume(IntIterator iterator, IntIntConsumer consumer)
+          {
+            encoded.consume(iterator, consumer);
+          }
+        };
+      }
+    }
   }
 }
