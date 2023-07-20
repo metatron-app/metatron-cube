@@ -9,7 +9,10 @@
     "dimensions": ["user_cid", "user_tid", "birthdate", "gender"]
   },
   "metricsSpec":[
-    {"name": "email", "typeName": "string"},
+    {
+      "name": "email",
+      "typeName": "string"
+    },
     {
       "name": "terms",
       "typeExpr": {
@@ -22,7 +25,6 @@
         "proactive_receive": "tag"
       }
     },
-    {"name": "ci_profile.xdr_category", "typeName": "map(string,float)"},
     {
       "name": "ci_profile",
       "typeExpr": {
@@ -40,36 +42,34 @@
       }
     },
     {
+      "name": "ci_profile.xdr_category",
+      "typeName": "map(string,float)"
+    },
+    {
       "name": "adot_usage",
       "typeExpr": {
         "life_cycle": "tag",
+        "quest": {
+          "cube": {
+            "received": "int",
+            "retention": "int",
+            "received_percentile": "int"
+          },
+          "cone": {
+            "received": "int",
+            "retention": "int",
+            "received_percentile": "int"
+          }
+        },
+        "residence_time":{
+          "sumary": {
+            "daily_avg_time_sec": "long",
+            "percentile": "int"
+          }
+        },
         "stickness": {
           "day_7": "float",
           "day_30": "float"
-        }
-      }
-    },
-    {
-      "name": "adot_usage.quest",
-      "typeExpr": {
-        "cube": {
-          "received": "int",
-          "retention": "int",
-          "received_percentile": "int"
-        },
-        "cone": {
-          "received": "int",
-          "retention": "int",
-          "received_percentile": "int"
-        }
-      }
-    },
-    {
-      "name": "adot_usage.residence_time",
-      "typeExpr": {
-        "sumary": {
-          "daily_avg_time_sec": "long",
-          "percentile": "int"
         }
       }
     }

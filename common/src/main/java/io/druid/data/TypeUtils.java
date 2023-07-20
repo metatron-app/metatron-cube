@@ -90,11 +90,16 @@ public class TypeUtils
       int lx = seekWithEscape(string, prev, '(');
       if (lx > 0 && lx < i) {
         int rx = seekWithEscape(string, lx + 1, ')');
+        for (lx = seekWithEscape(string, lx + 1, '('); lx > 0 && lx < rx;
+             lx = seekWithEscape(string, lx + 1, '('), rx = seekWithEscape(string, rx + 1, ')')) {
+        }
         if (rx > 0) {
           i = rx + 1;
         }
       }
-      splits.add(trimStartingSpaces(string.substring(prev, i)));
+      if (prev < i) {
+        splits.add(trimStartingSpaces(string.substring(prev, i)));
+      }
       prev = i + 1;
     }
     if (prev < string.length()) {
