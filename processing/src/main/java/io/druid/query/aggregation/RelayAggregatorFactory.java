@@ -23,12 +23,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.IOUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.aggregation.AggregatorFactory.SQLSupport;
@@ -158,8 +160,20 @@ public class RelayAggregatorFactory extends AggregatorFactory implements TypeRes
       @JsonProperty("name") String name,
       @JsonProperty("columnName") String columnName,
       @JsonProperty("typeName") String typeName,
+      @JsonProperty("typeExpr") JsonNode typeExpression,
       @JsonProperty("relayType") RelayType relayType,
       @JsonProperty("extractHints") List<String> extractHints
+  )
+  {
+    this(name, columnName, typeName != null ? typeName : TypeUtils.parseType(typeExpression), relayType, extractHints);
+  }
+
+  public RelayAggregatorFactory(
+      String name,
+      String columnName,
+      String typeName,
+      RelayType relayType,
+      List<String> extractHints
   )
   {
     this.name = Preconditions.checkNotNull(name == null ? columnName : name);

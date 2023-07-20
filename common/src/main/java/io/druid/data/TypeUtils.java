@@ -19,14 +19,48 @@
 
 package io.druid.data;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
 public class TypeUtils
 {
+  public static String parseType(JsonNode node)
+  {
+    try {
+      if (node != null && node.isObject()) {
+        return append(node, new StringBuilder()).toString();
+      }
+    }
+    catch (Exception e) {
+      // ignore
+    }
+    return null;
+  }
+
+  private static StringBuilder append(JsonNode node, StringBuilder b)
+  {
+    if (node.isObject()) {
+      b.append("struct(");
+      Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+      while (fields.hasNext()) {
+        Map.Entry<String, JsonNode> entry = fields.next();
+        b.append(entry.getKey()).append(':');
+        append(entry.getValue(), b);
+        if (fields.hasNext()) {
+          b.append(',');
+        }
+      }
+      return b.append(')');
+    }
+    return b.append(node.asText());
+  }
+
   // struct(a:b,c:d) --> struct, a:b, c:d
   // struct(a:b,family:struct(c:d,e:f)) --> struct a:b family:struct(c:d,e:f)
   public static String[] splitDescriptiveType(String string)

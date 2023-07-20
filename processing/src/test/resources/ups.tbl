@@ -31,33 +31,33 @@
     }
   },
   "adot_usage": {
-      "life_cycle": "휴면",
-      "quest": {
-        "cube": {
-          "received": 0,
-          "retention": 0,
-          "received_percentile": 0.0
-        },
-        "cone": {
-          "received": 100,
-          "retention": 100,
-          "received_percentile": 49
-        }
+    "life_cycle": "휴면",
+    "quest": {
+      "cube": {
+        "received": 0,
+        "retention": 0,
+        "received_percentile": 0.0
       },
-      "residence_time": {
-        "summary": {
-          "daily_avg_time_sec": null,
-          "percentile": null
-        },
-        "detail": {
-
-        }
-      },
-      "stickness": {
-        "day_7": 0,
-        "day_30": 0
+      "cone": {
+        "received": 100,
+        "retention": 100,
+        "received_percentile": 49
       }
+    },
+    "residence_time": {
+      "summary": {
+        "daily_avg_time_sec": null,
+        "percentile": null
+      },
+      "detail": {
+
+      }
+    },
+    "stickness": {
+      "day_7": 0,
+      "day_30": 0
     }
+  }
 }
 
 {
@@ -93,31 +93,32 @@
     }
   },
   "adot_usage": {
-      "life_cycle": "안휴면",
-      "quest": {
-        "cube": {
-          "received": 0,
-          "retention": 0,
-          "received_percentile": 0.0
-        },
-        "cone": {
-          "received": 10,
-          "retention": null,
-          "received_percentile": 4
-        }
+    "life_cycle": "안휴면",
+    "quest": {
+      "cube": {
+        "received": 0,
+        "retention": 0,
+        "received_percentile": 0.0
       },
-      "residence_time": {
-        "summary": {
-          "daily_avg_time_sec": null,
-          "percentile": null
-        },
-        "detail": {
-
-        }
-      },
-      "stickness": {
-        "day_7": 1,
-        "day_30": 0
+      "cone": {
+        "received": 10,
+        "retention": null,
+        "received_percentile": 4
       }
+    },
+    "residence_time": {
+      "summary": {
+        "daily_avg_time_sec": null,
+        "percentile": null
+      },
+      "detail": {
+
+      }
+    },
+    "stickness": {
+      "day_7": 1,
+      "day_30": 0
     }
+  }
 }
+
