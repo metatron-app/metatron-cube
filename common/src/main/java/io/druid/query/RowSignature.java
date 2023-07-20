@@ -237,7 +237,7 @@ public class RowSignature implements TypeResolver
 
   RowSignature.Builder appendStruct(RowSignature.Builder builder, String prefix, ValueDesc struct)
   {
-    String[] description = TypeUtils.splitDescriptiveType(struct.typeName());
+    String[] description = TypeUtils.splitDescriptiveType(struct);
     if (description == null) {
       return builder;   // cannot
     }
@@ -259,7 +259,7 @@ public class RowSignature implements TypeResolver
 
   RowSignature.Builder appendMap(RowSignature.Builder builder, String prefix, ValueDesc struct)
   {
-    String[] description = TypeUtils.splitDescriptiveType(struct.typeName());
+    String[] description = TypeUtils.splitDescriptiveType(struct);
     if (description == null) {
       return builder;   // cannot
     }
@@ -331,13 +331,28 @@ public class RowSignature implements TypeResolver
   {
     int index = columnNames.indexOf(column);
     if (index >= 0) {
-      ValueDesc type = columnTypes.get(index);
-      String[] description = type.getDescription();
-      if (type.isStruct() && description != null) {
-        for (int i = 1; i < description.length; i++) {
-          int split = description[i].indexOf(':');
-          if (element.equals(description[i].substring(0, split))) {
-            return ValueDesc.of(description[i].substring(split + 1));
+      return nested(columnTypes.get(index), element);
+    }
+    return null;
+  }
+
+  private ValueDesc nested(ValueDesc type, String element)
+  {
+    String[] description = type.getDescription();
+    if (!type.isStruct() || description == null) {
+      return null;
+    }
+    for (int i = 1; i < description.length; i++) {
+      int split = description[i].indexOf(':');
+      String fieldName = description[i].substring(0, split);
+      if (element.equals(fieldName)) {
+        return ValueDesc.of(description[i].substring(split + 1));
+      }
+      for (int x = element.lastIndexOf('.'); x > 0; x = element.lastIndexOf('.', x - 1)) {
+        if (element.substring(0, x).equals(fieldName)) {
+          ValueDesc resolved = nested(ValueDesc.of(description[i].substring(split + 1)), element.substring(x + 1));
+          if (resolved != null) {
+            return resolved;
           }
         }
       }

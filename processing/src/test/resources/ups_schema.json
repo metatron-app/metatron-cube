@@ -29,21 +29,33 @@
       "name": "ci_profile",
       "typeExpr": {
         "base": "boolean",
-        "life_style": "tag",
-        "segment": "tag",
-        "shopping_channel": "tag",
         "family": {
           "fmly_memb_cnt": "int",
           "hhld_memb_cnt": "int",
           "child_y": "boolean",
           "adult_child_y": "boolean",
           "married": "boolean"
-        }
+        },
+        "life_stage": "tag",
+        "life_style": "tag",
+        "segment": "tag",
+        "shopping_channel": "tag",
+        "transport": "tag",
+        "media": {
+          "bf_m1_flo_dt_ratio": "float",
+          "bf_m1_netflix_dt_ratio": "float",
+          "bf_m1_youtube_dt_ratio": "float"
+        },
+        "mno_usage": {
+          "bf_m1_arpu": "int",
+          "bf_m3_avg_arpu": "int",
+          "data_usag_amt": "int",
+          "eqp_out_prc": "int",
+          "google_dcb_amt": "int",
+          "google_dcb_cnt": "int"
+        },
+        "xdr_category": "map(string,float)"
       }
-    },
-    {
-      "name": "ci_profile.xdr_category",
-      "typeName": "map(string,float)"
     },
     {
       "name": "adot_usage",

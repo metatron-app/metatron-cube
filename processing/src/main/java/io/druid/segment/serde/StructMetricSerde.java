@@ -47,7 +47,7 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
 {
   public static Iterable<Pair<String, ValueDesc>> parse(ValueDesc type)
   {
-    String[] elements = TypeUtils.splitDescriptiveType(type.typeName());
+    String[] elements = TypeUtils.splitDescriptiveType(type);
     return elements == null ? Arrays.asList() : new StructMetricSerde(elements);
   }
 

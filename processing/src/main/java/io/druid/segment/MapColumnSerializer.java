@@ -49,7 +49,7 @@ public class MapColumnSerializer implements MetricColumnSerializer
   ) throws IOException
   {
     Preconditions.checkArgument(type.isMap());
-    String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+    String[] description = TypeUtils.splitDescriptiveType(type);
     if (description == null || description.length < 3) {
       throw new IAE("", type);
     }

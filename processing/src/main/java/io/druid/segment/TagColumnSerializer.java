@@ -56,7 +56,7 @@ public class TagColumnSerializer implements MetricColumnSerializer
   )
   {
     int maxValue = UnsignedBytes.toInt(UnsignedBytes.MAX_VALUE);
-    String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+    String[] description = TypeUtils.splitDescriptiveType(type);
     if (description != null && description.length > 0) {
       maxValue = Integer.parseInt(description[0]);
     }

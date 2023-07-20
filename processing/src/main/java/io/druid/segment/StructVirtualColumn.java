@@ -77,7 +77,7 @@ public class StructVirtualColumn implements VirtualColumn
   private ValueDesc nested(ValueDesc columnType, String field)
   {
     if (columnType.isMap()) {
-      String[] description = TypeUtils.splitDescriptiveType(columnType.typeName());
+      String[] description = TypeUtils.splitDescriptiveType(columnType);
       if (field.equals(Row.MAP_KEY)) {
         return description == null ? ValueDesc.STRING : ValueDesc.of(description[1]);
       }
@@ -130,7 +130,7 @@ public class StructVirtualColumn implements VirtualColumn
     ValueDesc type = selector.type();
     if (type.isMap()) {
       if (Row.MAP_KEY.equals(field)) {
-        String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+        String[] description = TypeUtils.splitDescriptiveType(type);
         return ObjectColumnSelector.typed(
             description == null ? ValueDesc.STRING : ValueDesc.of(description[1]),
             () -> {
@@ -140,7 +140,7 @@ public class StructVirtualColumn implements VirtualColumn
         );
       }
       if (Row.MAP_VALUE.equals(field)) {
-        String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+        String[] description = TypeUtils.splitDescriptiveType(type);
         return ObjectColumnSelector.typed(
             description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]),
             () -> {

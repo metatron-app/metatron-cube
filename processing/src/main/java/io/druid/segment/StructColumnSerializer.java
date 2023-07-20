@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import com.google.common.collect.Lists;
 import io.druid.common.utils.IOUtils;
-import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 import io.druid.segment.column.ColumnDescriptor;
@@ -42,8 +41,7 @@ public class StructColumnSerializer implements MetricColumnSerializer
     String prefix = metric + ".";
     List<String> fieldNames = Lists.newArrayList();
     List<MetricColumnSerializer> serializers = Lists.newArrayList();
-    StructMetricSerde struct = new StructMetricSerde(TypeUtils.splitDescriptiveType(type.typeName()));
-    for (Pair<String, ValueDesc> pair : struct) {
+    for (Pair<String, ValueDesc> pair : StructMetricSerde.parse(type)) {
       fieldNames.add(pair.lhs);
       serializers.add(factory.create(prefix + pair.lhs, pair.rhs));
     }

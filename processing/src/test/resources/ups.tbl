@@ -31,6 +31,19 @@
     "segment": "노년_영유아 부모",
     "shopping_channel": [ "소비_온라인_종합쇼핑몰" ],
     "transport": [ "기차", "택시", "지하철" ],
+    "media": {
+      "bf_m1_flo_dt_ratio": 0.83,
+      "bf_m1_netflix_dt_ratio": 0.37,
+      "bf_m1_youtube_dt_ratio": 0.43
+    },
+    "mno_usage": {
+      "bf_m1_arpu": 53819,
+      "bf_m3_avg_arpu": 56794,
+      "data_usag_amt": 47,
+      "eqp_out_prc": 1010900,
+      "google_dcb_amt": 0,
+      "google_dcb_cnt": 0
+    },
     "xdr_category": {
       "bf_m1_app_dt_ratio_cat_01": 0.87,
       "bf_m1_app_dt_ratio_cat_04": 0.83,
@@ -102,6 +115,19 @@
     "segment": "중년_영유아 부모",
     "shopping_channel": [ "시장" ],
     "transport": [ "버스", "지하철" ],
+    "media": {
+      "bf_m1_flo_dt_ratio": 0.83,
+      "bf_m1_netflix_dt_ratio": 0.37,
+      "bf_m1_youtube_dt_ratio": 0.43
+    },
+    "mno_usage": {
+      "bf_m1_arpu": 53819,
+      "bf_m3_avg_arpu": 56794,
+      "data_usag_amt": 47,
+      "eqp_out_prc": 1010900,
+      "google_dcb_amt": 0,
+      "google_dcb_cnt": 0
+    },
     "xdr_category": {
       "bf_m1_app_dt_ratio_cat_01": 0.87,
       "bf_m1_app_dt_ratio_cat_03": 0.83,

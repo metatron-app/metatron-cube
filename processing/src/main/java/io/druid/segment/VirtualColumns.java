@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.RowResolver;
@@ -104,17 +105,33 @@ public class VirtualColumns implements Iterable<VirtualColumn>
         continue;
       }
       ValueDesc valueType = schema.resolve(metric, ValueDesc.UNKNOWN);
-      if (valueType.isArray()) {
-        mapping.put(metric, ArrayVirtualColumn.implicit(metric));   // implicit array vc
-      } else if (valueType.isMap()) {
-        mapping.put(metric, MapVirtualColumn.implict(metric));      // implicit map vc
-      } else if (valueType.isStruct()) {
-        mapping.put(metric, StructVirtualColumn.implicit(metric));  // implicit struct vc
-      } else if (valueType.isBitSet()) {
-        mapping.put(metric, BitSetVirtualColumn.implicit(metric));  // implicit bitSet vc
-      }
+      extracted(mapping, metric, valueType);
     }
     return new VirtualColumns(mapping);
+  }
+
+  private static void extracted(Map<String, VirtualColumn> mapping, String metric, ValueDesc valueType)
+  {
+    if (valueType.isArray()) {
+      mapping.put(metric, ArrayVirtualColumn.implicit(metric));   // implicit array vc
+    } else if (valueType.isMap()) {
+      mapping.put(metric, MapVirtualColumn.implict(metric));      // implicit map vc
+    } else if (valueType.isStruct()) {
+      mapping.put(metric, StructVirtualColumn.implicit(metric));  // implicit struct vc
+      String[] description = TypeUtils.splitDescriptiveType(valueType);
+      if (description != null) {
+        String prefix = metric + ".";
+        for (int i = 1; i < description.length; i++) {
+          int ix = description[i].indexOf(':');
+          ValueDesc element = ValueDesc.of(description[i].substring(ix + 1));
+          if (needImplicitVC(element)) {
+            extracted(mapping, prefix + description[i].substring(0, ix), element);
+          }
+        }
+      }
+    } else if (valueType.isBitSet()) {
+      mapping.put(metric, BitSetVirtualColumn.implicit(metric));  // implicit bitSet vc
+    }
   }
 
   public static boolean needImplicitVC(ValueDesc valueType)

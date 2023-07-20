@@ -61,6 +61,11 @@ public class TypeUtils
     return b.append(node.asText());
   }
 
+  public static String[] splitDescriptiveType(ValueDesc type)
+  {
+    return splitDescriptiveType(type.typeName());
+  }
+
   // struct(a:b,c:d) --> struct, a:b, c:d
   // struct(a:b,family:struct(c:d,e:f)) --> struct a:b family:struct(c:d,e:f)
   public static String[] splitDescriptiveType(String string)

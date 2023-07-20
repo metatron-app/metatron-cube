@@ -70,7 +70,7 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
       }
       Preconditions.checkArgument(column.charAt(metric.length()) == '.');
       String postfix = column.substring(metric.length() + 1);
-      String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+      String[] description = TypeUtils.splitDescriptiveType(type);
       if (MAP_KEY.equals(postfix)) {
         return description == null ? null : ValueDesc.of(description[1]);
       }
@@ -112,7 +112,7 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
       if (selector instanceof MapColumnSelector) {
         return ((MapColumnSelector) selector).valueSelector();
       }
-      String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+      String[] description = TypeUtils.splitDescriptiveType(type);
       ValueDesc valueType = description == null ? ValueDesc.ARRAY : ValueDesc.ofArray(description[2]);
       return ObjectColumnSelector.typed(valueType, () ->
       {
@@ -163,7 +163,7 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
         ObjectColumnSelector values = ((MapColumnSelector) selector).valueSelector();
         return VirtualColumns.toDimensionSelector(values, extractionFn);
       }
-      String[] description = TypeUtils.splitDescriptiveType(type.typeName());
+      String[] description = TypeUtils.splitDescriptiveType(type);
       ValueDesc valueType = description == null ? ValueDesc.ARRAY : ValueDesc.ofArray(description[2]);
       ObjectColumnSelector values = ObjectColumnSelector.typed(valueType, () -> {
         Object value = selector.get();
