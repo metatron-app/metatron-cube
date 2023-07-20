@@ -324,7 +324,7 @@ public class IndexMergerV9 extends IndexMerger
           Map<String, ValueDesc> cubeMetricTypes = Maps.newHashMap();
           List<MetricColumnSerializer> cubeMetricWriters = Lists.newArrayList();
           for (AggregatorFactory aggregator : query.getAggregatorSpecs()) {
-            cubeMetricWriters.add(setupMetricsWriter(aggregator.getName(), aggregator.getOutputType(), indexer, false));
+            cubeMetricWriters.add(setupMetricsWriter(aggregator.getName(), aggregator.getOutputType(), indexer));
             cubeMetrics.add(aggregator.getName());
             cubeMetricTypes.put(aggregator.getName(), aggregator.getOutputType());
           }
@@ -852,7 +852,7 @@ public class IndexMergerV9 extends IndexMerger
     final List<MetricColumnSerializer> metWriters = Lists.newArrayListWithCapacity(metrics.size());
     for (String metric : metrics) {
       final ValueDesc type = metricTypeNames.get(metric);
-      metWriters.add(setupMetricsWriter(metric, type, indexSpec, false));
+      metWriters.add(setupMetricsWriter(metric, type, indexSpec));
     }
     for (MetricColumnSerializer writer : metWriters) {
       writer.open(ioPeon);
@@ -860,7 +860,7 @@ public class IndexMergerV9 extends IndexMerger
     return metWriters;
   }
 
-  private MetricColumnSerializer setupMetricsWriter(String metric, ValueDesc type, IndexSpec indexSpec, boolean nested)
+  private MetricColumnSerializer setupMetricsWriter(String metric, ValueDesc type, IndexSpec indexSpec)
       throws IOException
   {
     final BitmapSerdeFactory bitmap = indexSpec.getBitmapSerdeFactory();
@@ -879,13 +879,13 @@ public class IndexMergerV9 extends IndexMerger
       case DOUBLE:
         return DoubleColumnSerializer.create(metric, metCompression, bitmap, secondary, allowNullForNumbers);
       case STRING:
-        if (nested) {
-          return TagColumnSerializer.create(metric, type, compression, bitmap);
-        }
         return ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, secondary, compression);
       case COMPLEX:
+        if (type.isTag()) {
+          return TagColumnSerializer.create(metric, type, compression, bitmap);
+        }
         if (type.isStruct()) {
-          return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec, true));
+          return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec));
         }
         if (type.isMap()) {
           return MapColumnSerializer.create(metric, type, compression, bitmap);

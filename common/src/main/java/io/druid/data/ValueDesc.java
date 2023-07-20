@@ -80,6 +80,8 @@ public class ValueDesc implements Serializable, Cacheable
   public static final String STRING_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_TYPE;
   public static final String STRING_MULTIVALUED_TYPE = MULTIVALUED_PREFIX + STRING_TYPE;
 
+  public static final String TAG_TYPE = "tag";
+
   static {
     INTERNER.intern(STRING_TYPE);
     INTERNER.intern(FLOAT_TYPE);
@@ -112,6 +114,7 @@ public class ValueDesc implements Serializable, Cacheable
   public static final ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);
   public static final ValueDesc ARRAY = new ValueDesc(ARRAY_TYPE, List.class);
   public static final ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
+  public static final ValueDesc TAG = new ValueDesc(TAG_TYPE);
 
   // from expression
   public static final ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE, BigDecimal.class);
@@ -625,6 +628,11 @@ public class ValueDesc implements Serializable, Cacheable
   public boolean isString()
   {
     return type == ValueType.STRING;
+  }
+
+  public boolean isTag()
+  {
+    return TAG_TYPE.equals(typeName);
   }
 
   public boolean isDimension()

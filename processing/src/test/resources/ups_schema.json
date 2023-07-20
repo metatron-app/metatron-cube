@@ -10,14 +10,26 @@
   },
   "metricsSpec":[
     {"name": "email", "typeName": "string"},
+    {
+      "name": "terms",
+      "typeExpr": {
+        "flo": "tag",
+        "mbrs": "tag",
+        "tmap": "tag",
+        "wavve": "tag",
+        "event_receive": "tag",
+        "marketing_msg": "tag",
+        "proactive_receive": "tag"
+      }
+    },
     {"name": "ci_profile.xdr_category", "typeName": "map(string,float)"},
     {
       "name": "ci_profile",
       "typeExpr": {
         "base": "boolean",
-        "life_style": "string",
-        "segment": "string",
-        "shopping_channel": "string",
+        "life_style": "tag",
+        "segment": "tag",
+        "shopping_channel": "tag",
         "family": {
           "fmly_memb_cnt": "int",
           "hhld_memb_cnt": "int",
@@ -30,7 +42,7 @@
     {
       "name": "adot_usage",
       "typeExpr": {
-        "life_cycle": "string",
+        "life_cycle": "tag",
         "stickness": {
           "day_7": "float",
           "day_30": "float"

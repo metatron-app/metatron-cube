@@ -4,6 +4,15 @@
   "birthdate": "1989-01-12",
   "gender": "FEMALE",
   "email": "xxx91yy@naver.com",
+  "terms": {
+    "flo": "동의",
+    "mbrs": "동의",
+    "tmap": "동의",
+    "wavve": "동의",
+    "event_receive": "미동의",
+    "marketing_msg": "미동의",
+    "proactive_receive": "미동의"
+  },
   "ci_profile": {
     "base": false,
     "family": {
@@ -66,6 +75,15 @@
   "birthdate": "1993-09-12",
   "gender": "MALE",
   "email": "yyy91xx@naver.com",
+  "terms": {
+    "flo": "동의",
+    "mbrs": "동의",
+    "tmap": "동의",
+    "wavve": "동의",
+    "event_receive": "미동의",
+    "marketing_msg": "미동의",
+    "proactive_receive": "미동의"
+  },
   "ci_profile": {
     "base": true,
     "family": {
