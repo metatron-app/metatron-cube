@@ -55,7 +55,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
-import io.druid.segment.IndexableAdapter.BitmapProvider;
+import io.druid.segment.IndexableAdapter.InvertedIndexProvider;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -63,7 +63,6 @@ import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.ColumnPartWriter;
-import io.druid.segment.data.ColumnPartWriter.Compressed;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.CumulativeBitmapWriter;
 import io.druid.segment.data.GenericIndexed;
@@ -78,8 +77,6 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnSerializer;
-import io.druid.segment.serde.ComplexMetricSerde;
-import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
 import io.druid.segment.serde.StringMetricSerde;
 import io.druid.timeline.DataSegment;
@@ -623,7 +620,7 @@ public class IndexMergerV9 extends IndexMerger
       }
 
       IndexSeeker[] dictIdSeeker = toIndexSeekers(adapters, dimConversions, dimension);
-      BitmapProvider[] providers = adapters.stream().map(ix -> ix.getBitmaps(dimension)).toArray(x -> new BitmapProvider[x]);
+      InvertedIndexProvider[] providers = adapters.stream().map(ix -> ix.getInvertedIndex(dimension)).toArray(x -> new InvertedIndexProvider[x]);
       ImmutableBitmap nullRowBitmap = bitmapFactory.makeImmutableBitmap(nullRowsList.get(dimIndex));
 
       //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
@@ -634,14 +631,14 @@ public class IndexMergerV9 extends IndexMerger
         for (int j = 0; j < adapters.size(); ++j) {
           final int seekedDictId = dictIdSeeker[j].seek(dictId);
           if (seekedDictId != IndexSeeker.NOT_EXIST) {
-            ImmutableBitmap bitmap = providers[j].apply(seekedDictId);
+            IntIterator bitmap = providers[j].apply(seekedDictId);
             if (bitmap == null) {
               continue;
             }
             if (rowNumConversions != null) {
-              convertedInverteds.add(IntIterators.map(bitmap.iterator(), rowNumConversions[j]));
+              convertedInverteds.add(IntIterators.map(bitmap, rowNumConversions[j]));
             } else {
-              convertedInverteds.add(bitmap.iterator());
+              convertedInverteds.add(bitmap);
             }
           }
         }

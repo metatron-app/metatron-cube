@@ -72,9 +72,9 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows(List<String> mergedDimensions, List<String> mergedMetrics)
+  public Iterable<Rowboat> getRows(List<String> dimensions, List<String> metrics)
   {
-    return Iterables.filter(baseAdapter.getRows(mergedDimensions, mergedMetrics), filter);
+    return Iterables.filter(baseAdapter.getRows(dimensions, metrics), filter);
   }
 
   @Override
@@ -90,9 +90,9 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public BitmapProvider getBitmaps(String dimension)
+  public InvertedIndexProvider getInvertedIndex(String dimension)
   {
-    return baseAdapter.getBitmaps(dimension);
+    return baseAdapter.getInvertedIndex(dimension);
   }
 
   @Override

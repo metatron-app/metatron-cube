@@ -37,7 +37,6 @@ import com.google.common.io.Closeables;
 import com.google.common.io.Closer;
 import com.google.common.io.FileWriteMode;
 import com.google.common.io.Files;
-import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -59,7 +58,7 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.segment.IndexableAdapter.BitmapProvider;
+import io.druid.segment.IndexableAdapter.InvertedIndexProvider;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -825,7 +824,7 @@ public class IndexMerger
         }
 
         final IndexSeeker[] dictIdSeeker = toIndexSeekers(indexes, dimConversions, dimension);
-        final BitmapProvider[] providers = indexes.stream().map(ix -> ix.getBitmaps(dimension)).toArray(x -> new BitmapProvider[x]);
+        final InvertedIndexProvider[] providers = indexes.stream().map(ix -> ix.getInvertedIndex(dimension)).toArray(x -> new InvertedIndexProvider[x]);
 
         //Iterate all dim values's dictionary id in ascending order which in line with dim values's compare result.
         for (int dictId = 0; dictId < dimVals.size(); dictId++) {
@@ -834,14 +833,14 @@ public class IndexMerger
           for (int j = 0; j < indexes.size(); ++j) {
             final int seekedDictId = dictIdSeeker[j].seek(dictId);
             if (seekedDictId != IndexSeeker.NOT_EXIST) {
-              ImmutableBitmap bitmap = providers[j].apply(seekedDictId);
+              IntIterator bitmap = providers[j].apply(seekedDictId);
               if (bitmap == null) {
                 continue;
               }
               if (rowNumConversions != null) {
-                convertedInverteds.add(IntIterators.map(bitmap.iterator(), rowNumConversions[j]));
+                convertedInverteds.add(IntIterators.map(bitmap, rowNumConversions[j]));
               } else {
-                convertedInverteds.add(bitmap.iterator());
+                convertedInverteds.add(bitmap);
               }
             }
           }

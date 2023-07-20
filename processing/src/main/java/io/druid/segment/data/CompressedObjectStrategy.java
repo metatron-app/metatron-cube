@@ -23,8 +23,6 @@ import com.google.common.collect.Maps;
 import com.ning.compress.BufferRecycler;
 import com.ning.compress.lzf.LZFDecoder;
 import com.ning.compress.lzf.LZFEncoder;
-import io.airlift.compress.zstd.ZstdCompressor;
-import io.airlift.compress.zstd.ZstdDecompressor;
 import io.druid.collections.ResourceHolder;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryException;
@@ -78,20 +76,20 @@ public abstract class CompressedObjectStrategy<T extends Buffer> implements Obje
         return LZ4Compressor.defaultCompressor;
       }
     },
-    // disabled because it's super stupid (why cannot decompress read-only heap buffer ??)
-    ZSTD((byte) 0x2) {
-      @Override
-      public Decompressor getDecompressor()
-      {
-        return new ZstdDecompressor();
-      }
-
-      @Override
-      public Compressor getCompressor()
-      {
-        return new ZstdCompressor();
-      }
-    },
+    // disabled because it's super stupid (why cannot decompress read-only heap buffer ??) and damn slow
+//    ZSTD((byte) 0x2) {
+//      @Override
+//      public Decompressor getDecompressor()
+//      {
+//        return new ZstdDecompressor();
+//      }
+//
+//      @Override
+//      public Compressor getCompressor()
+//      {
+//        return new ZstdCompressor();
+//      }
+//    },
     UNCOMPRESSED((byte) 0xFF) {
       @Override
       public Decompressor getDecompressor()

@@ -117,7 +117,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows(final List<String> mergedDimensions, final List<String> mergedMetrics)
+  public Iterable<Rowboat> getRows(final List<String> dimensions, final List<String> mergedMetrics)
   {
     return new Iterable<Rowboat>()
     {
@@ -153,7 +153,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
             }
           }
 
-          final int[] dimLookup = IndexMerger.toLookupMap(getDimensionNames(), mergedDimensions);
+          final int[] dimLookup = IndexMerger.toLookupMap(getDimensionNames(), dimensions);
           final int[] metricLookup = IndexMerger.toLookupMap(getMetricNames(), mergedMetrics);
 
           @Override
@@ -250,7 +250,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  public BitmapProvider getBitmaps(String dimension)
+  public InvertedIndexProvider getInvertedIndex(String dimension)
   {
     final Column column = input.getColumn(dimension);
     if (column == null) {
@@ -260,7 +260,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
     if (bitmaps == null) {
       return x -> null;
     }
-    return x -> bitmaps.getBitmap(x);
+    return x -> bitmaps.getBitmap(x).iterator();
   }
 
   @Override

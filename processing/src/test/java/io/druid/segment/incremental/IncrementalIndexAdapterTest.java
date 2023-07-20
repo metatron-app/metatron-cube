@@ -21,13 +21,13 @@ package io.druid.segment.incremental;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.IndexableAdapter;
 import io.druid.segment.Rowboat;
 import io.druid.segment.TestHelper;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.IncrementalIndexTest;
@@ -60,8 +60,8 @@ public class IncrementalIndexAdapterTest
     );
     String dimension = "dim1";
     for (int i = 0; i < adapter.getDimValueLookup(dimension).size(); i++) {
-      ImmutableBitmap bitmap = adapter.getBitmaps(dimension).apply(i);
-      Assert.assertEquals(1, bitmap.size());
+      int[] bitmap = IntIterators.toArray(adapter.getInvertedIndex(dimension).apply(i));
+      Assert.assertEquals(1, bitmap.length);
     }
   }
 
