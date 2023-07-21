@@ -20,25 +20,56 @@
 package io.druid.sql.calcite;
 
 import io.druid.data.Pair;
+import io.druid.query.Queries;
+import io.druid.query.Query;
+import io.druid.query.TableDataSource;
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 import static io.druid.segment.TestHelper.list;
 
-public class StructTest extends CalciteQueryTestHelper
+@RunWith(Parameterized.class)
+public class NestedColumnTest extends CalciteQueryTestHelper
 {
-  private static final CalciteQueryTestHelper.MiscQueryHook hook = new CalciteQueryTestHelper.MiscQueryHook();
+  private static final TableDataSource UPS = TableDataSource.of("ups");
+  private static final TableDataSource UPS_I = TableDataSource.of("ups_i");
+
+  private static final CalciteQueryTestHelper.MiscQueryHook hook = new CalciteQueryTestHelper.MiscQueryHook()
+  {
+    @Override
+    public void accept(Query<?> query)
+    {
+      super.accept(Queries.iterate(query, q -> UPS_I.equals(q.getDataSource()) ? q.withDataSource(UPS) : q));
+    }
+  };
   private static final TestQuerySegmentWalker walker = TestHelper.newWalker().withQueryHook(hook);
+
+  @Parameterized.Parameters(name = "ds:{0}")
+  public static Iterable<Object[]> constructorFeeder() throws IOException
+  {
+    return Arrays.asList(new Object[]{UPS.getName()}, new Object[]{UPS_I.getName()});
+  }
 
   @BeforeClass
   public static void setUp() throws Exception
   {
     walker.addUps();
+  }
+
+  private final String ds;
+
+  public NestedColumnTest(String ds)
+  {
+    this.ds = ds;
   }
 
   @Override
@@ -64,7 +95,7 @@ public class StructTest extends CalciteQueryTestHelper
   public void testBasic() throws Exception
   {
     testQuery(
-        "SELECT user_cid,\"adot_usage.life_cycle\" from ups where \"adot_usage.quest.cone.received\" <= 100",
+        String.format("SELECT user_cid,\"adot_usage.life_cycle\" from %s where \"adot_usage.quest.cone.received\" <= 100", ds),
         new Object[][] {
             {"ilSFLwxxxxx+I8oxOPsf9l9xxxxxx==", "휴면"},
             {"ilSFLwyyyy+I8oxOPsf9l9yyyyx==", "안휴면"}
@@ -75,7 +106,7 @@ public class StructTest extends CalciteQueryTestHelper
         "StreamQuery{dataSource='ups', filter=BoundDimFilter{adot_usage.quest.cone.received <= 100(numeric)}, columns=[user_cid, adot_usage.life_cycle]}"
     );
     testQuery(
-        "SELECT \"adot_usage.quest.cone\" from ups where \"adot_usage.stickness.day_7\" > 0",
+        String.format("SELECT \"adot_usage.quest.cone\" from %s where \"adot_usage.stickness.day_7\" > 0", ds),
         new Object[]{list(10, null, 4)}
     );
     hook.verifyHooked(
@@ -88,7 +119,7 @@ public class StructTest extends CalciteQueryTestHelper
   public void testDimensions() throws Exception
   {
     testQuery(
-        "SELECT \"ci_profile.life_style\", \"adot_usage.life_cycle\" from ups where \"ci_profile.life_style\" = '영화관'",
+        String.format("SELECT \"ci_profile.life_style\", \"adot_usage.life_cycle\" from %s where \"ci_profile.life_style\" = '영화관'", ds),
         new Object[][] {
             {"[캠핑, 영화관, 청년1인가구]", "휴면"},
             {"[영화관, 청년2인가구]", "안휴면"}
@@ -99,7 +130,7 @@ public class StructTest extends CalciteQueryTestHelper
         "StreamQuery{dataSource='ups', filter=ci_profile.life_style=='영화관', columns=[ci_profile.life_style, adot_usage.life_cycle]}"
     );
     testQuery(
-        "SELECT \"ci_profile.life_style\", \"adot_usage.life_cycle\" from ups where \"ci_profile.life_style\" = '캠핑'",
+        String.format("SELECT \"ci_profile.life_style\", \"adot_usage.life_cycle\" from %s where \"ci_profile.life_style\" = '캠핑'", ds),
         new Object[][] {
             {"[캠핑, 영화관, 청년1인가구]", "휴면"}
         }
@@ -111,7 +142,7 @@ public class StructTest extends CalciteQueryTestHelper
 
     // map
     testQuery(
-        "SELECT \"ci_profile.xdr_category\", \"adot_usage.life_cycle\" from ups where \"ci_profile.xdr_category.__key\" = 'bf_m1_app_dt_ratio_cat_03'",
+        String.format("SELECT \"ci_profile.xdr_category\", \"adot_usage.life_cycle\" from %s where \"ci_profile.xdr_category.__key\" = 'bf_m1_app_dt_ratio_cat_03'", ds),
         new Object[][] {
             {"{bf_m1_app_dt_ratio_cat_01=0.87, bf_m1_app_dt_ratio_cat_03=0.83, bf_m1_app_dt_ratio_cat_04=0.8, bf_m1_app_dt_ratio_cat_06=0.17, bf_m1_app_dt_ratio_cat_08=0.83}", "안휴면"}
         }
@@ -123,7 +154,7 @@ public class StructTest extends CalciteQueryTestHelper
 
     // array
     testQuery(
-        "SELECT onboarding.interest[0],onboarding.interest[0].name,onboarding.artist[0].name from ups where onboarding.artist[0]._id='80049126'",
+        String.format("SELECT onboarding.interest[0],onboarding.interest[0].name,onboarding.artist[0].name from %s where onboarding.artist[0]._id='80049126'", ds),
         new Object[][] {
             {list("KEYWORD_001", "동네 탐방"), "동네 탐방", "아이유 (IU)"}
         }
@@ -138,7 +169,7 @@ public class StructTest extends CalciteQueryTestHelper
   public void testBooleans() throws Exception
   {
     testQuery(
-        "SELECT \"ci_profile.base\",\"ci_profile.family.child_y\",\"ci_profile.family.adult_child_y\",\"ci_profile.family.married\" from ups where \"adot_usage.stickness.day_7\" < 1000",
+        String.format("SELECT \"ci_profile.base\",\"ci_profile.family.child_y\",\"ci_profile.family.adult_child_y\",\"ci_profile.family.married\" from %s where \"adot_usage.stickness.day_7\" < 1000", ds),
         new Object[][]{
             {false, true, null, false},
             {true, true, null, null}
@@ -154,7 +185,7 @@ public class StructTest extends CalciteQueryTestHelper
   public void testGroupBy() throws Exception
   {
     testQuery(
-        "SELECT \"ci_profile.life_style\", sum(\"adot_usage.quest.cone.received\") from ups group by 1",
+        String.format("SELECT \"ci_profile.life_style\", sum(\"adot_usage.quest.cone.received\") from %s group by 1", ds),
         new Object[][] {
             {"영화관", 110L},
             {"청년1인가구", 100L},
@@ -169,7 +200,7 @@ public class StructTest extends CalciteQueryTestHelper
 
     // map
     testQuery(
-        "SELECT \"ci_profile.xdr_category.__key\", sum(\"ci_profile.xdr_category.__value\") from ups group by 1",
+        String.format("SELECT \"ci_profile.xdr_category.__key\", sum(\"ci_profile.xdr_category.__value\") from %s group by 1", ds),
         new Object[][] {
             {"bf_m1_app_dt_ratio_cat_01", 1.7400000095367432D},
             {"bf_m1_app_dt_ratio_cat_03", 0.8299999833106995D},

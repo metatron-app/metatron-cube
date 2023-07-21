@@ -1547,14 +1547,8 @@ public class ColumnSelectors
         }
       };
     }
-    return new ObjectColumnSelector()
+    return new ObjectColumnSelector.Typed(column.getType())
     {
-      @Override
-      public ValueDesc type()
-      {
-        return column.getType();
-      }
-
       @Override
       public Object get()
       {

@@ -18,13 +18,13 @@
       "typeExpr": {
         "interest": [
           {
-            "_id": "tag",
+            "_id": "dimension",
             "name": "string"
           }
         ],
         "artist": [
           {
-            "_id": "tag",
+            "_id": "dimension",
             "name": "string"
           }
         ]
@@ -33,13 +33,13 @@
     {
       "name": "terms",
       "typeExpr": {
-        "flo": "tag",
-        "mbrs": "tag",
-        "tmap": "tag",
-        "wavve": "tag",
-        "event_receive": "tag",
-        "marketing_msg": "tag",
-        "proactive_receive": "tag"
+        "flo": "dimension",
+        "mbrs": "dimension",
+        "tmap": "dimension",
+        "wavve": "dimension",
+        "event_receive": "dimension",
+        "marketing_msg": "dimension",
+        "proactive_receive": "dimension"
       }
     },
     {
@@ -53,11 +53,11 @@
           "adult_child_y": "boolean",
           "married": "boolean"
         },
-        "life_stage": "tag",
-        "life_style": "tag",
-        "segment": "tag",
-        "shopping_channel": "tag",
-        "transport": "tag",
+        "life_stage": "dimension",
+        "life_style": "dimension",
+        "segment": "dimension",
+        "shopping_channel": "dimension",
+        "transport": "dimension",
         "media": {
           "bf_m1_flo_dt_ratio": "float",
           "bf_m1_netflix_dt_ratio": "float",
@@ -77,7 +77,7 @@
     {
       "name": "adot_usage",
       "typeExpr": {
-        "life_cycle": "tag",
+        "life_cycle": "dimension",
         "quest": {
           "cube": {
             "received": "int",

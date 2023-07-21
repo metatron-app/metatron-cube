@@ -117,7 +117,7 @@ public interface VirtualColumn extends Cacheable
       if (fx < 0) {
         for (ix = expression.indexOf('.'); ix > 0; ix = expression.indexOf('.', ix + 1)) {
           fx = serde.indexOf(expression.substring(0, ix));
-          if (fx > 0) {
+          if (fx >= 0) {
             break;
           }
         }
@@ -151,7 +151,7 @@ public interface VirtualColumn extends Cacheable
       if (Row.MAP_KEY.equals(expression)) {
         String[] description = TypeUtils.splitDescriptiveType(type);
         return ObjectColumnSelector.typed(
-            description == null ? ValueDesc.STRING : ValueDesc.of(description[1]),
+            description == null ? ValueDesc.STRING_ARRAY : ValueDesc.ofArray(description[1]),
             () -> {
               Map v = (Map) selector.get();
               return v == null ? null : Lists.newArrayList(v.keySet());
@@ -161,7 +161,7 @@ public interface VirtualColumn extends Cacheable
       if (Row.MAP_VALUE.equals(expression)) {
         String[] description = TypeUtils.splitDescriptiveType(type);
         return ObjectColumnSelector.typed(
-            description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]),
+            description == null ? ValueDesc.ARRAY : ValueDesc.ofArray(description[2]),
             () -> {
               Map v = (Map) selector.get();
               return v == null ? null : Lists.newArrayList(v.values());
@@ -177,7 +177,7 @@ public interface VirtualColumn extends Cacheable
       if (index < 0) {
         for (ix = expression.indexOf('.'); ix > 0; ix = expression.indexOf('.', ix + 1)) {
           index = serde.indexOf(expression.substring(0, ix));
-          if (index > 0) {
+          if (index >= 0) {
             break;
           }
         }
@@ -187,7 +187,7 @@ public interface VirtualColumn extends Cacheable
       }
       final int vindex = index;
       final String fieldName = ix < 0 ? expression : expression.substring(0, ix);
-      final ValueDesc fieldType = serde.type(index, f -> f.isString() ? ValueDesc.MV_STRING : f);
+      final ValueDesc fieldType = serde.type(index, f -> f.isDimension() ? ValueDesc.MV_STRING : f);
       final ObjectColumnSelector nested = new ObjectColumnSelector.Typed(fieldType)
       {
         @Override

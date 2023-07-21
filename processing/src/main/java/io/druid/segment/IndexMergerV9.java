@@ -45,6 +45,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.granularity.GranularityType;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
@@ -113,7 +114,7 @@ public class IndexMergerV9 extends IndexMerger
       final File outDir,
       final ProgressIndicator progress,
       final List<String> dimensions,
-      final List<String> mergedMetrics,
+      final List<String> metrics,
       final Function<List<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn,
       final int[][] rowNumConversions,
       final IndexSpec indexSpec,
@@ -146,9 +147,9 @@ public class IndexMergerV9 extends IndexMerger
       Files.asByteSink(new File(outDir, "version.bin")).write(Ints.toByteArray(IndexIO.V9_VERSION));
       log.info("Completed version.bin in %,d millis.", System.currentTimeMillis() - startTime);
 
-      final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(GuavaUtils.nullFirstNatural());
+      final Map<String, ValueDesc> metricTypes = Maps.newTreeMap(GuavaUtils.nullFirstNatural());
       final List<ColumnCapabilities> dimCapabilities = Lists.newArrayListWithCapacity(dimensions.size());
-      mergeCapabilities(adapters, dimensions, metricTypeNames, dimCapabilities);
+      mergeCapabilities(adapters, dimensions, metricTypes, dimCapabilities);
 
       /************* Setup Dim Conversions **************/
       startTime = System.currentTimeMillis();
@@ -172,15 +173,13 @@ public class IndexMergerV9 extends IndexMerger
       final List<ColumnPartWriter> dimWriters = setupDimensionWriters(
           ioPeon, dimensions, dimCapabilities, dimCardinalities, indexSpec
       );
-      final List<MetricColumnSerializer> metWriters = setupMetricsWriters(
-          ioPeon, mergedMetrics, metricTypeNames, indexSpec
-      );
+      final List<MetricColumnSerializer> metWriters = setupMetricsWriters(ioPeon, metrics, metricTypes, indexSpec);
       final List<MutableBitmap> nullRowsList = Lists.newArrayListWithCapacity(dimensions.size());
       for (int i = 0; i < dimensions.size(); ++i) {
         nullRowsList.add(bitmapFactory.makeEmptyMutableBitmap());
       }
       final Iterator<Rowboat> rows = makeRowIterable(
-          adapters, dimensions, mergedMetrics, dimConversions, convertMissingDimsFlags, rowMergerFn
+          adapters, dimensions, metrics, dimConversions, convertMissingDimsFlags, rowMergerFn
       );
       writeRowValues(
           progress, rows, timeWriter, dimWriters, metWriters, dimensionSkipFlag, nullRowsList, dimHasNullFlags
@@ -204,7 +203,7 @@ public class IndexMergerV9 extends IndexMerger
 
       /************ Finalize Build Columns *************/
       makeTimeColumn(ioPeon, v9Smoosher, progress, Column.TIME_COLUMN_NAME, timeWriter, true);
-      makeMetricsColumns(ioPeon, v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters, true);
+      makeMetricsColumns(ioPeon, v9Smoosher, progress, metrics, metricTypes, metWriters, true);
       makeDimensionColumns(
           v9Smoosher, progress, indexSpec, dimensions, dimensionSkipFlag, dimCapabilities,
           dictionaryWriters, dictionaryFSTs, dimWriters, bitmapIndexWriters, spatialIndexWriters, true
@@ -216,14 +215,13 @@ public class IndexMergerV9 extends IndexMerger
         // make temporary segment for cube
         SmooshedFileMapper smooshedFiles = v9Smoosher.asMapped(outDir);
         Map<String, Supplier<Column>> columns = Maps.newHashMap();
-        for (String columnName : GuavaUtils.concat(
-            Arrays.<String>asList(Column.TIME_COLUMN_NAME), mergedMetrics, dimensions)) {
+        for (String columnName : GuavaUtils.concat(Arrays.<String>asList(Row.TIME_COLUMN_NAME), metrics, dimensions)) {
           ByteBuffer mapped = smooshedFiles.mapFile(columnName);
           ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
           columns.put(columnName, Suppliers.ofInstance(descriptor.read(columnName, mapped, bitmapSerdeFactory)));
         }
         Indexed<String> dimNames = ListIndexed.ofString(dimensions);
-        Indexed<String> columnNames = ListIndexed.ofString(GuavaUtils.concat(mergedMetrics, dimensions));
+        Indexed<String> columnNames = ListIndexed.ofString(GuavaUtils.concat(metrics, dimensions));
         SimpleQueryableIndex index = new SimpleQueryableIndex(
             dataInterval, columnNames, dimNames, bitmapFactory, columns, null, smooshedFiles, segmentMetadata
         );
@@ -269,18 +267,18 @@ public class IndexMergerV9 extends IndexMerger
               ioPeon, cubeDims, null, dimCardinalities, indexer
           );
 
+          Map<String, Set<String>> cuboid = cuboidSpec.getMetrics();
           if (rollup) {
-            Map<String, Set<String>> metrics = cuboidSpec.getMetrics();
             for (AggregatorFactory factory : segmentMetadata.getAggregators()) {
               String cubeMet = factory.getName();
-              if (!metrics.isEmpty() && !metrics.containsKey(cubeMet)) {
+              if (!cuboid.isEmpty() && !cuboid.containsKey(cubeMet)) {
                 continue;
               }
               String aggregator = Cuboids.cubeName(factory);
               if (aggregator == null) {
                 continue;
               }
-              ValueDesc cubeMetType = metricTypeNames.get(cubeMet);
+              ValueDesc cubeMetType = metricTypes.get(cubeMet);
               String name = Cuboids.metric(cubeId, factory.getName(), aggregator);
               factory = Cuboids.convert(aggregator, name, cubeMet, cubeMetType);
               if (factory != null) {
@@ -288,9 +286,9 @@ public class IndexMergerV9 extends IndexMerger
               }
             }
           } else {
-            for (Map.Entry<String, Set<String>> metrics : cuboidSpec.getMetrics().entrySet()) {
-              String cubeMet = metrics.getKey();
-              ValueDesc cubeMetType = metricTypeNames.get(cubeMet);
+            for (Map.Entry<String, Set<String>> entry : cuboid.entrySet()) {
+              String cubeMet = entry.getKey();
+              ValueDesc cubeMetType = metricTypes.get(cubeMet);
               if (cubeMetType == null &&
                   dimensions.indexOf(cubeMet) >= 0 &&
                   !dimCapabilities.get(dimensions.indexOf(cubeMet)).hasMultipleValues()) {
@@ -300,7 +298,7 @@ public class IndexMergerV9 extends IndexMerger
                 log.warn("Skipping cube metric.. [%s]", cubeMet);
                 continue;
               }
-              Set<String> aggregators = metrics.getValue();
+              Set<String> aggregators = entry.getValue();
               if (aggregators.isEmpty()) {
                 aggregators = Cuboids.BASIC_AGGREGATORS;
               }
@@ -369,7 +367,7 @@ public class IndexMergerV9 extends IndexMerger
 
       /************* Make index.drd & metadata.drd files **************/
       makeIndexBinary(
-          v9Smoosher, progress, dataInterval, outDir, dimensions, dimensionSkipFlag, mergedMetrics, indexSpec
+          v9Smoosher, progress, dataInterval, outDir, dimensions, dimensionSkipFlag, metrics, indexSpec
       );
       if (segmentMetadata != null) {
         makeMetadataBinary(v9Smoosher, progress, segmentMetadata);
@@ -881,7 +879,7 @@ public class IndexMergerV9 extends IndexMerger
       case STRING:
         return ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, secondary, compression);
       case COMPLEX:
-        if (type.isTag()) {
+        if (type.isDimension()) {
           return TagColumnSerializer.create(metric, type, compression, bitmap);
         }
         if (type.isStruct()) {

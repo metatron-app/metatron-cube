@@ -149,6 +149,12 @@ class SimpleColumn implements Column
   }
 
   @Override
+  public Class<? extends ComplexColumn> getComplexColumnType()
+  {
+    return complexColumn == null ? null : complexColumn.provides();
+  }
+
+  @Override
   public boolean hasComplexColumn()
   {
     return complexColumn != null;

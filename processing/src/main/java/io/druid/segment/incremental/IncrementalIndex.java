@@ -594,6 +594,15 @@ public abstract class IncrementalIndex implements Closeable
     return metSpec == null ? -1 : metSpec.getIndex();
   }
 
+  public MetricDesc resolveMetric(String expression)
+  {
+    MetricDesc metric = metricDescs.get(expression);
+    for (int ix = expression.indexOf('.'); metric == null && ix > 0; ix = expression.indexOf('.', ix + 1)) {
+      metric = metricDescs.get(expression.substring(0, ix));
+    }
+    return metric;
+  }
+
   public MetricDesc getMetricDesc(String metricName)
   {
     return metricDescs.get(metricName);

@@ -101,7 +101,7 @@ public class RowSignature extends io.druid.query.RowSignature
       final RelDataTypeField field = rowType.getFieldList().get(i);
       final SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
       if (resolver != null && sqlTypeName == SqlTypeName.NULL) {
-        // unknown types are mapped to null type.. we cannot know exact return type a-priori for some UDAFs
+        // unknown types are mapped to null type.. we don't know exact return type a-priori for some UDAFs
         ValueDesc resolved = resolver.resolve(rowOrder.get(i), ValueDesc.UNKNOWN);
         if (!resolved.isUnknown()) {
           rowSignatureBuilder.add(rowOrder.get(i), resolved);

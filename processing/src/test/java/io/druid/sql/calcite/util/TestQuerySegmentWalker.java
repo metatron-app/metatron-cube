@@ -164,7 +164,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   public TestQuerySegmentWalker addUps()
   {
-    return addIndex("ups", "ups_schema.json", "ups.tbl", true);
+    return addIndex("ups", "ups_schema.json", "ups.tbl", true)
+        .addIndex("ups_i", "ups_schema.json", "ups.tbl", false);
   }
 
   public TestQuerySegmentWalker addTpchIndex()

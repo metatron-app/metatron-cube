@@ -72,6 +72,7 @@ public interface Column
   BitSlicedBitmap getBitSlicedBitmap();
 
   Class<? extends GenericColumn> getGenericColumnType();
+  Class<? extends ComplexColumn> getComplexColumnType();
 
   Set<Class> getExternalIndexKeys();
   <T> ExternalIndexProvider<T> getExternalIndex(Class<T> clazz);
@@ -97,9 +98,9 @@ public interface Column
 
   default Column resolve(String expression)
   {
-    ComplexColumn column = getComplexColumn();
-    if (column instanceof ComplexColumn.Nested) {
-      return ((ComplexColumn.Nested) column).resolve(expression);
+    Class<? extends ComplexColumn> type = getComplexColumnType();
+    if (type != null && ComplexColumn.Nested.class.isAssignableFrom(type)) {
+      return ((ComplexColumn.Nested) getComplexColumn()).resolve(expression);
     }
     return null;
   }

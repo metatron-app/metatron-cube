@@ -71,7 +71,8 @@ public class ValueDesc implements Serializable, Cacheable
   private static final String MULTIVALUED_PREFIX = "multivalued.";
 
   // prefix of dimension
-  private static final String DIMENSION_PREFIX = "dimension.";
+  private static final String DIMENSION_TYPE = "dimension";
+  private static final String DIMENSION_PREFIX = DIMENSION_TYPE + ".";
 
   // descriptive type
   public static final String MAP_TYPE = "map";
@@ -81,8 +82,6 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static final String STRING_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_TYPE;
   public static final String STRING_MULTIVALUED_TYPE = MULTIVALUED_PREFIX + STRING_TYPE;
-
-  public static final String TAG_TYPE = "tag";
 
   static {
     INTERNER.intern(STRING_TYPE);
@@ -116,7 +115,6 @@ public class ValueDesc implements Serializable, Cacheable
   public static final ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);
   public static final ValueDesc ARRAY = new ValueDesc(ARRAY_TYPE, List.class);
   public static final ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
-  public static final ValueDesc TAG = new ValueDesc(TAG_TYPE);
 
   // from expression
   public static final ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE, BigDecimal.class);
@@ -630,14 +628,9 @@ public class ValueDesc implements Serializable, Cacheable
     return type == ValueType.STRING;
   }
 
-  public boolean isTag()
-  {
-    return TAG_TYPE.equals(typeName);
-  }
-
   public boolean isDimension()
   {
-    return STRING_DIMENSION_TYPE.equals(typeName) || isDimension(typeName);
+    return DIMENSION_TYPE.equals(typeName) || STRING_DIMENSION_TYPE.equals(typeName) || isDimension(typeName);
   }
 
   public boolean isStringOrDimension()

@@ -243,4 +243,21 @@ public class RowResolver implements TypeResolver
                                  .collect(Collectors.toList());
     return new RowResolver(RowSignature.of(names, types), virtualColumns);
   }
+
+  // todo
+  public RowResolver forIncrementalIndex()
+  {
+    return new RowResolver(schema, virtualColumns)
+    {
+      @Override
+      public ValueDesc resolve(String column)
+      {
+        ValueDesc resolved = super.resolve(column);
+        if (resolved != null && resolved.isDimension() && schema.indexOf(column) < 0) {
+          return resolved.unwrapDimension();
+        }
+        return resolved;
+      }
+    };
+  }
 }
