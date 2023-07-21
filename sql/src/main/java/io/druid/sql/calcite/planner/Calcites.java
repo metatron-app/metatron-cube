@@ -555,8 +555,17 @@ public class Calcites
                                                             : factory.createSqlType(SqlTypeName.ANY);
           return factory.createTypeWithNullability(factory.createMapType(keyType, valueType), true);
         } else if (columnType.isArray()) {
-          final RelDataType subType = columnType.hasSubElement() ? asRelDataType(factory, columnType.subElement())
-                                                                 : factory.createSqlType(SqlTypeName.ANY);
+          final RelDataType subType;
+          if (columnType.hasSubElement()) {
+            subType = asRelDataType(factory, columnType.subElement());
+          } else {
+            final String[] description = columnType.getDescription();
+            if (description != null) {
+              subType = asRelDataType(factory, ValueDesc.of(description[1]));
+            } else {
+              subType = factory.createSqlType(SqlTypeName.ANY);
+            }
+          }
           return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
         } else if (columnType.isBitSet()) {
           return factory.createTypeWithNullability(

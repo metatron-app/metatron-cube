@@ -34,6 +34,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
+import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -91,8 +92,8 @@ public class SchemalessIndex
   private static QueryableIndex mergedIndex = null;
 
   static {
-    if (ComplexMetrics.getSerdeForType("hyperUnique") == null) {
-      ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde());
+    if (ComplexMetrics.getSerdeForType(HyperLogLogCollector.HLL_TYPE) == null) {
+      ComplexMetrics.registerSerde(HyperLogLogCollector.HLL_TYPE, new HyperUniquesSerde());
     }
   }
 

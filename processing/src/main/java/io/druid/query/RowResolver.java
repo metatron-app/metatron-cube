@@ -127,9 +127,9 @@ public class RowResolver implements TypeResolver
     }
     // cannot make multi-valued type from class
 
-    String typeName = ComplexMetrics.getTypeNameForClass(clazz);
+    ValueDesc typeName = ComplexMetrics.getTypeNameForClass(clazz);
     if (typeName != null) {
-      return ValueDesc.of(typeName);
+      return typeName;
     }
     return ValueDesc.UNKNOWN;
   }

@@ -120,6 +120,18 @@ public class StructTest extends CalciteQueryTestHelper
         "Dby7odomifRVJGT0zz6g/Q==",
         "StreamQuery{dataSource='ups', filter=ci_profile.xdr_category.__key=='bf_m1_app_dt_ratio_cat_03', columns=[ci_profile.xdr_category, adot_usage.life_cycle]}"
     );
+
+    // array
+    testQuery(
+        "SELECT onboarding.interest[0],onboarding.interest[0].name,onboarding.artist[0].name from ups where onboarding.artist[0]._id='80049126'",
+        new Object[][] {
+            {list("KEYWORD_001", "동네 탐방"), "동네 탐방", "아이유 (IU)"}
+        }
+    );
+    hook.verifyHooked(
+        "X0FO1AZXjpTTrqNa2rZtfg==",
+        "StreamQuery{dataSource='ups', filter=MathExprFilter{expression='(\"onboarding.artist\".\"0\".\"_id\" == '80049126')'}, columns=[v0, v1, v2], virtualColumns=[ExprVirtualColumn{expression='ARRAY(\"onboarding.interest\".\"0\".\"_id\",\"onboarding.interest\".\"0\".\"name\")', outputName='v0'}, ExprVirtualColumn{expression='\"onboarding.interest\".\"0\".\"name\"', outputName='v1'}, ExprVirtualColumn{expression='\"onboarding.artist\".\"0\".\"name\"', outputName='v2'}]}"
+    );
   }
 
   @Test

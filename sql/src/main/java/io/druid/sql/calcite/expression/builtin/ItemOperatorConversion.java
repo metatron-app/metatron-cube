@@ -20,14 +20,13 @@
 package io.druid.sql.calcite.expression.builtin;
 
 import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
@@ -42,19 +41,10 @@ public class ItemOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    final List<RexNode> operands = call.getOperands();
-    if (operands.size() == 2 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
-      final String column = rowSignature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
-      final int index = RexLiteral.intValue(operands.get(1));
-      return DruidExpression.fromExpression(String.format("%s.%d", DruidExpression.identifier(column), index));
-    }
-    return null;
+    List<RexNode> operands = ((RexCall) rexNode).getOperands();
+    DruidExpression input = Expressions.toDruidExpression(plannerContext, rowSignature, operands.get(0));
+    return input == null ? null : input.nested(RexLiteral.intValue(operands.get(1)));
   }
 }

@@ -208,12 +208,10 @@ public class Expressions
         }
       }
     } else if (kind == SqlKind.FIELD_ACCESS) {
-      RexFieldAccess fieldAccess = (RexFieldAccess) rexNode;
-      DruidExpression expression = toDruidExpression(plannerContext, rowSignature, fieldAccess.getReferenceExpr());
-      if (expression != null && expression.isDirectColumnAccess()) {
-        return DruidExpression.fromExpression(
-            String.format("\"%s.%s\"", expression.getDirectColumn(), fieldAccess.getField().getName())
-        );
+      RexFieldAccess access = (RexFieldAccess) rexNode;
+      DruidExpression expression = toDruidExpression(plannerContext, rowSignature, access.getReferenceExpr());
+      if (expression != null) {
+        return expression.nested(access.getField().getName());
       }
       return null;
     } else {

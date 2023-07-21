@@ -27,9 +27,9 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
      | '(' expr ')'                                   # nestedExpr
      | 'NULL'                                         # string
      | BOOLEAN                                        # booleanExpr
-     | IDENTIFIER '(' fnArgs ')'                      # functionExpr
-     | IDENTIFIER                                     # identifierExpr
+     | IDENTIFIER ('.' IDENTIFIER)*                   # identifierExpr
      | IDENTIFIER '[' ('-')? LONG ']'                 # identifierExpr
+     | IDENTIFIER '(' fnArgs ')'                      # functionExpr
      | DECIMAL                                        # decimalExpr
      | FLOAT                                          # floatExpr
      | DOUBLE                                         # doubleExpr

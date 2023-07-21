@@ -887,6 +887,9 @@ public class IndexMergerV9 extends IndexMerger
         if (type.isStruct()) {
           return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec));
         }
+        if (type.isComplexArray()) {
+          return ArrayColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec));
+        }
         if (type.isMap()) {
           return MapColumnSerializer.create(metric, type, compression, bitmap);
         }

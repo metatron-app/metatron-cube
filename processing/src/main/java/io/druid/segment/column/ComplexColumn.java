@@ -40,7 +40,12 @@ public interface ComplexColumn extends ColumnAccess
 
   CompressionStrategy compressionType();  // just for index viewer
 
-  interface StructColumn extends ComplexColumn
+  interface Nested extends ComplexColumn
+  {
+    Column resolve(String expression);
+  }
+
+  interface StructColumn extends ComplexColumn.Nested
   {
     List<String> getFieldNames();
 
@@ -53,7 +58,7 @@ public interface ComplexColumn extends ColumnAccess
     Map<String, Object> getStats(String field);
   }
 
-  interface MapColumn extends ComplexColumn
+  interface MapColumn extends ComplexColumn.Nested
   {
     Column getKey();
 
@@ -67,6 +72,17 @@ public interface ComplexColumn extends ColumnAccess
     CompressionStrategy keyCompressionType();
 
     CompressionStrategy valueCompressionType();
+  }
+
+  interface ArrayColumn extends ComplexColumn.Nested
+  {
+    int numElements();
+
+    ValueDesc getType(int ix);
+
+    Column getElement(int ix);
+
+    Map<String, Object> getStats(int ix);
   }
 
   class Compressed extends ColumnAccess.Compressed implements ComplexColumn

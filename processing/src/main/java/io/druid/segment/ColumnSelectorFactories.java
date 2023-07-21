@@ -400,7 +400,7 @@ public class ColumnSelectorFactories
       if (virtualColumn != null) {
         return virtualColumn.asMetric(columnName, this);
       }
-      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+      return ColumnSelectors.NULL_UNKNOWN;
     }
   }
 
@@ -446,7 +446,7 @@ public class ColumnSelectorFactories
       if (virtualColumn != null) {
         return virtualColumn.asMetric(columnName, this);
       }
-      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+      return ColumnSelectors.NULL_UNKNOWN;
     }
   }
 

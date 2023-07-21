@@ -182,7 +182,7 @@ public class SimpleQueryableIndex implements QueryableIndex
       for (int ix = columnName.indexOf('.'); ix > 0; ix = columnName.indexOf('.', ix + 1)) {
         supplier = columns.get(columnName.substring(0, ix));
         if (supplier != null) {
-          Column column = supplier.get().getField(columnName.substring(ix + 1));
+          Column column = supplier.get().resolve(columnName.substring(ix + 1));
           if (column != null) {
             return column;
           }

@@ -168,7 +168,7 @@ public class TagColumnSerializer implements MetricColumnSerializer
     dictionary.close();
     serde.withDictionary(dictionary);
 
-    builder.setValueType(ValueDesc.DIM_STRING);
+    builder.setValueType(ValueDesc.STRING);
 
     byte numBytes = VintValues.getNumBytesForMax(maxValue);
     if (sizes.count() == values.count()) {

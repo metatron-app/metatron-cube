@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Suppliers;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -301,31 +302,34 @@ public class ExprListenerImpl extends ExprBaseListener
 
   private IdentifierExpr makeIdentifier(ExprParser.IdentifierExprContext ctx)
   {
-    String text = ctx.getChild(0).getText();
-    if (text.charAt(0) == '"' && text.charAt(text.length() - 1) == '"') {
-      text = text.substring(1, text.length() - 1);  // strip off
-    }
-    text = normalize(text);
-    ValueDesc type = resolver.resolve(text, ValueDesc.UNKNOWN).unwrapDimension();
-    if (ctx.getChildCount() == 5 &&
-        ctx.getChild(1).getText().equals("[") &&
-        ctx.getChild(2).getText().equals("-") &&
-        ctx.getChild(4).getText().equals("]")) {
-      int index = Integer.parseInt(ctx.getChild(3).getText());
-      return new IdentifierExpr(text, type, -index);
-    } else if (ctx.getChildCount() == 4 &&
-               ctx.getChild(1).getText().equals("[") &&
-               ctx.getChild(3).getText().equals("]")) {
-      int index = Integer.parseInt(ctx.getChild(2).getText());
+    List<TerminalNode> identifiers = ctx.IDENTIFIER();
+    String text = normalize(identifiers.get(0).getText());
+    TerminalNode indexed = ctx.LONG();
+    if (indexed != null) {
+      int index = Integer.parseInt(indexed.getText());
+      if (ctx.getToken(ExprParser.MINUS, 0) != null) {
+        index = -index;
+      }
+      ValueDesc type = resolver.resolve(text, ValueDesc.UNKNOWN).unwrapDimension();
       return new IdentifierExpr(text, type, index);
-    } else {
-      return new IdentifierExpr(text, type);
     }
+    if (identifiers.size() > 1) {
+      StringBuilder builder = new StringBuilder(text);
+      for (int i = 1; i < identifiers.size(); i++) {
+        if (builder.length() > 0) {
+          builder.append('.');
+        }
+        builder.append(normalize(identifiers.get(i).getText()));
+      }
+      text = builder.toString();
+    }
+    ValueDesc type = resolver.resolve(text, ValueDesc.UNKNOWN).unwrapDimension();
+    return new IdentifierExpr(text, type);
   }
 
   protected String normalize(String identifier)
   {
-    return identifier;
+    return StringUtils.unquote(identifier);
   }
 
   @Override

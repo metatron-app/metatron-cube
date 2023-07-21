@@ -61,69 +61,27 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
   {
     Preconditions.checkArgument(column.startsWith(metric));
     ValueDesc type = resolver.resolve(metric);
-    if (type == null) {
-      return null;
+    if (type == null || metric.equals(column)) {
+      return type;
     }
-    if (column.length() > metric.length()) {
-      if (!type.isMap()) {
-        return null;
-      }
-      Preconditions.checkArgument(column.charAt(metric.length()) == '.');
-      String postfix = column.substring(metric.length() + 1);
-      String[] description = TypeUtils.splitDescriptiveType(type);
-      if (MAP_KEY.equals(postfix)) {
-        return description == null ? null : ValueDesc.of(description[1]);
-      }
-      if (MAP_VALUE.equals(postfix)) {
-        return description == null ? null : ValueDesc.of(description[2]);
-      }
-      return null;
-    }
-    return type;
+    String expression = column.substring(metric.length() + 1);
+    return VirtualColumn.nested(type, expression);
   }
 
   @Override
   public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
   {
     Preconditions.checkArgument(column.startsWith(metric));
-
     ObjectColumnSelector selector = factory.makeObjectColumnSelector(metric);
-    if (metric.equals(column)) {
+    if (selector == null || metric.equals(column)) {
       return selector;
     }
     Preconditions.checkArgument(column.charAt(metric.length()) == '.');
-    ValueDesc type = selector.type();
-    if (!type.isMap()) {
-      return null;
+    String expression = column.substring(metric.length() + 1);
+    if (selector instanceof ComplexColumnSelector.Nested) {
+      return ((ComplexColumnSelector.Nested) selector).selector(expression);
     }
-    String postfix = column.substring(metric.length() + 1);
-    if (MAP_KEY.equals(postfix)) {
-      if (selector instanceof MapColumnSelector) {
-        return ((MapColumnSelector) selector).keySelector();
-      }
-      return ObjectColumnSelector.string(() -> {
-        Object value = selector.get();
-        if (value instanceof Map) {
-          return Lists.newArrayList(((Map) value).keySet());
-        }
-        return null;
-      });
-    } else if (MAP_VALUE.equals(postfix)) {
-      if (selector instanceof MapColumnSelector) {
-        return ((MapColumnSelector) selector).valueSelector();
-      }
-      String[] description = TypeUtils.splitDescriptiveType(type);
-      ValueDesc valueType = description == null ? ValueDesc.ARRAY : ValueDesc.ofArray(description[2]);
-      return ObjectColumnSelector.typed(valueType, () ->
-      {
-        Object value = selector.get();
-        if (value instanceof Map) {
-          return Lists.newArrayList(((Map) value).values());
-        }
-        return null;
-      });
-    }
-    return null;
+    return VirtualColumn.nested(selector, expression);
   }
 
   @Override
@@ -134,7 +92,7 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
     Preconditions.checkArgument(dimension.startsWith(metric));
 
     ObjectColumnSelector selector = factory.makeObjectColumnSelector(metric);
-    if (metric.equals(dimension)) {
+    if (selector == null || metric.equals(dimension)) {
       return VirtualColumns.toDimensionSelector(selector, extractionFn);
     }
     Preconditions.checkArgument(dimension.charAt(metric.length()) == '.');
@@ -146,7 +104,7 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
     if (MAP_KEY.equals(postfix)) {
       if (selector instanceof MapColumnSelector) {
         ScanContext context = factory instanceof Cursor ? ((Cursor) factory).scanContext() : null;  // todo
-        return ((MapColumnSelector) selector).keyDimensionSelector(extractionFn, context, keyIndexed.indexer());
+        return ((MapColumnSelector) selector).keyDimensionSelector(context, extractionFn, keyIndexed.indexer());
       }
       ObjectColumnSelector values = ObjectColumnSelector.typed(ValueDesc.MV_STRING, () ->
       {

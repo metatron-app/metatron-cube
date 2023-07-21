@@ -22,13 +22,10 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
-
-import java.util.List;
 
 /**
  */
@@ -58,55 +55,28 @@ public class ArrayVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.startsWith(outputName));
-    if (column.equals(columnName)) {
-      return types.resolve(columnName);
+    ValueDesc resolved = types.resolve(columnName);
+    if (resolved == null || column.equals(outputName)) {
+      return resolved;
     }
-    int index = column.indexOf('.', outputName.length());
-    final Integer access = Ints.tryParse(column.substring(index + 1));
-    if (access == null || access < 0) {
-      throw new IllegalArgumentException("expects index attached in " + column);
-    }
-    ValueDesc valueDesc = types.resolve(columnName, ValueDesc.UNKNOWN);
-    if (valueDesc.isArray()) {
-      return valueDesc.subElement(ValueDesc.UNKNOWN);
-    }
-    return null;
+    String expression = column.substring(outputName.length() + 1);
+    return VirtualColumn.nested(resolved, expression);
   }
 
   @Override
   public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
   {
     Preconditions.checkArgument(column.startsWith(outputName));
-    final int index = column.indexOf('.', outputName.length());
-    if (index < 0) {
-      return factory.makeObjectColumnSelector(columnName);
+    ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
+    if (selector == null || column.equals(outputName)) {
+      return selector;
     }
-    final Integer access = Ints.tryParse(column.substring(index + 1));
-    if (access == null || access < 0) {
-      throw new IllegalArgumentException("expects index attached in " + column);
+    Preconditions.checkArgument(column.charAt(outputName.length()) == '.');
+    String expression = column.substring(outputName.length() + 1);
+    if (selector instanceof ComplexColumnSelector.Nested) {
+      return ((ComplexColumnSelector.Nested) selector).selector(expression);
     }
-    final ValueDesc indexed = factory.resolve(columnName, ValueDesc.UNKNOWN);
-    if (indexed.isArray()) {
-      @SuppressWarnings("unchecked")
-      final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(columnName);
-      final ValueDesc elementType = indexed.subElement(ValueDesc.UNKNOWN);
-      return new ObjectColumnSelector()
-      {
-        @Override
-        public Object get()
-        {
-          List list = selector.get();
-          return access < list.size() ? list.get(access) : null;
-        }
-
-        @Override
-        public ValueDesc type()
-        {
-          return elementType;
-        }
-      };
-    }
-    return null;
+    return VirtualColumn.nested(selector, expression);
   }
 
   @Override

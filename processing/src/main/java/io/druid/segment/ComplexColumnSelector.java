@@ -34,49 +34,63 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
 {
   Offset offset();
 
-  interface StructColumnSelector extends ComplexColumnSelector<List>
+  default ObjectColumnSelector asSelector(Column column)
   {
-    List<String> getFieldNames();
+    return ColumnSelectors.asSelector(column, offset());
+  }
 
-    ValueDesc getType(String field);
+  interface Nested<T> extends ComplexColumnSelector<T>
+  {
+    Column resolve(String expression);
 
-    Column getField(String field);
-
-    default ObjectColumnSelector fieldSelector(String field)
+    default ObjectColumnSelector selector(String expression)
     {
-      return ColumnSelectors.asSelector(getField(field), offset());
+      return asSelector(resolve(expression));
     }
   }
 
-  interface MapColumnSelector extends ComplexColumnSelector<Map>
+  interface StructColumnSelector extends ComplexColumnSelector.Nested<List>
   {
-    default ValueDesc getValueType()
-    {
-      return getValue().getType();
-    }
+    List<String> getFieldNames();
 
+    Column getField(String field);
+
+    ValueDesc getType(String field);
+  }
+
+  interface MapColumnSelector extends ComplexColumnSelector.Nested<Map>
+  {
     Column getKey();
 
     Column getValue();
 
     default ObjectColumnSelector keySelector()
     {
-      return ColumnSelectors.asSelector(getKey(), offset());
+      return asSelector(getKey());
     }
 
     default ObjectColumnSelector valueSelector()
     {
-      return ColumnSelectors.asSelector(getValue(), offset());
+      return asSelector(getValue());
     }
 
     default DimensionSelector keyDimensionSelector(
-        ExtractionFn extractionFn,
         ScanContext context,
+        ExtractionFn extractionFn,
         Function<IndexedInts, IndexedInts> indexer
     )
     {
       Preconditions.checkArgument(getKey().hasDictionaryEncodedColumn());
       return DimensionSelector.asSelector(getKey().getDictionaryEncoded(), extractionFn, context, offset(), indexer);
     }
+  }
+
+  interface ArrayColumnSelector extends ComplexColumnSelector.Nested<List>
+  {
+    int numElements();
+
+    ValueDesc getType(int ix);
+
+    Column getElement(int ix);
   }
 }

@@ -84,7 +84,7 @@ public class StructColumnPartSerde implements ColumnPartSerde
       @Override
       public long getSerializedSize()
       {
-        return getPrefixedSize(fieldDescriptors);
+        return ColumnDescriptor.getPrefixedSize(fieldDescriptors);
       }
 
       @Override
@@ -127,7 +127,7 @@ public class StructColumnPartSerde implements ColumnPartSerde
           @Override
           public long getSerializedSize()
           {
-            return getPrefixedSize(fieldDescriptors);
+            return ColumnDescriptor.getPrefixedSize(fieldDescriptors);
           }
 
           @Override
@@ -144,16 +144,6 @@ public class StructColumnPartSerde implements ColumnPartSerde
         });
       }
     };
-  }
-
-  private static long getPrefixedSize(List<ColumnDescriptor> fieldDescriptors)
-  {
-    long sum = 0;
-    for (ColumnDescriptor descriptor : fieldDescriptors) {
-      sum += Integer.BYTES;
-      sum += descriptor.numBytes();
-    }
-    return sum;
   }
 
   private static class StructColumn implements ComplexColumn.StructColumn
@@ -194,6 +184,19 @@ public class StructColumnPartSerde implements ColumnPartSerde
     }
 
     @Override
+    public Column resolve(String expression)
+    {
+      Column column = fields.get(expression);
+      for (int ix = expression.indexOf('.'); column == null && ix > 0; ix = expression.indexOf('.', ix + 1)) {
+        column = fields.get(expression.substring(0, ix));
+        if (column != null) {
+          column = column.resolve(expression.substring(ix + 1));
+        }
+      }
+      return column;
+    }
+
+    @Override
     public ValueDesc getType(String field)
     {
       Column column = getField(field);
@@ -210,14 +213,7 @@ public class StructColumnPartSerde implements ColumnPartSerde
     @Override
     public Column getField(String field)
     {
-      Column column = fields.get(field);
-      for (int ix = field.indexOf('.'); column == null && ix > 0; ix = field.indexOf('.', ix + 1)) {
-        column = fields.get(field.substring(0, ix));
-        if (column != null) {
-          column = column.getField(field.substring(ix + 1));
-        }
-      }
-      return column;
+      return fields.get(field);
     }
 
     @Override

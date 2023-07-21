@@ -225,6 +225,14 @@ public class DruidExpression implements Cacheable
     );
   }
 
+  public DruidExpression nested(Object field)
+  {
+    if (isDirectColumnAccess()) {
+      return DruidExpression.fromExpression(String.format("\"%s.%s\"", getDirectColumn(), field));
+    }
+    return DruidExpression.fromExpression(String.format("%s.\"%s\"", getExpression(), field));
+  }
+
   public boolean isConstant()
   {
     return simpleExtraction == null && Evals.isConstant(Parser.parse(expression));

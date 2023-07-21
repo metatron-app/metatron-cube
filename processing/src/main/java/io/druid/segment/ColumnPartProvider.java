@@ -30,7 +30,7 @@ public interface ColumnPartProvider<T> extends Supplier<T>
 {
   int numRows();
 
-  long getSerializedSize();
+  long getSerializedSize();   // just for tests & index viewer
 
   default CompressionStrategy compressionType()
   {

@@ -52,7 +52,7 @@ public class ArrayMetricSerde implements ComplexMetricSerde
   {
     Preconditions.checkArgument(element.isPrimitive(), "not for complex type");
     this.elementType = element;
-    this.arrayType = ValueDesc.ofArray(element.name());
+    this.arrayType = ValueDesc.ofArray(element);
     this.extractor = null;
     this.strategy = null;
   }
@@ -61,7 +61,7 @@ public class ArrayMetricSerde implements ComplexMetricSerde
   {
     Preconditions.checkNotNull(serde, "complex serde is null");
     this.elementType = ValueType.COMPLEX;
-    this.arrayType = ValueDesc.ofArray(serde.getTypeName());
+    this.arrayType = ValueDesc.ofArray(serde.getType());
     this.extractor = serde.getExtractor(Arrays.asList());
     this.strategy = serde.getObjectStrategy();
   }

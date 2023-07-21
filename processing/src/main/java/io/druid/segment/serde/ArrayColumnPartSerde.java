@@ -21,9 +21,10 @@ package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.common.utils.IOUtils;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
@@ -36,35 +37,47 @@ import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 /**
- *
  */
-public class MapColumnPartSerde implements ColumnPartSerde
+public class ArrayColumnPartSerde implements ColumnPartSerde
 {
-  private final ColumnDescriptor keyDescriptor;
-  private final ColumnDescriptor valueDescriptor;
-
   @JsonCreator
-  public MapColumnPartSerde(
-      @JsonProperty("keyDescriptor") ColumnDescriptor keyDescriptor,
-      @JsonProperty("valueDescriptor") ColumnDescriptor valueDescriptor
-  )
+  public static ArrayColumnPartSerde createDeserializer(
+      @JsonProperty("elementDescriptor") ColumnDescriptor elementDescriptor,
+      @JsonProperty("size") int size
+      )
   {
-    this.keyDescriptor = keyDescriptor;
-    this.valueDescriptor = valueDescriptor;
+    return new ArrayColumnPartSerde(Arrays.asList(elementDescriptor), size);
+  }
+
+  private final int size;
+  private final List<ColumnDescriptor> descriptors;
+
+  public ArrayColumnPartSerde(List<ColumnDescriptor> descriptors)
+  {
+    this(descriptors, descriptors.size());
+  }
+
+  public ArrayColumnPartSerde(List<ColumnDescriptor> descriptors, int size)
+  {
+    this.descriptors = descriptors;
+    this.size = size;
   }
 
   @JsonProperty
-  public ColumnDescriptor getKeyDescriptor()
+  public ColumnDescriptor getElementDescriptor()
   {
-    return keyDescriptor;
+    return descriptors.get(0);
   }
 
   @JsonProperty
-  public ColumnDescriptor getValueDescriptor()
+  public int getSize()
   {
-    return valueDescriptor;
+    return size;
   }
 
   @Override
@@ -75,18 +88,17 @@ public class MapColumnPartSerde implements ColumnPartSerde
       @Override
       public long getSerializedSize()
       {
-        return Integer.BYTES + keyDescriptor.numBytes() + Integer.BYTES + valueDescriptor.numBytes();
+        return ColumnDescriptor.getPrefixedSize(descriptors);
       }
 
       @Override
       public long writeToChannel(WritableByteChannel channel) throws IOException
       {
-        byte[] scratch = new byte[Integer.BYTES];
         long written = 0;
-        written += channel.write(ByteBuffer.wrap(IOUtils.intTo(keyDescriptor.numBytes(), scratch)));
-        written += keyDescriptor.write(channel);
-        written += channel.write(ByteBuffer.wrap(IOUtils.intTo(valueDescriptor.numBytes(), scratch)));
-        written += valueDescriptor.write(channel);
+        for (ColumnDescriptor descriptor : descriptors) {
+          written += channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(descriptor.numBytes()))));
+          written += descriptor.write(channel);
+        }
         return written;
       }
     };
@@ -101,54 +113,54 @@ public class MapColumnPartSerde implements ColumnPartSerde
       public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException
       {
         String prefix = builder.getName() + ".";
-        ByteBuffer prepared = ByteBufferSerializer.prepareForRead(buffer);
-        Column keys = keyDescriptor.read(prefix + "key", prepared, serdeFactory);
-
-        prepared = ByteBufferSerializer.prepareForRead(buffer);
-        Column values = valueDescriptor.read(prefix + "value", prepared, serdeFactory);
-
-        ValueDesc type = ValueDesc.ofMap(keys.getType().unwrapDimension(), values.getType());
+        int position = buffer.position();
+        ColumnDescriptor descriptor = descriptors.get(0);
+        List<Column> elements = Lists.newArrayList();
+        for (int i = 0; i < size; i++) {
+          ByteBuffer prepared = ByteBufferSerializer.prepareForRead(buffer);
+          elements.add(descriptor.read(prefix + i, prepared, serdeFactory));
+        }
+        long serializedSize = buffer.position() - position;
+        ValueDesc type = ValueDesc.ofArray(descriptor.getValueType());
         builder.setComplexColumn(new ColumnPartProvider<ComplexColumn>()
         {
           @Override
           public int numRows()
           {
-            return keys.getNumRows();
+            return Iterables.getFirst(elements, null).getNumRows();
           }
 
           @Override
           public long getSerializedSize()
           {
-            return Integer.BYTES + keyDescriptor.numBytes() + Integer.BYTES + valueDescriptor.numBytes();
+            return serializedSize;
           }
 
           @Override
           public Class<? extends ComplexColumn> provides()
           {
-            return MapColumn.class;
+            return ArrayColumn.class;
           }
 
           @Override
           public ComplexColumn get()
           {
-            return new MapColumn(type, keys, values);
+            return new ArrayColumn(type, elements);
           }
         });
       }
     };
   }
 
-  private static class MapColumn implements ComplexColumn.MapColumn
+  private static class ArrayColumn implements ComplexColumn.ArrayColumn
   {
     private final ValueDesc type;
-    private final Column key;
-    private final Column value;
+    private final List<Column> elements;
 
-    public MapColumn(ValueDesc type, Column key, Column value)
+    public ArrayColumn(ValueDesc type, List<Column> elements)
     {
       this.type = type;
-      this.key = key;
-      this.value = value;
+      this.elements = elements;
     }
 
     @Override
@@ -158,66 +170,62 @@ public class MapColumnPartSerde implements ColumnPartSerde
     }
 
     @Override
-    public int numRows()
-    {
-      return key.getNumRows();
-    }
-
-    @Override
-    public Column resolve(String expression)
-    {
-      int ix = expression.indexOf('.');
-      Column column = getField(ix < 0 ? expression : expression.substring(0, ix));
-      if (ix < 0 || column == null) {
-        return column;
-      }
-      return column.resolve(expression.substring(ix + 1));
-    }
-
-    private Column getField(String field)
-    {
-      if (Row.MAP_KEY.equals(field)) {
-        return key;
-      } else if (Row.MAP_VALUE.equals(field)) {
-        return value;
-      }
-      return null;
-    }
-
-    @Override
-    public Column getKey()
-    {
-      return key;
-    }
-
-    @Override
-    public Column getValue()
-    {
-      return value;
-    }
-
-    @Override
     public CompressionStrategy compressionType()
     {
       return null;
     }
 
     @Override
-    public CompressionStrategy keyCompressionType()
+    public Column resolve(String expression)
     {
-      return key.compressionType();
+      int ix = expression.indexOf('.');
+      Integer access = Ints.tryParse(ix < 0 ? expression : expression.substring(0, ix));
+      if (access == null) {
+        return null;
+      }
+      Column column = getElement(access);
+      if (ix < 0 || column == null) {
+        return column;
+      }
+      return column.resolve(expression.substring(ix + 1));
     }
 
     @Override
-    public CompressionStrategy valueCompressionType()
+    public int numRows()
     {
-      return value.compressionType();
+      return Iterables.getFirst(elements, null).getNumRows();
+    }
+
+    @Override
+    public int numElements()
+    {
+      return elements.size();
+    }
+
+    @Override
+    public ValueDesc getType(int ix)
+    {
+      Column column = getElement(ix);
+      return column == null ? null : column.getType();
+    }
+
+    @Override
+    public Column getElement(int ix)
+    {
+      return ix < 0 || ix >= elements.size() ? null : elements.get(ix);
+    }
+
+    @Override
+    public Map<String, Object> getStats(int ix)
+    {
+      Column column = getElement(ix);
+      return column == null ? null : column.getColumnStats();
     }
 
     @Override
     public Object getValue(int rowNum)
     {
-      throw new UnsupportedOperationException();    // todo
+      throw new UnsupportedOperationException();
     }
 
     @Override

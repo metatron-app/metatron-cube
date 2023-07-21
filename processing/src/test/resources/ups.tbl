@@ -13,6 +13,24 @@
     "marketing_msg": "미동의",
     "proactive_receive": "미동의"
   },
+  "onboarding": {
+    "interest": [
+      {
+        "_id": "KEYWORD_001",
+        "name": "동네 탐방"
+      },
+      {
+        "_id": "KEYWORD_002",
+        "name": "패션의 모든 것"
+      }
+    ],
+    "artist": [
+      {
+        "_id": "80049126",
+        "name": "아이유 (IU)"
+      }
+    ]
+  },
   "ci_profile": {
     "base": false,
     "family": {
@@ -96,6 +114,24 @@
     "event_receive": "미동의",
     "marketing_msg": "미동의",
     "proactive_receive": "미동의"
+  },
+  "onboarding": {
+    "interest": [
+      {
+        "_id": "KEYWORD_001",
+        "name": "집안 탐방"
+      },
+      {
+        "_id": "KEYWORD_002",
+        "name": "방콕의 모든 것"
+      }
+    ],
+    "artist": [
+      {
+        "_id": "80049127",
+        "name": "유아이 (UI)"
+      }
+    ]
   },
   "ci_profile": {
     "base": true,

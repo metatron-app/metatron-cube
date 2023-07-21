@@ -126,7 +126,7 @@ public class StructColumnSerializer implements MetricColumnSerializer
     List<ColumnDescriptor> descriptors = Lists.newArrayList();
     for (int i = 0; i < serializers.length; i++) {
       ColumnDescriptor descriptor = serializers[i].buildDescriptor(ioPeon, new ColumnDescriptor.Builder()).build();
-      fieldType[i]= descriptor.getValueType();
+      fieldType[i] = descriptor.getValueType();
       descriptors.add(descriptor);
     }
     builder.setValueType(ValueDesc.ofStruct(fieldNames, fieldType));

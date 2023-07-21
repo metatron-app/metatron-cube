@@ -20,6 +20,8 @@
 package io.druid.data;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 import java.util.Iterator;
@@ -57,6 +59,17 @@ public class TypeUtils
         }
       }
       return b.append(')');
+    }
+    if (node.isArray()) {
+      Preconditions.checkArgument(node.size() == 1);
+      JsonNode element = Iterators.getOnlyElement(node.elements());
+      if (element.isObject()) {
+        b.append("array(");
+        append(element, b);
+        return b.append(')');
+      }
+      b.append("array.");
+      return append(element, b);
     }
     return b.append(node.asText());
   }

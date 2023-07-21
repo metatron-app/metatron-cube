@@ -56,12 +56,13 @@ public class ValueDesc implements Serializable, Cacheable
   public static final String DATETIME_TYPE = "datetime";
 
   // non primitives
-  private static final String ARRAY_TYPE = "array";
   private static final String INDEXED_ID_TYPE = "indexed";
   private static final String BITSET_TYPE = "bitset";
   private static final String UNKNOWN_TYPE = "unknown";
 
-  private static final String ARRAY_PREFIX = "array.";
+  private static final String PRIMITIVE_ARRAY_PREFIX = "array.";
+  private static final String ARRAY_PREFIX = "array(";
+
   // aka. IndexedInts.WithLookup
   // this is return type of object selector which simulates dimension selector (used for some filter optimization)
   private static final String INDEXED_ID_PREFIX = "indexed.";
@@ -74,6 +75,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   // descriptive type
   public static final String MAP_TYPE = "map";
+  public static final String ARRAY_TYPE = "array";
   public static final String DECIMAL_TYPE = "decimal";
   public static final String STRUCT_TYPE = "struct";
 
@@ -121,10 +123,10 @@ public class ValueDesc implements Serializable, Cacheable
   public static final ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE, List.class);
   public static final ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
 
-  public static final ValueDesc STRING_ARRAY = new ValueDesc(ARRAY_PREFIX + STRING_TYPE);
-  public static final ValueDesc LONG_ARRAY = new ValueDesc(ARRAY_PREFIX + LONG_TYPE);
-  public static final ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
-  public static final ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
+  public static final ValueDesc STRING_ARRAY = new ValueDesc(PRIMITIVE_ARRAY_PREFIX + STRING_TYPE);
+  public static final ValueDesc LONG_ARRAY = new ValueDesc(PRIMITIVE_ARRAY_PREFIX + LONG_TYPE);
+  public static final ValueDesc FLOAT_ARRAY = new ValueDesc(PRIMITIVE_ARRAY_PREFIX + FLOAT_TYPE);
+  public static final ValueDesc DOUBLE_ARRAY = new ValueDesc(PRIMITIVE_ARRAY_PREFIX + DOUBLE_TYPE);
 
   public static final ValueDesc GEOMETRY = new ValueDesc("geometry");
   public static final ValueDesc OGC_GEOMETRY = new ValueDesc("ogc_geometry");
@@ -132,19 +134,22 @@ public class ValueDesc implements Serializable, Cacheable
   public static final ValueDesc INTERVAL = new ValueDesc("interval", Interval.class);
   public static final ValueDesc BITSET = new ValueDesc(BITSET_TYPE, BitSet.class);
 
+  public static ValueDesc ofArray(String typeName)
+  {
+    return ofArray(ValueDesc.of(typeName));
+  }
+
   public static ValueDesc ofArray(ValueDesc valueType)
   {
-    return ofArray(valueType.typeName);
+    if (valueType.isPrimitive()) {
+      return ofArray(valueType.type);
+    }
+    return ValueDesc.of(String.format("%s(%s)", ARRAY_TYPE, valueType.typeName));
   }
 
   public static ValueDesc ofArray(ValueType valueType)
   {
-    return ofArray(valueType.getName());
-  }
-
-  public static ValueDesc ofArray(String typeName)
-  {
-    return ValueDesc.of(ARRAY_PREFIX + typeName);
+    return ValueDesc.of(PRIMITIVE_ARRAY_PREFIX + valueType.getName());
   }
 
   public static ValueDesc ofMap(ValueDesc key, ValueDesc value)
@@ -220,11 +225,6 @@ public class ValueDesc implements Serializable, Cacheable
   public static boolean isOGCGeometry(ValueDesc valueType)
   {
     return isPrefixed(valueType.typeName, OGC_GEOMETRY.typeName);
-  }
-
-  public static boolean isArray(String typeName)
-  {
-    return isPrefixed(typeName, ARRAY_PREFIX);
   }
 
   public static boolean isDimension(ValueDesc valueType)
@@ -672,12 +672,24 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isStruct()
   {
-    return this == STRUCT || STRUCT_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(STRUCT_TYPE);
+    return this == STRUCT || STRUCT_TYPE.equals(typeName) || typeName.startsWith(STRUCT_TYPE);
   }
 
   public boolean isArray()
   {
-    return this == ARRAY || ARRAY_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(ARRAY_TYPE);
+    return this == ARRAY || ARRAY_TYPE.equals(typeName) ||
+           typeName.startsWith(PRIMITIVE_ARRAY_PREFIX) ||
+           typeName.startsWith(ARRAY_PREFIX);
+  }
+
+  public boolean isPrimitiveArray()
+  {
+    return this == ARRAY || ARRAY_TYPE.equals(typeName) || typeName.startsWith(PRIMITIVE_ARRAY_PREFIX);
+  }
+
+  public boolean isComplexArray()
+  {
+    return typeName.startsWith(ARRAY_PREFIX);
   }
 
   public boolean isBitSet()

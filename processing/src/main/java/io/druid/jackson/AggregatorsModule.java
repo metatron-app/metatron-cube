@@ -102,23 +102,23 @@ public class AggregatorsModule extends SimpleModule
     if (ComplexMetrics.getSerdeForType("object") == null) {
       ComplexMetrics.registerSerde("object", new ComplexMetricSerde.Dummy());
     }
-    if (ComplexMetrics.getSerdeForType("array") == null) {
-      ComplexMetrics.registerSerde("array", new ArrayMetricSerde(ValueType.FLOAT));
+    if (ComplexMetrics.getSerdeForType(ValueDesc.ARRAY) == null) {
+      ComplexMetrics.registerSerde(ValueDesc.ARRAY, new ArrayMetricSerde(ValueType.FLOAT));
     }
-    if (ComplexMetrics.getSerdeForType("array.float") == null) {
-      ComplexMetrics.registerSerde("array.float", new ArrayMetricSerde(ValueType.FLOAT));
+    if (ComplexMetrics.getSerdeForType(ValueDesc.FLOAT_ARRAY) == null) {
+      ComplexMetrics.registerSerde(ValueDesc.FLOAT_ARRAY, new ArrayMetricSerde(ValueType.FLOAT));
     }
-    if (ComplexMetrics.getSerdeForType("array.double") == null) {
-      ComplexMetrics.registerSerde("array.double", new ArrayMetricSerde(ValueType.DOUBLE));
+    if (ComplexMetrics.getSerdeForType(ValueDesc.DOUBLE_ARRAY) == null) {
+      ComplexMetrics.registerSerde(ValueDesc.DOUBLE_ARRAY, new ArrayMetricSerde(ValueType.DOUBLE));
     }
-    if (ComplexMetrics.getSerdeForType("array.long") == null) {
-      ComplexMetrics.registerSerde("array.long", new ArrayMetricSerde(ValueType.LONG));
+    if (ComplexMetrics.getSerdeForType(ValueDesc.LONG_ARRAY) == null) {
+      ComplexMetrics.registerSerde(ValueDesc.LONG_ARRAY, new ArrayMetricSerde(ValueType.LONG));
     }
-    if (ComplexMetrics.getSerdeForType("array.string") == null) {
-      ComplexMetrics.registerSerde("array.string", new ArrayMetricSerde(ValueType.STRING));
+    if (ComplexMetrics.getSerdeForType(ValueDesc.STRING_ARRAY) == null) {
+      ComplexMetrics.registerSerde(ValueDesc.STRING_ARRAY, new ArrayMetricSerde(ValueType.STRING));
     }
-    if (ComplexMetrics.getSerdeForType("string") == null) {
-      ComplexMetrics.registerSerde("string", StringMetricSerde.INSTANCE);
+    if (ComplexMetrics.getSerdeForType(ValueDesc.STRING) == null) {
+      ComplexMetrics.registerSerde(ValueDesc.STRING, StringMetricSerde.INSTANCE);
     }
     if (ComplexMetrics.getSerdeForType(ValueDesc.DECIMAL_TYPE) == null) {
       ComplexMetrics.registerSerde(ValueDesc.DECIMAL_TYPE, new DecimalMetricSerde());

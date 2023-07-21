@@ -41,6 +41,16 @@ import java.util.Set;
  */
 public class ColumnDescriptor extends ColumnMeta
 {
+  public static long getPrefixedSize(List<ColumnDescriptor> descriptors)
+  {
+    long sum = 0;
+    for (ColumnDescriptor descriptor : descriptors) {
+      sum += Integer.BYTES;
+      sum += descriptor.numBytes();
+    }
+    return sum;
+  }
+
   public static Builder builder()
   {
     return new Builder();

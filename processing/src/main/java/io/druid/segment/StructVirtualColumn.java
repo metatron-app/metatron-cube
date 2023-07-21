@@ -22,20 +22,12 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
-import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.ComplexColumnSelector.StructColumnSelector;
-import io.druid.segment.serde.ComplexMetrics;
-import io.druid.segment.serde.StructMetricSerde;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -66,127 +58,29 @@ public class StructVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.startsWith(outputName));
-    ValueDesc columnType = types.resolve(columnName, ValueDesc.UNKNOWN);
-    Preconditions.checkArgument(columnType.isStruct(), "%s is not struct type", columnName);
-    if (column.equals(outputName)) {
+    ValueDesc columnType = types.resolve(columnName);
+    if (columnType == null || column.equals(outputName)) {
       return columnType;
     }
-    return nested(columnType, column.substring(columnName.length() + 1));
-  }
-
-  private ValueDesc nested(ValueDesc columnType, String field)
-  {
-    if (columnType.isMap()) {
-      String[] description = TypeUtils.splitDescriptiveType(columnType);
-      if (field.equals(Row.MAP_KEY)) {
-        return description == null ? ValueDesc.STRING : ValueDesc.of(description[1]);
-      }
-      if (field.equals(Row.MAP_VALUE)) {
-        return description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]);
-      }
-      return ValueDesc.UNKNOWN;
-    }
-    StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
-    int ix = -1;
-    int index = serde.indexOf(field);
-    if (index < 0) {
-      for (ix = field.indexOf('.'); ix > 0; ix = field.indexOf('.', ix + 1)) {
-        index = serde.indexOf(field.substring(0, ix));
-        if (index > 0) {
-          break;
-        }
-      }
-    }
-    if (index < 0) {
-      return ValueDesc.UNKNOWN;
-    }
-    return ix > 0 ? nested(serde.type(index), field.substring(ix + 1)) : serde.type(index);
+    Preconditions.checkArgument(column.charAt(outputName.length()) == '.');
+    String expression = column.substring(outputName.length() + 1);
+    return VirtualColumn.nested(columnType, expression);
   }
 
   @Override
   public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
     Preconditions.checkArgument(dimension.startsWith(outputName));
-    final ValueDesc columnType = factory.resolve(columnName);
-    if (columnType == null) {
-      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
-    }
-    Preconditions.checkArgument(columnType.isStruct(), "%s is not struct type (was %s)", columnName, columnType);
-
-    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
-    if (dimension.equals(outputName)) {
+    ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
+    if (selector == null || dimension.equals(outputName)) {
       return selector;
     }
-    final String fieldName = dimension.substring(columnName.length() + 1);
-    if (selector instanceof StructColumnSelector) {
-      return ((StructColumnSelector) selector).fieldSelector(fieldName);
+    Preconditions.checkArgument(dimension.charAt(outputName.length()) == '.');
+    String expression = dimension.substring(outputName.length() + 1);
+    if (selector instanceof ComplexColumnSelector.Nested) {
+      return ((ComplexColumnSelector.Nested) selector).selector(expression);
     }
-    return nested(selector, fieldName);
-  }
-
-  // for incremental index -_-;;;;
-  private ObjectColumnSelector nested(ObjectColumnSelector selector, String field)
-  {
-    ValueDesc type = selector.type();
-    if (type.isMap()) {
-      if (Row.MAP_KEY.equals(field)) {
-        String[] description = TypeUtils.splitDescriptiveType(type);
-        return ObjectColumnSelector.typed(
-            description == null ? ValueDesc.STRING : ValueDesc.of(description[1]),
-            () -> {
-              Map v = (Map) selector.get();
-              return v == null ? null : Lists.newArrayList(v.keySet());
-            }
-        );
-      }
-      if (Row.MAP_VALUE.equals(field)) {
-        String[] description = TypeUtils.splitDescriptiveType(type);
-        return ObjectColumnSelector.typed(
-            description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]),
-            () -> {
-              Map v = (Map) selector.get();
-              return v == null ? null : Lists.newArrayList(v.values());
-            }
-        );
-      }
-      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
-    }
-    StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(type);
-    int ix = -1;
-    int index = serde.indexOf(field);
-    if (index < 0) {
-      for (ix = field.indexOf('.'); ix > 0; ix = field.indexOf('.', ix + 1)) {
-        index = serde.indexOf(field.substring(0, ix));
-        if (index > 0) {
-          break;
-        }
-      }
-    }
-    if (index < 0) {
-      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
-    }
-    final int vindex = index;
-    final String fieldName = ix < 0 ? field : field.substring(0, ix);
-    final ValueDesc fieldType = serde.type(index, f -> f.isString() ? ValueDesc.MV_STRING : f);
-    final ObjectColumnSelector nested = new ObjectColumnSelector.Typed(fieldType)
-    {
-      @Override
-      public Object get()
-      {
-        final Object o = selector.get();
-        if (o == null) {
-          return null;
-        } else if (o instanceof List) {
-          return ((List) o).get(vindex);
-        } else if (o instanceof Object[]) {
-          return ((Object[]) o)[vindex];
-        } else if (o instanceof Map) {
-          return ((Map) o).get(fieldName);
-        }
-        return null;
-      }
-    };
-    return ix > 0 ? nested(nested, field.substring(ix + 1)) : nested;
+    return VirtualColumn.nested(selector, expression);
   }
 
   @Override

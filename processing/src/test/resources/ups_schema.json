@@ -14,6 +14,23 @@
       "typeName": "string"
     },
     {
+      "name": "onboarding",
+      "typeExpr": {
+        "interest": [
+          {
+            "_id": "tag",
+            "name": "string"
+          }
+        ],
+        "artist": [
+          {
+            "_id": "tag",
+            "name": "string"
+          }
+        ]
+      }
+    },
+    {
       "name": "terms",
       "typeExpr": {
         "flo": "tag",

@@ -193,13 +193,11 @@ public class Parser
       @Override
       protected String normalize(String identifier)
       {
+        String normalized = super.normalize(identifier);
         if (!GuavaUtils.isNullOrEmpty(mapping)) {
-          String normalized = mapping.get(identifier);
-          if (normalized != null) {
-            return normalized;
-          }
+          return mapping.getOrDefault(normalized, normalized);
         }
-        return identifier;
+        return normalized;
       }
     };
     walker.walk(listener, parseTree);

@@ -73,6 +73,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.IntFunction;
 import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 /**
@@ -123,12 +124,6 @@ public class ColumnSelectors
     {
       return false;
     }
-  };
-
-  public static final ObjectColumnSelector UNKNOWN = new ObjectColumnSelector.Typed(ValueDesc.UNKNOWN)
-  {
-    @Override
-    public Object get() {return null;}
   };
 
   public static FloatColumnSelector asFloat(final ObjectColumnSelector selector)
@@ -486,6 +481,8 @@ public class ColumnSelectors
     };
   }
 
+  public static final ObjectColumnSelector NULL_UNKNOWN = nullObjectSelector(ValueDesc.UNKNOWN);
+
   public static ObjectColumnSelector nullObjectSelector(final ValueDesc valueType)
   {
     return ObjectColumnSelector.typed(valueType, () -> null);
@@ -774,7 +771,7 @@ public class ColumnSelectors
   public static ObjectColumnSelector asSelector(Column column, Offset offset)
   {
     if (column == null) {
-      return UNKNOWN;
+      return NULL_UNKNOWN;
     } else if (column.hasGenericColumn()) {
       return asSelector(column.getGenericColumn(), offset);
     } else if (column.hasComplexColumn()) {
@@ -788,7 +785,7 @@ public class ColumnSelectors
   public static ObjectColumnSelector asSelector(GenericColumn column, Offset offset)
   {
     if (column == null) {
-      return UNKNOWN;
+      return NULL_UNKNOWN;
     }
     switch (column.getType().type()) {
       case FLOAT:
@@ -1334,14 +1331,20 @@ public class ColumnSelectors
   public static ObjectColumnSelector asSelector(ComplexColumn column, Offset offset)
   {
     if (column == null) {
-      return UNKNOWN;
+      return NULL_UNKNOWN;
     }
     if (column instanceof ComplexColumn.StructColumn) {
       return new ComplexColumnSelector.StructColumnSelector()
       {
         final ComplexColumn.StructColumn struct = (ComplexColumn.StructColumn) column;
         final ObjectColumnSelector[] fields = struct.getFieldNames().stream()
-                                                    .map(f -> fieldSelector(f)).toArray(x -> new ObjectColumnSelector[x]);
+                                                    .map(f -> asSelector(getField(f)))
+                                                    .toArray(x -> new ObjectColumnSelector[x]);
+        @Override
+        public Column resolve(String expression)
+        {
+          return struct.resolve(expression);
+        }
 
         @Override
         public Offset offset()
@@ -1359,7 +1362,7 @@ public class ColumnSelectors
         public List get()
         {
           Object[] array = new Object[fields.length];
-          for (int i = 0; i < array.length; i++) {
+          for (int i = 0; i < fields.length; i++) {
             array[i] = fields[i].get();
           }
           return Arrays.asList(array);
@@ -1388,9 +1391,14 @@ public class ColumnSelectors
       return new ComplexColumnSelector.MapColumnSelector()
       {
         final ComplexColumn.MapColumn map = (ComplexColumn.MapColumn) column;
-        final ObjectColumnSelector key = asSelector(map.getKey().getDictionaryEncoded(), offset);
-        final ObjectColumnSelector value = asSelector(map.getValue().getComplexColumn(), offset);
+        final ObjectColumnSelector key = asSelector(map.getKey());
+        final ObjectColumnSelector value = asSelector(map.getValue());
 
+        @Override
+        public Column resolve(String expression)
+        {
+          return map.resolve(expression);
+        }
         @Override
         public Offset offset()
         {
@@ -1449,6 +1457,59 @@ public class ColumnSelectors
           return map.getValue();
         }
       };
+    } else if (column instanceof ComplexColumn.ArrayColumn) {
+      return new ComplexColumnSelector.ArrayColumnSelector()
+      {
+        final ComplexColumn.ArrayColumn array = (ComplexColumn.ArrayColumn) column;
+        final ObjectColumnSelector[] elements = IntStream.range(0, array.numElements())
+                                                         .mapToObj(x -> asSelector(getElement(x)))
+                                                         .toArray(x -> new ObjectColumnSelector[x]);
+        @Override
+        public Column resolve(String expression)
+        {
+          return array.resolve(expression);
+        }
+
+        @Override
+        public int numElements()
+        {
+          return array.numElements();
+        }
+
+        @Override
+        public ValueDesc getType(int ix)
+        {
+          return array.getType(ix);
+        }
+
+        @Override
+        public Column getElement(int ix)
+        {
+          return array.getElement(ix);
+        }
+
+        @Override
+        public Offset offset()
+        {
+          return offset;
+        }
+
+        @Override
+        public List get()
+        {
+          Object[] array = new Object[elements.length];
+          for (int i = 0; i < elements.length; i++) {
+            array[i] = elements[i].get();
+          }
+          return Arrays.asList(array);
+        }
+
+        @Override
+        public ValueDesc type()
+        {
+          return array.getType();
+        }
+      };
     }
     if (column instanceof ColumnAccess.WithRawAccess) {
       return new ObjectColumnSelector.WithRawAccess<Object>()
@@ -1505,7 +1566,7 @@ public class ColumnSelectors
   public static ObjectColumnSelector asSelector(DictionaryEncodedColumn column, Offset offset)
   {
     if (column == null) {
-      return UNKNOWN;
+      return NULL_UNKNOWN;
     }
     Dictionary<String> dictionary = column.dictionary();
     if (column.hasMultipleValues()) {

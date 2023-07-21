@@ -42,8 +42,8 @@ public class ComplexMetrics
 {
   private static final Logger log = new Logger(ComplexMetrics.class);
   private static final Map<String, ComplexMetricSerde.Factory> complexSerializerFactories = Maps.newHashMap();
-  private static final Map<String, ComplexMetricSerde> complexSerializers = Maps.newHashMap();
-  private static final Map<Class, String> classToTypeName = Maps.newHashMap();
+  private static final Map<ValueDesc, ComplexMetricSerde> complexSerializers = Maps.newHashMap();
+  private static final Map<Class, ValueDesc> classToType = Maps.newHashMap();
 
   public static Comparator getComparator(ValueDesc type)
   {
@@ -56,12 +56,12 @@ public class ComplexMetrics
     }
   }
 
-  public static ComplexMetricSerde getSerdeForType(ValueDesc type)
+  public static ComplexMetricSerde getSerdeForType(String type)
   {
-    return getSerdeForType(type.typeName());
+    return getSerdeForType(ValueDesc.of(type));
   }
 
-  public static ComplexMetricSerde getSerdeForType(String type)
+  public static ComplexMetricSerde getSerdeForType(ValueDesc type)
   {
     ComplexMetricSerde serde = complexSerializers.get(type);
     if (serde == null) {
@@ -81,9 +81,9 @@ public class ComplexMetrics
     return complexSerializerFactories.get(type);
   }
 
-  public static String getTypeNameForClass(Class clazz)
+  public static ValueDesc getTypeNameForClass(Class clazz)
   {
-    return classToTypeName.get(clazz);
+    return classToType.get(clazz);
   }
 
   public static void registerSerdeFactory(String type, ComplexMetricSerde.Factory factory)
@@ -94,40 +94,35 @@ public class ComplexMetrics
     complexSerializerFactories.put(type, factory);
   }
 
-  public static void registerSerde(ValueDesc type, ComplexMetricSerde serde)
+  public static void registerSerde(String type, ComplexMetricSerde serde)
   {
-    registerSerde(type, serde, true);
+    registerSerde(ValueDesc.of(type), serde);
   }
 
-  public static void registerSerde(String type, ComplexMetricSerde serde)
+  public static void registerSerde(ValueDesc type, ComplexMetricSerde serde)
   {
     registerSerde(type, serde, true);
   }
 
   public static void registerSerde(ValueDesc type, ComplexMetricSerde serde, boolean addArray)
   {
-    registerSerde(type.typeName(), serde, addArray);
-  }
-
-  public static void registerSerde(String type, ComplexMetricSerde serde, boolean addArray)
-  {
     if (complexSerializers.containsKey(type)) {
       throw new ISE("Serde for type [%s] already exists.", type);
     }
     addToMap(type, serde);
-    if (addArray && !ValueDesc.isArray(type)) {
+    if (addArray && !type.isArray()) {
       ValueDesc arrayType = ValueDesc.ofArray(type);
-      if (!complexSerializers.containsKey(arrayType.typeName())) {
-        registerSerde(arrayType.typeName(), new ArrayMetricSerde(serde));
+      if (!complexSerializers.containsKey(arrayType)) {
+        registerSerde(arrayType, new ArrayMetricSerde(serde), false);
       }
       log.info("Serde for type [%s] is registered with class [%s]", type, serde.getClass().getName());
     }
   }
 
-  private static synchronized void addToMap(String type, ComplexMetricSerde serde)
+  private static synchronized void addToMap(ValueDesc type, ComplexMetricSerde serde)
   {
     complexSerializers.put(type, serde);
-    classToTypeName.put(serde.getObjectStrategy().getClazz(), type);
+    classToType.put(serde.getObjectStrategy().getClazz(), type);
   }
 
   static Supplier<ImmutableBitmap> readBitmap(ByteBuffer buffer, final BitmapSerdeFactory serdeFactory)

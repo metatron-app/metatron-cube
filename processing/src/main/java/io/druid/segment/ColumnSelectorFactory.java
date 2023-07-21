@@ -23,7 +23,6 @@ import com.google.common.collect.Maps;
 import io.druid.common.guava.DSuppliers.TypedSupplier;
 import io.druid.common.guava.DSuppliers.WithRawAccess;
 import io.druid.data.TypeResolver;
-import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
@@ -96,7 +95,7 @@ public interface ColumnSelectorFactory extends TypeResolver
       final Map<String, WithRawAccess> rawAccessible = Maps.newHashMap();
       for (String columnName : Parser.findRequiredBindings(parsed)) {
         ObjectColumnSelector value = makeObjectColumnSelector(columnName);
-        values.put(columnName, value == null ? ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN) : value);
+        values.put(columnName, value == null ? ColumnSelectors.NULL_UNKNOWN : value);
         if (value instanceof WithRawAccess) {
           rawAccessible.put(columnName, (WithRawAccess) value);
         }

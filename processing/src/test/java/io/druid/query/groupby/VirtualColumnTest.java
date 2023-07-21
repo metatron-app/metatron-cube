@@ -389,9 +389,9 @@ public class VirtualColumnTest
         .setDimensions(DefaultDimensionSpec.toSpec("dim_nvl"))
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new GenericSumAggregatorFactory("sum_of_array", "array", ValueDesc.ofArray("long")),
-                new GenericMinAggregatorFactory("min_of_array", "array", ValueDesc.ofArray("long")),
-                new GenericMaxAggregatorFactory("max_of_array", "array", ValueDesc.ofArray("long"))
+                new GenericSumAggregatorFactory("sum_of_array", "array", ValueDesc.LONG_ARRAY),
+                new GenericMinAggregatorFactory("min_of_array", "array", ValueDesc.LONG_ARRAY),
+                new GenericMaxAggregatorFactory("max_of_array", "array", ValueDesc.LONG_ARRAY)
             )
         )
         .build();

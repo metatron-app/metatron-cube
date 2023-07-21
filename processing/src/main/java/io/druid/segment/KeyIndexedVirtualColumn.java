@@ -124,7 +124,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn.IndexProvider
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(column);
       if (selector == null) {
-        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+        return ColumnSelectors.NULL_UNKNOWN;
       }
       ValueDesc type = selector.type();
       Preconditions.checkArgument(type.hasSubElement(), "cannot resolve element type");
