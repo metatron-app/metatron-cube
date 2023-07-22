@@ -35,8 +35,12 @@ public class TypeUtils
   public static String parseType(JsonNode node)
   {
     try {
-      if (node != null && node.isObject()) {
-        return append(node, new StringBuilder()).toString();
+      if (node != null) {
+        if (node.isObject()) {
+          return append(node, new StringBuilder()).toString();
+        } else if (node.isValueNode()) {
+          return node.asText();
+        }
       }
     }
     catch (Exception e) {

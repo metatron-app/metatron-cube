@@ -164,7 +164,7 @@ public class ParquetSchemaResolver extends AbstractResolver
     Map<String, Object> spec = mapper.convertValue(parser, ObjectMappers.MAP_REF);
     GranularitySpec granularity = UniformGranularitySpec.of(segmentGranularity);
     DataSchema schema = new DataSchema(
-        dataSource, spec, metrics.toArray(new AggregatorFactory[0]), false, granularity, null, null, true
+        dataSource, spec, metrics.toArray(new AggregatorFactory[0]), null, false, granularity, null, null, true
     );
     BaseTuningConfig config = tuningConfigFromProperties(properties, mapper);
     FileLoadSpec loadSpec = new FileLoadSpec(

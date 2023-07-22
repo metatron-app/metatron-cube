@@ -20,6 +20,7 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
@@ -33,10 +34,12 @@ import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.IOUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.logger.Logger;
@@ -59,6 +62,7 @@ import org.joda.time.DateTime;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -743,5 +747,47 @@ public abstract class AggregatorFactory implements Cacheable
              ", outputName='" + outputName + '\'' +
              '}';
     }
+  }
+
+  public static AggregatorFactory[] parse(JsonNode node)
+  {
+    if (node.isArray()) {
+      List<AggregatorFactory> factories = Lists.newArrayList();
+      for (JsonNode element : node) {
+        Preconditions.checkArgument(element.isObject());
+        String name = Preconditions.checkNotNull(element.get("name")).asText();
+        JsonNode typeName = element.get("typeName");
+        if (typeName != null) {
+          factories.add(RelayAggregatorFactory.of(name, ValueDesc.of(typeName.asText())));
+          continue;
+        }
+        JsonNode typeExpr = element.get("typeExpr");
+        if (typeExpr != null) {
+          String parsed = TypeUtils.parseType(typeExpr);
+          if (parsed == null) {
+            throw new IAE("cannot parse node %s", parsed);
+          }
+          factories.add(RelayAggregatorFactory.of(name, ValueDesc.of(parsed)));
+          continue;
+        }
+        throw new IAE("cannot parse node %s", element);
+      }
+      return factories.toArray(new AggregatorFactory[0]);
+    } else if (node.isObject()) {
+      List<AggregatorFactory> factories = Lists.newArrayList();
+      Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+      while (fields.hasNext()) {
+        Map.Entry<String, JsonNode> entry = fields.next();
+        String parsed = TypeUtils.parseType(entry.getValue());
+        if (parsed == null) {
+          throw new IAE("cannot parse node %s", parsed);
+        }
+        factories.add(RelayAggregatorFactory.of(entry.getKey(), ValueDesc.of(parsed)));
+      }
+      return factories.toArray(new AggregatorFactory[0]);
+    } else if (node.isNull()) {
+      return null;
+    }
+    throw new IAE("cannot parse node %s", node);
   }
 }

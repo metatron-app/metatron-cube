@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -61,6 +62,7 @@ public class TestLoadSpec extends IncrementalIndexSchema
       @JsonProperty("timestampSpec") TimestampSpec timestampSpec,
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("metricsSpec") AggregatorFactory[] metricsSpec,
+      @JsonProperty("metricsExpr") JsonNode metricsExpr,
       @JsonProperty("evaluations") List<Evaluation> evaluations,
       @JsonProperty("validations") List<Validation> validations,
       @JsonProperty("enforceType") boolean enforceType,
@@ -74,7 +76,7 @@ public class TestLoadSpec extends IncrementalIndexSchema
         queryGran,
         segmentGran,
         dimensionsSpec,
-        metricsSpec,
+        metricsSpec == null && metricsExpr != null ? AggregatorFactory.parse(metricsExpr): metricsSpec,
         rollup,
         fixedSchema,
         false,

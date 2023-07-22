@@ -22,6 +22,7 @@ package io.druid.segment.indexing;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -73,6 +74,7 @@ public class DataSchema
       @JsonProperty("dataSource") String dataSource,
       @JsonProperty("parser") Map<String, Object> parser,
       @JsonProperty("metricsSpec") AggregatorFactory[] aggregators,
+      @JsonProperty("metricsExpr") JsonNode metricsExpr,
       @JsonProperty("enforceType") boolean enforceType,
       @JsonProperty("granularitySpec") GranularitySpec granularitySpec,
       @JsonProperty("evaluations") List<Evaluation> evaluations,
@@ -83,6 +85,7 @@ public class DataSchema
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource cannot be null. Please provide a dataSource.");
     this.parser = parser;
 
+    aggregators = aggregators == null && metricsExpr != null ? AggregatorFactory.parse(metricsExpr) : aggregators;
     if (aggregators == null || aggregators.length == 0) {
       LOG.warn("No metricsSpec has been specified. Are you sure this is what you want?");
     }
@@ -108,7 +111,7 @@ public class DataSchema
       GranularitySpec granularitySpec
   )
   {
-    this(dataSource, parser, aggregators, false, granularitySpec, null, null, false);
+    this(dataSource, parser, aggregators, null, false, granularitySpec, null, null, false);
   }
 
   @JsonProperty
@@ -233,6 +236,7 @@ public class DataSchema
     return new DataSchema(dataSource,
                           parser,
                           aggregators,
+                          null,
                           enforceType,
                           granularitySpec,
                           evaluations,
@@ -245,6 +249,7 @@ public class DataSchema
     return new DataSchema(dataSource,
                           parser,
                           aggregators,
+                          null,
                           enforceType,
                           granularitySpec,
                           evaluations,
@@ -257,6 +262,7 @@ public class DataSchema
     return new DataSchema(dataSource,
                           parser,
                           aggregators,
+                          null,
                           enforceType,
                           granularitySpec,
                           evaluations,
@@ -269,6 +275,7 @@ public class DataSchema
     return new DataSchema(dataSource,
                           parser,
                           aggregators,
+                          null,
                           enforceType,
                           granularitySpec,
                           evaluations,

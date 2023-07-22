@@ -236,7 +236,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         spec,
         dimensionsSpec,
         metrics.toArray(new AggregatorFactory[0]),
-        null, null, false, false, true, null
+        null, null, null, false, false, true, null
     );
     load(ds, schema, () -> CharSource.wrap(source), true);
   }
