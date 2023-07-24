@@ -553,6 +553,11 @@ public class Calcites
                                                           : asRelDataType(factory, SqlTypeName.VARCHAR);
           final RelDataType valueType = description != null ? asRelDataType(factory, ValueDesc.of(description[2]))
                                                             : factory.createSqlType(SqlTypeName.ANY);
+//          final List<String> fieldNames = Arrays.asList(Row.MAP_KEY, Row.MAP_VALUE);
+//          final List<RelDataType> fieldTypes = Arrays.asList(keyType, valueType);
+//          return factory.createTypeWithNullability(
+//              factory.createStructType(StructKind.PEEK_FIELDS, fieldTypes, fieldNames), true
+//          );
           return factory.createTypeWithNullability(factory.createMapType(keyType, valueType), true);
         } else if (columnType.isArray()) {
           final RelDataType subType;

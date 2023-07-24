@@ -84,6 +84,7 @@ import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
+import io.druid.sql.calcite.util.TestHook;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.sql.calcite.view.InProcessViewManager;
 import org.apache.calcite.rel.type.RelDataType;
@@ -105,7 +106,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Consumer;
 
 public abstract class CalciteQueryTestHelper extends CalciteTestBase
 {
@@ -226,6 +226,15 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   protected void testQuery(String sql, Object[]... expectedResults) throws Exception
   {
     testQuery(sql, NO_PARAM, null, Arrays.asList(expectedResults));
+  }
+
+  protected void testQueries(String[] sqls, Object[] params, Object[][] expectedResults, String... hooks)
+      throws Exception
+  {
+    for (String sql : sqls) {
+      testQuery(String.format(sql, params), NO_PARAM, null, Arrays.asList(expectedResults));
+      walker().verifyHooked(hooks);
+    }
   }
 
   protected void testQuery(String sql, Map<String, Object> context, Object[]... expectedResults) throws Exception
@@ -710,7 +719,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       Arrays.asList(Query.JOIN, Query.SEGMENT_METADATA, Query.SELECT_META, Query.FILTER_META, Query.SCHEMA)
   );
 
-  protected static class MiscQueryHook implements Consumer<Query<?>>
+  protected static class MiscQueryHook implements TestHook
   {
     private final List<Query> hooked = Lists.newArrayList();
 
@@ -723,12 +732,8 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       }
     }
 
-    protected void verifyHooked(String... expected)
-    {
-      verifyHooked(Arrays.asList(expected));
-    }
-
-    protected void verifyHooked(List<String> expected)
+    @Override
+    public void verifyHooked(List<String> expected)
     {
       expected = expected.subList(1, expected.size());
       try {

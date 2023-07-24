@@ -152,6 +152,11 @@ public class Utils
     return op.isA(SqlKind.INPUT_REF);
   }
 
+  public static boolean isA(RexNode op, SqlTypeName typeName)
+  {
+    return op.getType().getSqlTypeName() == typeName;
+  }
+
   public static int[] getInputRefs(List<RexNode> nodes)
   {
     final int[] inputRefs = new int[nodes.size()];

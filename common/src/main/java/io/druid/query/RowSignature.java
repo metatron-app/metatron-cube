@@ -223,16 +223,19 @@ public class RowSignature implements TypeResolver
     }
     Builder builder = new Builder();
     for (int i = 0; i < columnNames.size(); i++) {
-      String name = columnNames.get(i);
-      ValueDesc type = columnTypes.get(i);
-      builder.append(name, type);
-      if (type.isStruct()) {
-        appendStruct(builder, name + ".", type);
-      } else if (type.isMap()) {
-        appendMap(builder, name + ".", type);
-      }
+      append(columnNames.get(i), columnTypes.get(i), builder);
     }
     return builder.build();
+  }
+
+  private void append(String name, ValueDesc type, Builder builder)
+  {
+    builder.append(name, type);
+    if (type.isStruct()) {
+      appendStruct(builder, name + ".", type);
+    } else if (type.isMap()) {
+      appendMap(builder, name + ".", type);
+    }
   }
 
   RowSignature.Builder appendStruct(RowSignature.Builder builder, String prefix, ValueDesc struct)
@@ -247,12 +250,7 @@ public class RowSignature implements TypeResolver
       Preconditions.checkArgument(index > 0, "'fieldName:fieldType' for field declaration");
       String name = prefix + element.substring(0, index).trim();
       ValueDesc type = ValueDesc.of(element.substring(index + 1).trim());
-      builder.append(name, type);
-      if (type.isStruct()) {
-        appendStruct(builder, name + ".", type);
-      } else if (type.isMap()) {
-        appendMap(builder, name + ".", type);
-      }
+      append(name, type, builder);
     }
     return builder;
   }

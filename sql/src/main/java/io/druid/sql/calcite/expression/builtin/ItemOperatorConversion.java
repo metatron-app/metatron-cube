@@ -23,12 +23,13 @@ import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.planner.SqlStdOperatorTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.util.NlsString;
 
 import java.util.List;
 
@@ -45,6 +46,15 @@ public class ItemOperatorConversion implements SqlOperatorConversion
   {
     List<RexNode> operands = ((RexCall) rexNode).getOperands();
     DruidExpression input = Expressions.toDruidExpression(plannerContext, rowSignature, operands.get(0));
-    return input == null ? null : input.nested(RexLiteral.intValue(operands.get(1)));
+    return input == null ? null : input.nested(value(operands.get(1)));
+  }
+
+  private static Object value(RexNode rexNode)
+  {
+    final Comparable value = RexLiteral.value(rexNode);
+    if (value instanceof NlsString) {
+      return ((NlsString) value).getValue();
+    }
+    return value;
   }
 }

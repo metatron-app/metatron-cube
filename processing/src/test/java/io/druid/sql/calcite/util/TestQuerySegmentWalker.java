@@ -121,7 +121,6 @@ import java.util.PrimitiveIterator;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 /**
@@ -139,7 +138,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private final PopulatingMap timeLines;
   private final ForwardHandler handler;
 
-  private final Consumer<Query<?>> hook;
+  private final TestHook hook;
 
   public TestQuerySegmentWalker addSalesIndex()
   {
@@ -475,7 +474,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService executor,
       PopulatingMap timeLines,
-      Consumer<Query<?>> hook
+      TestHook hook
   )
   {
     this.mapper = mapper;
@@ -527,7 +526,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     );
   }
 
-  public TestQuerySegmentWalker withQueryHook(Consumer<Query<?>> hook)
+  public TestQuerySegmentWalker withQueryHook(TestHook hook)
   {
     return new TestQuerySegmentWalker(
         mapper,
@@ -569,6 +568,16 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   public ExecutorService getExecutor()
   {
     return executor;
+  }
+
+  public void verifyHooked(String... expected)
+  {
+    hook.verifyHooked(expected);
+  }
+
+  public void verifyHooked(List<String> expected)
+  {
+    hook.verifyHooked(expected);
   }
 
   public TestQuerySegmentWalker add(DataSegment descriptor, IncrementalIndex index)

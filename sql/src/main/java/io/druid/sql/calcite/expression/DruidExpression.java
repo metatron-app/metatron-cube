@@ -228,7 +228,7 @@ public class DruidExpression implements Cacheable
   public DruidExpression nested(Object field)
   {
     if (isDirectColumnAccess()) {
-      return DruidExpression.fromExpression(String.format("\"%s.%s\"", getDirectColumn(), field));
+      return DruidExpression.fromColumn(String.format("%s.%s", getDirectColumn(), field));
     }
     return DruidExpression.fromExpression(String.format("%s.\"%s\"", getExpression(), field));
   }

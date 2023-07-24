@@ -32,6 +32,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.UOE;
 import io.druid.math.expr.Evals;
 import io.druid.query.filter.MathExprFilter;
@@ -1399,6 +1400,46 @@ public class ColumnSelectors
         {
           return map.resolve(expression);
         }
+
+        @Override
+        public ObjectColumnSelector selector(String expression)
+        {
+          Column resolved = map.resolve(expression);
+          if (resolved != null) {
+            return asSelector(resolved);
+          }
+          int ix = expression.indexOf('.');
+          if (ix < 0 && !Row.MAP_KEY.equals(expression) && !Row.MAP_VALUE.equals(expression)) {
+            DictionaryEncodedColumn keyColumn = map.getKey().getDictionaryEncoded();
+            int vx = keyColumn.dictionary().indexOf(expression);
+            if (vx < 0) {
+              return nullObjectSelector(ValueDesc.STRING);
+            }
+            ComplexColumn valueColumn = map.getValue().getComplexColumn();
+            return new ObjectColumnSelector.Typed(ValueDesc.STRING)
+            {
+              @Override
+              public Object get()
+              {
+                int rownum = offset.get();
+                IndexedInts indexed = keyColumn.getMultiValueRow(rownum);
+                int size = indexed.size();
+                for (int i = 0; i < size; i++) {
+                  if (indexed.get(i) == vx) {
+                    Object value = valueColumn.getValue(rownum);
+                    if (value instanceof List) {
+                      return ((List) value).get(i);
+                    }
+                    return Array.get(value, i);
+                  }
+                }
+                return null;
+              }
+            };
+          }
+          return NULL_UNKNOWN;
+        }
+
         @Override
         public Offset offset()
         {

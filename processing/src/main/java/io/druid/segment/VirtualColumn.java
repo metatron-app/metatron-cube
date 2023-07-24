@@ -105,10 +105,7 @@ public interface VirtualColumn extends Cacheable
       if (expression.equals(Row.MAP_KEY)) {
         return description == null ? ValueDesc.STRING : ValueDesc.of(description[1]);
       }
-      if (expression.equals(Row.MAP_VALUE)) {
-        return description == null ? null : ValueDesc.of(description[2]);
-      }
-      return null;
+      return description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]);
     }
     if (columnType.isStruct()) {
       StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
@@ -148,8 +145,8 @@ public interface VirtualColumn extends Cacheable
   {
     ValueDesc type = selector.type();
     if (type.isMap()) {
+      String[] description = TypeUtils.splitDescriptiveType(type);
       if (Row.MAP_KEY.equals(expression)) {
-        String[] description = TypeUtils.splitDescriptiveType(type);
         return ObjectColumnSelector.typed(
             description == null ? ValueDesc.STRING_ARRAY : ValueDesc.ofArray(description[1]),
             () -> {
@@ -159,7 +156,6 @@ public interface VirtualColumn extends Cacheable
         );
       }
       if (Row.MAP_VALUE.equals(expression)) {
-        String[] description = TypeUtils.splitDescriptiveType(type);
         return ObjectColumnSelector.typed(
             description == null ? ValueDesc.ARRAY : ValueDesc.ofArray(description[2]),
             () -> {
@@ -168,7 +164,13 @@ public interface VirtualColumn extends Cacheable
             }
         );
       }
-      return ColumnSelectors.NULL_UNKNOWN;
+      return ObjectColumnSelector.typed(
+          description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]),
+          () -> {
+            Map v = (Map) selector.get();
+            return v == null ? null : v.get(expression);
+          }
+      );
     }
     if (type.isStruct()) {
       StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(type);
