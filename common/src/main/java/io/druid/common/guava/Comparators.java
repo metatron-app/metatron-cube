@@ -71,7 +71,7 @@ public class Comparators
         return GuavaUtils.NULL_FIRST_NATURAL;
     }
     if (valueDesc.isArray()) {
-      return NULL_FIRST(toListComparator(toComparator(valueDesc.subElement(null))));
+      return NULL_FIRST(toListComparator(toComparator(valueDesc.unwrapArray(null))));
     }
     if (valueDesc.isStruct()) {
       // todo

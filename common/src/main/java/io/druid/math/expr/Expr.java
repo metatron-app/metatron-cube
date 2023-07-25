@@ -25,12 +25,12 @@ import com.google.common.base.Supplier;
 import com.google.common.math.LongMath;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.DSuppliers.TypedSupplier;
-import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.FloatColumnSelector;
-import io.druid.segment.LongColumnSelector;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.LongColumnSelector;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableFloat;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -474,7 +474,7 @@ final class IdentifierExpr implements Expr.BindingRewriter
   private ValueDesc getType(ValueDesc type, int index)
   {
     if (type.isArray()) {
-      return type.subElement(ValueDesc.UNKNOWN);
+      return type.unwrapArray();
     } else if (type.isStruct()) {
       final String[] description = type.getDescription();
       if (description == null || description.length < index + 1) {

@@ -486,7 +486,7 @@ public class QueryUtils
   private static Supplier<RowResolver> asResolverSupplier(Query<?> query, QuerySegmentWalker segmentWalker)
   {
     return Suppliers.memoize(
-        () -> RowResolver.of(analyzeSegments(query, segmentWalker).asSignature(null), BaseQuery.getVirtualColumns(query))
+        () -> RowResolver.of(analyzeSegments(query, segmentWalker).asSignature(), BaseQuery.getVirtualColumns(query))
     );
   }
 

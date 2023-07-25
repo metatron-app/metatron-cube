@@ -231,7 +231,7 @@ public interface PredicateFunctions extends Function.Library
       if (!valueDesc.isArray()) {
         throw new IAE("last column should be array type");
       }
-      final ValueDesc elementType = valueDesc.subElement(ValueDesc.UNKNOWN);
+      final ValueDesc elementType = valueDesc.unwrapArray();
       final List<Object> targets = Lists.newArrayList();
       for (int i = 0; i < args.size() - 1; i++) {
         targets.add(elementType.cast(Evals.getConstant(args.get(i))));

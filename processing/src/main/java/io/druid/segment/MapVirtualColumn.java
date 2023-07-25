@@ -200,9 +200,7 @@ public class MapVirtualColumn implements VirtualColumn.IndexProvider
       };
     }
 
-    ValueDesc type = valueSelector.type();
-    Preconditions.checkArgument(type.hasSubElement(), "cannot resolve element type");
-    final ValueDesc elementType = type.subElement();
+    final ValueDesc elementType = valueSelector.type().unwrapArray();
     final int keyId = keySelector.lookupId(column.substring(index + 1));
     if (keyId < 0) {
       return ColumnSelectors.nullObjectSelector(elementType);

@@ -81,7 +81,7 @@ public class ListAggregatorFactory extends AggregatorFactory
     this.dedup = dedup;
     this.sort = sort;
     if (inputType.isArray()) {
-      elementType = inputType.subElement(ValueDesc.UNKNOWN);
+      elementType = inputType.unwrapArray();
       outputType = inputType;
     } else {
       elementType = inputType;

@@ -123,7 +123,7 @@ public abstract class GenericAggregatorFactory extends NumericEvalSupport
 
   protected ValueDesc toOutputType(ValueDesc inputType)
   {
-    return inputType.isArray() ? inputType.subElement(ValueDesc.UNKNOWN) : inputType;
+    return inputType.isArray() ? inputType.unwrapArray() : inputType;
   }
 
   @Override
@@ -166,7 +166,7 @@ public abstract class GenericAggregatorFactory extends NumericEvalSupport
     if (!inputType.isArray()) {
       return factorize(metricFactory, inputType);
     }
-    final ValueDesc elementType = inputType.subElement(ValueDesc.UNKNOWN);
+    final ValueDesc elementType = inputType.unwrapArray();
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);
 
@@ -196,7 +196,7 @@ public abstract class GenericAggregatorFactory extends NumericEvalSupport
     if (!inputType.isArray()) {
       return factorizeBuffered(metricFactory, inputType);
     }
-    ValueDesc elementType = inputType.subElement(ValueDesc.UNKNOWN);
+    ValueDesc elementType = inputType.unwrapArray();
     @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);

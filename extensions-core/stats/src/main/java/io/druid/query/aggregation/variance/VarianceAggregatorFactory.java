@@ -93,7 +93,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   @Override
   protected ValueDesc toOutputType(ValueDesc inputType)
   {
-    return inputType.isArray() ? TYPE.subElement(ValueDesc.UNKNOWN) : TYPE;
+    return inputType.isArray() ? inputType.unwrapArray(TYPE) : TYPE;
   }
 
   @Override

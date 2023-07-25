@@ -203,7 +203,7 @@ public class Filters
       return ColumnSelectors.asValued(selector);
     }
     if (type.isArray()) {
-      return ColumnSelectors.asArray(selector, type.subElement(ValueDesc.UNKNOWN));
+      return ColumnSelectors.asArray(selector, type.unwrapArray());
     }
     // toString, whatsoever
     return ObjectColumnSelector.string(() -> Objects.toString(selector.get(), null));

@@ -207,6 +207,11 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     );
   }
 
+  public RowSignature asSignature()
+  {
+    return asSignature(null);
+  }
+
   public RowSignature asSignature(BooleanFunction<ValueDesc> converter)
   {
     return RowSignature.of(

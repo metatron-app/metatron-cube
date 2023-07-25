@@ -170,8 +170,10 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     final ValueDesc type = selector.type();
     if (type.isPrimitive()) {
       return new SingleValued(type, selector);
-    } else if (type.isMultiValued() || type.isArray()) {
+    } else if (type.isMultiValued()) {
       return new MulitiValued(type.subElement(), selector);
+    } else if (type.isArray()) {
+      return new MulitiValued(type.unwrapArray(), selector);
     } else {
       return new SingleValued(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
     }

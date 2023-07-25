@@ -126,9 +126,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn.IndexProvider
       if (selector == null) {
         return ColumnSelectors.NULL_UNKNOWN;
       }
-      ValueDesc type = selector.type();
-      Preconditions.checkArgument(type.hasSubElement(), "cannot resolve element type");
-      final ValueDesc elementType = type.subElement();
+      final ValueDesc elementType = selector.type().unwrapArray();
 
       return new ObjectColumnSelector.Typed<Object>(elementType)
       {

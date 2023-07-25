@@ -133,7 +133,7 @@ public class GroupByQueryRunnerFactory
       if (type.isDimension() || type.isMultiValued()) {
         types.add(type.subElement(ValueDesc.STRING).type());
       } else if (type.isArray()) {
-        types.add(type.subElement(ValueDesc.UNKNOWN).type());
+        types.add(type.unwrapArray().type());
       } else if (type.isPrimitive()) {
         types.add(type.type());
       } else if (type.isString() || type.isBitSet()) {

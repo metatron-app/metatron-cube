@@ -493,9 +493,28 @@ public class ValueDesc implements Serializable, Cacheable
     return defaultType;
   }
 
-  public boolean hasSubElement()
+  public ValueDesc unwrapArray()
   {
-    return !type.isPrimitive() && typeName.indexOf('.') >= 0;
+    return unwrapArray(ValueDesc.UNKNOWN);
+  }
+
+  public ValueDesc unwrapArray(ValueDesc unknown)
+  {
+    if (isPrimitiveArray()) {
+      return subElement(unknown);
+    }
+    String[] description = TypeUtils.splitDescriptiveType(typeName);
+    return description == null ? unknown : ValueDesc.of(description[1]);
+  }
+
+  private boolean hasSubElement()
+  {
+    if (type.isPrimitive()) {
+      return false;
+    }
+    int dx = typeName.indexOf('.');
+    int lx = typeName.indexOf('(');
+    return dx >= 0 && (lx < 0 || dx < lx);
   }
 
   public ValueDesc unwrapDimension()

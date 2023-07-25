@@ -81,7 +81,7 @@ public class ObjectInspectors
       }
     }
     if (type.isArray()) {
-      return ObjectInspectorFactory.getStandardListObjectInspector(toObjectInspector(type.subElement()));
+      return ObjectInspectorFactory.getStandardListObjectInspector(toObjectInspector(type.unwrapArray()));
     }
     if (type.isStruct()) {
       String[] descriptions = Preconditions.checkNotNull(type.getDescription());
@@ -126,7 +126,7 @@ public class ObjectInspectors
       }
     }
     if (type.isArray()) {
-      return TypeInfoFactory.getListTypeInfo(toTypeInfo(type.subElement()));
+      return TypeInfoFactory.getListTypeInfo(toTypeInfo(type.unwrapArray()));
     }
     if (type.isStruct()) {
       String[] descriptions = Preconditions.checkNotNull(type.getDescription());

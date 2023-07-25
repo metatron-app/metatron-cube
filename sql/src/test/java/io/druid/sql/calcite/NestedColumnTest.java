@@ -137,14 +137,15 @@ public class NestedColumnTest extends CalciteQueryTestHelper
   @Test
   public void testDimensions() throws Exception
   {
-    String[] sqls = {
+    String[] sqls;
+    Object[][] expected;
+
+    sqls = new String[]{
         "SELECT ci_profile.life_style, adot_usage.life_cycle from %s where ci_profile.life_style = '영화관'",
         "SELECT \"ci_profile.life_style\", \"adot_usage.life_cycle\" from %s where \"ci_profile.life_style\" = '영화관'",
         "SELECT \"ci_profile\".\"life_style\", \"adot_usage\".\"life_cycle\" from %s where \"ci_profile\".\"life_style\" = '영화관'"
     };
-    Object[][] expected = {
-        {"[캠핑, 영화관, 청년1인가구]", "휴면"}, {"[영화관, 청년2인가구]", "안휴면"}
-    };
+    expected = new Object[][]{{"[캠핑, 영화관, 청년1인가구]", "휴면"}, {"[영화관, 청년2인가구]", "안휴면"}};
     testQueries(
         sqls, params, expected,
         "Zqr9LlJ1p4Gh8gsXLleC6Q==",

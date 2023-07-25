@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.druid.common.Cacheable;
@@ -122,19 +121,12 @@ public interface VirtualColumn extends Cacheable
       return fx < 0 ? null : ix < 0 ? serde.type(fx) : nested(serde.type(fx), expression.substring(ix + 1));
     }
     if (columnType.isArray()) {
-      if (columnType.isPrimitiveArray()) {
-        return columnType.subElement(ValueDesc.UNKNOWN);
-      }
-      String[] description = TypeUtils.splitDescriptiveType(columnType);
-      if (description == null) {
-        return ValueDesc.UNKNOWN;
-      }
       int ix = expression.indexOf('.');
       final Integer access = Ints.tryParse(ix < 0 ? expression : expression.substring(0, ix));
       if (access == null || access < 0) {
         return null;
       }
-      ValueDesc elementType = ValueDesc.of(description[1]);
+      ValueDesc elementType = columnType.unwrapArray(ValueDesc.UNKNOWN);
       return ix < 0 ? elementType : nested(elementType, expression.substring(ix + 1));
     }
     return null;
@@ -216,18 +208,11 @@ public interface VirtualColumn extends Cacheable
       if (access == null) {
         return ColumnSelectors.NULL_UNKNOWN;
       }
-      Supplier<?> supplier = () -> {
+      ValueDesc elementType = type.unwrapArray();
+      ObjectColumnSelector nested = ObjectColumnSelector.typed(elementType, () -> {
         List list = (List) selector.get();
         return access < list.size() ? list.get(access) : null;
-      };
-      ValueDesc elementType;
-      if (type.isPrimitiveArray()) {
-        elementType = type.subElement(ValueDesc.UNKNOWN);
-      } else {
-        String[] description = TypeUtils.splitDescriptiveType(type);
-        elementType = description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[1]);
-      }
-      ObjectColumnSelector nested = ObjectColumnSelector.typed(elementType, supplier);
+      });
       return ix < 0 ? nested : nested(nested, expression.substring(ix + 1));
     }
     return ColumnSelectors.NULL_UNKNOWN;
