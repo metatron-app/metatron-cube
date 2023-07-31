@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.column.BitmapIndex;
@@ -144,10 +143,9 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
             metrics = new ColumnAccess[availableMetrics.size()];
             for (int i = 0; i < metrics.length; ++i) {
               final Column column = input.getColumn(availableMetrics.get(i));
-              final ValueType type = column.getCapabilities().getType();
-              if (type.isPrimitive()) {
+              if (column.hasGenericColumn()) {
                 metrics[i] = column.getGenericColumn();
-              } else {
+              } else if (column.hasComplexColumn()) {
                 metrics[i] = column.getComplexColumn();
               }
             }
@@ -198,7 +196,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
 
             final Object[] metricArray = new Object[metricLookup.length];
             for (int i = 0; i < metricArray.length; ++i) {
-              metricArray[metricLookup[i]] = metrics[i].getValue(currRow);
+              metricArray[metricLookup[i]] = metrics[i] == null ? null : metrics[i].getValue(currRow);
             }
 
             final long timestamp = timestamps.timestamp(currRow);
@@ -233,14 +231,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   public ValueDesc getMetricType(String metric)
   {
     final Column column = input.getColumn(metric);
-    if (column == null) {
-      return null;
-    }
-    ColumnCapabilities capabilities = column.getCapabilities();
-    if (!capabilities.getType().isPrimitive()) {
-      return column.getComplexColumn().getType();
-    }
-    return ValueDesc.of(column.getCapabilities().getType());
+    return column == null ? null : column.getCapabilities().getTypeDesc();
   }
 
   @Override

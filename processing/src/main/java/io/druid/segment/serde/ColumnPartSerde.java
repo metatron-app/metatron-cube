@@ -51,6 +51,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "map", value = MapColumnPartSerde.class),
     @JsonSubTypes.Type(name = "array", value = ArrayColumnPartSerde.class),
     @JsonSubTypes.Type(name = "enum", value = EnumColumnPartSerde.class),
+    @JsonSubTypes.Type(name = "null", value = NullColumnPartSerde.class),
 })
 public interface ColumnPartSerde
 {

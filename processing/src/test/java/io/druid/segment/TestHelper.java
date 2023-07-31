@@ -26,7 +26,6 @@ import com.fasterxml.jackson.databind.BeanProperty;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -44,7 +43,6 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.jackson.ObjectMappers;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DefaultQueryMetrics;
@@ -74,11 +72,11 @@ import io.druid.query.SchemaQueryToolChest;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.frequency.FrequencyQueryRunnerFactory;
 import io.druid.query.frequency.FrequencyQueryToolChest;
-import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
+import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.kmeans.FindNearestQuery;
 import io.druid.query.kmeans.FindNearestQueryRunnerFactory;
 import io.druid.query.kmeans.FindNearestQueryToolChest;
@@ -501,6 +499,7 @@ public class TestHelper
     }
   }
 
+  @SuppressWarnings("unchecked")
   private static <T> void assertObjects(Iterable<T> expectedResults, Iterable<T> actualResults, String msg)
   {
     Iterator resultsIter = actualResults.iterator();
@@ -649,27 +648,20 @@ public class TestHelper
   public static QueryableIndex persistRealtimeAndLoadMMapped(IncrementalIndex index, IndexSpec indexSpec, IndexIO indexIO)
   {
     try {
-      File someTmpFile = GuavaUtils.createTemporaryDirectory("billy", "yay");
-      someTmpFile.deleteOnExit();
-
-      indexIO.getIndexMerger().persist(index, someTmpFile, indexSpec);
-      return indexIO.loadIndex(someTmpFile);
+      return indexIO.loadIndex(persist(index, indexSpec, indexIO));
     }
     catch (IOException e) {
       throw Throwables.propagate(e);
     }
   }
 
-  public static void printJson(Object object)
+  public static File persist(IncrementalIndex index, IndexSpec indexSpec, IndexIO indexIO) throws IOException
   {
-    ObjectWriter writer = ObjectMappers.excludeNulls(JSON_MAPPER)
-                                       .writer(new DefaultPrettyPrinter());
-    try {
-      System.out.println(writer.writeValueAsString(object));
-    }
-    catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
+    File directory = GuavaUtils.createTemporaryDirectory("billy", "yay");
+    directory.deleteOnExit();
+
+    indexIO.getIndexMerger().persist(index, directory, indexSpec);
+    return directory;
   }
 
   public static String[] array(String... objects)

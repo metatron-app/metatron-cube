@@ -159,7 +159,8 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   @Override
   public void serialize(int rowNum, Object obj) throws IOException
   {
-    double val = (obj == null) ? 0 : ((Number) obj).doubleValue();
+    Double v = (Double) ValueType.DOUBLE.cast(obj);
+    double val = v == null ? 0 : v.doubleValue();
     histogram.offer(val);
     if (slicer != null) {
       slicer.add(val);

@@ -26,6 +26,7 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.serde.ArrayColumnPartSerde;
+import io.druid.segment.serde.NullColumnPartSerde;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -122,6 +123,9 @@ public class ArrayColumnSerializer implements MetricColumnSerializer
   public ColumnDescriptor.Builder buildDescriptor(IOPeon ioPeon, ColumnDescriptor.Builder builder) throws IOException
   {
     if (serializers.isEmpty()) {
+      ValueDesc type = ValueDesc.ofArray(elementType);
+      builder.setValueType(type);
+      builder.addSerde(new NullColumnPartSerde(type));
       return builder;
     }
     List<ColumnDescriptor> descriptors = Lists.newArrayList();

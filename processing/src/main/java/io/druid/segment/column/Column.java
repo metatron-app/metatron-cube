@@ -91,7 +91,7 @@ public interface Column
     if (capabilities.isDictionaryEncoded()) {
       return ValueDesc.ofDimension(valueType);
     } else if (!valueType.isPrimitive()) {
-      return getComplexColumn().getType();
+      return getCapabilities().getTypeDesc();
     }
     return ValueDesc.of(valueType);
   }

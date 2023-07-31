@@ -159,7 +159,8 @@ public class LongColumnSerializer implements GenericColumnSerializer
   @Override
   public void serialize(int rowNum, Object obj) throws IOException
   {
-    serialize(rowNum, obj == null ? 0 : ((Number) obj).longValue());
+    Long v = (Long) ValueType.LONG.cast(obj);
+    serialize(rowNum, v == null ? 0 : v.longValue());
   }
 
   public void serialize(int rowNum, long val) throws IOException

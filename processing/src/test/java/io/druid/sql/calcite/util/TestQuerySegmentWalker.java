@@ -167,6 +167,12 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         .addIndex("ups_i", "ups_schema.json", "ups.tbl", false);
   }
 
+  public TestQuerySegmentWalker addAdotUsage()
+  {
+    return addIndex("adot_usage", "adot_usage_schema.json", "adot_usage.tbl", true)
+        .addIndex("adot_usage_i", "adot_usage_schema.json", "adot_usage.tbl", false);
+  }
+
   public TestQuerySegmentWalker addTpchIndex()
   {
     return addIndex("lineitem", "lineitem_schema.json", "lineitem.tbl", true)

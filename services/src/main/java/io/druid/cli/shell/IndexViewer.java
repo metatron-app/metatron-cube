@@ -436,15 +436,13 @@ public class IndexViewer extends CommonShell.WithUtils
               columnType, columnName, toChunkFile(offset[0]), offset[1], offset[2], (columnSize * 100f / totalSize)
           )
       );
-      ValueDesc desc;
+      ValueDesc desc = capabilities.getTypeDesc();
       CompressionStrategy compressionType = null;
       ComplexColumn complexColumn = column.getComplexColumn();
       if (complexColumn != null) {
-        desc = complexColumn.getType();   // more specific for complex type
         compressionType = complexColumn.compressionType();
         CloseQuietly.close(complexColumn);
       } else {
-        desc = ValueDesc.of(capabilities.getType());
         GenericColumn genericColumn = column.getGenericColumn();
         if (genericColumn != null) {
           compressionType = genericColumn.compressionType();

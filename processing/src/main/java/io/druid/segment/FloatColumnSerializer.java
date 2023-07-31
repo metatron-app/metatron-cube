@@ -159,7 +159,8 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   @Override
   public void serialize(int rowNum, Object obj) throws IOException
   {
-    float val = (obj == null) ? 0 : ((Number) obj).floatValue();
+    Float v = (Float) ValueType.FLOAT.cast(obj);
+    float val = v == null ? 0 : v.floatValue();
     histogram.offer(val);
     if (slicer != null) {
       slicer.add(val);

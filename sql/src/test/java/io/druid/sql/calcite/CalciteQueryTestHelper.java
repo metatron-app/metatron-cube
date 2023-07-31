@@ -488,7 +488,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
           Assert.assertEquals((Float) expected, (Float) actual, 0.000001d);
         } else if (expected instanceof Double && actual instanceof Double) {
           Assert.assertEquals((Double) expected, (Double) actual, 0.000001d);
-        } else if (expected instanceof String && actual instanceof Map) {
+        } else if (expected instanceof String && (actual instanceof List || actual instanceof Map)) {
           Assert.assertEquals(expected, actual.toString());
         } else {
           Assert.assertEquals(expected, actual);

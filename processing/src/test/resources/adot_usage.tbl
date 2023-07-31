@@ -1,0 +1,687 @@
+{
+  "entity": {
+    "entity_preferences": [
+      {
+        "apollo_radio": [
+          {
+            "entity_role": "CONTENT_CHANNEL",
+            "preferences": [
+              {
+                "name": "SBS.POWERFM",
+                "ranking": "1",
+                "score": "0.6179800700278069",
+                "usage_yn": "n"
+              },
+              {
+                "name": "MBC.STFM",
+                "ranking": "2",
+                "score": "0.5830243023122413",
+                "usage_yn": "n"
+              },
+              {
+                "name": "KBS.1RADIO",
+                "ranking": "3",
+                "score": "0.5569049368444767",
+                "usage_yn": "n"
+              },
+              {
+                "name": "KBS.COOLFM",
+                "ranking": "5",
+                "score": "0.528576470814762",
+                "usage_yn": "n"
+              },
+              {
+                "name": "CBS.MUSICFM",
+                "ranking": "4",
+                "score": "0.5342941428574567",
+                "usage_yn": "n"
+              }
+            ]
+          }
+        ],
+        "apollo_game": [
+          {
+            "entity_role": "CONTENT",
+            "preferences": [
+              {
+                "name": "puzzlewoodblock",
+                "ranking": "1",
+                "score": "1.0735185022634466",
+                "usage_yn": "n"
+              },
+              {
+                "name": "hexacube",
+                "ranking": "3",
+                "score": "0.6671602181225386",
+                "usage_yn": "n"
+              },
+              {
+                "name": "freecell",
+                "ranking": "2",
+                "score": "0.6740942133123222",
+                "usage_yn": "n"
+              },
+              {
+                "name": "mergefruit",
+                "ranking": "4",
+                "score": "0.6521147568616872",
+                "usage_yn": "n"
+              },
+              {
+                "name": "mergedot",
+                "ranking": "5",
+                "score": "0.5991285672039062",
+                "usage_yn": "n"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "basis_date": "2023-05-14",
+    "update_time": "2023-06-15 15:26:15.328"
+  },
+  "music": {
+    "pref_genre_list": [
+      {
+        "count": 75,
+        "genre_name": "CCM",
+        "genre_id": "28"
+      },
+      {
+        "count": 33,
+        "genre_name": "OST/BGM",
+        "genre_id": "19"
+      },
+      {
+        "count": 29,
+        "genre_name": "국내 발라드",
+        "genre_id": "4"
+      },
+      {
+        "count": 15,
+        "genre_name": "국내 댄스/일렉",
+        "genre_id": "5"
+      },
+      {
+        "count": 8,
+        "genre_name": "국내 힙합",
+        "genre_id": "6"
+      },
+      {
+        "count": 6,
+        "genre_name": "월드뮤직",
+        "genre_id": "26"
+      },
+      {
+        "count": 6,
+        "genre_name": "해외 팝",
+        "genre_id": "13"
+      },
+      {
+        "count": 6,
+        "genre_name": "국내 팝/어쿠스틱",
+        "genre_id": "10"
+      },
+      {
+        "count": 5,
+        "genre_name": "국내 알앤비",
+        "genre_id": "7"
+      }
+    ],
+    "pref_artist_list": [
+      {
+        "count": 33,
+        "artist_id": "54332",
+        "artist_name": "어노인팅"
+      },
+      {
+        "count": 16,
+        "artist_id": "80002703",
+        "artist_name": "Daddy Yankee"
+      },
+      {
+        "count": 16,
+        "artist_id": "80082543",
+        "artist_name": "Luis Fonsi"
+      },
+      {
+        "count": 12,
+        "artist_id": "4933",
+        "artist_name": "이효리"
+      },
+      {
+        "count": 9,
+        "artist_id": "8064189",
+        "artist_name": "손경민"
+      },
+      {
+        "count": 8,
+        "artist_id": "6559",
+        "artist_name": "박기영"
+      },
+      {
+        "count": 7,
+        "artist_id": "7740",
+        "artist_name": "이안"
+      },
+      {
+        "count": 6,
+        "artist_id": "80100613",
+        "artist_name": "최선배"
+      },
+      {
+        "count": 5,
+        "artist_id": "80093137",
+        "artist_name": "김성율"
+      },
+      {
+        "count": 5,
+        "artist_id": "80178689",
+        "artist_name": "폴킴"
+      }
+    ],
+    "user_id": "APL00000BJ1BO200I680",
+    "pref_track_list": [
+      {
+        "count": 9,
+        "track_title": "은혜 (Feat. 지선,이윤화,하니,강찬,아이빅밴드)",
+        "rp_artist_list": [
+          {
+            "artist_id": "8064189",
+            "artist_name": "손경민"
+          }
+        ],
+        "track_id": "441717332"
+      },
+      {
+        "count": 7,
+        "track_title": "갈 길을 밝히 보이시니 - 내게 강 같은 평화",
+        "rp_artist_list": [
+          {
+            "artist_id": "54332",
+            "artist_name": "어노인팅"
+          }
+        ],
+        "track_id": "31032507"
+      },
+      {
+        "count": 7,
+        "track_title": "주 안에 있는 나에게",
+        "rp_artist_list": [
+          {
+            "artist_id": "54332",
+            "artist_name": "어노인팅"
+          }
+        ],
+        "track_id": "2779331"
+      },
+      {
+        "count": 6,
+        "track_title": "내 맘의 주여 소망되소서 (feat. 남궁송옥)",
+        "rp_artist_list": [
+          {
+            "artist_id": "80100613",
+            "artist_name": "최선배"
+          }
+        ],
+        "track_id": "30576984"
+      },
+      {
+        "count": 6,
+        "track_title": "예수 따라가며",
+        "rp_artist_list": [
+          {
+            "artist_id": "54332",
+            "artist_name": "어노인팅"
+          }
+        ],
+        "track_id": "31032504"
+      },
+      {
+        "count": 5,
+        "track_title": "모범택시",
+        "rp_artist_list": [
+          {
+            "artist_id": "80093137",
+            "artist_name": "김성율"
+          }
+        ],
+        "track_id": "446438516"
+      },
+      {
+        "count": 4,
+        "track_title": "Despacito",
+        "rp_artist_list": [
+          {
+            "artist_id": "80082543",
+            "artist_name": "Luis Fonsi"
+          },
+          {
+            "artist_id": "80002703",
+            "artist_name": "Daddy Yankee"
+          }
+        ],
+        "track_id": "5559450"
+      },
+      {
+        "count": 4,
+        "track_title": "봄 to 러브",
+        "rp_artist_list": [
+          {
+            "artist_id": "80067149",
+            "artist_name": "10CM"
+          }
+        ],
+        "track_id": "453438091"
+      },
+      {
+        "count": 4,
+        "track_title": "Born this way",
+        "rp_artist_list": [
+          {
+            "artist_id": "80020340",
+            "artist_name": "Zeenan (정진환)"
+          }
+        ],
+        "track_id": "467518631"
+      },
+      {
+        "count": 4,
+        "track_title": "Fiction",
+        "rp_artist_list": [
+          {
+            "artist_id": "80060355",
+            "artist_name": "비스트 (Beast)"
+          }
+        ],
+        "track_id": "2334368"
+      }
+    ],
+    "basis_date": "2023-07-22",
+    "update_time": "2023-07-24 11:10:08.128"
+  },
+  "service": {
+    "service_preferences_daily": [
+      {
+        "ranking": 28.0,
+        "score": 0.4828729476584807,
+        "service": "apollo_alarm",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 27.0,
+        "score": 0.4832086986706154,
+        "service": "apollo_anniversary",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 26.0,
+        "score": 0.48480233375638154,
+        "service": "apollo_calendar",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 23.0,
+        "score": 0.4944776375708548,
+        "service": "apollo_calendar2",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 33.0,
+        "score": 0.48114217483536376,
+        "service": "apollo_call",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 35.0,
+        "score": 0.47610639884860123,
+        "service": "apollo_character",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 32.0,
+        "score": 0.4813691614351168,
+        "service": "apollo_dailycostume",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 3.0,
+        "score": 0.754973134112436,
+        "service": "apollo_dictionary",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 9.0,
+        "score": 0.5712558549373202,
+        "service": "apollo_english",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 12.0,
+        "score": 0.5339733059278836,
+        "service": "apollo_fortune",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 25.0,
+        "score": 0.4921510249233861,
+        "service": "apollo_game",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 14.0,
+        "score": 0.5132040320504806,
+        "service": "apollo_glm",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 20.0,
+        "score": 0.49947134276542166,
+        "service": "apollo_liveqa",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 6.0,
+        "score": 0.6263001053774322,
+        "service": "apollo_menu",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 29.0,
+        "score": 0.4826743343836967,
+        "service": "apollo_message",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 13.0,
+        "score": 0.5251208285375151,
+        "service": "apollo_mj",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 11.0,
+        "score": 0.5482450883873559,
+        "service": "apollo_music",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 24.0,
+        "score": 0.49368318447171916,
+        "service": "apollo_mytv",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 2.0,
+        "score": 0.8767798182049106,
+        "service": "apollo_news",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 1.0,
+        "score": 1.3577360497566306,
+        "service": "apollo_photo",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 36.0,
+        "score": 0.4755647898128605,
+        "service": "apollo_podcast",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 21.0,
+        "score": 0.4987620096411934,
+        "service": "apollo_qfeed",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 31.0,
+        "score": 0.48145428141002417,
+        "service": "apollo_quest",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 15.0,
+        "score": 0.5110476593528267,
+        "service": "apollo_radio",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 22.0,
+        "score": 0.4959530504692495,
+        "service": "apollo_recipe",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 34.0,
+        "score": 0.47980862856181467,
+        "service": "apollo_reward",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 5.0,
+        "score": 0.6628165746127023,
+        "service": "apollo_ring",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 8.0,
+        "score": 0.5944652347620685,
+        "service": "apollo_routine",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 30.0,
+        "score": 0.4822203611841907,
+        "service": "apollo_samsungstock",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 18.0,
+        "score": 0.5038692081356368,
+        "service": "apollo_sports",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 17.0,
+        "score": 0.5092601398797715,
+        "service": "apollo_time",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 37.0,
+        "score": 0.47452291456444046,
+        "service": "apollo_tmap",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 4.0,
+        "score": 0.7234219967467637,
+        "service": "apollo_tmembership",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 16.0,
+        "score": 0.510026219653938,
+        "service": "apollo_tworld",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 19.0,
+        "score": 0.49961320939026727,
+        "service": "apollo_video",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 10.0,
+        "score": 0.5610982045983718,
+        "service": "apollo_weather",
+        "usage_yn": "n"
+      },
+      {
+        "ranking": 7.0,
+        "score": 0.6073750976230226,
+        "service": "apollo_wordchain",
+        "usage_yn": "n"
+      }
+    ],
+    "basis_date": "2023-05-14",
+    "update_time": "2023-06-15 15:26:15.328"
+  },
+  "target": {
+    "music_user_mixed_artist": {
+      "status": "UPDATE",
+      "basis_date": "2023-06-14",
+      "update_time": "2023-06-14 21:11:36.358"
+    },
+    "music_user_single_artist": {
+      "status": "INSERT",
+      "basis_date": "2023-06-14",
+      "update_time": "2023-06-14 21:18:05.643"
+    }
+  },
+  "video": {
+    "movie_click_count": 0,
+    "youtube_click_count": 1,
+    "user_id": "APL00000BX5MG4285PFK",
+    "adot_tv_click_genre": [
+      {
+        "count": 29,
+        "genre": "클립"
+      }
+    ],
+    "movie_click_genre": [],
+    "adot_tv_click_count": 32,
+    "adot_tv_click_subgenre": [
+      {
+        "count": 32,
+        "genre": "스포츠"
+      }
+    ],
+    "program_click_subgenre": [],
+    "program_click_genre": [],
+    "program_click_id": [],
+    "youtube_click_id": [
+      {
+        "count": 1,
+        "id": "pwTTu5h_Hn4"
+      }
+    ],
+    "program_click_count": 0,
+    "total_click_count": 33,
+    "adot_tv_click_id": [
+      {
+        "count": 2,
+        "id": "CE1000745725"
+      },
+      {
+        "count": 1,
+        "id": "CE1000747883"
+      },
+      {
+        "count": 1,
+        "id": "CE1000742293"
+      },
+      {
+        "count": 1,
+        "id": "CE1000747880"
+      },
+      {
+        "count": 1,
+        "id": "CE1000746695"
+      },
+      {
+        "count": 1,
+        "id": "CE1000747954"
+      },
+      {
+        "count": 1,
+        "id": "CE1000746697"
+      },
+      {
+        "count": 2,
+        "id": "CE1000741041"
+      },
+      {
+        "count": 3,
+        "id": "CE1000718558"
+      },
+      {
+        "count": 1,
+        "id": "CE1000741040"
+      },
+      {
+        "count": 1,
+        "id": "CE1000754396"
+      },
+      {
+        "count": 1,
+        "id": "CE1000737891"
+      },
+      {
+        "count": 1,
+        "id": "CE1000743839"
+      },
+      {
+        "count": 1,
+        "id": "CE1000737871"
+      },
+      {
+        "count": 1,
+        "id": "CE1000753869"
+      },
+      {
+        "count": 1,
+        "id": "CE1000739648"
+      },
+      {
+        "count": 1,
+        "id": "CE1000749446"
+      },
+      {
+        "count": 1,
+        "id": "CE1000744740"
+      },
+      {
+        "count": 1,
+        "id": "CE1000738683"
+      },
+      {
+        "count": 1,
+        "id": "CE1000750345"
+      },
+      {
+        "count": 1,
+        "id": "CE1000750241"
+      },
+      {
+        "count": 1,
+        "id": "CE1000747274"
+      },
+      {
+        "count": 1,
+        "id": "CE1000747275"
+      },
+      {
+        "count": 2,
+        "id": "CE1000749503"
+      },
+      {
+        "count": 1,
+        "id": "CE1000744735"
+      },
+      {
+        "count": 1,
+        "id": "CE1000745765"
+      },
+      {
+        "count": 1,
+        "id": "CE1000744733"
+      }
+    ],
+    "movie_click_id": [],
+    "basis_date": "2023-06-28",
+    "update_time": "2023-06-28 16:46:40.223"
+  }
+}

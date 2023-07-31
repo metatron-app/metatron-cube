@@ -800,7 +800,14 @@ public class ColumnSelectors
       case BOOLEAN:
         return ColumnSelectors.asBoolean(column, offset);
       default:
-        return null;
+        return new ObjectColumnSelector.Typed(column.getType())
+        {
+          @Override
+          public Object get()
+          {
+            return column.getValue(offset.get());
+          }
+        };
     }
   }
 

@@ -80,12 +80,14 @@ public class StructColumnSerializer implements MetricColumnSerializer
       }
     } else if (aggs instanceof List) {
       List<Object> document = (List<Object>) aggs;
+      int size = document.size();
       for (int i = 0; i < serializers.length; i++) {
-        serializers[i].serialize(rowNum, document.get(i));
+        serializers[i].serialize(rowNum, i < size ? document.get(i) : null);
       }
     } else {
+      int size = Array.getLength(aggs);
       for (int i = 0; i < serializers.length; i++) {
-        serializers[i].serialize(rowNum, Array.get(aggs, i));
+        serializers[i].serialize(rowNum, i < size ? Array.get(aggs, i) : null);
       }
     }
   }

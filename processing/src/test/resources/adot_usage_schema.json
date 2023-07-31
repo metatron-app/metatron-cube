@@ -1,0 +1,165 @@
+{
+  "parser" : {
+    "type" : "json.stream"
+  },
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": []
+  },
+  "metricsExpr":
+  {
+    "entity": {
+      "basis_date": "tag",
+      "update_time": "string",
+      "entity_preferences": [
+        {
+          "apollo_radio": [
+            {
+              "entity_role": "string",
+              "preferences": [
+                {
+                  "name": "tag",
+                  "ranking": "tag",
+                  "score": "double",
+                  "usage_yn": "enum('y','n')"
+                }
+              ]
+            }
+          ],
+          "apollo_game": [
+            {
+              "entity_role": "string",
+              "preferences": [
+                {
+                  "name": "tag",
+                  "ranking": "tag",
+                  "score": "double",
+                  "usage_yn": "enum('y','n')"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "music": {
+      "basis_date": "tag",
+      "update_time": "string",
+      "pref_genre_list": [
+        {
+          "count": "int",
+          "genre_id": "tag",
+          "genre_name": "tag"
+        }
+      ],
+      "pref_artist_list": [
+        {
+          "count": "int",
+          "artist_id": "tag",
+          "artist_name": "tag"
+        }
+      ],
+      "pref_track_list": [
+        {
+          "count": "int",
+          "track_title": "string",
+          "rp_artist_list": [
+            {
+              "artist_id": "tag",
+              "artist_name": "tag"
+            }
+          ]
+        }
+      ]
+    },
+    "service": {
+      "basis_date": "tag",
+      "update_time": "string",
+      "service_preferences_daily": [
+        {
+          "ranking": "float",
+          "score": "double",
+          "service": "tag",
+          "usage_yn": "enum('y','n')"
+        }
+      ]
+    },
+    "target": {
+      "music_user_mixed_artist": {
+        "status": "tag",
+        "basis_date": "tag",
+        "update_time": "string"
+      },
+      "music_user_single_artist": {
+        "status": "tag",
+        "basis_date": "tag",
+        "update_time": "string"
+      }
+    },
+    "video": {
+      "movie_click_count": "int",
+      "movie_click_genre": [
+        {
+          "count": "int",
+          "genre": "tag"
+        }
+      ],
+      "movie_click_id": [
+        {
+          "count": "int",
+          "id": "tag"
+        }
+      ],
+      "adot_tv_click_count": "int",
+      "adot_tv_click_genre": [
+        {
+          "count": "int",
+          "genre": "tag"
+        }
+      ],
+      "adot_tv_click_subgenre": [
+        {
+          "count": "int",
+          "genre": "tag"
+        }
+      ],
+      "adot_tv_click_id": [
+        {
+          "count": "int",
+          "id": "tag"
+        }
+      ],
+      "program_click_count": "int",
+      "program_click_genre": [
+        {
+          "count": "int",
+          "genre": "tag"
+        }
+      ],
+      "program_click_subgenre": [
+        {
+          "count": "int",
+          "genre": "tag"
+        }
+      ],
+      "program_click_id": [
+        {
+          "count": "int",
+          "id": "tag"
+        }
+      ],
+      "youtube_click_count": "int",
+      "youtube_click_id": [
+        {
+          "count": "int",
+          "id": "tag"
+        }
+      ]
+    }
+  },
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true
+}
