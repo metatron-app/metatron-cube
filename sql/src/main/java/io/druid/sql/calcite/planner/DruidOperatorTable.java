@@ -144,8 +144,8 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new SumSqlAggregator())
           .add(new SumZeroSqlAggregator())
           .add(new RelayAggregator(new RelayAggFunction("ANY"), RelayType.FIRST))
-          .add(new RelayAggregator(new RelayAggFunction("EARLIEST"), RelayType.TIME_MIN))
-          .add(new RelayAggregator(new RelayAggFunction("LATEST"), RelayType.TIME_MAX))
+          .add(new RelayAggregator(new RelayAggFunction("EARLIEST"), RelayType.FIRST))
+          .add(new RelayAggregator(new RelayAggFunction("LATEST"), RelayType.LAST))
           .build();
 
   // STRLEN has so many aliases.

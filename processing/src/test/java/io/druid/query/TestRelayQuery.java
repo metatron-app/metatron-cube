@@ -59,8 +59,8 @@ public class TestRelayQuery extends TestHelper
         .setDataSource("relay")
         .setDimensions(DefaultDimensionSpec.toSpec("dim"))
         .setAggregatorSpecs(
-            RelayAggregatorFactory.timeMin("FIRST(m)", "m"),
-            RelayAggregatorFactory.timeMax("LAST(m)", "m")
+            RelayAggregatorFactory.first("FIRST(m)", "m"),
+            RelayAggregatorFactory.last("LAST(m)", "m")
         )
         .setPostAggregatorSpecs(
             new MathPostAggregator("FIRST_TIME(m)", "datetime(\"FIRST(m)\"[0])", false, null),

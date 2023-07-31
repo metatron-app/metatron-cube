@@ -387,10 +387,10 @@ public class CalciteTests
   public static DruidOperatorTable createOperatorTable()
   {
     Set<AggregatorFactory.SQLBundle> bundles = Sets.newHashSet(
-        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.TimeFirst("<name>", "<columnName>", null)),
-        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.TimeLast("<name>", "<columnName>", null)),
-        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.Min("<name>", "<columnName>", null)),
-        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.Max("<name>", "<columnName>", null))
+        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.FirstOf("<name>", "<columnName>", null)),
+        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.LastOf("<name>", "<columnName>", null)),
+        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.MinOf("<name>", "<columnName>", null)),
+        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.MaxOf("<name>", "<columnName>", null))
     );
     Set<SqlOperatorConversion> extractionOperators = new HashSet<>();
 

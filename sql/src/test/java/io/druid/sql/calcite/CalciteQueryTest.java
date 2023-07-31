@@ -4786,8 +4786,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .aggregators(
                 new GenericMinAggregatorFactory("a0", "Profit", ValueDesc.DOUBLE),
                 new GenericMaxAggregatorFactory("a1", "Profit", ValueDesc.DOUBLE),
-                new RelayAggregatorFactory("a2", "Profit", "double", "TIME_MIN"),
-                new RelayAggregatorFactory("a3", "Profit", "double", "TIME_MAX")
+                new RelayAggregatorFactory("a2", "Profit", "double", "FIRST"),
+                new RelayAggregatorFactory("a3", "Profit", "double", "LAST")
             )
             .limitSpec(LimitSpec.of(3))
             .outputColumns("d0", "a0", "a1", "a2", "a3")
@@ -6234,12 +6234,12 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   EXPR_VC("a5:v", "concat(dim1,CAST(cnt, 'STRING'))")
               )
               .aggregators(
-                  new RelayAggregatorFactory("a0", "cnt", "long", "TIME_MIN"),
-                  new RelayAggregatorFactory("a1", "m1", "double", "TIME_MIN"),
-                  new RelayAggregatorFactory("a2", "dim1", "dimension.string", "TIME_MIN"),
-                  new RelayAggregatorFactory("a3", "a3:v", "long", "TIME_MIN"),
-                  new RelayAggregatorFactory("a4", "a4:v", "double", "TIME_MIN"),
-                  new RelayAggregatorFactory("a5", "a5:v", "string", "TIME_MIN")
+                  new RelayAggregatorFactory("a0", "cnt", "long", "FIRST"),
+                  new RelayAggregatorFactory("a1", "m1", "double", "FIRST"),
+                  new RelayAggregatorFactory("a2", "dim1", "dimension.string", "FIRST"),
+                  new RelayAggregatorFactory("a3", "a3:v", "long", "FIRST"),
+                  new RelayAggregatorFactory("a4", "a4:v", "double", "FIRST"),
+                  new RelayAggregatorFactory("a5", "a5:v", "string", "FIRST")
               )
               .outputColumns("a0", "a1", "a2", "a3", "a4", "a5")
               .build(),
@@ -6263,12 +6263,12 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   EXPR_VC("a5:v", "concat(dim1,CAST(cnt, 'STRING'))")
               )
               .aggregators(
-                  new RelayAggregatorFactory("a0", "cnt", "long", "TIME_MAX"),
-                  new RelayAggregatorFactory("a1", "m1", "double", "TIME_MAX"),
-                  new RelayAggregatorFactory("a2", "dim1", "dimension.string", "TIME_MAX"),
-                  new RelayAggregatorFactory("a3", "a3:v", "long", "TIME_MAX"),
-                  new RelayAggregatorFactory("a4", "a4:v", "double", "TIME_MAX"),
-                  new RelayAggregatorFactory("a5", "a5:v", "string", "TIME_MAX")
+                  new RelayAggregatorFactory("a0", "cnt", "long", "LAST"),
+                  new RelayAggregatorFactory("a1", "m1", "double", "LAST"),
+                  new RelayAggregatorFactory("a2", "dim1", "dimension.string", "LAST"),
+                  new RelayAggregatorFactory("a3", "a3:v", "long", "LAST"),
+                  new RelayAggregatorFactory("a4", "a4:v", "double", "LAST"),
+                  new RelayAggregatorFactory("a5", "a5:v", "string", "LAST")
               )
               .outputColumns("a0", "a1", "a2", "a3", "a4", "a5")
               .build(),
@@ -6279,7 +6279,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   @Test
   public void testLatestInSubquery() throws Exception
   {
-    RelayAggregatorFactory factory = new RelayAggregatorFactory("a0:a", "m1", "double", "TIME_MAX");
+    RelayAggregatorFactory factory = new RelayAggregatorFactory("a0:a", "m1", "double", "LAST");
     testQuery(
         "SELECT SUM(val) FROM (SELECT dim2, LATEST(m1) AS val FROM foo GROUP BY dim2)",
         Druids.newTimeseriesQueryBuilder()

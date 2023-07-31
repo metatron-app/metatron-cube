@@ -190,24 +190,6 @@ public class Aggregators
             return update == null ? current : update;
           }
         };
-      case FIRST:
-        return new Aggregator.Simple()
-        {
-          @Override
-          public Object aggregate(Object current)
-          {
-            return current == null ? selector.get() : current;
-          }
-        };
-      case LAST:
-        return new Aggregator.Simple()
-        {
-          @Override
-          public Object aggregate(Object current)
-          {
-            return selector.get();
-          }
-        };
       case MIN:
         return new Aggregator.Simple()
         {
@@ -242,6 +224,7 @@ public class Aggregators
             return current;
           }
         };
+      case FIRST:
       case TIME_MIN:
         return new Aggregator<TimeTagged>()
         {
@@ -276,6 +259,7 @@ public class Aggregators
             return current == null ? null : Arrays.asList(current.timestamp, current.value);
           }
         };
+      case LAST:
       case TIME_MAX:
         return new Aggregator<TimeTagged>()
         {
@@ -435,20 +419,18 @@ public class Aggregators
         return (param1, param2) -> {
           throw new UnsupportedOperationException("cannot combine");
         };
-      case FIRST:
-        return (param1, param2) -> param1 == null ? param2 : param1;
-      case LAST:
-        return (param1, param2) -> param2 == null ? param1 : param2;
       case MIN:
         return (param1, param2) -> GuavaUtils.NULL_FIRST_NATURAL.compare(param1, param2) < 0 ? param1 : param2;
       case MAX:
         return (param1, param2) -> GuavaUtils.NULL_FIRST_NATURAL.compare(param1, param2) > 0 ? param1 : param2;
+      case FIRST:
       case TIME_MIN:
         return (param1, param2) -> {
           final Number time1 = (Number) ((List) param1).get(0);
           final Number time2 = (Number) ((List) param2).get(0);
           return time1.longValue() < time2.longValue() ? param1 : param2;
         };
+      case LAST:
       case TIME_MAX:
         return (param1, param2) -> {
           final Number time1 = (Number) ((List) param1).get(0);

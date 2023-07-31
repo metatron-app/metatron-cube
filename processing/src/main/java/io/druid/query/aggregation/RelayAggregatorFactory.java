@@ -64,38 +64,38 @@ public class RelayAggregatorFactory extends AggregatorFactory implements TypeRes
   private static final byte CACHE_TYPE_ID = 0x11;
 
   @JsonTypeName("firstOf")
-  public static class TimeFirst extends RelayAggregatorFactory
+  public static class FirstOf extends RelayAggregatorFactory
   {
-    public TimeFirst(String name, String columnName, String typeName)
+    public FirstOf(String name, String columnName, String typeName)
     {
-      super(name, columnName, typeName, "TIME_MIN");
+      super(name, columnName, typeName, RelayType.FIRST.name());
     }
   }
 
   @JsonTypeName("lastOf")
-  public static class TimeLast extends RelayAggregatorFactory
+  public static class LastOf extends RelayAggregatorFactory
   {
-    public TimeLast(String name, String columnName, String typeName)
+    public LastOf(String name, String columnName, String typeName)
     {
-      super(name, columnName, typeName, "TIME_MAX");
+      super(name, columnName, typeName, RelayType.LAST.name());
     }
   }
 
   @JsonTypeName("minOf")
-  public static class Min extends RelayAggregatorFactory
+  public static class MinOf extends RelayAggregatorFactory
   {
-    public Min(String name, String columnName, String typeName)
+    public MinOf(String name, String columnName, String typeName)
     {
-      super(name, columnName, typeName, "MIN");
+      super(name, columnName, typeName, RelayType.MIN.name());
     }
   }
 
   @JsonTypeName("maxOf")
-  public static class Max extends RelayAggregatorFactory
+  public static class MaxOf extends RelayAggregatorFactory
   {
-    public Max(String name, String columnName, String typeName)
+    public MaxOf(String name, String columnName, String typeName)
     {
-      super(name, columnName, typeName, "MAX");
+      super(name, columnName, typeName, RelayType.MAX.name());
     }
   }
 
@@ -137,16 +137,6 @@ public class RelayAggregatorFactory extends AggregatorFactory implements TypeRes
   public static AggregatorFactory max(String name, String columnName, String type)
   {
     return new RelayAggregatorFactory(name, columnName, type, RelayType.MAX, null);
-  }
-
-  public static AggregatorFactory timeMin(String name, String columnName)
-  {
-    return new RelayAggregatorFactory(name, columnName, null, RelayType.TIME_MIN, null);
-  }
-
-  public static AggregatorFactory timeMax(String name, String columnName)
-  {
-    return new RelayAggregatorFactory(name, columnName, null, RelayType.TIME_MAX, null);
   }
 
   private final String name;
@@ -384,8 +374,10 @@ public class RelayAggregatorFactory extends AggregatorFactory implements TypeRes
   @Override
   public ValueDesc getOutputType()
   {
-    if (relayType == RelayType.TIME_MIN || relayType == RelayType.TIME_MAX) {
-      return typeName == null ? ValueDesc.STRUCT : ValueDesc.of(String.format("struct(t:long,v:%s)", typeName));
+    switch (relayType) {
+      case FIRST: case TIME_MIN:
+      case LAST: case TIME_MAX:
+        return typeName == null ? ValueDesc.STRUCT : ValueDesc.of(String.format("struct(t:long,v:%s)", typeName));
     }
     return typeName == null ? null : ValueDesc.of(typeName);
   }

@@ -143,10 +143,10 @@ public class SqlModule implements DruidModule
       );
 
       // for simplicity
-      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.TimeFirst("<name>", "<columnName>", null));
-      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.TimeLast("<name>", "<columnName>", null));
-      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.Min("<name>", "<columnName>", null));
-      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.Max("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.FirstOf("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.LastOf("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.MinOf("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.MaxOf("<name>", "<columnName>", null));
 
       // Add empty DimFilterConversion binder.
       Multibinder.newSetBinder(binder, DimFilterConversion.class);
