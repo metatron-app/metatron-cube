@@ -383,7 +383,7 @@ public interface BuiltinFunctions extends Function.Library
         {
           List values = Lists.newArrayList();
           for (Expr arg : args) {
-            values.add(type.cast(Evals.evalValue(arg, bindings)));
+            values.add(element.cast(Evals.evalValue(arg, bindings)));
           }
           return ExprEval.of(values, type);
         }

@@ -98,22 +98,43 @@ public class ColumnDescriptor extends ColumnMeta
 
   public Column read(String columnName, ByteBuffer buffer, BitmapSerdeFactory serdeFactory) throws IOException
   {
-    final ColumnBuilder builder = new ColumnBuilder(columnName)
-        .setType(valueType)
-        .setColumnStats(stats)
-        .setColumnDescs(descs)
-        .setHasMultipleValues(hasMultipleValues);
+    return read(new ColumnBuilder(columnName), buffer, serdeFactory).build();
+  }
+
+  public ColumnBuilder read(ColumnBuilder builder, ByteBuffer buffer, BitmapSerdeFactory serdeFactory) throws IOException
+  {
+    builder.setType(valueType)
+           .setColumnStats(stats)
+           .setColumnDescs(descs)
+           .setHasMultipleValues(hasMultipleValues);
 
     for (ColumnPartSerde part : parts) {
       part.getDeserializer().read(buffer, builder, serdeFactory);
     }
-
-    return builder.build();
+    return builder;
   }
 
   public ColumnDescriptor withParts(List<ColumnPartSerde> parts)
   {
     return new ColumnDescriptor(valueType, hasMultipleValues, parts, descs, stats);
+  }
+
+  public ColumnPartSerde.Serializer asSerializer()
+  {
+    return new ColumnPartSerde.Serializer()
+    {
+      @Override
+      public long getSerializedSize()
+      {
+        return numBytes();
+      }
+
+      @Override
+      public long writeToChannel(WritableByteChannel channel) throws IOException
+      {
+        return write(channel);
+      }
+    };
   }
 
   public static class Builder

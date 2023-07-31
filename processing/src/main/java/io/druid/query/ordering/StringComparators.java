@@ -706,19 +706,19 @@ public class StringComparators
           return new MonthComparator(type.substring(MONTH_NAME.length() + 1));
         }
         if (lowerCased.startsWith(StringComparators.DATETIME_NAME + "(")) {
-          int seek = TypeUtils.seekWithEscape(type, DATETIME_NAME.length() + 1, ')');
+          int seek = TypeUtils.seekWithQuote(type, DATETIME_NAME.length() + 1, ')');
           if (seek < 0) {
             throw new IllegalArgumentException("not matching ')' in " + type);
           }
           return new DateTimeComparator(type.substring(DATETIME_NAME.length() + 1, seek));
         }
         if (lowerCased.startsWith(StringComparators.STRING_ARRAY_NAME + "(")) {
-          int seek = TypeUtils.seekWithEscape(type, STRING_ARRAY_NAME.length() + 1, ')');
+          int seek = TypeUtils.seekWithQuote(type, STRING_ARRAY_NAME.length() + 1, ')');
           if (seek < 0) {
             throw new IllegalArgumentException("not matching ')' in " + type);
           }
           String argument = type.substring(STRING_ARRAY_NAME.length() + 1, seek);
-          List<String> splits = TypeUtils.splitWithEscape(argument, ',');
+          List<String> splits = TypeUtils.splitWithQuote(argument, ',');
           Preconditions.checkArgument(!splits.isEmpty() && splits.get(0).length() == 1, "separator should be a char");
           String separator = splits.get(0);
           List<StringComparator> comparators = Lists.newArrayList();

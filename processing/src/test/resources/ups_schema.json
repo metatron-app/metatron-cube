@@ -14,25 +14,25 @@
     "onboarding": {
       "interest": [
         {
-          "_id": "dimension",
+          "_id": "tag",
           "name": "string"
         }
       ],
       "artist": [
         {
-          "_id": "dimension",
+          "_id": "tag",
           "name": "string"
         }
       ]
     },
     "terms": {
-      "flo": "dimension",
-      "mbrs": "dimension",
-      "tmap": "dimension",
-      "wavve": "dimension",
-      "event_receive": "dimension",
-      "marketing_msg": "dimension",
-      "proactive_receive": "dimension"
+      "flo": "enum('동의','미동의')",
+      "mbrs": "enum('동의','미동의')",
+      "tmap": "enum('동의','미동의')",
+      "wavve": "enum('동의','미동의')",
+      "event_receive": "enum('동의','미동의')",
+      "marketing_msg": "enum('동의','미동의')",
+      "proactive_receive": "enum('동의','미동의')"
     },
     "ci_profile": {
       "base": "boolean",
@@ -43,11 +43,11 @@
         "adult_child_y": "boolean",
         "married": "boolean"
       },
-      "life_stage": "dimension",
-      "life_style": "dimension",
-      "segment": "dimension",
-      "shopping_channel": "dimension",
-      "transport": "dimension",
+      "life_stage": "tag",
+      "life_style": "tag",
+      "segment": "tag",
+      "shopping_channel": "tag",
+      "transport": "tag",
       "media": {
         "bf_m1_flo_dt_ratio": "float",
         "bf_m1_netflix_dt_ratio": "float",
@@ -64,7 +64,7 @@
       "xdr_category": "map(string,float)"
     },
     "adot_usage": {
-      "life_cycle": "dimension",
+      "life_cycle": "tag",
       "quest": {
         "cube": {
           "received": "int",

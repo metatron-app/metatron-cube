@@ -36,9 +36,9 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 
-import static io.druid.segment.data.GenericIndexed.Feature.NO_OFFSET;
-import static io.druid.segment.data.GenericIndexed.Feature.SORTED;
-import static io.druid.segment.data.GenericIndexed.Feature.VSIZED_VALUE;
+import static io.druid.segment.data.Dictionary.Feature.NO_OFFSET;
+import static io.druid.segment.data.Dictionary.Feature.SORTED;
+import static io.druid.segment.data.Dictionary.Feature.VSIZED_VALUE;
 
 /**
  * Streams arrays of objects out in the binary format described by GenericIndexed

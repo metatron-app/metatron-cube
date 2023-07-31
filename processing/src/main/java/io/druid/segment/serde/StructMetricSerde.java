@@ -45,10 +45,12 @@ import java.util.function.Function;
  */
 public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<String, ValueDesc>>
 {
-  public static Iterable<Pair<String, ValueDesc>> parse(ValueDesc type)
+  public static StructMetricSerde parse(ValueDesc type)
   {
-    String[] elements = TypeUtils.splitDescriptiveType(type);
-    return elements == null ? Arrays.asList() : new StructMetricSerde(elements);
+    return new StructMetricSerde(Preconditions.checkNotNull(
+        TypeUtils.splitDescriptiveType(type),
+        "no description for struct type"
+    ));
   }
 
   private final String elementType;

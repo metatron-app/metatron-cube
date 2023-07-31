@@ -60,8 +60,11 @@ import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnStats;
 import io.druid.segment.Metadata;
+import io.druid.segment.NestedTypes;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -99,6 +102,7 @@ public abstract class IncrementalIndex implements Closeable
   private final boolean fixedSchema;
   private final Metadata metadata;
 
+  private final IntSet pivots = new IntOpenHashSet();
   private final Map<String, MetricDesc> metricDescs;
   private final Map<String, DimensionDesc> dimensionDescs;
   private final Map<String, ColumnCapabilities> columnCapabilities;
@@ -122,9 +126,9 @@ public abstract class IncrementalIndex implements Closeable
    * should not deserialize input columns using ComplexMetricSerde for aggregators that return complex metrics.
    *
    * @param indexSchema               the schema to use for incremental index
-   * @param deserializeComplexMetrics flag whether or not to call ComplexMetricExtractor.extractValue() on the input
+   * @param deserializeComplexMetrics flag whether to call ComplexMetricExtractor.extractValue() on the input
    *                                  value for aggregators that return metrics other than float.
-   * @param reportParseExceptions     flag whether or not to report ParseExceptions that occur while extracting values
+   * @param reportParseExceptions     flag whether to report ParseExceptions that occur while extracting values
    *                                  from input rows
    */
   public IncrementalIndex(
@@ -197,6 +201,7 @@ public abstract class IncrementalIndex implements Closeable
         );
         columnCapabilities.put(dimension.getName(), capabilities);
         aggregators[i] = dimension.factorize(desc.getValues(), factory);
+        pivots.add(i);
       } else {
         MetricDesc metricDesc = new MetricDesc(metricDescs.size(), metrics[i]);
         metricDescs.put(metricDesc.getName(), metricDesc);
@@ -483,13 +488,7 @@ public abstract class IncrementalIndex implements Closeable
 
   public Aggregator[] getMetricAggregators()
   {
-    List<String> names = getMetricNames();
-    Aggregator[] metrics = new Aggregator[names.size()];
-    for (int i = 0; i < metrics.length; i++) {
-      MetricDesc desc = metricDescs.get(names.get(i));
-      metrics[i] = desc == null ? null : aggregators[desc.index];
-    }
-    return metrics;
+    return GuavaUtils.transform(getMetricDescs(), d -> aggregators[d.index]).toArray(new Aggregator[0]);
   }
 
   public List<DimensionDesc> getDimensions()
@@ -504,12 +503,6 @@ public abstract class IncrementalIndex implements Closeable
     synchronized (dimensionDescs) {
       return dimensionDescs.get(dimension);
     }
-  }
-
-  public ValueDesc getMetricType(String metric)
-  {
-    final MetricDesc metricDesc = getMetricDesc(metric);
-    return metricDesc != null ? metricDesc.getType() : null;
   }
 
   public Interval getInterval()
@@ -585,7 +578,19 @@ public abstract class IncrementalIndex implements Closeable
 
   public List<String> getMetricNames()
   {
-    return ImmutableList.copyOf(Maps.filterValues(metricDescs, v -> !v.getType().isDimension()).keySet());
+    return GuavaUtils.transform(getMetricDescs(), MetricDesc::getName);
+  }
+
+  public Iterable<MetricDesc> getMetricDescs()
+  {
+    return pivots.isEmpty() ? metricDescs.values()
+                            : Maps.filterValues(metricDescs, v -> !pivots.contains(v.index)).values();
+  }
+
+  public ValueDesc getMetricType(String metric)
+  {
+    final MetricDesc metricDesc = getMetricDesc(metric);
+    return metricDesc != null ? metricDesc.getType() : null;
   }
 
   public int getMetricIndex(String metricName)
@@ -747,12 +752,12 @@ public abstract class IncrementalIndex implements Closeable
       columnTypes.add(ValueDesc.ofDimension(capability.getType()));
       capabilities.put(dimension, capability);
     }
-    Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
-    for (String metric : getMetricNames()) {
-      columnNames.add(metric);
-      columnTypes.add(aggregators.get(metric).getOutputType());
-      capabilities.put(metric, getCapabilities(metric));
+    for (MetricDesc metric : getMetricDescs()) {
+      columnNames.add(metric.name);
+      columnTypes.add(metric.runtimeType);
+      capabilities.put(metric.name, getCapabilities(metric.name));
     }
+    Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
     return new Schema(columnNames, columnTypes, aggregators, capabilities, descriptors);
   }
 
@@ -770,10 +775,9 @@ public abstract class IncrementalIndex implements Closeable
       columnNames.add(dimension);
       columnTypes.add(ValueDesc.ofDimension(capability.getType()));
     }
-    Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
-    for (String metric : getMetricNames()) {
-      columnNames.add(metric);
-      columnTypes.add(aggregators.get(metric).getOutputType());
+    for (MetricDesc metric : getMetricDescs()) {
+      columnNames.add(metric.name);
+      columnTypes.add(metric.runtimeType);
     }
     return new RowSignature(columnNames, columnTypes);
   }
@@ -907,6 +911,7 @@ public abstract class IncrementalIndex implements Closeable
     private final int index;
     private final String name;
     private final ValueDesc type;
+    private final ValueDesc runtimeType;
     private final ColumnCapabilities capabilities;
 
     public MetricDesc(int index, AggregatorFactory factory)
@@ -914,6 +919,7 @@ public abstract class IncrementalIndex implements Closeable
       this.index = index;
       this.name = factory.getName();
       this.type = factory.getOutputType();
+      this.runtimeType = NestedTypes.toRuntimeType(type);
       this.capabilities = ColumnCapabilities.of(type.type());
       if (type.type() == ValueType.COMPLEX) {
         capabilities.setTypeName(type.typeName());
@@ -933,6 +939,11 @@ public abstract class IncrementalIndex implements Closeable
     public ValueDesc getType()
     {
       return type;
+    }
+
+    public ValueDesc getRuntimeType()
+    {
+      return runtimeType;
     }
 
     public ColumnCapabilities getCapabilities()

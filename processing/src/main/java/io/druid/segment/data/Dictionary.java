@@ -19,6 +19,9 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.serde.ColumnPartSerde;
+
 import static io.druid.segment.data.DictionaryCompareOp.EQ;
 import static io.druid.segment.data.DictionaryCompareOp.GT;
 import static io.druid.segment.data.DictionaryCompareOp.GTE;
@@ -33,7 +36,7 @@ public interface Dictionary<T> extends Indexed.Searchable<T>
 
   default boolean isSorted()
   {
-    return GenericIndexed.Feature.SORTED.isSet(flag());
+    return Feature.SORTED.isSet(flag());
   }
 
   default Dictionary<T> dedicated() {return this;}
@@ -44,7 +47,25 @@ public interface Dictionary<T> extends Indexed.Searchable<T>
 
   void close();
 
-  public static DictionaryCompareOp compareOp(String name)
+  static enum Feature
+  {
+    SORTED,
+    VSIZED_VALUE,
+    NO_OFFSET;
+
+    public final int mask = 1 << ordinal();
+
+    public boolean isSet(int flags) {return (mask & flags) != 0;}
+
+    public int set(int flags, boolean v)
+    {
+      return v ? flags | mask : flags & ~mask;
+    }
+
+    public int getMask() {return mask;}
+  }
+
+  static DictionaryCompareOp compareOp(String name)
   {
     switch (name) {
       case "==": return EQ;
@@ -55,5 +76,41 @@ public interface Dictionary<T> extends Indexed.Searchable<T>
       case "<=": return LTE;
     }
     return null;
+  }
+
+  static ColumnPartSerde.Deserializer asDeserializer(Dictionary<String> dictionary)
+  {
+    return (buffer, builder, factory) -> builder.setDictionary(asProvider(dictionary));
+  }
+
+  static <T> ColumnPartProvider<Dictionary<T>> asProvider(Dictionary<T> dictionary)
+  {
+    return new ColumnPartProvider<Dictionary<T>>()
+    {
+      @Override
+      public int numRows()
+      {
+        return dictionary.size();
+      }
+
+      @Override
+      public long getSerializedSize()
+      {
+        return dictionary.getSerializedSize();
+      }
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public Class provides()
+      {
+        return dictionary.getClass();
+      }
+
+      @Override
+      public Dictionary<T> get()
+      {
+        return dictionary.dedicated();
+      }
+    };
   }
 }

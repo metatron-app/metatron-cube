@@ -134,70 +134,70 @@ public class RowResolver implements TypeResolver
     return ValueDesc.UNKNOWN;
   }
 
-  private final RowSignature schema;
+  private final RowSignature signature;
   private final VirtualColumns virtualColumns;
 
   private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newConcurrentMap();
 
-  private RowResolver(RowSignature schema, List<VirtualColumn> virtualColumns)
+  private RowResolver(RowSignature signature, List<VirtualColumn> virtualColumns)
   {
-    this.schema = schema;
-    this.virtualColumns = VirtualColumns.valueOf(virtualColumns, schema);
+    this.signature = signature;
+    this.virtualColumns = VirtualColumns.valueOf(virtualColumns, signature);
   }
 
-  private RowResolver(RowSignature schema, VirtualColumns virtualColumns)
+  private RowResolver(RowSignature signature, VirtualColumns virtualColumns)
   {
-    this.schema = schema;
+    this.signature = signature;
     this.virtualColumns = virtualColumns;
   }
 
   @VisibleForTesting
   public RowResolver(Map<String, ValueDesc> columnTypes, VirtualColumns virtualColumns)
   {
-    this.schema = Schema.of(columnTypes);
+    this.signature = Schema.of(columnTypes);
     this.virtualColumns = virtualColumns;
   }
 
   public List<String> getColumnNames()
   {
-    return schema.getColumnNames();
+    return signature.getColumnNames();
   }
 
   public List<ValueDesc> getColumnTypes()
   {
-    return schema.getColumnTypes();
+    return signature.getColumnTypes();
   }
 
   public int size()
   {
-    return schema.size();
+    return signature.size();
   }
 
   public List<String> getDimensionNames()
   {
-    return schema.getDimensionNames();
+    return signature.getDimensionNames();
   }
 
   public List<String> getMetricNames()
   {
-    return schema.getMetricNames();
+    return signature.getMetricNames();
   }
 
   public Map<String, AggregatorFactory> getAggregators()
   {
-    return schema instanceof Schema ? ((Schema) schema).getAggregators() : Collections.emptyMap();
+    return signature instanceof Schema ? ((Schema) signature).getAggregators() : Collections.emptyMap();
   }
 
   public Iterable<String> getAllColumnNames(List<VirtualColumn> vcs)
   {
     if (vcs.isEmpty()) {
-      return schema.getColumnNames();
+      return signature.getColumnNames();
     }
     Set<String> names = Sets.newLinkedHashSet();
     vcs.stream()
        .filter(vc -> virtualColumns.getVirtualColumn(vc.getOutputName()) != null)
        .forEach(vc -> names.add(vc.getOutputName()));
-    names.addAll(schema.getColumnNames()); // override
+    names.addAll(signature.getColumnNames()); // override
     return names;
   }
 
@@ -214,7 +214,7 @@ public class RowResolver implements TypeResolver
   @Override
   public ValueDesc resolve(String column)
   {
-    ValueDesc resolved = schema.resolve(column);
+    ValueDesc resolved = signature.resolve(column);
     if (resolved != null) {
       return resolved;
     }
@@ -242,22 +242,5 @@ public class RowResolver implements TypeResolver
                                  .map(desc -> desc.unwrapDimension())
                                  .collect(Collectors.toList());
     return new RowResolver(RowSignature.of(names, types), virtualColumns);
-  }
-
-  // todo
-  public RowResolver forIncrementalIndex()
-  {
-    return new RowResolver(schema, virtualColumns)
-    {
-      @Override
-      public ValueDesc resolve(String column)
-      {
-        ValueDesc resolved = super.resolve(column);
-        if (resolved != null && resolved.isDimension() && schema.indexOf(column) < 0) {
-          return resolved.unwrapDimension();
-        }
-        return resolved;
-      }
-    };
   }
 }

@@ -307,7 +307,7 @@ public class JodaUtils
         if (i > prev) {
           b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
         }
-        int seek = TypeUtils.seekWithEscape(formatString, i + 1, ']');  // don't support nested optionals
+        int seek = TypeUtils.seekWithQuote(formatString, i + 1, ']');  // don't support nested optionals
         if (seek < 0) {
           throw new IAE("not matching ']' in %s", formatString);
         }
@@ -318,7 +318,7 @@ public class JodaUtils
         if (i > prev) {
           b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
         }
-        int seek = TypeUtils.seekWithEscape(formatString, i + 1, ')');  // don't support nested optionals
+        int seek = TypeUtils.seekWithQuote(formatString, i + 1, ')');  // don't support nested optionals
         if (seek < 0) {
           throw new IAE("not matching ')' in %s", formatString);
         }

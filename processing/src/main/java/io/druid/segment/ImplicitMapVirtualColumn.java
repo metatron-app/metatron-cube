@@ -65,7 +65,7 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
       return type;
     }
     String expression = column.substring(metric.length() + 1);
-    return VirtualColumn.nested(type, expression);
+    return NestedTypes.resolve(type, expression);
   }
 
   @Override
@@ -81,7 +81,7 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
     if (selector instanceof ComplexColumnSelector.Nested) {
       return ((ComplexColumnSelector.Nested) selector).selector(expression);
     }
-    return VirtualColumn.nested(selector, expression);
+    return NestedTypes.resolve(selector, expression);
   }
 
   @Override

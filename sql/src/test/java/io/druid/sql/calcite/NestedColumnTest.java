@@ -206,6 +206,24 @@ public class NestedColumnTest extends CalciteQueryTestHelper
         "2ob5tJUEWj+xyzoc8dZ4Kw==",
         "StreamQuery{dataSource='ups', filter=BoundDimFilter{adot_usage.stickness.day_7 < 1000(numeric)}, columns=[ci_profile.base, ci_profile.family.child_y, ci_profile.family.adult_child_y, ci_profile.family.married]}"
     );
+
+    testQuery(
+        String.format("SELECT email, terms from %s where terms.flo = '동의'", params),
+        new Object[]{"xxx91yy@naver.com", list("동의", "동의", "동의", "동의", "미동의", "미동의", "미동의")}
+    );
+    hook.verifyHooked(
+        "5Zdy2mM4fEUm3MBlL9g51A==",
+        "StreamQuery{dataSource='ups', filter=terms.flo=='동의', columns=[email, v0], virtualColumns=[ExprVirtualColumn{expression='ARRAY(\"terms.flo\",\"terms.mbrs\",\"terms.tmap\",\"terms.wavve\",\"terms.event_receive\",\"terms.marketing_msg\",\"terms.proactive_receive\")', outputName='v0'}]}"
+    );
+
+    testQuery(
+        String.format("SELECT email, terms from %s where terms.flo = '미동의'", params),
+        new Object[]{"yyy91xx@naver.com", list("미동의", "동의", "동의", "동의", "미동의", "동의", "미동의")}
+    );
+    hook.verifyHooked(
+        "zB7CggsgNVLvQod7PVO9kg==",
+        "StreamQuery{dataSource='ups', filter=terms.flo=='미동의', columns=[email, v0], virtualColumns=[ExprVirtualColumn{expression='ARRAY(\"terms.flo\",\"terms.mbrs\",\"terms.tmap\",\"terms.wavve\",\"terms.event_receive\",\"terms.marketing_msg\",\"terms.proactive_receive\")', outputName='v0'}]}"
+    );
   }
 
   @Test

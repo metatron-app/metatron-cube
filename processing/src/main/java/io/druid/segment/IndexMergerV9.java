@@ -879,17 +879,20 @@ public class IndexMergerV9 extends IndexMerger
       case STRING:
         return ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, secondary, compression);
       case COMPLEX:
-        if (type.isDimension()) {
-          return TagColumnSerializer.create(metric, type, compression, bitmap);
-        }
         if (type.isStruct()) {
           return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec));
         }
-        if (type.isComplexArray()) {
+        if (type.isGenericArray()) {
           return ArrayColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec));
         }
         if (type.isMap()) {
           return MapColumnSerializer.create(metric, type, compression, bitmap);
+        }
+        if (type.isTag()) {
+          return TagColumnSerializer.create(metric, type, compression, bitmap);
+        }
+        if (type.isEnum()) {
+          return EnumColumnSerializer.create(metric, type, compression, bitmap);
         }
         return ComplexColumnSerializer.create(metric, type, secondary, compression);
       default:

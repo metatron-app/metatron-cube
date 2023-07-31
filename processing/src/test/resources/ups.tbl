@@ -107,12 +107,12 @@
   "gender": "MALE",
   "email": "yyy91xx@naver.com",
   "terms": {
-    "flo": "동의",
+    "flo": "미동의",
     "mbrs": "동의",
     "tmap": "동의",
     "wavve": "동의",
     "event_receive": "미동의",
-    "marketing_msg": "미동의",
+    "marketing_msg": "동의",
     "proactive_receive": "미동의"
   },
   "onboarding": {

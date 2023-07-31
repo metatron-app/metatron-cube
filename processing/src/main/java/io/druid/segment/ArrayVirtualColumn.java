@@ -60,7 +60,7 @@ public class ArrayVirtualColumn implements VirtualColumn
       return resolved;
     }
     String expression = column.substring(outputName.length() + 1);
-    return VirtualColumn.nested(resolved, expression);
+    return NestedTypes.resolve(resolved, expression);
   }
 
   @Override
@@ -76,7 +76,7 @@ public class ArrayVirtualColumn implements VirtualColumn
     if (selector instanceof ComplexColumnSelector.Nested) {
       return ((ComplexColumnSelector.Nested) selector).selector(expression);
     }
-    return VirtualColumn.nested(selector, expression);
+    return NestedTypes.resolve(selector, expression);
   }
 
   @Override

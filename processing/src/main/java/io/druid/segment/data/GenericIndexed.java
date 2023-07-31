@@ -35,7 +35,6 @@ import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.Tools;
 import io.druid.segment.serde.ColumnPartSerde;
 import org.roaringbitmap.IntIterator;
@@ -78,24 +77,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   public static final byte version = 0x1;   // don't change this
 
-  enum Feature
-  {
-    SORTED,
-    VSIZED_VALUE,
-    NO_OFFSET;
-
-    private final int mask = 1 << ordinal();
-
-    public boolean isSet(int flags) {return (mask & flags) != 0;}
-
-    public int set(int flags, boolean v)
-    {
-      return v ? flags | mask : flags & ~mask;
-    }
-
-    public int getMask() {return mask;}
-  }
-
   public static int features(Feature... features)
   {
     int i = 0;
@@ -124,42 +105,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     final int flag = buffer.get();
     ByteBuffer dictionary = ByteBufferSerializer.prepareForRead(buffer);
     return new GenericIndexed<T>(dictionary, strategy, flag);
-  }
-
-  public ColumnPartProvider<Dictionary<T>> asColumnPartProvider()
-  {
-    return asColumnPartProvider(this);
-  }
-
-  public static <T> ColumnPartProvider<Dictionary<T>> asColumnPartProvider(Dictionary<T> dictionary)
-  {
-    return new ColumnPartProvider<Dictionary<T>>()
-    {
-      @Override
-      public int numRows()
-      {
-        return dictionary.size();
-      }
-
-      @Override
-      public long getSerializedSize()
-      {
-        return dictionary.getSerializedSize();
-      }
-
-      @Override
-      @SuppressWarnings("unchecked")
-      public Class provides()
-      {
-        return dictionary.getClass();
-      }
-
-      @Override
-      public Dictionary<T> get()
-      {
-        return dictionary.dedicated();
-      }
-    };
   }
 
   // mostly stick to V1 for v8 format..
@@ -937,7 +882,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
           return next;
         }
       };
-      return StreamSupport.stream(Spliterators.spliterator(scanner, size, 0), false);
+      return StreamSupport.stream(Spliterators.spliteratorUnknownSize(scanner, 0), false);
     }
 
     protected int scanDelta(int index, int length, int header)

@@ -78,8 +78,8 @@ public class ExtractionDimFilterTest
     mutableBitmap.add(1);
     ImmutableBitmap bitmap = factory.makeImmutableBitmap(mutableBitmap);
 
-    ColumnPartProvider<Dictionary<String>> dictionary = GenericIndexed.v2(
-        Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY).asColumnPartProvider();
+    ColumnPartProvider<Dictionary<String>> dictionary = Dictionary.asProvider(GenericIndexed.v2(
+        Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY));
     ColumnPartProvider<IntValues> values = ColumnPartProviders.with(VintValues.fromArray(new int[] {0}));
     ColumnPartProvider<BitmapIndex> bitmaps = new BitmapIndexColumnPartSupplier(
         factory,

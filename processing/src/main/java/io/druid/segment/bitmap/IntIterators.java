@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.PrimitiveIterator;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
 import java.util.stream.IntStream;
@@ -194,6 +195,31 @@ public final class IntIterators
       @Override
       public int next() {return mapping.applyAsInt(delegate.next());}
     };
+  }
+
+  public static <T> Iterator<T> apply(IntIterator iterator, IntFunction<T> function)
+  {
+    return new Iterator<T>()
+    {
+      @Override
+      public boolean hasNext()
+      {
+        return iterator.hasNext();
+      }
+
+      @Override
+      public T next()
+      {
+        return function.apply(iterator.next());
+      }
+    };
+  }
+
+  public static void forEach(IntIterator iterator, IntConsumer consumer)
+  {
+    while (iterator.hasNext()) {
+      consumer.accept(iterator.next());
+    }
   }
 
   // inclusive ~ exclusive

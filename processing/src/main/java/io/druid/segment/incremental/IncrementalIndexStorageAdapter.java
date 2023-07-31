@@ -55,6 +55,7 @@ import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
+import io.druid.segment.NestedTypes;
 import io.druid.segment.NullDimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.ScanContext;
@@ -210,7 +211,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   public Sequence<Cursor> makeCursors(
       final DimFilter dimFilter,
       final Interval interval,
-      final RowResolver source,
+      final RowResolver resolver,
       final Granularity granularity,
       final boolean descending,
       final SessionCache cache
@@ -235,7 +236,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     }
     final Direction direction = descending ? Direction.DESCENDING : Direction.ASCENDING;
 
-    final RowResolver resolver = source.forIncrementalIndex();
     final Filter filter = Filters.toFilter(dimFilter, resolver);
     final boolean swipping = Granularities.isAll(granularity) && actualInterval.contains(timeMinMax);
 
@@ -507,8 +507,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               @Override
               public FloatColumnSelector makeFloatColumnSelector(String columnName)
               {
-                final int metricIndexInt = index.getMetricIndex(columnName);
-                if (metricIndexInt < 0) {
+                final int metricIx = index.getMetricIndex(columnName);
+                if (metricIx < 0) {
                   final DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
                     ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
@@ -524,8 +524,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return ColumnSelectors.FLOAT_NULL;
                 }
 
-                final int metricIndex = metricIndexInt;
-                return toFloatColumnSelector(metricIndexInt);
+                final int metricIndex = metricIx;
+                return toFloatColumnSelector(metricIx);
               }
 
               private FloatColumnSelector toFloatColumnSelector(final int metricIndex)
@@ -562,8 +562,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               @Override
               public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
               {
-                final int metricIndexInt = index.getMetricIndex(columnName);
-                if (metricIndexInt < 0) {
+                final int metricIx = index.getMetricIndex(columnName);
+                if (metricIx < 0) {
                   final DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
                     ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
@@ -579,7 +579,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return ColumnSelectors.DOUBLE_NULL;
                 }
 
-                return toDoubleColumnSelector(metricIndexInt);
+                return toDoubleColumnSelector(metricIx);
               }
 
               private DoubleColumnSelector toDoubleColumnSelector(final int metricIndex)
@@ -619,8 +619,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (columnName.equals(Column.TIME_COLUMN_NAME)) {
                   return makeTimeSelector();
                 }
-                final int metricIndexInt = index.getMetricIndex(columnName);
-                if (metricIndexInt < 0) {
+                final int metricIx = index.getMetricIndex(columnName);
+                if (metricIx < 0) {
                   final DimensionDesc dimensionDesc = index.getDimension(columnName);
                   if (dimensionDesc != null) {
                     ColumnCapabilities capabilities = dimensionDesc.getCapabilities();
@@ -636,7 +636,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return ColumnSelectors.LONG_NULL;
                 }
 
-                return toLongColumnSelector(metricIndexInt);
+                return toLongColumnSelector(metricIx);
               }
 
               private LongColumnSelector toLongColumnSelector(final int metricIndex)
@@ -697,7 +697,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
                 MetricDesc desc = index.resolveMetric(column);
                 if (desc != null) {
-                  ObjectColumnSelector selector = new ObjectColumnSelector.Typed(desc.getType())
+                  ObjectColumnSelector selector = new ObjectColumnSelector.Typed(desc.getRuntimeType())
                   {
                     private final int ix = desc.getIndex();
                     private final Aggregator aggregator = index.getAggregators()[ix];
@@ -711,7 +711,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   if (column.equals(desc.getName())) {
                     return selector;
                   }
-                  return VirtualColumn.nested(selector, column.substring(desc.getName().length() + 1));
+                  return NestedTypes.resolve(selector, column.substring(desc.getName().length() + 1));
                 }
 
                 DimensionDesc dimensionDesc = index.getDimension(column);

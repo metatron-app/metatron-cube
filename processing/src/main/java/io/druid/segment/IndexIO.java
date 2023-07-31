@@ -72,16 +72,14 @@ import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedIterable;
-import io.druid.segment.data.IntsValues;
 import io.druid.segment.data.IndexedRTree;
+import io.druid.segment.data.IntsValues;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.data.VintsValues;
 import io.druid.segment.data.VintValues;
+import io.druid.segment.data.VintsValues;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
-import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSerde;
-import io.druid.segment.serde.NotCompressedComplexColumnPartSupplier;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
 import io.druid.segment.serde.DoubleGenericColumnPartSerde;
 import io.druid.segment.serde.DoubleGenericColumnSupplier;
@@ -89,6 +87,7 @@ import io.druid.segment.serde.FloatGenericColumnPartSerde;
 import io.druid.segment.serde.FloatGenericColumnSupplier;
 import io.druid.segment.serde.LongGenericColumnPartSerde;
 import io.druid.segment.serde.LongGenericColumnSupplier;
+import io.druid.segment.serde.NotCompressedComplexColumnPartSupplier;
 import io.druid.segment.serde.SpatialIndexColumnPartSupplier;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -930,7 +929,7 @@ public class IndexIO
 
       for (String dimension : index.getAvailableDimensions()) {
         VintsValues column = index.getDimColumn(dimension);
-        ColumnPartProvider<Dictionary<String>> dictionary = index.getDimValueLookup(dimension).asColumnPartProvider();
+        ColumnPartProvider<Dictionary<String>> dictionary = Dictionary.asProvider(index.getDimValueLookup(dimension));
         ColumnBuilder builder = new ColumnBuilder(dimension)
             .setType(ValueDesc.STRING)
             .setHasMultipleValues(true)
@@ -1104,7 +1103,9 @@ public class IndexIO
               ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, dimension));
               ColumnDescriptor desc = readDescriptor(mapper, mapped);
               Preconditions.checkArgument(source.getCapabilities().isDictionaryEncoded(), dimension);
-              desc = desc.withParts(GuavaUtils.concat(desc.getParts(), delegateDictionary(source)));
+              desc = desc.withParts(
+                  GuavaUtils.concat(desc.getParts(), () -> Dictionary.asDeserializer(source.getDictionary()))
+              );
               return desc.read(dimension, mapped, serdeFactory);
             }
             catch (Exception e) {
@@ -1265,25 +1266,6 @@ public class IndexIO
   public static File makeMetricFile(File dir, String metricName, ByteOrder order)
   {
     return new File(dir, String.format("met_%s_%s.drd", metricName, order));
-  }
-
-  private static ColumnPartSerde delegateDictionary(final Column source)
-  {
-    return new ColumnPartSerde()
-    {
-      @Override
-      public ColumnPartSerde.Deserializer getDeserializer()
-      {
-        return new ColumnPartSerde.Deserializer()
-        {
-          @Override
-          public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
-          {
-            builder.setDictionary(GenericIndexed.asColumnPartProvider(source.getDictionary()));
-          }
-        };
-      }
-    };
   }
 
   public static void main(String[] args) throws Exception

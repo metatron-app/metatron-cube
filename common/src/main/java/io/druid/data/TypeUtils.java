@@ -23,7 +23,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import io.druid.common.IntTagged;
+import io.druid.common.utils.StringUtils;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -98,22 +101,22 @@ public class TypeUtils
     final String type = string.substring(0, index1);
     final String description = string.substring(index1 + 1, string.length() - 1);
     // a:b,family:struct(c:d,e:f)
-    final List<String> elements = TypeUtils.splitWithEscape(description, ',');
+    final List<String> elements = TypeUtils.splitWithQuote(description, ',');
     elements.add(0, type);
 
     return elements.toArray(new String[0]);
   }
 
-  public static List<String> splitWithEscape(String string, char target)
+  public static List<String> splitWithQuote(String string, char target)
   {
     List<String> splits = Lists.newArrayList();
     int prev = 0;
-    for (int i = seekWithEscape(string, prev, target); i >= 0; i = seekWithEscape(string, prev, target)) {
-      int lx = seekWithEscape(string, prev, '(');
+    for (int i = seekWithQuote(string, prev, target); i >= 0; i = seekWithQuote(string, prev, target)) {
+      int lx = seekWithQuote(string, prev, '(');
       if (lx > 0 && lx < i) {
-        int rx = seekWithEscape(string, lx + 1, ')');
-        for (lx = seekWithEscape(string, lx + 1, '('); lx > 0 && lx < rx;
-             lx = seekWithEscape(string, lx + 1, '('), rx = seekWithEscape(string, rx + 1, ')')) {
+        int rx = seekWithQuote(string, lx + 1, ')');
+        for (lx = seekWithQuote(string, lx + 1, '('); lx > 0 && lx < rx;
+             lx = seekWithQuote(string, lx + 1, '('), rx = seekWithQuote(string, rx + 1, ')')) {
         }
         if (rx > 0) {
           i = rx + 1;
@@ -130,15 +133,15 @@ public class TypeUtils
     return splits;
   }
 
-  public static int seekWithEscape(String string, int index, char target)
+  public static int seekWithQuote(String string, int index, char target)
   {
-    boolean escape = false;
+    boolean quoted = false;
     for (; index < string.length(); index++) {
       char c = string.charAt(index);
       if (c == '\'') {
-        escape = !escape;
+        quoted = !quoted;
       }
-      if (escape) {
+      if (quoted) {
         continue;
       }
       if (c == target) {
@@ -157,5 +160,21 @@ public class TypeUtils
       }
     }
     return string.substring(i);
+  }
+
+  public static List<IntTagged<String>> parseEnum(ValueDesc type)
+  {
+    return parseEnum(Preconditions.checkNotNull(TypeUtils.splitDescriptiveType(type)));
+  }
+
+  public static List<IntTagged<String>> parseEnum(String[] description)
+  {
+    List<IntTagged<String>> values = Lists.newArrayList();
+    values.add(IntTagged.of(0, ""));
+    for (int i = 1; i < description.length; i++) {
+      values.add(IntTagged.of(i, StringUtils.unquote(description[i].trim())));
+    }
+    Collections.sort(values, (e1, e2) -> e1.value.compareTo(e2.value));
+    return values;
   }
 }

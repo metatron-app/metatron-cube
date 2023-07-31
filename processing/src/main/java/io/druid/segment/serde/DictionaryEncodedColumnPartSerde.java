@@ -242,7 +242,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       {
         final byte versionFromBuffer = buffer.get();
         if (versionFromBuffer == GenericIndexed.version) {
-          return GenericIndexed.readIndex(buffer, ObjectStrategy.STRING_STRATEGY).asColumnPartProvider();
+          return Dictionary.asProvider(GenericIndexed.readIndex(buffer, ObjectStrategy.STRING_STRATEGY));
         } else {
           throw new IAE("Unknown version[%s]", versionFromBuffer);
         }

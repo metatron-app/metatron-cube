@@ -64,7 +64,7 @@ public class StructVirtualColumn implements VirtualColumn
     }
     Preconditions.checkArgument(column.charAt(outputName.length()) == '.');
     String expression = column.substring(outputName.length() + 1);
-    return VirtualColumn.nested(columnType, expression);
+    return NestedTypes.resolve(columnType, expression);
   }
 
   @Override
@@ -80,7 +80,7 @@ public class StructVirtualColumn implements VirtualColumn
     if (selector instanceof ComplexColumnSelector.Nested) {
       return ((ComplexColumnSelector.Nested) selector).selector(expression);
     }
-    return VirtualColumn.nested(selector, expression);
+    return NestedTypes.resolve(selector, expression);
   }
 
   @Override

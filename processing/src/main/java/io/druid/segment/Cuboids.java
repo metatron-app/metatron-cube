@@ -143,7 +143,7 @@ public class Cuboids
     }
     final String type = string.substring(0, index1);
     final String description = string.substring(index1 + 1, string.length() - 1);
-    final List<String> split = TypeUtils.splitWithEscape(description, '|');   // should not contain ','
+    final List<String> split = TypeUtils.splitWithQuote(description, '|');   // should not contain ','
     if (split.isEmpty()) {
       return Pair.of(type, ImmutableMap.of());
     }

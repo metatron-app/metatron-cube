@@ -60,9 +60,6 @@ public class ValueDesc implements Serializable, Cacheable
   private static final String BITSET_TYPE = "bitset";
   private static final String UNKNOWN_TYPE = "unknown";
 
-  private static final String PRIMITIVE_ARRAY_PREFIX = "array.";
-  private static final String ARRAY_PREFIX = "array(";
-
   // aka. IndexedInts.WithLookup
   // this is return type of object selector which simulates dimension selector (used for some filter optimization)
   private static final String INDEXED_ID_PREFIX = "indexed.";
@@ -77,8 +74,19 @@ public class ValueDesc implements Serializable, Cacheable
   // descriptive type
   public static final String MAP_TYPE = "map";
   public static final String ARRAY_TYPE = "array";
+  private static final String LEGACY_ARRAY_PREFIX = "array.";
+  private static final String GENERIC_ARRAY_PREFIX = "array(";
+
   public static final String DECIMAL_TYPE = "decimal";
+  public static final String DECIMAL_TYPE_PREFIX = DECIMAL_TYPE + "(";
+
   public static final String STRUCT_TYPE = "struct";
+  public static final String STRUCT_TYPE_PREFIX = STRUCT_TYPE + "(";
+
+  public static final String ENUM_TYPE = "enum";
+  public static final String ENUM_TYPE_PREFIX = ENUM_TYPE + "(";
+
+  public static final String TAG_TYPE = "tag";
 
   public static final String STRING_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_TYPE;
   public static final String STRING_MULTIVALUED_TYPE = MULTIVALUED_PREFIX + STRING_TYPE;
@@ -121,10 +129,15 @@ public class ValueDesc implements Serializable, Cacheable
   public static final ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE, List.class);
   public static final ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
 
-  public static final ValueDesc STRING_ARRAY = new ValueDesc(PRIMITIVE_ARRAY_PREFIX + STRING_TYPE);
-  public static final ValueDesc LONG_ARRAY = new ValueDesc(PRIMITIVE_ARRAY_PREFIX + LONG_TYPE);
-  public static final ValueDesc FLOAT_ARRAY = new ValueDesc(PRIMITIVE_ARRAY_PREFIX + FLOAT_TYPE);
-  public static final ValueDesc DOUBLE_ARRAY = new ValueDesc(PRIMITIVE_ARRAY_PREFIX + DOUBLE_TYPE);
+  // shortcuts
+  public static final ValueDesc ENUM = new ValueDesc(ENUM_TYPE);
+  public static final ValueDesc TAG = new ValueDesc(TAG_TYPE);
+
+  // legacy arrays
+  public static final ValueDesc STRING_ARRAY = new ValueDesc(LEGACY_ARRAY_PREFIX + STRING_TYPE);
+  public static final ValueDesc LONG_ARRAY = new ValueDesc(LEGACY_ARRAY_PREFIX + LONG_TYPE);
+  public static final ValueDesc FLOAT_ARRAY = new ValueDesc(LEGACY_ARRAY_PREFIX + FLOAT_TYPE);
+  public static final ValueDesc DOUBLE_ARRAY = new ValueDesc(LEGACY_ARRAY_PREFIX + DOUBLE_TYPE);
 
   public static final ValueDesc GEOMETRY = new ValueDesc("geometry");
   public static final ValueDesc OGC_GEOMETRY = new ValueDesc("ogc_geometry");
@@ -147,7 +160,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static ValueDesc ofArray(ValueType valueType)
   {
-    return ValueDesc.of(PRIMITIVE_ARRAY_PREFIX + valueType.getName());
+    return ValueDesc.of(LEGACY_ARRAY_PREFIX + valueType.getName());
   }
 
   public static ValueDesc ofMap(ValueDesc key, ValueDesc value)
@@ -349,7 +362,7 @@ public class ValueDesc implements Serializable, Cacheable
     int scale = Math.max(s1, s2);
     int precision = scale + Math.max(p1 - s1, p2 - s2) + 1;
 
-    return ValueDesc.of(DECIMAL_TYPE + "(" + precision + "," + s1 + "," + mode + ")");
+    return ofDecimal(precision, scale, mode == null ? null : RoundingMode.valueOf(mode));
   }
 
   public static String toTypeString(ValueDesc desc)
@@ -500,7 +513,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public ValueDesc unwrapArray(ValueDesc unknown)
   {
-    if (isPrimitiveArray()) {
+    if (isLegacyArray()) {
       return subElement(unknown);
     }
     String[] description = TypeUtils.splitDescriptiveType(typeName);
@@ -634,7 +647,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isDecimal()
   {
-    return DECIMAL_TYPE.equals(typeName) || typeName.startsWith(DECIMAL_TYPE);
+    return DECIMAL_TYPE.equals(typeName) || typeName.startsWith(DECIMAL_TYPE_PREFIX);
   }
 
   public boolean isMap()
@@ -684,24 +697,22 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isStruct()
   {
-    return this == STRUCT || STRUCT_TYPE.equals(typeName) || typeName.startsWith(STRUCT_TYPE);
+    return this == STRUCT || STRUCT_TYPE.equals(typeName) || typeName.startsWith(STRUCT_TYPE_PREFIX);
   }
 
   public boolean isArray()
   {
-    return this == ARRAY || ARRAY_TYPE.equals(typeName) ||
-           typeName.startsWith(PRIMITIVE_ARRAY_PREFIX) ||
-           typeName.startsWith(ARRAY_PREFIX);
+    return isLegacyArray() || isGenericArray();
   }
 
-  public boolean isPrimitiveArray()
+  public boolean isLegacyArray()
   {
-    return this == ARRAY || ARRAY_TYPE.equals(typeName) || typeName.startsWith(PRIMITIVE_ARRAY_PREFIX);
+    return this == ARRAY || ARRAY_TYPE.equals(typeName) || typeName.startsWith(LEGACY_ARRAY_PREFIX);
   }
 
-  public boolean isComplexArray()
+  public boolean isGenericArray()
   {
-    return typeName.startsWith(ARRAY_PREFIX);
+    return typeName.startsWith(GENERIC_ARRAY_PREFIX);
   }
 
   public boolean isBitSet()
@@ -717,6 +728,16 @@ public class ValueDesc implements Serializable, Cacheable
   public boolean isUnknown()
   {
     return this == UNKNOWN || UNKNOWN_TYPE.equals(typeName);
+  }
+
+  public boolean isEnum()
+  {
+    return this == ENUM || ENUM_TYPE.equals(typeName) || typeName.startsWith(ENUM_TYPE_PREFIX);
+  }
+
+  public boolean isTag()
+  {
+    return this == TAG || TAG_TYPE.equals(typeName);
   }
 
   public String[] getDescription()
@@ -744,6 +765,8 @@ public class ValueDesc implements Serializable, Cacheable
       return Map.class;
     } else if (type.startsWith(DECIMAL_TYPE)) {
       return BigDecimal.class;
+    } else if (type.startsWith(ENUM_TYPE) || type.equals(TAG_TYPE)) {
+      return String.class;
     }
     return Object.class;
   }
