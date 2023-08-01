@@ -19,16 +19,13 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.data.Pair;
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.List;
 import java.util.stream.IntStream;
 
 public class OtherTest extends CalciteQueryTestHelper
@@ -41,19 +38,6 @@ public class OtherTest extends CalciteQueryTestHelper
   {
     walker = TestHelper.profileWalker.duplicate().withQueryHook(hook);
     walker.addIndex("b", "b", IntStream.range(0, 2));
-  }
-
-  @Override
-  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
-  {
-    hook.printHooked();
-    throw ex;
-  }
-
-  @Before
-  public void before()
-  {
-    hook.clear();
   }
 
   @Override

@@ -26,7 +26,6 @@ import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
 import io.druid.common.guava.Files;
 import io.druid.common.utils.JodaUtils;
-import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
@@ -71,7 +70,6 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -132,19 +130,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   protected TestQuerySegmentWalker walker()
   {
     return walker;
-  }
-
-  @Before
-  public void before()
-  {
-    hook.clear();
-  }
-
-  @Override
-  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
-  {
-    hook.printHooked();
-    throw ex;
   }
 
   @Test

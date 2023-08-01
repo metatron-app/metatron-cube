@@ -19,15 +19,12 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.data.Pair;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 // the problem is.. some queries containing join return empty cause dataset is too small (s=0.005)
 @RunWith(Parameterized.class)
@@ -56,19 +53,6 @@ public class SsbTest extends SsbTestHelper
     this.semiJoin = semiJoin;
     this.broadcastJoin = broadcastJoin;
     this.bloomFilter = bloomFilter;
-  }
-
-  @Override
-  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
-  {
-    hook.printHooked();
-    throw ex;
-  }
-
-  @Before
-  public void before()
-  {
-    hook.clear();
   }
 
   @Test

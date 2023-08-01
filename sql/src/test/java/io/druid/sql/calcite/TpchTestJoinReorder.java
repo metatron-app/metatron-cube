@@ -19,13 +19,9 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.data.Pair;
 import io.druid.query.JoinQueryConfig;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
-import org.junit.Before;
 import org.junit.Test;
-
-import java.util.List;
 
 public class TpchTestJoinReorder extends CalciteQueryTestHelper
 {
@@ -45,19 +41,6 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   protected TestQuerySegmentWalker walker()
   {
     return walker;
-  }
-
-  @Before
-  public void before()
-  {
-    hook.clear();
-  }
-
-  @Override
-  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
-  {
-    hook.printHooked();
-    throw ex;
   }
 
   @Test

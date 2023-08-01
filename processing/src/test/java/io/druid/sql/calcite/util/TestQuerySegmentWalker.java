@@ -400,6 +400,11 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     return timeLines;
   }
 
+  public TestHook getHook()
+  {
+    return hook;
+  }
+
   public static class PopulatingMap
   {
     private final List<DataSegment> segments = Lists.newArrayList();

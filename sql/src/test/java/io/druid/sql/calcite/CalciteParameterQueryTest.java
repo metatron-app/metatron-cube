@@ -21,7 +21,6 @@ package io.druid.sql.calcite;
 
 import io.druid.common.DateTimes;
 import io.druid.common.guava.Files;
-import io.druid.data.Pair;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -34,7 +33,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * from apache druid, CalciteParameterQueryTest
@@ -57,19 +55,6 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
   protected TestQuerySegmentWalker walker()
   {
     return walker;
-  }
-
-  @Before
-  public void before()
-  {
-    hook.clear();
-  }
-
-  @Override
-  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
-  {
-    hook.printHooked();
-    throw ex;
   }
 
   @Test

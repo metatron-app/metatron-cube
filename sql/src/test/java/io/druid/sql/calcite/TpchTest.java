@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.query.JoinQueryConfig;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -30,14 +29,12 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 // the problem is.. some queries containing join return empty cause dataset is too small (s=0.005)
 @RunWith(Parameterized.class)
@@ -67,19 +64,6 @@ public class TpchTest extends TpchTestHelper
     this.semiJoin = semiJoin;
     this.broadcastJoin = broadcastJoin;
     this.bloomFilter = bloomFilter;
-  }
-
-  @Override
-  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
-  {
-    hook.printHooked();
-    throw ex;
-  }
-
-  @Before
-  public void before()
-  {
-    hook.clear();
   }
 
   public static final String TPCH1 =

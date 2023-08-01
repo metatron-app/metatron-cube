@@ -33,4 +33,8 @@ public interface TestHook extends Consumer<Query<?>>
   }
 
   default void verifyHooked(List<String> expected) {}
+
+  default void printHooked() {}
+
+  default void clear() {};
 }

@@ -94,6 +94,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.chrono.ISOChronology;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.internal.ComparisonCriteria;
 
@@ -453,8 +454,15 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     }
   }
 
+  @Before
+  public void before()
+  {
+    walker().getHook().clear();
+  }
+
   protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
   {
+    walker().getHook().printHooked();
     throw ex;
   }
 
@@ -768,7 +776,8 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       }
     }
 
-    protected void printHooked()
+    @Override
+    public void printHooked()
     {
       MessageDigest md5;
       try {
@@ -795,6 +804,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       System.out.println(builder);
     }
 
+    @Override
     public void clear()
     {
       hooked.clear();

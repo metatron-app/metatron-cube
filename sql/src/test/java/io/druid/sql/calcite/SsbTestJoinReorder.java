@@ -19,15 +19,37 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.data.Pair;
 import io.druid.query.JoinQueryConfig;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
-
-import static io.druid.sql.calcite.SsbTest.*;
+import static io.druid.sql.calcite.SsbTest.SSB2_1;
+import static io.druid.sql.calcite.SsbTest.SSB2_1_PLAN_JR;
+import static io.druid.sql.calcite.SsbTest.SSB2_1_PLAN_JR2;
+import static io.druid.sql.calcite.SsbTest.SSB2_1_RESULT;
+import static io.druid.sql.calcite.SsbTest.SSB2_2;
+import static io.druid.sql.calcite.SsbTest.SSB2_2_PLAN_JR;
+import static io.druid.sql.calcite.SsbTest.SSB2_2_PLAN_JR2;
+import static io.druid.sql.calcite.SsbTest.SSB2_2_RESULT;
+import static io.druid.sql.calcite.SsbTest.SSB3_1;
+import static io.druid.sql.calcite.SsbTest.SSB3_1_PLAN_JR;
+import static io.druid.sql.calcite.SsbTest.SSB3_1_PLAN_JR2;
+import static io.druid.sql.calcite.SsbTest.SSB3_1_RESULT;
+import static io.druid.sql.calcite.SsbTest.SSB3_2;
+import static io.druid.sql.calcite.SsbTest.SSB3_2_PLAN_JR;
+import static io.druid.sql.calcite.SsbTest.SSB3_2_PLAN_JR2;
+import static io.druid.sql.calcite.SsbTest.SSB3_2_RESULT;
+import static io.druid.sql.calcite.SsbTest.SSB4_1;
+import static io.druid.sql.calcite.SsbTest.SSB4_1_PLAN_JR;
+import static io.druid.sql.calcite.SsbTest.SSB4_1_PLAN_JR2;
+import static io.druid.sql.calcite.SsbTest.SSB4_1_RESULT;
+import static io.druid.sql.calcite.SsbTest.SSB4_2;
+import static io.druid.sql.calcite.SsbTest.SSB4_2_PLAN_JR;
+import static io.druid.sql.calcite.SsbTest.SSB4_2_PLAN_JR2;
+import static io.druid.sql.calcite.SsbTest.SSB4_2_RESULT;
+import static io.druid.sql.calcite.SsbTest.SSB4_3;
+import static io.druid.sql.calcite.SsbTest.SSB4_3_PLAN;
+import static io.druid.sql.calcite.SsbTest.SSB4_3_RESULT;
 
 public class SsbTestJoinReorder extends CalciteQueryTestHelper
 {
@@ -48,19 +70,6 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   protected TestQuerySegmentWalker walker()
   {
     return walker;
-  }
-
-  @Override
-  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
-  {
-    hook.printHooked();
-    throw ex;
-  }
-
-  @Before
-  public void before()
-  {
-    hook.clear();
   }
 
   @Test

@@ -19,21 +19,17 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.data.Pair;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.TableDataSource;
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 import static io.druid.segment.TestHelper.list;
 
@@ -51,18 +47,12 @@ public class NestedColumnTest extends CalciteQueryTestHelper
       super.accept(Queries.iterate(query, q -> UPS_I.equals(q.getDataSource()) ? q.withDataSource(UPS) : q));
     }
   };
-  private static final TestQuerySegmentWalker walker = TestHelper.newWalker().withQueryHook(hook);
+  private static final TestQuerySegmentWalker walker = TestHelper.newWalker().addUps().withQueryHook(hook);
 
   @Parameterized.Parameters(name = "ds:{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     return Arrays.asList(new Object[]{UPS.getName()}, new Object[]{UPS_I.getName()});
-  }
-
-  @BeforeClass
-  public static void setUp() throws Exception
-  {
-    walker.addUps();
   }
 
   private final Object[] params;
@@ -76,19 +66,6 @@ public class NestedColumnTest extends CalciteQueryTestHelper
   protected TestQuerySegmentWalker walker()
   {
     return walker;
-  }
-
-  @Override
-  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
-  {
-    hook.printHooked();
-    throw ex;
-  }
-
-  @Before
-  public void before()
-  {
-    hook.clear();
   }
 
   @Test
