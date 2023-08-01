@@ -53,7 +53,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.apache.commons.lang.mutable.MutableDouble;
@@ -615,7 +615,7 @@ public class ColumnSelectorFactories
       if (serde == null) {
         return ObjectColumnSelector.typed(type, () -> in.get().get(column));
       }
-      final ComplexMetricExtractor extractor = serde.getExtractor(factory.getExtractHints());
+      final MetricExtractor extractor = serde.getExtractor(factory.getExtractHints());
       if (extractor == null) {
         throw new ISE("Don't know how to handle type[%s].%s", type, factory.getExtractHints());
       }

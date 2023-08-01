@@ -21,12 +21,13 @@ package io.druid.query.aggregation.variance;
 
 import io.druid.common.guava.Comparators;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
+import io.druid.java.util.common.UOE;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -44,28 +45,30 @@ public class VarianceSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public VarianceAggregatorCollector extractValue(Row inputRow, String metricName)
+      @SuppressWarnings("unchecked")
+      public VarianceAggregatorCollector extract(Object rawValue)
       {
-        Object rawValue = inputRow.getRaw(metricName);
-
-        if (rawValue instanceof VarianceAggregatorCollector) {
+        if (rawValue == null || rawValue instanceof VarianceAggregatorCollector) {
           return (VarianceAggregatorCollector) rawValue;
         }
-        VarianceAggregatorCollector collector = new VarianceAggregatorCollector();
-
-        List<String> dimValues = inputRow.getDimension(metricName);
-        if (dimValues != null && dimValues.size() > 0) {
-          for (String dimValue : dimValues) {
-            double value = Double.parseDouble(dimValue);
-            collector.add(value);
-          }
+        if (rawValue instanceof String) {
+          rawValue = Arrays.asList(rawValue);
         }
-        return collector;
+        if (rawValue instanceof List) {
+          VarianceAggregatorCollector collector = new VarianceAggregatorCollector();
+
+          List<String> dimValues = (List) rawValue;
+          for (String dimValue : dimValues) {
+            collector.add(Double.parseDouble(dimValue));
+          }
+          return collector;
+        }
+        throw new UOE("cannot extract from [%s]", rawValue.getClass().getSimpleName());
       }
     };
   }

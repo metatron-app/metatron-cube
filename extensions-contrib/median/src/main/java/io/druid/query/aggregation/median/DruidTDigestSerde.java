@@ -21,14 +21,15 @@ package io.druid.query.aggregation.median;
 
 import io.druid.common.guava.Comparators;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
+import io.druid.data.ValueType;
+import io.druid.java.util.common.UOE;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 
 public class DruidTDigestSerde implements ComplexMetricSerde
@@ -42,33 +43,31 @@ public class DruidTDigestSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public DruidTDigest extractValue(Row inputRow, String metricName)
+      public DruidTDigest extract(Object rawValue)
       {
-        Object rawValue = inputRow.getRaw(metricName);
-
-        if (rawValue instanceof DruidTDigest) {
+        if (rawValue == null || rawValue instanceof DruidTDigest) {
           return (DruidTDigest) rawValue;
-        } else {
-          List<String> dimValues = inputRow.getDimension(metricName);
-          if (dimValues != null && dimValues.size() > 0) {
-            Iterator<String> values = dimValues.iterator();
-
-            DruidTDigest digest = new DruidTDigest(DruidTDigestAggregator.DEFAULT_COMPRESSION);
-
-            while (values.hasNext()) {
-              double value = Double.parseDouble(values.next());
-              digest.add(value);
-            }
-            return digest;
-          } else {
-            return new DruidTDigest(DruidTDigestAggregator.DEFAULT_COMPRESSION);
-          }
         }
+        if (rawValue instanceof String) {
+          rawValue = Arrays.asList(rawValue);
+        }
+        if (rawValue instanceof List) {
+          DruidTDigest digest = new DruidTDigest(DruidTDigestAggregator.DEFAULT_COMPRESSION);
+
+          List dimValues = (List) rawValue;
+          for (Object dimValue : dimValues) {
+            if (dimValue != null) {
+              digest.add(ValueType.DOUBLE.cast(dimValue));
+            }
+          }
+          return digest;
+        }
+        throw new UOE("cannot extract from [%s]", rawValue.getClass().getSimpleName());
       }
     };
   }

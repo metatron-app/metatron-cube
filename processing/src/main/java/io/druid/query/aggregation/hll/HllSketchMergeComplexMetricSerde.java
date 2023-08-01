@@ -23,10 +23,9 @@ import com.yahoo.memory.Memory;
 import com.yahoo.sketches.hll.HllSketch;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.util.List;
@@ -46,22 +45,16 @@ public class HllSketchMergeComplexMetricSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
-    {
-      @Override
-      public HllSketch extractValue(final Row inputRow, final String metricName)
-      {
-        final Object object = inputRow.getRaw(metricName);
-        return object == null ? null : deserializeSketch(object);
-      }
-    };
+    return object -> deserializeSketch(object);
   }
 
   static HllSketch deserializeSketch(final Object object)
   {
-    if (object instanceof String) {
+    if (object == null) {
+      return null;
+    } else if (object instanceof String) {
       return HllSketch.wrap(Memory.wrap(StringUtils.decodeBase64((String) object)));
     } else if (object instanceof byte[]) {
       return HllSketch.wrap(Memory.wrap((byte[]) object));

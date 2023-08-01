@@ -145,12 +145,12 @@ public class ColumnDescriptor extends ColumnMeta
     private final List<ColumnPartSerde> parts = Lists.newArrayList();
     private final Map<String, String> descs = Maps.newLinkedHashMap();
 
-    public Builder setValueType(ValueDesc valueType)
+    public Builder setValueType(ValueDesc type)
     {
-      if (this.valueType != null && !this.valueType.equals(valueType)) {
-        throw new IAE("valueType[%s] is already set, cannot change to[%s]", this.valueType, valueType);
+      if (valueType != null && !valueType.equals(type)) {
+        throw new IAE("valueType[%s] is already set, cannot change to[%s]", valueType, type);
       }
-      this.valueType = valueType;
+      this.valueType = type;
       return this;
     }
 

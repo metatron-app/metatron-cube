@@ -21,8 +21,7 @@ package io.druid.query.aggregation.histogram;
 
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -37,15 +36,13 @@ public class ApproximateHistogramBase64CompactFoldingSerde extends ApproximateHi
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public ApproximateCompactHistogram extractValue(Row inputRow, String metricName)
+      public ApproximateCompactHistogram extract(Object rawValue)
       {
-        Object rawValue = inputRow.getRaw(metricName);
-
         if (rawValue == null || rawValue instanceof ApproximateCompactHistogram) {
           return (ApproximateCompactHistogram) rawValue;
         }

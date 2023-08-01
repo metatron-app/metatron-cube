@@ -23,10 +23,9 @@ import com.google.common.base.Preconditions;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.math.BigDecimal;
@@ -89,14 +88,13 @@ public class DecimalMetricSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public Object extractValue(Row inputRow, String metricName)
+      public Object extract(Object raw)
       {
-        final Object raw = inputRow.getRaw(metricName);
         if (raw == null) {
           return null;
         }

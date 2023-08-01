@@ -40,7 +40,7 @@ import java.util.List;
 public class EnumColumnPartSerde implements ColumnPartSerde
 {
   @JsonCreator
-  public static EnumColumnPartSerde createDeserializer(
+  public static EnumColumnPartSerde create(
       @JsonProperty("type") ValueDesc type,
       @JsonProperty("descriptor") ColumnDescriptor descriptor
   )

@@ -20,17 +20,36 @@
 package io.druid.sql.calcite;
 
 import io.druid.data.Pair;
+import io.druid.query.Queries;
+import io.druid.query.Query;
+import io.druid.query.TableDataSource;
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
+@RunWith(Parameterized.class)
 public class AdotUsageTest extends CalciteQueryTestHelper
 {
-  private static final MiscQueryHook hook = new MiscQueryHook();
+  private static final TableDataSource ADOT_U = TableDataSource.of("adot_usage");
+  private static final TableDataSource ADOT_U_I = TableDataSource.of("adot_usage_i");
+
+  private static final CalciteQueryTestHelper.MiscQueryHook hook = new CalciteQueryTestHelper.MiscQueryHook()
+  {
+    @Override
+    public void accept(Query<?> query)
+    {
+      super.accept(Queries.iterate(query, q -> ADOT_U_I.equals(q.getDataSource()) ? q.withDataSource(ADOT_U) : q));
+    }
+  };
+
   private static final TestQuerySegmentWalker walker = TestHelper.newWalker().withQueryHook(hook);
 
   @BeforeClass
@@ -39,7 +58,18 @@ public class AdotUsageTest extends CalciteQueryTestHelper
     walker.addAdotUsage();
   }
 
-  private final Object params = "adot_usage";
+  @Parameterized.Parameters(name = "ds:{0}")
+  public static Iterable<Object[]> constructorFeeder() throws IOException
+  {
+    return Arrays.asList(new Object[]{ADOT_U.getName()}, new Object[]{ADOT_U_I.getName()});
+  }
+
+  private final Object[] params;
+
+  public AdotUsageTest(String ds)
+  {
+    this.params = new Object[]{ds};
+  }
 
   @Override
   protected TestQuerySegmentWalker walker()
@@ -63,35 +93,29 @@ public class AdotUsageTest extends CalciteQueryTestHelper
   @Test
   public void testBasic() throws Exception
   {
-    testQuery(
-        String.format("SELECT entity.entity_preferences[0].apollo_radio[0] from %s", params),
-        new Object[]{
-            "[CONTENT_CHANNEL, " +
-              "[[SBS.POWERFM, 1, 0.6179800700278069, n], [MBC.STFM, 2, 0.5830243023122413, n], " +
-               "[KBS.1RADIO, 3, 0.5569049368444767, n], [KBS.COOLFM, 5, 0.528576470814762, n], " +
-               "[CBS.MUSICFM, 4, 0.5342941428574567, n]]" +
-            "]"
-        }
-    );
-    hook.verifyHooked(
+    Object[][] expected = {{
+        "[CONTENT_CHANNEL, " +
+        "[[SBS.POWERFM, 1, 0.6179800700278069, n], [MBC.STFM, 2, 0.5830243023122413, n], " +
+        "[KBS.1RADIO, 3, 0.5569049368444767, n], [KBS.COOLFM, 5, 0.528576470814762, n], " +
+        "[CBS.MUSICFM, 4, 0.5342941428574567, n]]" +
+        "]"
+    }};
+    testQueries(
+        "SELECT entity.entity_preferences[0].apollo_radio[0] from %s", params, expected,
         "se1ofBQ1AHIzhHt6ZJcRAQ==",
         "StreamQuery{dataSource='adot_usage', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='ARRAY(\"entity.entity_preferences.0.apollo_radio.0.entity_role\",\"entity.entity_preferences.0.apollo_radio.0.preferences\")', outputName='v0'}]}"
     );
 
-    testQuery(
-        String.format("SELECT entity.entity_preferences[0].apollo_radio[0].preferences[1] from %s", params),
-        new Object[]{"[MBC.STFM, 2, 0.5830243023122413, n]"}
-    );
-    hook.verifyHooked(
+    expected = new Object[][]{{"[MBC.STFM, 2, 0.5830243023122413, n]"}};
+    testQueries(
+        "SELECT entity.entity_preferences[0].apollo_radio[0].preferences[1] from %s", params, expected,
         "GtsSM5v47dirDXVrBcFTrA==",
         "StreamQuery{dataSource='adot_usage', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='ARRAY(\"entity.entity_preferences.0.apollo_radio.0.preferences.1.name\",\"entity.entity_preferences.0.apollo_radio.0.preferences.1.ranking\",\"entity.entity_preferences.0.apollo_radio.0.preferences.1.score\",\"entity.entity_preferences.0.apollo_radio.0.preferences.1.usage_yn\")', outputName='v0'}]}"
     );
 
-    testQuery(
-        String.format("SELECT music.pref_track_list[4].rp_artist_list[0].artist_name from %s", params),
-        new Object[]{"어노인팅"}
-    );
-    hook.verifyHooked(
+    expected = new Object[][]{{"어노인팅"}};
+    testQueries(
+        "SELECT music.pref_track_list[4].rp_artist_list[0].artist_name from %s", params, expected,
         "7n3wtbhl4G6Pm5QvivHRVg==",
         "StreamQuery{dataSource='adot_usage', columns=[music.pref_track_list.4.rp_artist_list.0.artist_name]}"
     );

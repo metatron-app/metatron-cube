@@ -25,9 +25,6 @@ import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
-import io.druid.data.input.Rows;
-import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.segment.data.ObjectStrategy;
 import org.apache.commons.lang.StringUtils;
@@ -133,71 +130,41 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
-    {
-      @Override
-      public Object extractValue(Row inputRow, String metricName)
-      {
-        return extractElement(inputRow.getRaw(metricName));
-      }
+    return extractor(
+        fieldNames,
+        Arrays.stream(fieldTypes)
+              .map(MetricExtractor::of)
+              .toArray(x -> new MetricExtractor[x])
+    );
+  }
 
-      private Object extractElement(Object value)
-      {
-        if (value == null || value instanceof Map) {
-          return value;
-        }
-        final Object[] struct = new Object[fieldNames.length];
-        if (value instanceof List) {
-          List list = (List) value;
-          int length = Math.min(list.size(), fieldTypes.length);
-          for (int i = 0; i < length; i++) {
-            switch (fieldTypes[i].type()) {
-              case BOOLEAN:
-                struct[i] = Rows.parseBoolean(list.get(i));
-                break;
-              case LONG:
-                struct[i] = Rows.parseLong(list.get(i));
-                break;
-              case DOUBLE:
-                struct[i] = Rows.parseDouble(list.get(i));
-                break;
-              case STRING:
-                struct[i] = Objects.toString(list.get(i), null);
-                break;
-              default:
-                throw new UnsupportedOperationException("only primitives are allowed in struct");
-            }
-          }
-        } else if (value.getClass().isArray()) {
-          int length = Math.min(Array.getLength(value), fieldTypes.length);
-          for (int i = 0; i < length; i++) {
-            switch (fieldTypes[i].type()) {
-              case BOOLEAN:
-                struct[i] = Rows.parseBoolean(Array.get(value, i));
-                break;
-              case FLOAT:
-                struct[i] = Rows.parseFloat(Array.get(value, i));
-                break;
-              case LONG:
-                struct[i] = Rows.parseLong(Array.get(value, i));
-                break;
-              case DOUBLE:
-                struct[i] = Rows.parseDouble(Array.get(value, i));
-                break;
-              case STRING:
-                struct[i] = Objects.toString(Array.get(value, i), null);
-                break;
-              default:
-                throw new UnsupportedOperationException("only primitives are allowed in struct");
-            }
-          }
-        } else {
-          throw new IAE("Cannot extract struct type from %s", value.getClass());
-        }
-        return struct;
+  private static MetricExtractor extractor(String[] fieldNames, MetricExtractor[] fields)
+  {
+    return v -> {
+      if (v == null) {
+        return null;
       }
+      final Object[] struct = new Object[fields.length];
+      if (v instanceof List) {
+        List list = (List) v;
+        int length = Math.min(list.size(), fields.length);
+        for (int i = 0; i < length; i++) {
+          struct[i] = fields[i].extract(list.get(i));
+        }
+      } else if (v.getClass().isArray()) {
+        int length = Math.min(Array.getLength(v), fields.length);
+        for (int i = 0; i < length; i++) {
+          struct[i] = fields[i].extract(Array.get(v, i));
+        }
+      } else if (v instanceof Map) {
+        Map map = (Map) v;
+        for (int i = 0; i < fields.length; i++) {
+          struct[i] = fields[i].extract(map.get(fieldNames[i]));
+        }
+      }
+      return Arrays.asList(struct);
     };
   }
 
@@ -292,6 +259,11 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
   public String toString()
   {
     return "StructMetricSerde{elementType='" + elementType + '\'' + "}";
+  }
+
+  public int numFields()
+  {
+    return fieldNames.length;
   }
 
   public static class Factory implements ComplexMetricSerde.Factory

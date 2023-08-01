@@ -17,7 +17,13 @@
 package io.druid.segment.bitmap;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.GenericIndexedWriter;
+import io.druid.segment.data.IOPeon;
 import org.roaringbitmap.IntIterator;
+
+import java.io.IOException;
 
 public class Bitmaps
 {
@@ -80,5 +86,21 @@ public class Bitmaps
       return ((ExtendedBitmap) bitmap).cardinality(range);
     }
     return IntIterators.count(filter(bitmap, range));
+  }
+
+  public static GenericIndexedWriter<ImmutableBitmap> serialize(
+      IOPeon ioPeon,
+      String name,
+      BitmapSerdeFactory factory,
+      MutableBitmap[] mutables
+  ) throws IOException
+  {
+    GenericIndexedWriter<ImmutableBitmap> bitmaps = GenericIndexedWriter.v2(ioPeon, name, factory.getObjectStrategy());
+    bitmaps.open();
+    for (int i = 0; i < mutables.length; i++) {
+      bitmaps.add(factory.getBitmapFactory().makeImmutableBitmap(mutables[i]));
+    }
+    bitmaps.close();
+    return bitmaps;
   }
 }

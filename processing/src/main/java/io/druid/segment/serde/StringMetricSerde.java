@@ -21,7 +21,6 @@ package io.druid.segment.serde;
 
 import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.ByteBufferSerializer;
@@ -48,16 +47,9 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
-    {
-      @Override
-      public Object extractValue(Row inputRow, String metricName)
-      {
-        return Objects.toString(inputRow.getRaw(metricName), null);
-      }
-    };
+    return rawValue -> Objects.toString(rawValue, null);
   }
 
   @Override

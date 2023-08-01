@@ -22,14 +22,15 @@ package io.druid.query.aggregation.histogram;
 import com.google.common.base.Throwables;
 import io.druid.common.guava.Comparators;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
+import io.druid.data.ValueType;
+import io.druid.java.util.common.UOE;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 
 public class ApproximateHistogramFoldingSerde implements ComplexMetricSerde
@@ -49,34 +50,30 @@ public class ApproximateHistogramFoldingSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
-
       @Override
-      public ApproximateHistogram extractValue(Row inputRow, String metricName)
+      public ApproximateHistogram extract(Object rawValue)
       {
-        Object rawValue = inputRow.getRaw(metricName);
-
-        if (rawValue instanceof ApproximateHistogram) {
+        if (rawValue == null || rawValue instanceof ApproximateHistogram) {
           return (ApproximateHistogram) rawValue;
-        } else {
-          List<String> dimValues = inputRow.getDimension(metricName);
-          if (dimValues != null && dimValues.size() > 0) {
-            Iterator<String> values = dimValues.iterator();
-
-            ApproximateHistogram h = new ApproximateHistogram();
-
-            while (values.hasNext()) {
-              float value = Float.parseFloat(values.next());
-              h.offer(value);
-            }
-            return h;
-          } else {
-            return new ApproximateHistogram(0);
-          }
         }
+        if (rawValue instanceof String) {
+          rawValue = Arrays.asList(rawValue);
+        }
+        if (rawValue instanceof List) {
+          List dimValues = (List) rawValue;
+          ApproximateHistogram h = new ApproximateHistogram();
+          for (Object dimValue : dimValues) {
+            if (dimValue != null) {
+              h.offer((Float) ValueType.FLOAT.cast(dimValue));
+            }
+          }
+          return h;
+        }
+        throw new UOE("cannot extract from [%s]", rawValue.getClass().getSimpleName());
       }
     };
   }

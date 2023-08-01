@@ -27,6 +27,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.UOE;
 import io.druid.segment.data.ObjectStrategy;
 
 import java.nio.ByteBuffer;
@@ -43,15 +44,14 @@ public class BitSetMetricSerDe implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
     if (GuavaUtils.isNullOrEmpty(typeHint)) {
-      return new ComplexMetricExtractor()
+      return new MetricExtractor()
       {
         @Override
-        public Object extractValue(Row inputRow, String metricName)
+        public Object extract(Object value)
         {
-          final Object value = inputRow.getRaw(metricName);
           if (StringUtils.isNullOrEmpty(value)) {
             return null;
           }
@@ -83,12 +83,11 @@ public class BitSetMetricSerDe implements ComplexMetricSerde
     if (type.equalsIgnoreCase("delimitedIntString")) {
       final String delimiter = typeHint.get(1);
       final Splitter splitter = delimiter.length() == 1 ? Splitter.on(delimiter.charAt(0)) : Splitter.on(delimiter);
-      return new ComplexMetricExtractor()
+      return new MetricExtractor()
       {
         @Override
-        public Object extractValue(Row inputRow, String metricName)
+        public Object extract(Object value)
         {
-          final Object value = inputRow.getRaw(metricName);
           if (StringUtils.isNullOrEmpty(value)) {
             return null;
           }
@@ -100,7 +99,7 @@ public class BitSetMetricSerDe implements ComplexMetricSerde
         }
       };
     } else if (type.equalsIgnoreCase("prefixedBooleanColumns")) {
-      return new ComplexMetricExtractor()
+      return new MetricExtractor()
       {
         private final String prefix = typeHint.get(1);
 
@@ -117,6 +116,12 @@ public class BitSetMetricSerDe implements ComplexMetricSerde
             }
           }
           return bitSet;
+        }
+
+        @Override
+        public Object extract(Object rawValue)
+        {
+          throw new UOE("cannot");
         }
 
         @Override

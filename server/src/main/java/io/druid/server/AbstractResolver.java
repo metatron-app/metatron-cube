@@ -37,7 +37,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.incremental.BaseTuningConfig;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -106,7 +106,7 @@ public abstract class AbstractResolver implements FileLoadSpec.Resolver
           throw new IAE("cannot handle type [%s] for column [%s]", columnType, columnName);
         }
         final List<String> hints = Arrays.asList(values).subList(1, values.length);
-        final ComplexMetricExtractor extractor = serde.getExtractor(hints);
+        final MetricExtractor extractor = serde.getExtractor(hints);
         if (extractor == null) {
           throw new IAE("cannot find extractor for column [%s] with hints %s", columnName, hints);
         }

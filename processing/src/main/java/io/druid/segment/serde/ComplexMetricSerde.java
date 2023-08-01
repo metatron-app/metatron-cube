@@ -43,9 +43,9 @@ public interface ComplexMetricSerde
     return getType().typeName();
   }
 
-  default ComplexMetricExtractor getExtractor(List<String> typeHint)
+  default MetricExtractor getExtractor(List<String> typeHint)
   {
-    return ComplexMetricExtractor.DUMMY;
+    return MetricExtractor.DUMMY;
   }
 
   /**

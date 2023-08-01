@@ -22,12 +22,12 @@ package io.druid.segment;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.primitives.UnsignedBytes;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
+import io.druid.segment.bitmap.Bitmaps;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
@@ -168,8 +168,6 @@ public class TagColumnSerializer implements MetricColumnSerializer
     dictionary.close();
     serde.withDictionary(dictionary);
 
-    builder.setValueType(ValueDesc.STRING);
-
     byte numBytes = VintValues.getNumBytesForMax(maxValue);
     if (sizes.count() == values.count()) {
       // single-valued
@@ -201,16 +199,9 @@ public class TagColumnSerializer implements MetricColumnSerializer
       rewritten.close();
       serde.withValue(rewritten, true);
     }
-    GenericIndexedWriter<ImmutableBitmap> bitmaps = GenericIndexedWriter.v2(
-        ioPeon, suffix(".bitmaps"), factory.getObjectStrategy()
-    );
-    bitmaps.open();
-    for (int i = 0; i < mutables.length; i++) {
-      bitmaps.add(factory.getBitmapFactory().makeImmutableBitmap(mutables[i]));
-    }
-    bitmaps.close();
-    serde.withBitmapIndex(bitmaps);
+    serde.withBitmapIndex(Bitmaps.serialize(ioPeon, suffix(".bitmaps"), factory, mutables));
 
+    builder.setValueType(ValueDesc.STRING);
     builder.addSerde(serde.build(factory));
     return builder;
   }

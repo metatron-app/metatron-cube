@@ -33,7 +33,9 @@ import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ObjectStrategy;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -74,6 +76,12 @@ public class ComplexMetrics
       }
     }
     return serde;
+  }
+
+  public static MetricExtractor getExtractor(ValueDesc type, List<String> typeHint)
+  {
+    ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
+    return serde == null ? null : serde.getExtractor(typeHint);
   }
 
   public static ComplexMetricSerde.Factory getSerdeFactory(String type)

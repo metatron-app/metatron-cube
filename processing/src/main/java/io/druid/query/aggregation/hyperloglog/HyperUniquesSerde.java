@@ -21,13 +21,14 @@ package io.druid.query.aggregation.hyperloglog;
 
 import io.druid.common.utils.Murmur3;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.UOE;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -41,30 +42,29 @@ public class HyperUniquesSerde extends ComplexMetricSerde.CompressionSupport
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public HyperLogLogCollector extractValue(Row inputRow, String metricName)
+      @SuppressWarnings("unchecked")
+      public HyperLogLogCollector extract(Object rawValue)
       {
-        Object rawValue = inputRow.getRaw(metricName);
-
-        if (rawValue instanceof HyperLogLogCollector) {
+        if (rawValue == null || rawValue instanceof HyperLogLogCollector) {
           return (HyperLogLogCollector) rawValue;
-        } else {
+        }
+        if (rawValue instanceof String) {
+          rawValue = Arrays.asList(rawValue);
+        }
+        if (rawValue instanceof List) {
           HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
-
-          List<String> dimValues = inputRow.getDimension(metricName);
-          if (dimValues == null) {
-            return collector;
-          }
-
+          List<String> dimValues = (List) rawValue;
           for (String dimensionValue : dimValues) {
             collector.add(Murmur3.hash128(StringUtils.toUtf8(dimensionValue)));
           }
           return collector;
         }
+        throw new UOE("cannot extract from [%s]", rawValue.getClass().getSimpleName());
       }
     };
   }

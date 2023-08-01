@@ -20,13 +20,15 @@
 package io.druid.query.aggregation.histogram;
 
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.data.ValueType;
+import io.druid.java.util.common.UOE;
+import io.druid.segment.serde.MetricExtractor;
 
-import java.util.Iterator;
+import java.util.Arrays;
 import java.util.List;
 
 /**
+ *
  */
 public class ApproximateHistogramCompactFoldingSerde extends ApproximateHistogramFoldingSerde
 {
@@ -43,33 +45,30 @@ public class ApproximateHistogramCompactFoldingSerde extends ApproximateHistogra
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public ApproximateCompactHistogram extractValue(Row inputRow, String metricName)
+      public ApproximateCompactHistogram extract(Object rawValue)
       {
-        Object rawValue = inputRow.getRaw(metricName);
-
-        if (rawValue instanceof ApproximateCompactHistogram) {
+        if (rawValue == null || rawValue instanceof ApproximateCompactHistogram) {
           return (ApproximateCompactHistogram) rawValue;
-        } else {
-          List<String> dimValues = inputRow.getDimension(metricName);
-          if (dimValues != null && dimValues.size() > 0) {
-            Iterator<String> values = dimValues.iterator();
-
-            ApproximateCompactHistogram h = new ApproximateCompactHistogram();
-
-            while (values.hasNext()) {
-              float value = Float.parseFloat(values.next());
-              h.offer(value);
-            }
-            return h;
-          } else {
-            return new ApproximateCompactHistogram(0);
-          }
         }
+        if (rawValue instanceof String) {
+          rawValue = Arrays.asList(rawValue);
+        }
+        if (rawValue instanceof List) {
+          List dimValues = (List) rawValue;
+          ApproximateCompactHistogram h = new ApproximateCompactHistogram();
+          for (Object dimValue : dimValues) {
+            if (dimValue != null) {
+              h.offer((Float) ValueType.FLOAT.cast(dimValue));
+            }
+          }
+          return h;
+        }
+        throw new UOE("cannot extract from [%s]", rawValue.getClass().getSimpleName());
       }
     };
   }

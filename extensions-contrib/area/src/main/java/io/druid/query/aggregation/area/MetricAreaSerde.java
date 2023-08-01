@@ -22,9 +22,8 @@ package io.druid.query.aggregation.area;
 import io.druid.common.guava.Comparators;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
@@ -74,15 +73,13 @@ public class MetricAreaSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public MetricArea extractValue(Row inputRow, String metricName)
+      public MetricArea extract(Object rawValue)
       {
-        final Object rawValue = inputRow.getRaw(metricName);
-
         if (rawValue == null || rawValue instanceof MetricArea) {
           return (MetricArea) rawValue;
         } else {

@@ -19,28 +19,44 @@
 
 package io.druid.segment.serde;
 
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.query.aggregation.ArrayMetricSerde;
 
 import java.util.Arrays;
 import java.util.List;
 
 /**
+ *
  */
-public interface ComplexMetricExtractor
+public interface MetricExtractor
 {
-  ComplexMetricExtractor DUMMY = new ComplexMetricExtractor()
-  {
-    @Override
-    public Object extractValue(Row inputRow, String metricName)
-    {
-      return inputRow.getRaw(metricName);
-    }
-  };
+  MetricExtractor DUMMY = source -> source;
 
-  Object extractValue(Row inputRow, String metricName);
+  default Object extractValue(Row inputRow, String metricName)
+  {
+    return extract(inputRow.getRaw(metricName));
+  }
+
+  Object extract(Object rawValue);
 
   default List<String> getExtractedNames(List<String> metricNames)
   {
     return Arrays.asList();
+  }
+
+  static MetricExtractor of(ValueDesc type)
+  {
+    if (type.isPrimitive()) {
+      return type.type()::cast;
+    }
+    if (type.isStruct()) {
+      return StructMetricSerde.parse(type).getExtractor(Arrays.asList());
+    }
+    if (type.isArray()) {
+      return ArrayMetricSerde.extractor(type.unwrapArray());
+    }
+    MetricExtractor extractor = ComplexMetrics.getExtractor(type, Arrays.asList());
+    return extractor == null ? DUMMY : extractor;
   }
 }

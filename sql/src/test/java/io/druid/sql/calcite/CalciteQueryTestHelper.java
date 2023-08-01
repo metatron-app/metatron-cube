@@ -232,9 +232,14 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       throws Exception
   {
     for (String sql : sqls) {
-      testQuery(String.format(sql, params), NO_PARAM, null, Arrays.asList(expectedResults));
-      walker().verifyHooked(hooks);
+      testQueries(sql, params, expectedResults, hooks);
     }
+  }
+
+  protected void testQueries(String sql, Object[] params, Object[][] expectedResults, String... hooks) throws Exception
+  {
+    testQuery(String.format(sql, params), NO_PARAM, null, Arrays.asList(expectedResults));
+    walker().verifyHooked(hooks);
   }
 
   protected void testQuery(String sql, Map<String, Object> context, Object[]... expectedResults) throws Exception

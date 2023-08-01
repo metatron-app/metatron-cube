@@ -22,10 +22,9 @@ package io.druid.query.aggregation.datasketches.theta;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.query.sketch.ThetaOperations;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.MetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.util.List;
@@ -41,14 +40,13 @@ public class SketchMergeComplexMetricSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public Object extractValue(Row inputRow, String metricName)
+      public Object extract(Object object)
       {
-        final Object object = inputRow.getRaw(metricName);
         if (object == null || object instanceof Sketch || object instanceof Memory) {
           return object;
         }

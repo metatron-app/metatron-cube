@@ -19,41 +19,44 @@
 
 package io.druid.query.aggregation.variance;
 
-import io.druid.data.input.Row;
-import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.data.ValueType;
+import io.druid.java.util.common.UOE;
+import io.druid.segment.serde.MetricExtractor;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class VarianceCombinedSerde extends VarianceSerde
 {
   @Override
-  public ComplexMetricExtractor getExtractor(List<String> typeHint)
+  public MetricExtractor getExtractor(List<String> typeHint)
   {
-    return new ComplexMetricExtractor()
+    return new MetricExtractor()
     {
       @Override
-      public VarianceAggregatorCollector extractValue(Row inputRow, String metricName)
+      public VarianceAggregatorCollector extract(Object rawValue)
       {
-        Object rawValue = inputRow.getRaw(metricName);
-
-        if (rawValue instanceof VarianceAggregatorCollector) {
+        if (rawValue == null || rawValue instanceof VarianceAggregatorCollector) {
           return (VarianceAggregatorCollector) rawValue;
         } else if (rawValue instanceof String) {
           VarianceAggregatorCollector variance = toVariance((String) rawValue);
           if (variance != null) {
             return variance;
           }
+          rawValue = Arrays.asList(rawValue);
         }
-        VarianceAggregatorCollector collector = new VarianceAggregatorCollector();
+        if (rawValue instanceof List) {
+          VarianceAggregatorCollector collector = new VarianceAggregatorCollector();
 
-        List<String> dimValues = inputRow.getDimension(metricName);
-        if (dimValues != null && dimValues.size() > 0) {
-          for (String dimValue : dimValues) {
-            double value = Double.parseDouble(dimValue);
-            collector.add(value);
+          List dimValues = (List) rawValue;
+          for (Object dimValue : dimValues) {
+            if (dimValue != null) {
+              collector.add((Double) ValueType.DOUBLE.cast(dimValue));
+            }
           }
+          return collector;
         }
-        return collector;
+        throw new UOE("cannot extract from [%s]", rawValue.getClass().getSimpleName());
       }
     };
   }

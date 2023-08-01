@@ -21,17 +21,16 @@ package io.druid.segment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.IntTagged;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.segment.bitmap.Bitmaps;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.IntWriter;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
@@ -155,24 +154,16 @@ public class EnumColumnSerializer implements MetricColumnSerializer
   @Override
   public ColumnDescriptor.Builder buildDescriptor(IOPeon ioPeon, ColumnDescriptor.Builder builder) throws IOException
   {
-    ColumnDescriptor.Builder encoded = new ColumnDescriptor.Builder();
     SerdeBuilder serde = DictionaryEncodedColumnPartSerde.builder();
     serde.withValue(values, false);
+    serde.withBitmapIndex(Bitmaps.serialize(ioPeon, suffix(".bitmaps"), factory, mutables));
 
-    GenericIndexedWriter<ImmutableBitmap> bitmaps = GenericIndexedWriter.v2(
-        ioPeon, suffix(".bitmaps"), factory.getObjectStrategy()
-    );
-    bitmaps.open();
-    for (int i = 0; i < mutables.length; i++) {
-      bitmaps.add(factory.getBitmapFactory().makeImmutableBitmap(mutables[i]));
-    }
-    bitmaps.close();
-    serde.withBitmapIndex(bitmaps);
+    ColumnDescriptor.Builder encoded = new ColumnDescriptor.Builder();
     encoded.setValueType(type);
     encoded.addSerde(serde.build(factory));
 
     builder.setValueType(ValueDesc.STRING);
-    builder.addSerde(new EnumColumnPartSerde(type, encoded.build()));
+    builder.addSerde(EnumColumnPartSerde.create(type, encoded.build()));
     return builder;
   }
 }
