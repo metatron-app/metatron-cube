@@ -37,7 +37,7 @@ import java.util.Objects;
 @JsonTypeName("approxHistogramFold")
 public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHistogramAggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 13;
+  private static final byte CACHE_TYPE_ID = 0x13;
 
   @JsonCreator
   public ApproximateHistogramFoldingAggregatorFactory(

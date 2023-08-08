@@ -35,7 +35,7 @@ import java.util.stream.LongStream;
 public class DoubleMaxAggregatorFactory extends NumericAggregatorFactory.DoubleType
     implements CubeSupport, AggregatorFactory.Vectorizable
 {
-  private static final byte CACHE_TYPE_ID = 0x3;
+  private static final byte CACHE_TYPE_ID = 0x03;
 
   @JsonCreator
   public DoubleMaxAggregatorFactory(

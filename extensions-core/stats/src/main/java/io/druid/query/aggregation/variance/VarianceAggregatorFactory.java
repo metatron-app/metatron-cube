@@ -55,7 +55,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
 {
   public static final ValueDesc TYPE = ValueDesc.of("variance", VarianceAggregatorCollector.class);
 
-  protected static final byte CACHE_TYPE_ID = 16;
+  private static final byte CACHE_TYPE_ID = 0x20;
 
   protected final String estimator;
   protected final boolean isVariancePop;

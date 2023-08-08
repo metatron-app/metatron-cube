@@ -65,7 +65,7 @@ public class SketchMergeAggregatorFactory extends AggregatorFactory
     }
   };
 
-  private static final byte CACHE_TYPE_ID = 15;
+  private static final byte CACHE_TYPE_ID = 0x14;
 
   private final String name;
   private final String fieldName;

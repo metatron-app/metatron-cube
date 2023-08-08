@@ -37,7 +37,7 @@ import java.util.Objects;
 
 public class TimestampMaxAggregatorFactory extends AggregatorFactory implements CubeSupport
 {
-  private static final byte CACHE_TYPE_ID = 31;
+  private static final byte CACHE_TYPE_ID = 0x24;
 
   private final String name;
   private final String fieldName;

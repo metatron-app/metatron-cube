@@ -68,7 +68,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     }
   }
 
-  private static final byte CACHE_TYPE_ID = 0x5;
+  private static final byte CACHE_TYPE_ID = 0x05;
 
   private final String name;
   private final boolean round;

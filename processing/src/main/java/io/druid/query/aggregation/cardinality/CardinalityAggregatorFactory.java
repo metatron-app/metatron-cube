@@ -61,7 +61,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
     return new CardinalityAggregatorFactory(name, null, dimensions, groupingSets, null, true, true, 0);
   }
 
-  private static final byte CACHE_TYPE_ID = (byte) 0x8;
+  private static final byte CACHE_TYPE_ID = 0x08;
 
   private final boolean round;
   private final int b;

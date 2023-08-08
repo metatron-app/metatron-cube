@@ -50,7 +50,7 @@ public class CovarianceAggregatorFactory extends AggregatorFactory implements SQ
 {
   public static final ValueDesc TYPE = ValueDesc.of("covariance", CovarianceAggregatorCollector.class);
 
-  protected static final byte CACHE_TYPE_ID = 22;
+  private static final byte CACHE_TYPE_ID = 0x22;
 
   protected final String name;
   protected final String fieldName1;

@@ -66,7 +66,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory implements Type
 {
   private static final Logger LOG = new Logger(HiveUDAFAggregatorFactory.class);
 
-  private static final byte CACHE_TYPE_ID = 0x7e;
+  private static final byte CACHE_TYPE_ID = 0x7D;
 
   private final String name;
   private final List<String> fieldNames;

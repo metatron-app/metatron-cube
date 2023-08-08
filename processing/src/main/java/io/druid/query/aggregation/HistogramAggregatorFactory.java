@@ -38,7 +38,7 @@ import java.util.Objects;
 
 public class HistogramAggregatorFactory extends AggregatorFactory implements CubeSupport
 {
-  private static final byte CACHE_TYPE_ID = 0x7;
+  private static final byte CACHE_TYPE_ID = 0x07;
 
   private final String name;
   private final String fieldName;

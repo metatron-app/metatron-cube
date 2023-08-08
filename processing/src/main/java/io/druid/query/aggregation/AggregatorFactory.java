@@ -239,6 +239,8 @@ public abstract class AggregatorFactory implements Cacheable
 
   public abstract List<String> requiredFields();
 
+  public abstract KeyBuilder getCacheKey(KeyBuilder builder);
+
   public List<String> getExtractHints()
   {
     return Arrays.asList();

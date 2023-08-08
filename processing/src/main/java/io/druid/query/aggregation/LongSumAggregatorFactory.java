@@ -33,7 +33,7 @@ import java.util.stream.LongStream;
  */
 public class LongSumAggregatorFactory extends NumericAggregatorFactory.LongType implements AggregatorFactory.CubeSupport
 {
-  private static final byte CACHE_TYPE_ID = 0x1;
+  private static final byte CACHE_TYPE_ID = 0x01;
 
   @JsonCreator
   public LongSumAggregatorFactory(

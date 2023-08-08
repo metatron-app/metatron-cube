@@ -42,7 +42,7 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory implements C
 {
   public static final ValueDesc TYPE = ValueDesc.of("metricRange");
 
-  private static final byte CACHE_TYPE_ID = 0x32;
+  private static final byte CACHE_TYPE_ID = 0x28;
   protected final String name;
   protected final String fieldName;
 

@@ -34,7 +34,7 @@ import java.util.stream.LongStream;
 public class DoubleSumAggregatorFactory extends NumericAggregatorFactory.DoubleType
     implements AggregatorFactory.CubeSupport, AggregatorFactory.Vectorizable
 {
-  private static final byte CACHE_TYPE_ID = 0x2;
+  private static final byte CACHE_TYPE_ID = 0x02;
 
   @JsonCreator
   public DoubleSumAggregatorFactory(

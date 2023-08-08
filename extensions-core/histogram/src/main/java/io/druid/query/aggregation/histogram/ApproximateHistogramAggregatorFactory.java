@@ -48,7 +48,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   public static ValueDesc COMPACT = ValueDesc.of("approximateCompactHistogram");
   public static ValueDesc COMPACT_BASE64 = ValueDesc.of("approximateBase64Histogram");
 
-  private static final byte CACHE_TYPE_ID = 12;
+  private static final byte CACHE_TYPE_ID = 0x12;
 
   protected final String name;
   protected final String fieldName;

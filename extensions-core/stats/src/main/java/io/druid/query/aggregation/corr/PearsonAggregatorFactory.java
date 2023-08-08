@@ -49,7 +49,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory implements SQLSu
 {
   public static final ValueDesc TYPE = ValueDesc.of("pearson", PearsonAggregatorCollector.class);
 
-  protected static final byte CACHE_TYPE_ID = 21;
+  private static final byte CACHE_TYPE_ID = 0x21;
 
   protected final String name;
   protected final String fieldName1;

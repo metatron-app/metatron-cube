@@ -34,7 +34,7 @@ import java.util.stream.LongStream;
  */
 public class LongMinAggregatorFactory extends NumericAggregatorFactory.LongType implements AggregatorFactory.CubeSupport
 {
-  private static final byte CACHE_TYPE_ID = 0xB;
+  private static final byte CACHE_TYPE_ID = 0x0B;
 
   @JsonCreator
   public LongMinAggregatorFactory(

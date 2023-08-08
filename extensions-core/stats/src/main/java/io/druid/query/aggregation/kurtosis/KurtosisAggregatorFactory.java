@@ -51,7 +51,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory implements SQLS
 {
   public static final ValueDesc TYPE = ValueDesc.of("kurtosis", KurtosisAggregatorCollector.class);
 
-  protected static final byte CACHE_TYPE_ID = 23;
+  private static final byte CACHE_TYPE_ID = 0x23;
 
   protected final String name;
   protected final String fieldName;

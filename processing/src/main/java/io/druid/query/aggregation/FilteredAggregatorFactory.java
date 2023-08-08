@@ -43,7 +43,7 @@ public class FilteredAggregatorFactory extends DelegatedAggregatorFactory
     return new FilteredAggregatorFactory(factory, predicate);
   }
 
-  private static final byte CACHE_TYPE_ID = 0x9;
+  private static final byte CACHE_TYPE_ID = 0x09;
   private final DimFilter filter;
 
   public FilteredAggregatorFactory(

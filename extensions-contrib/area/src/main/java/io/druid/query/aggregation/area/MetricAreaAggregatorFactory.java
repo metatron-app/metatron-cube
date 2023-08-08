@@ -41,7 +41,7 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
 {
   public static final ValueDesc TYPE = ValueDesc.of("metricArea");
 
-  private static final byte CACHE_TYPE_ID = 0x33;
+  private static final byte CACHE_TYPE_ID = 0x29;
   protected final String name;
   protected final String fieldName;
 

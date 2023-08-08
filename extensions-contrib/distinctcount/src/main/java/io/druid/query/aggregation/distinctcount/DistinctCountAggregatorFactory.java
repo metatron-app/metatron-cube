@@ -40,7 +40,7 @@ import java.util.List;
 
 public class DistinctCountAggregatorFactory extends AggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 20;
+  private static final byte CACHE_TYPE_ID = 0x15;
 
   private final String name;
   private final String fieldName;

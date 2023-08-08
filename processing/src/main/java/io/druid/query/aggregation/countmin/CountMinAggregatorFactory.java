@@ -50,7 +50,7 @@ import java.util.List;
 @JsonTypeName("countMin")
 public class CountMinAggregatorFactory extends HashAggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x24;
+  private static final byte CACHE_TYPE_ID = 0x26;
 
   private final int width;
   private final int depth;

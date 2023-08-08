@@ -49,7 +49,7 @@ import java.util.Objects;
 
 public class JavaScriptAggregatorFactory extends AggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x6;
+  private static final byte CACHE_TYPE_ID = 0x06;
 
   private final String name;
   private final List<String> fieldNames;
