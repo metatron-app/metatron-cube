@@ -54,6 +54,7 @@ import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -147,6 +148,20 @@ public class Utils
     return op instanceof RexCall && op.getKind() == SqlKind.AND;
   }
 
+  public static boolean isRelational(RexNode op)
+  {
+    if (op instanceof RexCall) {
+      SqlKind kind = op.getKind();
+      if (kind == SqlKind.AND || kind == SqlKind.OR) {
+        return true;
+      }
+      if (kind == SqlKind.NOT) {
+        return isRelational(((RexCall) op).getOperands().get(0));
+      }
+    }
+    return false;
+  }
+
   public static boolean isInputRef(RexNode op)
   {
     return op.isA(SqlKind.INPUT_REF);
@@ -186,7 +201,12 @@ public class Utils
     return op instanceof RexCall ? ((RexCall) op).getOperator().getName() : null;
   }
 
-  public static boolean isAllInputRef(List<RexNode> nodes)
+  public static boolean isAllInputRefs(Project project)
+  {
+    return isAllInputRefs(project.getProjects());
+  }
+
+  public static boolean isAllInputRefs(List<RexNode> nodes)
   {
     for (RexNode node : nodes) {
       if (!isInputRef(node)) {
@@ -196,7 +216,7 @@ public class Utils
     return true;
   }
 
-  public static IntList extractInputRef(List<RexNode> nodes)
+  public static IntList extractInputRefs(List<RexNode> nodes)
   {
     final IntList indices = new IntList();
     for (RexNode node : nodes) {

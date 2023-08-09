@@ -40,15 +40,12 @@ public class DruidProjectableTableScanRule extends RelOptRule
   public DruidProjectableTableScanRule(final QueryMaker queryMaker)
   {
     super(
-        operandJ(
+        DruidRel.operand(
             LogicalProject.class,
-            null,
-            p -> Utils.isAllInputRef(p.getProjects()),
-            some(
-                DruidRel.of(
-                    LogicalTableScan.class,
-                    scan -> scan.getTable().unwrap(ProjectableFilterableTable.class) != null
-                )
+            Utils::isAllInputRefs,
+            DruidRel.operand(
+                LogicalTableScan.class,
+                scan -> scan.getTable().unwrap(ProjectableFilterableTable.class) != null
             )
         )
     );

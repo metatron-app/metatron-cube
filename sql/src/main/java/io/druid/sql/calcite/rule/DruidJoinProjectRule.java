@@ -47,9 +47,9 @@ public class DruidJoinProjectRule extends RelOptRule
 
   private DruidJoinProjectRule()
   {
-    super(DruidRel.of(
+    super(DruidRel.operand(
         DruidOuterQueryRel.class, r -> r.getPartialDruidQuery().getScanProject() != null,
-        DruidRel.of(DruidJoinRel.class, r -> r.getOutputColumns() == null))
+        DruidRel.operand(DruidJoinRel.class, r -> r.getOutputColumns() == null))
     );
   }
 
@@ -92,7 +92,7 @@ public class DruidJoinProjectRule extends RelOptRule
     final int[] revert = Utils.revert(mapping);
 
     Project newProject = null;
-    if (projectLen != mapping.length || !Utils.isAllInputRef(childExps)) {
+    if (projectLen != mapping.length || !Utils.isAllInputRefs(childExps)) {
       List<RexNode> rewritten = Utils.rewrite(builder, childExps, revert);
       newProject = LogicalProject.create(newJoin, Arrays.asList(), rewritten, project.getRowType(), ImmutableSet.of());
     }

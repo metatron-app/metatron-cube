@@ -451,7 +451,7 @@ public class PartialDruidQuery
       case SELECT_SORT:
       case SELECT_WINDOW:
       case SELECT_WINDOW_SORT:
-        if (!Utils.isAllInputRef(newProject.getProjects())) {
+        if (!Utils.isAllInputRefs(newProject)) {
           return null;
         }
         // break through
@@ -627,7 +627,7 @@ public class PartialDruidQuery
 
   private boolean supports(Sort sort)
   {
-    if (sort.offset != null || !Utils.isAllInputRef(sort.getSortExps())) {
+    if (sort.offset != null || !Utils.isAllInputRefs(sort.getSortExps())) {
       return false;
     }
     for (RelFieldCollation collation : sort.getCollation().getFieldCollations()) {

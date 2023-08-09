@@ -36,7 +36,7 @@ public class DruidCorrelateRule extends RelOptRule
 
   private DruidCorrelateRule()
   {
-    super(operand(Correlate.class, some(DruidRules.anyDruid(), DruidRules.anyDruid())));
+    super(DruidRel.operand(Correlate.class, DruidRel.anyDruid(), DruidRel.anyDruid()));
   }
 
   @Override

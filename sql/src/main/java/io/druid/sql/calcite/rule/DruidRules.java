@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
@@ -28,7 +27,6 @@ import io.druid.sql.calcite.rel.DruidUnionRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Filter;
@@ -62,16 +60,6 @@ public class DruidRules
       DruidCorrelateRule.instance()
   );
 
-  static RelOptRuleOperand anyDruid()
-  {
-    return DruidRel.of(DruidRel.class, druidRel -> true);
-  }
-
-  static RelOptRuleOperand druid(Predicate<PartialDruidQuery> predicate)
-  {
-    return DruidRel.of(DruidRel.class, druidRel -> predicate.apply(druidRel.getPartialDruidQuery()));
-  }
-
   private DruidRules()
   {
     // No instantiation.
@@ -85,7 +73,8 @@ public class DruidRules
         final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f
     )
     {
-      return new RelOptRule(RelOptRule.operand(relClass, anyDruid()), StringUtils.format("DruidRule(%s)", operator))
+      String description = StringUtils.format("DruidRule(%s)", operator);
+      return new RelOptRule(RelOptRule.operand(relClass, DruidRel.anyDruid()), description)
       {
         @Override
         public void onMatch(final RelOptRuleCall call)

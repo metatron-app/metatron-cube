@@ -186,7 +186,7 @@ public class DruidBaseQuery implements DruidQuery
     final TableFunctionScan tableScan = (TableFunctionScan) tableFunction.getScan();
     final RexCall tableFn = (RexCall) tableScan.getCall();
 
-    final IntList inputRefs = Utils.extractInputRef(tableFn.operands);
+    final IntList inputRefs = Utils.extractInputRefs(tableFn.operands);
     if (inputRefs == null) {
       throw new CannotBuildQueryException(tableScan, tableFn);
     }

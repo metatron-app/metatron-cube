@@ -24,7 +24,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.query.DataSource;
 import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.plan.RelOptCluster;
@@ -43,14 +42,34 @@ import java.util.function.Predicate;
 
 public abstract class DruidRel extends AbstractRelNode
 {
-  static final Logger LOG = new Logger(DruidRel.class);
+  public static RelOptRuleOperand anyDruid()
+  {
+    return operand(DruidRel.class);
+  }
 
-  public static <T extends RelNode> RelOptRuleOperand of(Class<T> clazz, Predicate<T> predicate)
+  static RelOptRuleOperand druid(Predicate<PartialDruidQuery> predicate)
+  {
+    return operand(DruidRel.class, druidRel -> predicate.test(druidRel.getPartialDruidQuery()));
+  }
+
+  public static <T extends RelNode> RelOptRuleOperand operand(Class<T> clazz)
+  {
+    return operand(clazz, r -> true);
+  }
+
+  public static <T extends RelNode> RelOptRuleOperand operand(Class<T> clazz, Predicate<T> predicate)
   {
     return RelOptRule.operandJ(clazz, null, predicate, RelOptRule.any());
   }
 
-  public static <T extends RelNode> RelOptRuleOperand of(
+  public static <T extends RelNode> RelOptRuleOperand operand(
+      Class<T> clazz, RelOptRuleOperand first, RelOptRuleOperand... rest
+  )
+  {
+    return operand(clazz, r -> true, first, rest);
+  }
+
+  public static <T extends RelNode> RelOptRuleOperand operand(
       Class<T> clazz, Predicate<T> predicate, RelOptRuleOperand first, RelOptRuleOperand... rest
   )
   {

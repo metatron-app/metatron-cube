@@ -42,13 +42,11 @@ public class DruidFilterableTableScanRule extends RelOptRule
   public DruidFilterableTableScanRule(final QueryMaker queryMaker)
   {
     super(
-        operand(
+        DruidRel.operand(
             LogicalFilter.class,
-            some(
-                DruidRel.of(
-                    LogicalTableScan.class,
-                    scan -> scan.getTable().unwrap(FilterableTable.class) != null
-                )
+            DruidRel.operand(
+                LogicalTableScan.class,
+                scan -> scan.getTable().unwrap(FilterableTable.class) != null
             )
         )
     );

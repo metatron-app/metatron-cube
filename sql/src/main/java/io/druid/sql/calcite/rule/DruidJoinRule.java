@@ -55,11 +55,7 @@ public class DruidJoinRule extends RelOptRule
 
   private DruidJoinRule()
   {
-    super(
-        operand(
-            Join.class, some(operand(DruidRel.class, any()), operand(DruidRel.class, any()))
-        )
-    );
+    super(DruidRel.operand(Join.class, DruidRel.anyDruid(), DruidRel.anyDruid()));
   }
 
   @Override
