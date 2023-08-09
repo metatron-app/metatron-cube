@@ -102,8 +102,8 @@
         <secure.hadoop.version>2.8.5</secure.hadoop.version>
         <hive.version>2.0.0</hive.version>
 
-        <avatica.version>1.15.0</avatica.version>
-        <calcite.version>1.21.0</calcite.version>
+        <avatica.version>1.23.0</avatica.version>
+        <calcite.version>1.35.0</calcite.version>
         <!-- HttpClient has not yet been ported to Netty 4.x -->
         <netty3.version>3.10.6.Final</netty3.version>
         <netty.version>4.1.29.Final</netty.version>
@@ -609,7 +609,7 @@
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
-                <version>3.6.1</version>
+                <version>3.21.9</version>
             </dependency>
             <dependency>
                 <groupId>io.tesla.aether</groupId>
@@ -1015,6 +1015,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>2.10.1</version>
                     <configuration>
                         <!-- jdk8 started linting javadocs by default; ours are not fully compliant -->
                         <additionalparam>-Xdoclint:none</additionalparam>
