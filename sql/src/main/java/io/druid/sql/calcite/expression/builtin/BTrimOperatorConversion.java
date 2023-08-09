@@ -23,7 +23,6 @@ import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.planner.SqlStdOperatorTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
@@ -38,7 +37,6 @@ public class BTrimOperatorConversion implements SqlOperatorConversion
   private static final SqlFunction SQL_FUNCTION = OperatorConversions
       .operatorBuilder("BTRIM")
       .operandTypes(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)
-      .operandTypeInference(SqlStdOperatorTable.explicit(SqlStdOperatorTable.P_VARCHAR, SqlStdOperatorTable.P_VARCHAR))
       .returnType(SqlTypeName.VARCHAR)
       .functionCategory(SqlFunctionCategory.STRING)
       .requiredOperands(1)

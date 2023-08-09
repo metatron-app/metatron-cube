@@ -36,8 +36,8 @@ import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
+import org.apache.calcite.config.CalciteConnectionProperty;
 import org.apache.calcite.plan.Context;
-import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.schema.SchemaPlus;
@@ -53,14 +53,13 @@ import java.util.Properties;
 public class PlannerFactory
 {
   private static final SqlParser.Config PARSER_CONFIG = SqlParser
-      .configBuilder()
-      .setCaseSensitive(true)
-      .setUnquotedCasing(Casing.UNCHANGED)
-      .setQuotedCasing(Casing.UNCHANGED)
-      .setQuoting(Quoting.DOUBLE_QUOTE)
-      .setConformance(DruidConformance.instance())
-      .setParserFactory(SqlParserImpl::new)
-      .build();
+      .config()
+      .withCaseSensitive(true)
+      .withUnquotedCasing(Casing.UNCHANGED)
+      .withQuotedCasing(Casing.UNCHANGED)
+      .withQuoting(Quoting.DOUBLE_QUOTE)
+      .withConformance(DruidConformance.instance())
+      .withParserFactory(SqlParserImpl::new);
 
   private final DruidSchema druidSchema;
   private final SystemSchema systemSchema;
@@ -118,36 +117,34 @@ public class PlannerFactory
     final PlannerContext plannerContext = createContext(queryContext, authenticationResult);
     final SchemaPlus rootSchema = Calcites.createRootSchema(druidSchema, segmentWalker, systemSchema);
     final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, segmentWalker, plannerContext);
-    final SqlToRelConverter.Config sqlToRelConverterConfig = SqlToRelConverter
-        .configBuilder()
-        .withExpand(false)
-        .withDecorrelationEnabled(true)
-        .withTrimUnusedFields(false)
-        .withInSubQueryThreshold(Integer.MAX_VALUE)
-        .build();
     final FrameworkConfig frameworkConfig = Frameworks
         .newConfigBuilder()
-        .parserConfig(PARSER_CONFIG)
-        .costFactory(DruidCost.FACTORY)
-        .traitDefs(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE)
+        .executor(new DruidRexExecutor(plannerContext))
         .convertletTable(new DruidConvertletTable(plannerContext))
         .operatorTable(operatorTable)
-        .programs(Rules.programs(queryMaker))
-        .executor(new DruidRexExecutor(plannerContext))
-        .context(Contexts.EMPTY_CONTEXT)
-        .typeSystem(DruidTypeSystem.INSTANCE)
+        .traitDefs(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE)
+        .parserConfig(PARSER_CONFIG)
+        .sqlToRelConverterConfig(
+            SqlToRelConverter.config()
+                             .withExpand(false)
+                             .withDecorrelationEnabled(true)
+                             .withTrimUnusedFields(false)
+                             .withInSubQueryThreshold(Integer.MAX_VALUE))
         .defaultSchema(rootSchema.getSubSchema(DruidSchema.NAME))
-        .sqlToRelConverterConfig(sqlToRelConverterConfig)
+        .costFactory(DruidCost.FACTORY)
+        .programs(Rules.programs(queryMaker))
+        .typeSystem(DruidTypeSystem.INSTANCE)
         .context(new Context()
         {
           @Override
           @SuppressWarnings("unchecked")
           public <C> C unwrap(final Class<C> aClass)
           {
-            if (aClass.equals(CalciteConnectionConfig.class)) {
-              // This seems to be the best way to provide our own SqlConformance instance. Otherwise, Calcite's
-              // validator will not respect it.
-              final Properties props = new Properties();
+            // stupid detour of calcite way (see PlannerImpl.connConfig)
+            if (CalciteConnectionConfig.class.isAssignableFrom(aClass)) {
+              Properties props = new Properties();
+              props.put(CalciteConnectionProperty.CASE_SENSITIVE.camelName(), true);
+              props.put(CalciteConnectionProperty.CONFORMANCE.camelName(), DruidConformance.instance());
               return (C) new CalciteConnectionConfigImpl(props)
               {
                 @Override
@@ -162,9 +159,8 @@ public class PlannerFactory
                   return DruidConformance.instance();
                 }
               };
-            } else {
-              return null;
             }
+            return null;
           }
         })
         .build();

@@ -54,7 +54,7 @@ public class DruidViewMacro implements TableMacro
   }
 
   @Override
-  public TranslatableTable apply(final List<Object> arguments)
+  public TranslatableTable apply(final List<?> arguments)
   {
     final RelDataType rowType;
     // Using an escalator here is a hack, but it's currently needed to get the row type. Ideally, some

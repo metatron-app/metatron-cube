@@ -62,22 +62,16 @@ public class BinaryOperatorConversion implements SqlOperatorConversion
     RexCall call = (RexCall) rexNode;
     RexNode op1 = call.getOperands().get(0);
     RexNode op2 = call.getOperands().get(1);
-    if (Calcites.isFloatCastedToDouble(op1) && Calcites.isLiteralDecimalCastedToDouble(op2)) {
+    if (Calcites.isFloatCastedToDouble(op1) && Calcites.isLiteralDouble(op2)) {
       DruidExpression expression = Expressions.toDruidExpression(
           plannerContext, rowSignature, ((RexCall) op1).getOperands().get(0)
       );
-      DruidExpression constant = DruidExpression.fromNumericLiteral(
-          (Number) RexLiteral.value(op2),
-          SqlTypeName.FLOAT
-      );
+      DruidExpression constant = DruidExpression.fromNumericLiteral((Number) RexLiteral.value(op2), SqlTypeName.FLOAT);
       if (expression != null && constant != null) {
         return opExpression(Arrays.asList(expression, constant));
       }
-    } else if (Calcites.isLiteralDecimalCastedToDouble(op1) && Calcites.isFloatCastedToDouble(op2)) {
-      DruidExpression constant = DruidExpression.fromNumericLiteral(
-          (Number) RexLiteral.value(op1),
-          SqlTypeName.FLOAT
-      );
+    } else if (Calcites.isLiteralDouble(op1) && Calcites.isFloatCastedToDouble(op2)) {
+      DruidExpression constant = DruidExpression.fromNumericLiteral((Number) RexLiteral.value(op1), SqlTypeName.FLOAT);
       DruidExpression expression = Expressions.toDruidExpression(
           plannerContext, rowSignature, ((RexCall) op2).getOperands().get(0)
       );

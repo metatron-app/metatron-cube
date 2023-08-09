@@ -20,17 +20,25 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.UOE;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.SqlJsonEmptyOrError;
 import org.apache.calcite.sql.SqlJsonValueEmptyOrErrorBehavior;
+import org.apache.calcite.sql.SqlJsonValueReturning;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.Symbolizable;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
@@ -38,7 +46,6 @@ import org.apache.calcite.sql2rel.StandardConvertletTable;
 import org.joda.time.DateTimeZone;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -148,13 +155,11 @@ public class DruidConvertletTable implements SqlRexConvertletTable
           || operator.equals(SqlStdOperatorTable.LOCALTIMESTAMP)) {
 
         return cx.getRexBuilder().makeTimestampLiteral(
-            Calcites.jodaToCalciteTimestampString(plannerContext.getLocalNow(), DateTimeZone.UTC),
-            RelDataType.PRECISION_NOT_SPECIFIED
+            Calcites.jodaToCalciteTimestampString(plannerContext.getLocalNow(), DateTimeZone.UTC), 0
         );
       } else if (operator.equals(SqlStdOperatorTable.CURRENT_TIME) || operator.equals(SqlStdOperatorTable.LOCALTIME)) {
         return cx.getRexBuilder().makeTimeLiteral(
-            Calcites.jodaToCalciteTimeString(plannerContext.getLocalNow(), DateTimeZone.UTC),
-            RelDataType.PRECISION_NOT_SPECIFIED
+            Calcites.jodaToCalciteTimeString(plannerContext.getLocalNow(), DateTimeZone.UTC), 0
         );
       } else if (operator.equals(SqlStdOperatorTable.CURRENT_DATE)) {
         return cx.getRexBuilder().makeDateLiteral(
@@ -177,22 +182,55 @@ public class DruidConvertletTable implements SqlRexConvertletTable
     @Override
     public RexNode convertCall(final SqlRexContext cx, final SqlCall call)
     {
-      SqlDataTypeSpec type = call.operand(6);
-      RelDataType retType = cx.getTypeFactory().createTypeWithNullability(type.deriveType(cx.getValidator()), true);
-      RexNode arg0 = cx.convertExpression(call.operand(0));
-      RexNode arg1 = cx.convertExpression(call.operand(1));
-      RexNode arg2 = cx.getRexBuilder().makeLiteral(Calcites.asValueDesc(retType).toString());  // on empty => on error
-      RexNode arg3;
-      switch ((SqlJsonValueEmptyOrErrorBehavior) SqlLiteral.value(call.operand(2))) {
-        case ERROR:
-          throw new UOE("Not supports ERROR behavior");
-        case DEFAULT:
-          arg3 = cx.convertExpression(call.operand(3));
-          break;
-        default:
-          arg3 = cx.getRexBuilder().makeNullLiteral(retType);
+      List<SqlNode> operands = call.getOperandList();
+      List<RexNode> prepared = Lists.newArrayList();
+      prepared.add(cx.convertExpression(call.operand(0)));
+      prepared.add(cx.convertExpression(call.operand(1)));
+
+      // SqlJsonValueReturning, SqlJsonValueEmptyOrErrorBehavior, SqlJsonEmptyOrError
+      RexBuilder builder = cx.getRexBuilder();
+      RelDataTypeFactory factory = cx.getTypeFactory();
+
+      RelDataType retType = factory.createSqlType(SqlTypeName.VARCHAR, 2000);   // SqlJsonValueFunction.getDefaultType
+      if (operands.size() > 2) {
+        int ix0 = findSymbol(operands, SqlJsonValueReturning.class);
+        int ix1 = findSymbol(operands, SqlJsonValueEmptyOrErrorBehavior.class);
+        int ix2 = findSymbol(operands, SqlJsonEmptyOrError.class);
+        if (ix0 > 0) {
+          SqlDataTypeSpec type = call.operand(ix0 + 1);
+          retType = type.deriveType(cx.getValidator());
+        }
+        prepared.add(builder.makeLiteral(Calcites.asValueDesc(retType).toString()));
+        if (ix1 > 0 && ix2 > 0) {
+          switch ((SqlJsonEmptyOrError) SqlLiteral.value(call.operand(ix2))) {
+            case ERROR:
+              throw new UOE("Not supports ON ERROR");
+            case EMPTY:
+              switch ((SqlJsonValueEmptyOrErrorBehavior) SqlLiteral.value(call.operand(ix1))) {
+                case ERROR:
+                  throw new UOE("Not supports ERROR behavior");
+                case NULL:
+                  prepared.add(builder.makeNullLiteral(retType));
+                  break;
+                case DEFAULT:
+                  prepared.add(cx.convertExpression(call.operand(ix1 + 1)));
+                  break;
+              }
+          }
+        }
       }
-      return cx.getRexBuilder().makeCall(retType, call.getOperator(), Arrays.asList(arg0, arg1, arg2, arg3));
+      return builder.makeCall(factory.createTypeWithNullability(retType, true), call.getOperator(), prepared);
     }
+  }
+
+  private static int findSymbol(List<SqlNode> nodes, Class<? extends Symbolizable> clazz)
+  {
+    for (int i = 0; i < nodes.size(); i++) {
+      SqlNode node = nodes.get(i);
+      if (node instanceof SqlLiteral && clazz.isInstance(((SqlLiteral) node).getValue())) {
+        return i;
+      }
+    }
+    return -1;
   }
 }

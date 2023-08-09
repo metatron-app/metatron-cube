@@ -21,7 +21,6 @@ package io.druid.sql.calcite;
 
 import io.druid.query.JoinQueryConfig;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.concurrent.Executors;
@@ -273,8 +272,8 @@ public class TpchTestMore extends CalciteQueryTestHelper
     testQuery(SQL, new Object[] {215600.05411791173D});
 
     hook.verifyHooked(
-        "QuaFptt3QqGaR6XhjlHwNg==",
-        "TimeseriesQuery{dataSource='lineitem', filter=(MathExprFilter{expression='(L_DISCOUNT == 0.07F)'} && BoundDimFilter{L_QUANTITY < 25(numeric)} && BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * 0.07F)', inputType='double'}], outputColumns=[a0]}"
+        "AGJ6I8MbXY8+Epbbfhe4Cg==",
+        "TimeseriesQuery{dataSource='lineitem', filter=(BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01} && MathExprFilter{expression='(L_DISCOUNT == 0.07F)'} && BoundDimFilter{L_QUANTITY < 25(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * 0.07F)', inputType='double'}], outputColumns=[a0]}"
     );
   }
 

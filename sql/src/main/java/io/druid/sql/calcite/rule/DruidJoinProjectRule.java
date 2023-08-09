@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.rule;
 
+import com.google.common.collect.ImmutableSet;
 import io.druid.collections.IntList;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidJoinRel;
@@ -71,7 +72,7 @@ public class DruidJoinProjectRule extends RelOptRule
       return;
     }
 
-    final List<RexNode> childExps = project.getChildExps();
+    final List<RexNode> childExps = project.getProjects();
     final IntList indices = Utils.collectInputRefs(childExps);
     final int projectLen = indices.size();
     if (filter != null) {
@@ -93,7 +94,7 @@ public class DruidJoinProjectRule extends RelOptRule
     Project newProject = null;
     if (projectLen != mapping.length || !Utils.isAllInputRef(childExps)) {
       List<RexNode> rewritten = Utils.rewrite(builder, childExps, revert);
-      newProject = LogicalProject.create(newJoin, rewritten, project.getRowType());
+      newProject = LogicalProject.create(newJoin, Arrays.asList(), rewritten, project.getRowType(), ImmutableSet.of());
     }
     Filter newFilter = null;
     if (filter != null) {

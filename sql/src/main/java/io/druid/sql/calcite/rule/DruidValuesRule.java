@@ -27,12 +27,10 @@ import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rex.RexLiteral;
 
 import java.util.List;
-import java.util.function.Predicate;
 
 public class DruidValuesRule extends ConverterRule
 {
@@ -40,10 +38,7 @@ public class DruidValuesRule extends ConverterRule
 
   public DruidValuesRule(QueryMaker maker)
   {
-    super(LogicalValues.class, (Predicate<RelNode>) r -> true,
-          Convention.NONE, BindableConvention.INSTANCE, RelFactories.LOGICAL_BUILDER,
-          "DruidValuesRule"
-    );
+    super(LogicalValues.class, r -> true, Convention.NONE, BindableConvention.INSTANCE, "DruidValuesRule");
     this.maker = maker;
   }
 

@@ -1190,19 +1190,16 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       .dataSource(CalciteTests.DATASOURCE1)
                       .aggregators(CountAggregatorFactory.of("a0"))
                       .outputColumns("a0")
-                      .limit(2)
                       .build(),
                 Druids.newTimeseriesQueryBuilder()
                       .dataSource(CalciteTests.DATASOURCE1)
                       .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
                       .outputColumns("a0")
-                      .limit(2)
                       .build(),
                 Druids.newTimeseriesQueryBuilder()
                       .dataSource(CalciteTests.DATASOURCE1)
                       .aggregators(CountAggregatorFactory.of("a0"))
                       .outputColumns("a0")
-                      .limit(2)
                       .build()
             ),
             2
@@ -1337,7 +1334,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .virtualColumns(
                 EXPR_VC(
                     "d0:v",
-                    "case(((m1 > 1) && (m1 < 5) && (cnt == 1)),'x','')"
+                    "case((((m1 > 1) && (m1 < 5)) && (cnt == 1)),'x','')"
                 )
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
@@ -1756,8 +1753,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .filters(
                   OR(
-                      BOUND("cnt", "3", null, false, false, null, StringComparators.NUMERIC_NAME),
-                      SELECTOR("cnt", "1")
+                      SELECTOR("cnt", "1"),
+                      BOUND("cnt", "3", null, false, false, null, StringComparators.NUMERIC_NAME)
                   )
               )
               .aggregators(CountAggregatorFactory.of("a0"))
@@ -1840,22 +1837,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT distinct dim1 FROM druid.foo WHERE "
         + "dim1 = 10 OR "
         + "(floor(CAST(dim1 AS float)) = 10.00 and CAST(dim1 AS float) > 9 and CAST(dim1 AS float) <= 10.5)",
-        newGroupBy()
-            .dataSource(CalciteTests.DATASOURCE1)
-            .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
-            .filters(
-                OR(
-                    SELECTOR("dim1", "10"),
-                    AND(
-                        EXPR_FILTER("(floor(CAST(dim1, 'FLOAT')) == 10.0F)"),
-                        EXPR_FILTER("(CAST(dim1, 'FLOAT') > 9)"),
-                        EXPR_FILTER("(CAST(dim1, 'FLOAT') <= 10.5B)")
-                    )
-                )
-            )
-            .outputColumns("d0")
-            .build(),
         new Object[]{"10.1"}
+    );
+    hook.verifyHooked(
+        "+/rEwj1eAryXfuCulfWmqw==",
+        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], filter=((dim1=='10' || MathExprFilter{expression='(floor(CAST(dim1, 'FLOAT')) == 10.0F)'}) && (dim1=='10' || MathExprFilter{expression='(CAST(dim1, 'FLOAT') > 9B)'}) && (dim1=='10' || MathExprFilter{expression='(CAST(dim1, 'FLOAT') <= 10.5B)'})), outputColumns=[d0]}"
     );
   }
 
@@ -2245,11 +2231,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT COUNT(*) FROM druid.foo WHERE dim2 = 'a' and (dim1 > 'a' OR dim1 < 'b')",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .filters(SELECTOR("dim2", "a"))
+              .filters(AND(SELECTOR("dim2", "a"), NOT(SELECTOR("dim1", ""))))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
               .build(),
-        new Object[]{2L}
+        new Object[]{1L}
     );
   }
 
@@ -2461,8 +2447,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       OR(
                           TIME_BOUND("2000/2001"),
                           AND(
-                              SELECTOR("dim1", "abc"),
-                              TIME_BOUND("2002-05-01/2003-05-01")
+                              TIME_BOUND("2002-05-01/2003-05-01"),
+                              SELECTOR("dim1", "abc")
                           )
                       )
                   )
@@ -2495,9 +2481,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       NOT(SELECTOR("dim2", "a")),
                       AND(
                           NOT(TIME_BOUND("2000/2001")),
-                          NOT(AND(
-                              SELECTOR("dim1", "abc"),
-                              TIME_BOUND("2002-05-01/2003-05-01")
+                          OR(
+                              NOT(TIME_BOUND("2002-05-01/2003-05-01")),
+                              NOT(SELECTOR("dim1", "abc")
                           ))
                       )
                   )
@@ -4365,7 +4351,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       GenericSumAggregatorFactory.ofLong("a0", "cnt"),
                       BOUND(
                           "__time",
-                          null,
+                          String.valueOf(T("2000-01-01")),
                           String.valueOf(T("2000-02-01")),
                           false,
                           true,
@@ -4786,70 +4772,42 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   @Test
   public void testComplexWindow() throws Exception
   {
+    Object[][] expected = {
+        {T("2011-07-01"), 49520.0}, {T("2012-01-01"), 55981.0}, {T("2012-07-01"), 61606.0},
+        {T("2013-01-01"), 67674.0}, {T("2013-07-01"), 81721.0}, {T("2014-01-01"), 93134.0},
+        {T("2014-07-01"), 93500.0}
+    };
     testQuery(
-        PLANNER_CONFIG_NO_TOPN,
         "SELECT T, S FROM ("
         + "  SELECT T, sum(S) over W as S, count(S) over W as C FROM ("
         + "    SELECT TIME_FLOOR(__time, 'P6M') as T, sum(Profit) as S FROM sales GROUP BY TIME_FLOOR(__time, 'P6M')"
-        + "  ) WINDOW W as (ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)"
+        + "  ) WINDOW W as (ORDER BY T ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)"
         + ") WHERE C = 2",
-        newScan()
-            .dataSource(
-                newTimeseries()
-                    .dataSource("sales")
-                    .granularity(PeriodGranularity.of(Period.months(6)))
-                    .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "Profit"))
-                    .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P6M','','UTC')"))
-                    .limitSpec(
-                        LimitSpec.of(WindowingSpec.expressions("\"w0$o0\" = $COUNT(a0,-1,0)","\"w0$o1\" = $SUM0(a0,-1,0)"))
-                                 .withAlias(ImmutableMap.of("d0", "T" ,"a0", "S"))
-                    )
-                    .outputColumns("T","S","w0$o0","w0$o1")
-                    .build()
-            )
-            .filters(SELECTOR("w0$o0", "2"))
-            .columns("T","w0$o1")
-            .streaming(),
-        new Object[]{T("2011-07-01"), 49520.0},
-        new Object[]{T("2012-01-01"), 55981.0},
-        new Object[]{T("2012-07-01"), 61606.0},
-        new Object[]{T("2013-01-01"), 67674.0},
-        new Object[]{T("2013-07-01"), 81721.0},
-        new Object[]{T("2014-01-01"), 93134.0},
-        new Object[]{T("2014-07-01"), 93500.0}
+        expected
+    );
+    hook.verifyHooked(
+        "2mcZa3sjSMonwKlIacDSnA==",
+        "StreamQuery{dataSource='TimeseriesQuery{dataSource='sales'PeriodGranularity{period=P6M, timeZone=UTC}, limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=false, sortingColumns=[OrderByColumnSpec{dimension='d0', direction=ascending}], expressions=[\"w0$o0\" = $COUNT(a0,-1,0), \"w0$o1\" = $SUM0(a0,-1,0)]}], alias={d0=T, a0=S}}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='Profit', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_floor(__time,'P6M','','UTC')', finalize=true}], outputColumns=[T, S, w0$o0, w0$o1]}', filter=w0$o0=='2', columns=[T, w0$o1]}",
+        "TimeseriesQuery{dataSource='sales'PeriodGranularity{period=P6M, timeZone=UTC}, limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=false, sortingColumns=[OrderByColumnSpec{dimension='d0', direction=ascending}], expressions=[\"w0$o0\" = $COUNT(a0,-1,0), \"w0$o1\" = $SUM0(a0,-1,0)]}], alias={d0=T, a0=S}}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='Profit', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_floor(__time,'P6M','','UTC')', finalize=true}], outputColumns=[T, S, w0$o0, w0$o1]}"
     );
 
+    expected = new Object[][]{
+        {T("2012-01-01"), 49520.0}, {T("2012-07-01"), 55981.0}, {T("2013-01-01"), 61606.0},
+        {T("2013-07-01"), 67674.0}, {T("2014-01-01"), 81721.0}, {T("2014-07-01"), 93134.0},
+        {T("2015-01-01"), 93500.0}
+    };
     testQuery(
-        PLANNER_CONFIG_NO_TOPN,
         "SELECT T, S FROM ("
         + "  SELECT T, sum(S) over W as S, count(S) over W as C FROM ("
         + "    SELECT TIME_CEIL(__time, 'P6M') as T, sum(Profit) as S FROM sales GROUP BY TIME_CEIL(__time, 'P6M')"
-        + "  ) WINDOW W as (ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)"
+        + "  ) WINDOW W as (ORDER BY T ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)"
         + ") WHERE C = 2",
-        newScan()
-            .dataSource(
-                newTimeseries()
-                    .dataSource("sales")
-                    .granularity(PeriodGranularity.of(Period.months(6)))
-                    .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "Profit"))
-                    .postAggregators(EXPR_POST_AGG("d0", "timestamp_ceil(__time,'P6M','','UTC')"))
-                    .limitSpec(
-                        LimitSpec.of(WindowingSpec.expressions("\"w0$o0\" = $COUNT(a0,-1,0)","\"w0$o1\" = $SUM0(a0,-1,0)"))
-                                 .withAlias(ImmutableMap.of("d0", "T" ,"a0", "S"))
-                    )
-                    .outputColumns("T","S","w0$o0","w0$o1")
-                    .build()
-            )
-            .filters(SELECTOR("w0$o0", "2"))
-            .columns("T","w0$o1")
-            .streaming(),
-        new Object[]{T("2012-01-01"), 49520.0},
-        new Object[]{T("2012-07-01"), 55981.0},
-        new Object[]{T("2013-01-01"), 61606.0},
-        new Object[]{T("2013-07-01"), 67674.0},
-        new Object[]{T("2014-01-01"), 81721.0},
-        new Object[]{T("2014-07-01"), 93134.0},
-        new Object[]{T("2015-01-01"), 93500.0}
+        expected
+    );
+    hook.verifyHooked(
+        "RDgqx4uNmRmHXNFysti9wg==",
+        "StreamQuery{dataSource='TimeseriesQuery{dataSource='sales'PeriodGranularity{period=P6M, timeZone=UTC}, limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=false, sortingColumns=[OrderByColumnSpec{dimension='d0', direction=ascending}], expressions=[\"w0$o0\" = $COUNT(a0,-1,0), \"w0$o1\" = $SUM0(a0,-1,0)]}], alias={d0=T, a0=S}}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='Profit', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_ceil(__time,'P6M','','UTC')', finalize=true}], outputColumns=[T, S, w0$o0, w0$o1]}', filter=w0$o0=='2', columns=[T, w0$o1]}",
+        "TimeseriesQuery{dataSource='sales'PeriodGranularity{period=P6M, timeZone=UTC}, limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=false, sortingColumns=[OrderByColumnSpec{dimension='d0', direction=ascending}], expressions=[\"w0$o0\" = $COUNT(a0,-1,0), \"w0$o1\" = $SUM0(a0,-1,0)]}], alias={d0=T, a0=S}}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='Profit', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_ceil(__time,'P6M','','UTC')', finalize=true}], outputColumns=[T, S, w0$o0, w0$o1]}"
     );
   }
 
@@ -4999,46 +4957,33 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   @Test
   public void testNewWindowFunctions() throws Exception
   {
+    Object[][] expected = {
+        {T("2011-10-01"), 21726.0, 11997.0, 0.3062170421340279, 1.3226140238360753},
+        {T("2012-01-01"), 9271.0, 11997.0, 1.5967039869308326, 2.7559559816102874},
+        {T("2012-04-01"), 12191.0, 12492.0, 1.4952958011263764, 2.7622644591004146},
+        {T("2012-07-01"), 16848.0, 14519.5, 0.401755397139793, -1.501216843045509},
+        {T("2012-10-01"), 23296.0, 14519.5, 0.6739338133537466, -0.6383966096697862},
+        {T("2013-01-01"), 11453.0, 14519.5, 1.045305387409049, -0.1885411396699738},
+        {T("2013-04-01"), 16077.0, 16462.5, 0.5501507194929038, 1.5488704410249594},
+        {T("2013-07-01"), 16153.0, 16115.0, 0.755644349565603, 1.8195994163140956},
+        {T("2013-10-01"), 38038.0, 16115.0, 1.7905670243406804, 3.4292297531370752},
+        {T("2014-01-01"), 21774.0, 18963.5, 1.6367879443194426, 2.519639080416271},
+        {T("2014-04-01"), 17169.0, 19471.5, 1.6757180527207403, 2.726705834534635},
+        {T("2014-07-01"), 26899.0, 24336.5, 0.9252130623297218, 0.648594442385228},
+        {T("2014-10-01"), 27658.0, 24336.5, -0.6871980063130506, -1.986840042055673}
+    };
     testQuery(
-        PLANNER_CONFIG_NO_TOPN,
         "SELECT T, P, M, S, K FROM ("
         + "  SELECT T, P, median(P) over W as M, skewness(P) over W as S, kurtosis(P) over W as K, count(P) over W as C FROM ("
         + "    SELECT TIME_FLOOR(__time, 'P3M') as T, sum(Profit) as P FROM sales GROUP BY TIME_FLOOR(__time, 'P3M')"
-        + "  ) WINDOW W as (ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)"
+        + "  ) WINDOW W as (ORDER BY T ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)"
         + ") WHERE C = 4",
-        newScan()
-            .dataSource(
-                newTimeseries()
-                    .dataSource("sales")
-                    .granularity(PeriodGranularity.of(Period.months(3)))
-                    .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "Profit"))
-                    .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P3M','','UTC')"))
-                    .limitSpec(
-                        LimitSpec.of(WindowingSpec.expressions("\"w0$o0\" = $MEDIAN(a0,-3,0)",
-                                                               "\"w0$o1\" = $SKEWNESS(a0,-3,0)",
-                                                               "\"w0$o2\" = $KURTOSIS(a0,-3,0)",
-                                                               "\"w0$o3\" = $COUNT(a0,-3,0)"))
-                                 .withAlias(ImmutableMap.of("d0", "T", "a0", "P"))
-                    )
-                    .outputColumns("T", "P", "w0$o0", "w0$o1", "w0$o2", "w0$o3")
-                    .build()
-            )
-            .filters(SELECTOR("w0$o3", "4"))
-            .columns("T", "P", "w0$o0", "w0$o1", "w0$o2")
-            .streaming(),
-        new Object[]{T("2011-10-01"), 21726.0, 11997.0, 0.3062170421340279, 1.3226140238360753},
-        new Object[]{T("2012-01-01"), 9271.0, 11997.0, 1.5967039869308326, 2.7559559816102874},
-        new Object[]{T("2012-04-01"), 12191.0, 12492.0, 1.4952958011263764, 2.7622644591004146},
-        new Object[]{T("2012-07-01"), 16848.0, 14519.5, 0.401755397139793, -1.501216843045509},
-        new Object[]{T("2012-10-01"), 23296.0, 14519.5, 0.6739338133537466, -0.6383966096697862},
-        new Object[]{T("2013-01-01"), 11453.0, 14519.5, 1.045305387409049, -0.1885411396699738},
-        new Object[]{T("2013-04-01"), 16077.0, 16462.5, 0.5501507194929038, 1.5488704410249594},
-        new Object[]{T("2013-07-01"), 16153.0, 16115.0, 0.755644349565603, 1.8195994163140956},
-        new Object[]{T("2013-10-01"), 38038.0, 16115.0, 1.7905670243406804, 3.4292297531370752},
-        new Object[]{T("2014-01-01"), 21774.0, 18963.5, 1.6367879443194426, 2.519639080416271},
-        new Object[]{T("2014-04-01"), 17169.0, 19471.5, 1.6757180527207403, 2.726705834534635},
-        new Object[]{T("2014-07-01"), 26899.0, 24336.5, 0.9252130623297218, 0.648594442385228},
-        new Object[]{T("2014-10-01"), 27658.0, 24336.5, -0.6871980063130506, -1.986840042055673}
+        expected
+    );
+    hook.verifyHooked(
+        "F5EzIsuZAu5hd8HlZCxDvQ==",
+        "StreamQuery{dataSource='TimeseriesQuery{dataSource='sales'PeriodGranularity{period=P3M, timeZone=UTC}, limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=false, sortingColumns=[OrderByColumnSpec{dimension='d0', direction=ascending}], expressions=[\"w0$o0\" = $MEDIAN(a0,-3,0), \"w0$o1\" = $SKEWNESS(a0,-3,0), \"w0$o2\" = $KURTOSIS(a0,-3,0), \"w0$o3\" = $COUNT(a0,-3,0)]}], alias={d0=T, a0=P}}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='Profit', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_floor(__time,'P3M','','UTC')', finalize=true}], outputColumns=[T, P, w0$o0, w0$o1, w0$o2, w0$o3]}', filter=w0$o3=='4', columns=[T, P, w0$o0, w0$o1, w0$o2]}",
+        "TimeseriesQuery{dataSource='sales'PeriodGranularity{period=P3M, timeZone=UTC}, limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=false, sortingColumns=[OrderByColumnSpec{dimension='d0', direction=ascending}], expressions=[\"w0$o0\" = $MEDIAN(a0,-3,0), \"w0$o1\" = $SKEWNESS(a0,-3,0), \"w0$o2\" = $KURTOSIS(a0,-3,0), \"w0$o3\" = $COUNT(a0,-3,0)]}], alias={d0=T, a0=P}}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='Profit', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_floor(__time,'P3M','','UTC')', finalize=true}], outputColumns=[T, P, w0$o0, w0$o1, w0$o2, w0$o3]}"
     );
   }
 
@@ -5290,11 +5235,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
 
     testQuery(theQuery, new Object[]{"def", "abc", 1L});
     hook.verifyHooked(
-        "jZlFpL263SBtcISWht0amQ==",
-        "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim1, dim2]}, TimeseriesQuery{dataSource='foo', filter=dim1 LIKE '%bc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=dim1 LIKE '%bc', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='_d0'}, DefaultDimensionSpec{dimension='dim2', outputName='_d1'}], filter=((dim1=='xxx' || !(a0=='0')) && (dim1=='xxx' || !(d1==NULL)) && (dim1=='xxx' || !(dim2==NULL))), aggregatorSpecs=[CountAggregatorFactory{name='_a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_d1', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _a0]}",
+        "c0U40Rj1ObnThbH2u6D1mw==",
+        "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim1, dim2]}, TimeseriesQuery{dataSource='foo', filter=dim1 LIKE '%bc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], filter=dim1 LIKE '%bc', aggregatorSpecs=[LiteralAggregatorFactory{value=true}], outputColumns=[d0, a0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], filter=((dim1=='xxx' || !(a0=='0')) && (dim1=='xxx' || !(a00==NULL)) && (dim1=='xxx' || !(dim2==NULL))), aggregatorSpecs=[CountAggregatorFactory{name='_a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[d0, d1, _a0]}",
         "StreamQuery{dataSource='foo', columns=[dim1, dim2]}",
         "TimeseriesQuery{dataSource='foo', filter=dim1 LIKE '%bc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0], $hash=true}",
-        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=dim1 LIKE '%bc', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
+        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], filter=dim1 LIKE '%bc', aggregatorSpecs=[LiteralAggregatorFactory{value=true}], outputColumns=[d0, a0], $hash=true}"
     );
   }
 
@@ -5998,11 +5943,12 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           .dataSource("foo")
                           .intervals(interval)
                           .virtualColumns(EXPR_VC("v0", "substring(dim2, 0, 1)"))
-                          .columns("v0")
+                          .columns("__time", "dim2", "v0")
                           .streaming()
                       )
                       .element(JoinElement.inner("foo.v0 = foo$.d0"))
-                      .outputColumns()
+                      .outputAlias("__time", "dim2", "v0", "d0")
+                      .outputColumns("__time", "dim2", "d0")
                       .build()
               )
               .aggregators(CountAggregatorFactory.of("a0"))
@@ -6398,7 +6344,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Arrays.<Object>asList("abc"),
         newScan()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("v0", "concat('abc','abc')"))
+            .virtualColumns(EXPR_VC("v0", "concat(dim1,dim1)"))
             .filters(SELECTOR("dim1", "abc"))
             .columns("v0")
             .streaming(),

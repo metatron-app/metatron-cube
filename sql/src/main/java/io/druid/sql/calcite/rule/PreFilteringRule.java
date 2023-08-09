@@ -70,25 +70,20 @@ public class PreFilteringRule extends RelOptRule
   }
 
   @Override
-  public boolean matches(RelOptRuleCall call)
-  {
-    return !visited.contains(call.rel(0));
-  }
-
-  @Override
   public void onMatch(RelOptRuleCall call)
   {
     final Filter filter = call.rel(0);
     final RexBuilder rexBuilder = filter.getCluster().getRexBuilder();
 
     // 0. Register that we have visited this operator in this rule
-    if (!visited.add(filter)) {
+    if (!visited.add(filter) || !visited.add(call.rel(1))) {
       return;
     }
 
     // 1. Recompose filter possibly by pulling out common elements from DNF
     // expressions
-    RexNode topFilterCondition = RexUtil.pullFactors(rexBuilder, filter.getCondition());
+    RexNode expanded = Utils.expand(rexBuilder, filter.getCondition());
+    RexNode topFilterCondition = RexUtil.pullFactors(rexBuilder, expanded);
 
     // 2. We extract possible candidates to be pushed down
     List<RexNode> operandsToPushDown = new ArrayList<>();

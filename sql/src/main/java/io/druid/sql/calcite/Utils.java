@@ -543,6 +543,8 @@ public class Utils
       return RexLiteral.value(literal);
     } else if (SqlTypeName.CHAR_TYPES.contains(literal.getTypeName())) {
       return RexLiteral.stringValue(literal);
+    } else if (SqlTypeName.BOOLEAN.equals(literal.getTypeName())) {
+      return RexLiteral.booleanValue(literal);
     } else if (SqlTypeName.TIMESTAMP == literal.getTypeName() || SqlTypeName.DATE == literal.getTypeName()) {
       return Calcites.calciteDateTimeLiteralToJoda(literal, context.getTimeZone()).getMillis();
     } else {
@@ -676,5 +678,20 @@ public class Utils
       return StringComparators.NUMERIC_NAME;
     }
     return null;
+  }
+
+  public static RexNode soleOperand(RexNode rexNode)
+  {
+    return Iterables.getOnlyElement(((RexCall) rexNode).getOperands());
+  }
+
+  public static List<RexNode> expand(RexBuilder builder, List<RexNode> exprs)
+  {
+    return exprs.stream().map(rex -> expand(builder, rex)).collect(Collectors.toList());
+  }
+
+  public static RexNode expand(RexBuilder builder, RexNode rex)
+  {
+    return RexUtil.expandSearch(builder, null, rex);
   }
 }

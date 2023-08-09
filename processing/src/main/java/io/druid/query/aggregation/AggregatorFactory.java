@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
@@ -29,6 +30,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.Cacheable;
+import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombineFn;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
@@ -789,5 +791,96 @@ public abstract class AggregatorFactory implements Cacheable
       return null;
     }
     throw new IAE("cannot parse node %s", node);
+  }
+
+  public static class LiteralAggregatorFactory extends AggregatorFactory
+  {
+    private final String name;
+    private final ValueDesc type;
+    private final Object value;
+
+    public LiteralAggregatorFactory(
+        @JsonProperty("name") String name,
+        @JsonProperty("type") ValueDesc type,
+        @JsonProperty("value") Object value
+    )
+    {
+      this.name = name;
+      this.type = type;
+      this.value = type.cast(value);
+    }
+
+    @Override
+    public Aggregator factorize(ColumnSelectorFactory factory)
+    {
+      return Aggregator.relay(value);
+    }
+
+    @Override
+    public BufferAggregator factorizeBuffered(ColumnSelectorFactory factory)
+    {
+      return BufferAggregator.relay(value);
+    }
+
+    @Override
+    public int getMaxIntermediateSize()
+    {
+      return 0;
+    }
+
+    @Override
+    public KeyBuilder getCacheKey(KeyBuilder builder)
+    {
+      return builder.disable();
+    }
+
+    @Override
+    public Comparator getComparator()
+    {
+      return (x, y) -> 0;
+    }
+
+    @Override
+    public BinaryFn.Identical combiner()
+    {
+      return (x, y) -> x;
+    }
+
+    @Override
+    public AggregatorFactory getCombiningFactory()
+    {
+      return this;
+    }
+
+    @Override
+    @JsonProperty
+    public String getName()
+    {
+      return name;
+    }
+
+    @Override
+    @JsonProperty
+    public ValueDesc getOutputType()
+    {
+      return type;
+    }
+
+    @JsonProperty
+    public Object getValue()
+    {
+      return value;
+    }
+
+    @Override
+    public List<String> requiredFields()
+    {
+      return Arrays.asList();
+    }
+
+    @Override
+    public String toString() {
+      return "LiteralAggregatorFactory{value=" + value + "}";
+    }
   }
 }

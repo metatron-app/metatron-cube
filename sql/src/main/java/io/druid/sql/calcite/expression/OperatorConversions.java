@@ -20,17 +20,16 @@
 package io.druid.sql.calcite.expression;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.DruidTypeSystem;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import it.unimi.dsi.fastutil.ints.IntArraySet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.runtime.CalciteException;
@@ -42,7 +41,6 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlUtil;
-import org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
@@ -56,6 +54,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -291,21 +290,8 @@ public class OperatorConversions
         );
       }
 
-      if (operandTypeInference == null) {
-        SqlOperandTypeInference defaultInference = new DefaultOperandTypeInference(operandTypes, nullableOperands);
-        operandTypeInference = (callBinding, returnType, types) -> {
-          for (int i = 0; i < types.length; i++) {
-            // calcite sql validate tries to do bad things to dynamic parameters if the type is inferred to be a string
-            if (callBinding.operand(i).isA(ImmutableSet.of(SqlKind.DYNAMIC_PARAM))) {
-              types[i] = new BasicSqlType(
-                  DruidTypeSystem.INSTANCE,
-                  SqlTypeName.ANY
-              );
-            } else {
-              defaultInference.inferOperandTypes(callBinding, returnType, types);
-            }
-          }
-        };
+      if (operandTypeInference == null && operandTypes != null) {
+        operandTypeInference = new DefaultOperandTypeInference(operandTypes, nullableOperands);
       }
       return new SqlFunction(
           name,
@@ -349,12 +335,12 @@ public class OperatorConversions
    */
   private static class DefaultOperandTypeInference implements SqlOperandTypeInference
   {
-    private final List<SqlTypeFamily> operandTypes;
+    private final List<SqlTypeName> operandTypes;
     private final IntSet nullableOperands;
 
     DefaultOperandTypeInference(final List<SqlTypeFamily> operandTypes, final IntSet nullableOperands)
     {
-      this.operandTypes = operandTypes;
+      this.operandTypes = operandTypes.stream().map(OperatorConversions::defaultTypeForFamily).collect(Collectors.toList());
       this.nullableOperands = nullableOperands;
     }
 
@@ -365,29 +351,17 @@ public class OperatorConversions
         final RelDataType[] operandTypesOut
     )
     {
+      RelDataTypeFactory factory = callBinding.getTypeFactory();
       for (int i = 0; i < operandTypesOut.length; i++) {
-        final RelDataType derivedType = callBinding.getValidator()
-                                                   .deriveType(callBinding.getScope(), callBinding.operand(i));
-
-        final RelDataType inferredType;
-
-        if (derivedType.getSqlTypeName() != SqlTypeName.NULL) {
-          // We could derive a non-NULL type; retain it.
-          inferredType = derivedType;
+        RelDataType derivedType = callBinding.getValidator()
+                                             .deriveType(callBinding.getScope(), callBinding.operand(i));
+        SqlTypeName typeName = derivedType.getSqlTypeName();
+        if (typeName == SqlTypeName.NULL || typeName == SqlTypeName.UNKNOWN) {
+          operandTypesOut[i] = Calcites.asRelDataType(factory, operandTypes.get(i), nullableOperands.contains(i));
         } else {
-          // We couldn't derive a non-NULL type; infer the default for the operand type family.
-          if (nullableOperands.contains(i)) {
-            inferredType = Calcites.asRelDataType(
-                callBinding.getTypeFactory(),
-                defaultTypeForFamily(operandTypes.get(i)),
-                true
-            );
-          } else {
-            inferredType = callBinding.getValidator().getUnknownType();
-          }
+          // We could derive a non-NULL type; retain it.
+          operandTypesOut[i] = derivedType;
         }
-
-        operandTypesOut[i] = inferredType;
       }
     }
   }

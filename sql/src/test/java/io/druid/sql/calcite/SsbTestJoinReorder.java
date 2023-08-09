@@ -86,17 +86,17 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
         ,
         "DruidOuterQueryRel(scanProject=[*($0, $1)], revenue=[SUM($0)])\n"
         + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[1, 0])\n"
-        + "    DruidQueryRel(table=[druid.ssb_lineorder], scanFilter=[AND(>=($2, 1), <=($2, 3), <($9, 25))], scanProject=[$2, $3, $16])\n"
+        + "    DruidQueryRel(table=[druid.ssb_lineorder], scanFilter=[AND(SEARCH($2, Sarg[[1..3]]), <($9, 25))], scanProject=[$2, $3, $16])\n"
         + "    DruidQueryRel(table=[druid.ssb_date], scanFilter=[=($13, 1992)], scanProject=[$16])\n"
         ,
         new Object[]{7.4425744E7}
     );
 
     hook.verifyHooked(
-        "T0WfyqFjEEM24ZkR6UaBDg==",
+        "W+I5FGhL3ogRs9wnkQyGGg==",
         "StreamQuery{dataSource='ssb_date', filter=D_YEAR=='1992', columns=[__time]}",
-        "TimeseriesQuery{dataSource='StreamQuery{dataSource='ssb_lineorder', filter=(BoundDimFilter{LO_QUANTITY < 25(numeric)} && BoundDimFilter{1 <= LO_DISCOUNT <= 3(numeric)} && InDimFilter{dimension='__time', values=[694224000000, 694310400000, 694396800000, 694483200000, 694569600000, 694656000000, 694742400000, 694828800000, 694915200000, 695001600000, ..2 more]}), columns=[LO_EXTENDEDPRICE, LO_DISCOUNT]}', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(LO_EXTENDEDPRICE * LO_DISCOUNT)', inputType='double'}], outputColumns=[a0]}",
-        "StreamQuery{dataSource='ssb_lineorder', filter=(BoundDimFilter{LO_QUANTITY < 25(numeric)} && BoundDimFilter{1 <= LO_DISCOUNT <= 3(numeric)} && InDimFilter{dimension='__time', values=[694224000000, 694310400000, 694396800000, 694483200000, 694569600000, 694656000000, 694742400000, 694828800000, 694915200000, 695001600000, ..2 more]}), columns=[LO_EXTENDEDPRICE, LO_DISCOUNT]}"
+        "TimeseriesQuery{dataSource='StreamQuery{dataSource='ssb_lineorder', filter=(BoundDimFilter{1 <= LO_DISCOUNT <= 3(numeric)} && BoundDimFilter{LO_QUANTITY < 25(numeric)} && InDimFilter{dimension='__time', values=[694224000000, 694310400000, 694396800000, 694483200000, 694569600000, 694656000000, 694742400000, 694828800000, 694915200000, 695001600000, ..2 more]}), columns=[LO_EXTENDEDPRICE, LO_DISCOUNT]}', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(LO_EXTENDEDPRICE * LO_DISCOUNT)', inputType='double'}], outputColumns=[a0]}",
+        "StreamQuery{dataSource='ssb_lineorder', filter=(BoundDimFilter{1 <= LO_DISCOUNT <= 3(numeric)} && BoundDimFilter{LO_QUANTITY < 25(numeric)} && InDimFilter{dimension='__time', values=[694224000000, 694310400000, 694396800000, 694483200000, 694569600000, 694656000000, 694742400000, 694828800000, 694915200000, 695001600000, ..2 more]}), columns=[LO_EXTENDEDPRICE, LO_DISCOUNT]}"
     );
   }
 

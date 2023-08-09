@@ -157,11 +157,9 @@ public class Calcites
            Calcites.getTypeName(((RexCall) rexNode).getOperands().get(0).getType()) == SqlTypeName.FLOAT;
   }
 
-  public static boolean isLiteralDecimalCastedToDouble(RexNode rexNode)
+  public static boolean isLiteralDouble(RexNode rexNode)
   {
-    return rexNode.isA(SqlKind.LITERAL) &&
-           getTypeName(rexNode.getType()) == SqlTypeName.DOUBLE &&
-           ((RexLiteral) rexNode).getTypeName() == SqlTypeName.DECIMAL;
+    return rexNode.isA(SqlKind.LITERAL) && getTypeName(rexNode.getType()) == SqlTypeName.DOUBLE;
   }
 
   public static SqlTypeName getTypeName(RelDataType dataType)

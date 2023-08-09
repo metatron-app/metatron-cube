@@ -62,6 +62,9 @@ public interface Function
     Function create(List<Expr> args, TypeResolver resolver);
   }
 
+  // dummy functions. just type mapping for SQL table functions
+  interface TableFunctionMapper {}
+
   @Target({ElementType.TYPE})
   @Retention(RetentionPolicy.RUNTIME)
   @interface Named

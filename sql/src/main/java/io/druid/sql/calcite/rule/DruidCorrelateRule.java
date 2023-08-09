@@ -19,18 +19,14 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.google.common.base.Predicate;
 import io.druid.sql.calcite.rel.DruidCorrelateRel;
 import io.druid.sql.calcite.rel.DruidRel;
-import io.druid.sql.calcite.rel.PartialDruidQuery;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Correlate;
 
 public class DruidCorrelateRule extends RelOptRule
 {
-  private static final Predicate<PartialDruidQuery> PREDICATE = p -> p != null && p.isFilterScan();
-
   private static final DruidCorrelateRule INSTANCE = new DruidCorrelateRule();
 
   public static DruidCorrelateRule instance()

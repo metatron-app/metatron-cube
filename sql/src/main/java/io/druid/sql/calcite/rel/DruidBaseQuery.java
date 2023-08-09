@@ -212,8 +212,9 @@ public class DruidBaseQuery implements DruidQuery
     if (filter == null) {
       return Filtration.create(null);
     }
+    final RexBuilder builder = filter.getCluster().getRexBuilder();
     final RexNode condition = filter.getCondition();
-    final DimFilter dimFilter = Expressions.toFilter(plannerContext, sourceRowSignature, condition);
+    final DimFilter dimFilter = Expressions.toFilter(plannerContext, sourceRowSignature, builder, condition);
     if (dimFilter == null) {
       throw new CannotBuildQueryException(filter, condition);
     }
@@ -238,7 +239,7 @@ public class DruidBaseQuery implements DruidQuery
     final List<String> rowOrder = new ArrayList<>();
     final List<VirtualColumn> virtualColumns = new ArrayList<>();
 
-    for (RexNode rexNode : project.getChildExps()) {
+    for (RexNode rexNode : project.getProjects()) {
       final DruidExpression expression = Expressions.toDruidExpression(plannerContext, sourceRowSignature, rexNode);
       if (expression == null) {
         throw new CannotBuildQueryException(project, rexNode);
@@ -382,7 +383,7 @@ public class DruidBaseQuery implements DruidQuery
     } else {
       List<String> sourceRows = inputRowSignature.getColumnNames();
       List<String> targetRows = Lists.newArrayList();
-      for (RexNode rexNode : sortProject.getChildExps()) {
+      for (RexNode rexNode : sortProject.getProjects()) {
         int index = ((RexInputRef) rexNode).getIndex();
         targetRows.add(sourceRows.get(index));
       }
@@ -469,7 +470,7 @@ public class DruidBaseQuery implements DruidQuery
 
   private static List<OrderByColumnSpec> asOrderingSpec(Sort sort, RowSignature rowSignature)
   {
-    final List<RexNode> children = sort.getChildExps();
+    final List<RexNode> children = sort.getSortExps();
     final List<OrderByColumnSpec> orderBys = new ArrayList<>(children.size());
     for (int sortKey = 0; sortKey < children.size(); sortKey++) {
       final RexNode sortExpression = children.get(sortKey);

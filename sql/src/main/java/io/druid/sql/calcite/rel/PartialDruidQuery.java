@@ -133,7 +133,7 @@ public class PartialDruidQuery
       }
     }
     if (sort != null) {
-      final List<RexNode> childExps = sort.getChildExps();
+      final List<RexNode> childExps = sort.getSortExps();
       final List<RelFieldCollation> collations = sort.getCollation().getFieldCollations();
       final StringBuilder builder = new StringBuilder();
       for (int i = 0; i < childExps.size(); i++) {
@@ -451,7 +451,7 @@ public class PartialDruidQuery
       case SELECT_SORT:
       case SELECT_WINDOW:
       case SELECT_WINDOW_SORT:
-        if (!Utils.isAllInputRef(newProject.getChildExps())) {
+        if (!Utils.isAllInputRef(newProject.getProjects())) {
           return null;
         }
         // break through
@@ -627,7 +627,7 @@ public class PartialDruidQuery
 
   private boolean supports(Sort sort)
   {
-    if (sort.offset != null || !Utils.isAllInputRef(sort.getChildExps())) {
+    if (sort.offset != null || !Utils.isAllInputRef(sort.getSortExps())) {
       return false;
     }
     for (RelFieldCollation collation : sort.getCollation().getFieldCollations()) {
@@ -775,7 +775,7 @@ public class PartialDruidQuery
     }
 
     if (scanProject != null) {
-      List<RexNode> rexNodes = scanProject.getChildExps();
+      List<RexNode> rexNodes = scanProject.getProjects();
       cost += estimate * Utils.rexEvalCost(rexNodes);
       double ratio = tableScan ? PROJECT_BASE : PROJECT_BASE_OUTER;
       estimate *= ratio + (1 - ratio) * (rexNodes.size() / numColumns);
@@ -791,7 +791,7 @@ public class PartialDruidQuery
     }
 
     if (aggregateProject != null) {
-      List<RexNode> rexNodes = aggregateProject.getChildExps();
+      List<RexNode> rexNodes = aggregateProject.getProjects();
       cost += estimate * Utils.rexEvalCost(rexNodes);
       estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns);
       numColumns = rexNodes.size();
@@ -817,7 +817,7 @@ public class PartialDruidQuery
     }
 
     if (sortProject != null) {
-      List<RexNode> rexNodes = sortProject.getChildExps();
+      List<RexNode> rexNodes = sortProject.getProjects();
       cost += estimate * (0.0001 + Utils.rexEvalCost(rexNodes));
       estimate *= PROJECT_BASE_REMAIN + (1 - PROJECT_BASE_REMAIN) * (rexNodes.size() / numColumns);
     }

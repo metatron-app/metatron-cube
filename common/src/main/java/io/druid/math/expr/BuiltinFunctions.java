@@ -2166,17 +2166,17 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("explode")
-  final class Explode extends NamedFactory
+  final class Explode extends NamedFactory implements Function.TableFunctionMapper
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       String[] names = IntStream.range(0, args.size()).mapToObj(x -> "e" + x).toArray(s -> new String[s]);
       ValueDesc[] types = args.stream().map(e -> e.returns().subElement(ValueDesc.STRING)).toArray(s -> new ValueDesc[s]);
+      ValueDesc struct = ValueDesc.ofStruct(names, types);
+
       return new Function()
       {
-        private final ValueDesc struct = ValueDesc.ofStruct(names, types);
-
         @Override
         public ValueDesc returns() {return struct;}
 

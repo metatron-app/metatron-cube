@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Functions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -489,7 +488,13 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       log.info(expectedExplain);
       log.info("result plan..");
       log.info(results.lhs);
-      Assert.assertEquals(expectedExplain, results.lhs);
+      try {
+        Assert.assertEquals(expectedExplain, results.lhs);
+      }
+      catch (AssertionError f) {
+        TestHelper.printToExpected(results.rhs);
+        failed(f);
+      }
     }
 
     final ComparisonCriteria comparison = new ComparisonCriteria()
@@ -538,9 +543,9 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       }
       catch (AssertionError e) {
         try {
-          log.info(TestHelper.JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(recordedQueries.get(0)));
+          log.info(walker().getMapper().writerWithDefaultPrettyPrinter().writeValueAsString(recordedQueries.get(0)));
         }
-        catch (JsonProcessingException e1) {
+        catch (Throwable e1) {
           // ignore
         }
         failed(e);

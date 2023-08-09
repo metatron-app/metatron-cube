@@ -69,7 +69,7 @@ public class SqlShowTables
 
     return new SqlSelect(
         SqlParserPos.ZERO, null, new SqlNodeList(selectList, SqlParserPos.ZERO),
-        fromClause, where, null, null, null, null, null, null
+        fromClause, where, null, null, null, null, null, null, null
     );
   }
 }

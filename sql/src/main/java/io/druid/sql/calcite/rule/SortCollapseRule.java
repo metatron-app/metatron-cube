@@ -86,7 +86,7 @@ public class SortCollapseRule extends RelOptRule
       );
 
       call.transformTo(combined);
-      call.getPlanner().setImportance(second, 0.0);
+      call.getPlanner().prune(second);
     }
   }
 }

@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -54,6 +55,7 @@ import java.util.concurrent.Callable;
 
 /**
  */
+@JsonTypeName("unionAll")
 public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQuery<T>, Query.SchemaHolder
 {
   private static final Logger LOG = new Logger(UnionAllQuery.class);

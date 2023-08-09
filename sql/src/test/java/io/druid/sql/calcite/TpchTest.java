@@ -214,18 +214,18 @@ public class TpchTest extends TpchTestHelper
   public static final String TPCH2_EXPLAIN_JR =
       "DruidOuterQueryRel(sort=[$0:DESC, $2:ASC, $1:ASC, $3:ASC], fetch=[100])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[5], outputColumns=[3, 6, 9, 2, 1, 4, 7, 5])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[3, 1], rightKeys=[0, 1], outputColumns=[0, 2, 3])\n"
-      + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2, 3, 4])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[2, 0], rightKeys=[1, 1], outputColumns=[1, 3, 4])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1], outputColumns=[0, 1, 3])\n"
       + "        DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
-      + "      DruidOuterQueryRel(group=[{0}], EXPR$0=[MIN($1)])\n"
-      + "        DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2])\n"
-      + "          DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-      + "          DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
-      + "            DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
-      + "            DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
-      + "              DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
-      + "              DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
+      + "        DruidOuterQueryRel(group=[{0}], EXPR$0=[MIN($1)])\n"
+      + "          DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2])\n"
+      + "            DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
+      + "            DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
+      + "              DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
+      + "              DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
+      + "                DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
+      + "                DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
+      + "      DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[4], rightKeys=[1], outputColumns=[0, 1, 2, 3, 5, 6, 7])\n"
       + "      DruidQueryRel(table=[druid.supplier], scanProject=[$0, $1, $2, $3, $4, $5, $6])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1])\n"
@@ -234,24 +234,24 @@ public class TpchTest extends TpchTestHelper
 
   public static final String TPCH2_EXPLAIN_JR2 =
       "DruidOuterQueryRel(sort=[$0:DESC, $2:ASC, $1:ASC, $3:ASC], fetch=[100])\n"
-      + "  DruidJoinRel(joinType=[INNER], leftKeys=[5], rightKeys=[0], outputColumns=[0, 3, 6, 9, 8, 1, 4, 2])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[5], outputColumns=[3, 6, 9, 2, 1, 4, 7, 5])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[2, 0], rightKeys=[2, 1], outputColumns=[1, 3, 4])\n"
+      + "      DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 1, 3])\n"
+      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
+      + "        DruidOuterQueryRel(group=[{0}], EXPR$0=[MIN($1)])\n"
+      + "          DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2])\n"
+      + "            DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
+      + "            DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
+      + "              DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
+      + "              DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
+      + "                DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
+      + "                DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[4], rightKeys=[1], outputColumns=[0, 1, 2, 3, 5, 6, 7])\n"
       + "      DruidQueryRel(table=[druid.supplier], scanProject=[$0, $1, $2, $3, $4, $5, $6])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1])\n"
       + "        DruidQueryRel(table=[druid.nation], scanProject=[$1, $2, $3])\n"
-      + "        DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[3, 1], rightKeys=[0, 1], outputColumns=[0, 2, 3])\n"
-      + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2, 3, 4])\n"
-      + "        DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
-      + "      DruidOuterQueryRel(group=[{0}], EXPR$0=[MIN($1)])\n"
-      + "        DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2])\n"
-      + "          DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-      + "          DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
-      + "            DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
-      + "            DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
-      + "              DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
-      + "              DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n";
+      + "        DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n";
 
   public static final Object[][] TPCH2_RESULT = {
       {6820.35, "Supplier#000000007", "UNITED KINGDOM", "560", "Manufacturer#2", "s,4TicNGB4uO6PaSqNBUq", "33-990-965-2201", "s unwind silently furiously regular courts. final requests are deposits. requests wake quietly blit"},
@@ -448,7 +448,7 @@ public class TpchTest extends TpchTestHelper
   public static final String TPCH4_EXPLAIN =
       "DruidOuterQueryRel(group=[{0}], order_count=[COUNT()], sort=[$0:ASC])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
-      + "    DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1996-05-01'), <($3, '1996-08-01'), IS NOT NULL($4))], scanProject=[$4, $5])\n"
+      + "    DruidQueryRel(table=[druid.orders], scanFilter=[AND(SEARCH($3, Sarg[['1996-05-01'..'1996-08-01')]:CHAR(10)), IS NOT NULL($4))], scanProject=[$4, $5])\n"
       + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(<($1, $9), IS NOT NULL($6))], scanProject=[$6], group=[{0}])\n";
 
   public static final Object[][] TPCH4_RESULT = {
@@ -466,28 +466,28 @@ public class TpchTest extends TpchTestHelper
 
     if (semiJoin) {
       hook.verifyHooked(
-          "cHPK2Sx4JXiZy4hq4s+qpQ==",
+          "h/6OL5PEdkAS6ZpOEaur+g==",
           "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL)), sampleRatio=0.050}",
           "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL)), outputColumns=[d0]}",
-          "GroupByQuery{dataSource='StreamQuery{dataSource='orders', filter=(!(O_ORDERKEY==NULL) && BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01} && CompressedInFilter{dimension='O_ORDERKEY', sourceLen=6953, destLen=21978}), columns=[O_ORDERPRIORITY]}', dimensions=[DefaultDimensionSpec{dimension='O_ORDERPRIORITY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0]}",
-          "StreamQuery{dataSource='orders', filter=(!(O_ORDERKEY==NULL) && BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01} && CompressedInFilter{dimension='O_ORDERKEY', sourceLen=6953, destLen=21978}), columns=[O_ORDERPRIORITY]}"
+          "GroupByQuery{dataSource='StreamQuery{dataSource='orders', filter=(BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01} && !(O_ORDERKEY==NULL) && CompressedInFilter{dimension='O_ORDERKEY', sourceLen=6953, destLen=21978}), columns=[O_ORDERPRIORITY]}', dimensions=[DefaultDimensionSpec{dimension='O_ORDERPRIORITY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0]}",
+          "StreamQuery{dataSource='orders', filter=(BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01} && !(O_ORDERKEY==NULL) && CompressedInFilter{dimension='O_ORDERKEY', sourceLen=6953, destLen=21978}), columns=[O_ORDERPRIORITY]}"
       );
     } else {
       if (bloomFilter) {
         hook.verifyHooked(
-            "gIX4kOXICTX29bChTb+L3A==",
+            "BeDySK27n6T2qdHK5VwTAQ==",
             "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL)), sampleRatio=0.050}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='orders', filter=(!(O_ORDERKEY==NULL) && BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01}), columns=[O_ORDERKEY, O_ORDERPRIORITY], $hash=true}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL) && BloomDimFilter.Factory{bloomSource=$view:orders[O_ORDERKEY](BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01}), fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, maxNumEntries=287}), outputColumns=[d0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='O_ORDERPRIORITY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0]}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='orders', filter=(BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01} && !(O_ORDERKEY==NULL)), columns=[O_ORDERKEY, O_ORDERPRIORITY], $hash=true}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL) && BloomDimFilter.Factory{bloomSource=$view:orders[O_ORDERKEY](BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01}), fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, maxNumEntries=287}), outputColumns=[d0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='O_ORDERPRIORITY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0]}",
             "TimeseriesQuery{dataSource='orders', filter=BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01}, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[O_ORDERKEY], groupingSets=Noop, byRow=true, maxNumEntries=287}]}",
-            "StreamQuery{dataSource='orders', filter=(!(O_ORDERKEY==NULL) && BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01}), columns=[O_ORDERKEY, O_ORDERPRIORITY], $hash=true}",
+            "StreamQuery{dataSource='orders', filter=(BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01} && !(O_ORDERKEY==NULL)), columns=[O_ORDERKEY, O_ORDERPRIORITY], $hash=true}",
             "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL) && BloomFilter{fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop}), outputColumns=[d0]}"
         );
       } else {
         hook.verifyHooked(
-            "zP/TKd50uEjcB/R8ie2rYA==",
+            "FubbF7wpcgOiuO9jCAKuwQ==",
             "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL)), sampleRatio=0.050}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='orders', filter=(!(O_ORDERKEY==NULL) && BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01}), columns=[O_ORDERKEY, O_ORDERPRIORITY], $hash=true}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL)), outputColumns=[d0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='O_ORDERPRIORITY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0]}",
-            "StreamQuery{dataSource='orders', filter=(!(O_ORDERKEY==NULL) && BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01}), columns=[O_ORDERKEY, O_ORDERPRIORITY], $hash=true}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='orders', filter=(BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01} && !(O_ORDERKEY==NULL)), columns=[O_ORDERKEY, O_ORDERPRIORITY], $hash=true}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL)), outputColumns=[d0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='O_ORDERPRIORITY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0]}",
+            "StreamQuery{dataSource='orders', filter=(BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01} && !(O_ORDERKEY==NULL)), columns=[O_ORDERKEY, O_ORDERPRIORITY], $hash=true}",
             "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && !(L_ORDERKEY==NULL)), outputColumns=[d0]}"
         );
       }
@@ -523,7 +523,7 @@ public class TpchTest extends TpchTestHelper
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[2], outputColumns=[0, 2, 3, 5])\n"
       + "          DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1, 3])\n"
       + "            DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n"
-      + "            DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1993-01-01'), <($3, '1994-01-01'))], scanProject=[$2, $4])\n"
+      + "            DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1993-01-01'..'1994-01-01')]:CHAR(10))], scanProject=[$2, $4])\n"
       + "          DruidQueryRel(table=[druid.lineitem], scanProject=[$2, $3, $6, $14])\n"
       + "        DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
       + "      DruidQueryRel(table=[druid.nation], scanProject=[$1, $2, $3])\n"
@@ -531,17 +531,17 @@ public class TpchTest extends TpchTestHelper
 
   public static final String TPCH5_EXPLAIN_JR =
       "DruidOuterQueryRel(scanProject=[$0, *($1, -(1, $2))], group=[{0}], REVENUE=[SUM($1)], sort=[$1:DESC])\n"
-      + "  DruidJoinRel(joinType=[INNER], leftKeys=[2, 4], rightKeys=[1, 0], outputColumns=[3, 1, 0])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1], outputColumns=[0, 1, 3, 4, 5])\n"
-      + "      DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[1], outputColumns=[0, 1, 2, 4, 6])\n"
-      + "        DruidQueryRel(table=[druid.lineitem], scanProject=[$2, $3, $6, $14])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[2, 3], rightKeys=[1, 0], outputColumns=[4, 1, 0])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[1], outputColumns=[0, 1, 2, 4, 6])\n"
+      + "      DruidQueryRel(table=[druid.lineitem], scanProject=[$2, $3, $6, $14])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 3, 4])\n"
+      + "        DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n"
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[0, 1, 2])\n"
       + "          DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
       + "          DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1])\n"
       + "            DruidQueryRel(table=[druid.nation], scanProject=[$1, $2, $3])\n"
       + "            DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'AFRICA')], scanProject=[$2])\n"
-      + "      DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1993-01-01'), <($3, '1994-01-01'))], scanProject=[$2, $4])\n"
-      + "    DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n";
+      + "    DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1993-01-01'..'1994-01-01')]:CHAR(10))], scanProject=[$2, $4])\n";
 
   public static final String TPCH5_EXPLAIN_JR2 =
       "DruidOuterQueryRel(scanProject=[$0, *($1, -(1, $2))], group=[{0}], REVENUE=[SUM($1)], sort=[$1:DESC])\n"
@@ -549,7 +549,7 @@ public class TpchTest extends TpchTestHelper
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1], outputColumns=[0, 1, 3, 4, 6])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1], outputColumns=[0, 1, 3, 4])\n"
       + "        DruidQueryRel(table=[druid.lineitem], scanProject=[$2, $3, $6, $14])\n"
-      + "        DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1993-01-01'), <($3, '1994-01-01'))], scanProject=[$2, $4])\n"
+      + "        DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1993-01-01'..'1994-01-01')]:CHAR(10))], scanProject=[$2, $4])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[0, 1, 2])\n"
       + "        DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1])\n"
@@ -622,7 +622,7 @@ public class TpchTest extends TpchTestHelper
       + "    L_QUANTITY < 25";
 
   public static final String TPCH6_EXPLAIN =
-      "DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1993-01-01'), <($11, '1994-01-01'), >=($2, 0.05:DECIMAL(4, 2)), <=($2, 0.07:DECIMAL(4, 2)), <($8, 25))], scanProject=[*($3, $2)], REVENUE=[SUM($0)])\n";
+      "DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($11, Sarg[['1993-01-01'..'1994-01-01')]:CHAR(10)), SEARCH($2, Sarg[[0.05:DECIMAL(4, 2)..0.07:DECIMAL(4, 2)]]:DECIMAL(4, 2)), <($8, 25))], scanProject=[*($3, $2)], REVENUE=[SUM($0)])\n";
 
   public static final Object[][] TPCH6_RESULT = {{635343.2898368868}};
 
@@ -632,8 +632,8 @@ public class TpchTest extends TpchTestHelper
     testQuery(TPCH6, TPCH6_EXPLAIN, TPCH6_RESULT);
 
     hook.verifyHooked(
-        "O0Hi2VcG5/cTI5Ge/0u79w==",
-        "TimeseriesQuery{dataSource='lineitem', filter=(BoundDimFilter{L_QUANTITY < 25(numeric)} && BoundDimFilter{0.05 <= L_DISCOUNT <= 0.07(numeric)} && BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * L_DISCOUNT)', inputType='double'}], outputColumns=[a0]}"
+        "CweYxhtU6/v5anbL9dCHMw==",
+        "TimeseriesQuery{dataSource='lineitem', filter=(BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01} && BoundDimFilter{0.05 <= L_DISCOUNT <= 0.07(numeric)} && BoundDimFilter{L_QUANTITY < 25(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * L_DISCOUNT)', inputType='double'}], outputColumns=[a0]}"
     );
   }
 
@@ -677,25 +677,25 @@ public class TpchTest extends TpchTestHelper
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[1], outputColumns=[0, 1, 2, 5, 4])\n"
       + "          DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[3], outputColumns=[0, 2, 3, 4, 6])\n"
       + "            DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
-      + "            DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1995-01-01'), <=($11, '1996-12-31'))], scanProject=[$2, $3, $6, $14, YEAR($11)])\n"
+      + "            DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1995-01-01'..'1996-12-31']]:CHAR(10))], scanProject=[$2, $3, $6, $14, YEAR($11)])\n"
       + "          DruidQueryRel(table=[druid.orders], scanProject=[$2, $4])\n"
       + "        DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n"
-      + "      DruidQueryRel(table=[druid.nation], scanFilter=[OR(=($1, 'KENYA'), =($1, 'PERU'))], scanProject=[$1, $2])\n"
-      + "    DruidQueryRel(table=[druid.nation], scanFilter=[OR(=($1, 'PERU'), =($1, 'KENYA'))], scanProject=[$1, $2])\n";
+      + "      DruidQueryRel(table=[druid.nation], scanFilter=[SEARCH($1, Sarg['KENYA':VARCHAR(5), 'PERU':VARCHAR(5)]:VARCHAR(5))], scanProject=[$1, $2])\n"
+      + "    DruidQueryRel(table=[druid.nation], scanFilter=[SEARCH($1, Sarg['KENYA':VARCHAR(5), 'PERU':VARCHAR(5)]:VARCHAR(5))], scanProject=[$1, $2])\n";
 
   public static final String TPCH7_EXPLAIN_JR =
       "DruidOuterQueryRel(scanFilter=[OR(AND(=($0, 'KENYA'), =($1, 'PERU')), AND(=($0, 'PERU'), =($1, 'KENYA')))], scanProject=[$0, $1, $2, *($3, -(1, $4))], group=[{0, 1, 2}], REVENUE=[SUM($3)], sort=[$0:ASC, $1:ASC, $2:ASC])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[3, 6, 4, 1, 0])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 6, 4])\n"
-      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1995-01-01'), <=($11, '1996-12-31'))], scanProject=[$2, $3, $6, $14, YEAR($11)])\n"
+      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1995-01-01'..'1996-12-31']]:CHAR(10))], scanProject=[$2, $3, $6, $14, YEAR($11)])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2])\n"
       + "        DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
-      + "        DruidQueryRel(table=[druid.nation], scanFilter=[OR(=($1, 'KENYA'), =($1, 'PERU'))], scanProject=[$1, $2])\n"
+      + "        DruidQueryRel(table=[druid.nation], scanFilter=[SEARCH($1, Sarg['KENYA':VARCHAR(5), 'PERU':VARCHAR(5)]:VARCHAR(5))], scanProject=[$1, $2])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1, 3])\n"
       + "      DruidQueryRel(table=[druid.orders], scanProject=[$2, $4])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[1], outputColumns=[0, 2])\n"
       + "        DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n"
-      + "        DruidQueryRel(table=[druid.nation], scanFilter=[OR(=($1, 'PERU'), =($1, 'KENYA'))], scanProject=[$1, $2])\n";
+      + "        DruidQueryRel(table=[druid.nation], scanFilter=[SEARCH($1, Sarg['KENYA':VARCHAR(5), 'PERU':VARCHAR(5)]:VARCHAR(5))], scanProject=[$1, $2])\n";
 
   public static final String TPCH7_EXPLAIN_JR2 =
       "DruidOuterQueryRel(scanFilter=[OR(AND(=($0, 'KENYA'), =($1, 'PERU')), AND(=($0, 'PERU'), =($1, 'KENYA')))], scanProject=[$0, $1, $2, *($3, -(1, $4))], group=[{0, 1, 2}], REVENUE=[SUM($3)], sort=[$0:ASC, $1:ASC, $2:ASC])\n"
@@ -704,12 +704,12 @@ public class TpchTest extends TpchTestHelper
       + "      DruidQueryRel(table=[druid.orders], scanProject=[$2, $4])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[1], outputColumns=[0, 2])\n"
       + "        DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n"
-      + "        DruidQueryRel(table=[druid.nation], scanFilter=[OR(=($1, 'PERU'), =($1, 'KENYA'))], scanProject=[$1, $2])\n"
+      + "        DruidQueryRel(table=[druid.nation], scanFilter=[SEARCH($1, Sarg['KENYA':VARCHAR(5), 'PERU':VARCHAR(5)]:VARCHAR(5))], scanProject=[$1, $2])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 6, 4])\n"
-      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1995-01-01'), <=($11, '1996-12-31'))], scanProject=[$2, $3, $6, $14, YEAR($11)])\n"
+      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1995-01-01'..'1996-12-31']]:CHAR(10))], scanProject=[$2, $3, $6, $14, YEAR($11)])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2])\n"
       + "        DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
-      + "        DruidQueryRel(table=[druid.nation], scanFilter=[OR(=($1, 'KENYA'), =($1, 'PERU'))], scanProject=[$1, $2])\n";
+      + "        DruidQueryRel(table=[druid.nation], scanFilter=[SEARCH($1, Sarg['KENYA':VARCHAR(5), 'PERU':VARCHAR(5)]:VARCHAR(5))], scanProject=[$1, $2])\n";
 
   public static final Object[][] TPCH7_RESULT = {
       {"KENYA", "PERU", 1995L, 155808.41736393946D},
@@ -842,7 +842,7 @@ public class TpchTest extends TpchTestHelper
       + "                DruidQueryRel(table=[druid.lineitem], scanProject=[$2, $3, $6, $7, $14])\n"
       + "                DruidQueryRel(table=[druid.part], scanFilter=[=($8, 'ECONOMY BURNISHED NICKEL')], scanProject=[$5])\n"
       + "              DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
-      + "            DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1995-01-01'), <=($3, '1996-12-31'))], scanProject=[$2, $4, YEAR($3)])\n"
+      + "            DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1995-01-01'..'1996-12-31']]:CHAR(10))], scanProject=[$2, $4, YEAR($3)])\n"
       + "          DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n"
       + "        DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
       + "      DruidQueryRel(table=[druid.nation], scanProject=[$1, $2])\n"
@@ -852,7 +852,7 @@ public class TpchTest extends TpchTestHelper
       "DruidOuterQueryRel(scanProject=[$0, CASE(=($1, 'ROMANIA'), *($2, -(1, $3)), 0:DOUBLE), *($2, -(1, $3))], group=[{0}], agg#0=[SUM($1)], agg#1=[SUM($2)], aggregateProject=[$0, /($1, $2)], sort=[$0:ASC])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[2], outputColumns=[1, 5, 3, 2])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1, 2])\n"
-      + "      DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1995-01-01'), <=($3, '1996-12-31'))], scanProject=[$2, $4, YEAR($3)])\n"
+      + "      DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1995-01-01'..'1996-12-31']]:CHAR(10))], scanProject=[$2, $4, YEAR($3)])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
       + "        DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n"
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
@@ -870,7 +870,7 @@ public class TpchTest extends TpchTestHelper
       "DruidOuterQueryRel(scanProject=[$0, CASE(=($1, 'ROMANIA'), *($2, -(1, $3)), 0:DOUBLE), *($2, -(1, $3))], group=[{0}], agg#0=[SUM($1)], agg#1=[SUM($2)], aggregateProject=[$0, /($1, $2)], sort=[$0:ASC])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[4, 3, 2, 1])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[2], outputColumns=[0, 3, 4, 6, 2])\n"
-      + "      DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1995-01-01'), <=($3, '1996-12-31'))], scanProject=[$2, $4, YEAR($3)])\n"
+      + "      DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1995-01-01'..'1996-12-31']]:CHAR(10))], scanProject=[$2, $4, YEAR($3)])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 5])\n"
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 4])\n"
       + "          DruidQueryRel(table=[druid.lineitem], scanProject=[$2, $3, $6, $7, $14])\n"
@@ -1287,7 +1287,7 @@ public class TpchTest extends TpchTestHelper
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[7], rightKeys=[2], outputColumns=[0, 1, 2, 3, 4, 5, 6, 8, 9])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 3, 4, 5, 6, 8])\n"
       + "        DruidQueryRel(table=[druid.customer], scanProject=[$0, $1, $2, $3, $5, $6, $7])\n"
-      + "        DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1993-07-01'), <($3, '1993-10-01'))], scanProject=[$2, $4])\n"
+      + "        DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1993-07-01'..'1993-10-01')]:CHAR(10))], scanProject=[$2, $4])\n"
       + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[=($10, 'R')], scanProject=[$2, $3, $6])\n"
       + "    DruidQueryRel(table=[druid.nation], scanProject=[$1, $2])\n";
 
@@ -1295,7 +1295,7 @@ public class TpchTest extends TpchTestHelper
       "DruidOuterQueryRel(scanProject=[$0, $1, $2, $3, $4, $5, $6, *($7, -(1, $8))], group=[{0, 1, 2, 3, 4, 5, 6}], REVENUE=[SUM($7)], aggregateProject=[$0, $1, $7, $2, $4, $5, $3, $6], sort=[$2:DESC], fetch=[20])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[3], outputColumns=[6, 7, 3, 8, 9, 4, 5, 2, 1])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[2], outputColumns=[0, 2, 3])\n"
-      + "      DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1993-07-01'), <($3, '1993-10-01'))], scanProject=[$2, $4])\n"
+      + "      DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1993-07-01'..'1993-10-01')]:CHAR(10))], scanProject=[$2, $4])\n"
       + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[=($10, 'R')], scanProject=[$2, $3, $6])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[5], rightKeys=[1], outputColumns=[0, 1, 2, 3, 4, 6, 7])\n"
       + "      DruidQueryRel(table=[druid.customer], scanProject=[$0, $1, $2, $3, $5, $6, $7])\n"
@@ -1308,7 +1308,7 @@ public class TpchTest extends TpchTestHelper
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[5], rightKeys=[1], outputColumns=[0, 1, 2, 3, 4, 6, 7, 8])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 3, 4, 5, 6, 8])\n"
       + "        DruidQueryRel(table=[druid.customer], scanProject=[$0, $1, $2, $3, $5, $6, $7])\n"
-      + "        DruidQueryRel(table=[druid.orders], scanFilter=[AND(>=($3, '1993-07-01'), <($3, '1993-10-01'))], scanProject=[$2, $4])\n"
+      + "        DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1993-07-01'..'1993-10-01')]:CHAR(10))], scanProject=[$2, $4])\n"
       + "      DruidQueryRel(table=[druid.nation], scanProject=[$1, $2])\n";
 
   public static final Object[][] TPCH10_RESULT = {
@@ -1568,10 +1568,10 @@ public class TpchTest extends TpchTestHelper
       + "    L_SHIPMODE";
 
   public static final String TPCH12_EXPLAIN =
-      "DruidOuterQueryRel(scanProject=[$0, CASE(OR(=($1, '1-URGENT'), =($1, '2-HIGH')), 1, 0), CASE(AND(<>($1, '1-URGENT'), <>($1, '2-HIGH')), 1, 0), IS TRUE(OR(=($1, '1-URGENT'), =($1, '2-HIGH'))), IS TRUE(AND(<>($1, '1-URGENT'), <>($1, '2-HIGH')))], group=[{0}], high_line_count=[COUNT() FILTER $3], low_line_count=[COUNT() FILTER $4], sort=[$0:ASC])\n"
+      "DruidOuterQueryRel(scanProject=[$0, IS TRUE(SEARCH($1, Sarg['1-URGENT':VARCHAR(8), '2-HIGH':VARCHAR(8)]:VARCHAR(8))), IS TRUE(SEARCH($1, Sarg[(-∞..'1-URGENT':VARCHAR(8)), ('1-URGENT':VARCHAR(8)..'2-HIGH':VARCHAR(8)), ('2-HIGH':VARCHAR(8)..+∞)]:VARCHAR(8)))], group=[{0}], high_line_count=[COUNT() FILTER $1], low_line_count=[COUNT() FILTER $2], sort=[$0:ASC])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[3, 1])\n"
       + "    DruidQueryRel(table=[druid.orders], scanProject=[$4, $5])\n"
-      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(OR(=($13, 'REG AIR'), =($13, 'MAIL')), <($1, $9), <($11, $1), >=($9, '1995-01-01'), <($9, '1996-01-01'))], scanProject=[$6, $13])\n";
+      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($13, Sarg['MAIL':VARCHAR(7), 'REG AIR':VARCHAR(7)]:VARCHAR(7)), <($1, $9), <($11, $1), SEARCH($9, Sarg[['1995-01-01'..'1996-01-01')]:CHAR(10)))], scanProject=[$6, $13])\n";
 
   public static final Object[][] TPCH12_RESULT = {{"MAIL", 34L, 44L}, {"REG AIR", 37L, 43L}};
 
@@ -1664,7 +1664,7 @@ public class TpchTest extends TpchTestHelper
   public static final String TPCH14_EXPLAIN =
       "DruidOuterQueryRel(scanProject=[CASE($0, *($1, -(1, $2)), 0:DOUBLE), *($1, -(1, $2))], agg#0=[SUM($0)], agg#1=[SUM($1)], aggregateProject=[/(*(100.00:DECIMAL(5, 2), $0), $1)])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[4, 1, 0])\n"
-      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1995-08-01'), <($11, '1995-09-01'))], scanProject=[$2, $3, $7])\n"
+      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1995-08-01'..'1995-09-01')]:CHAR(10))], scanProject=[$2, $3, $7])\n"
       + "    DruidQueryRel(table=[druid.part], scanProject=[$5, LIKE($8, 'PROMO%')])\n";
 
   public static final Object[][] TPCH14_RESULT = {{21.62198225363824}};
@@ -1738,18 +1738,18 @@ public class TpchTest extends TpchTestHelper
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[4], rightKeys=[0], outputColumns=[3, 1, 0, 2, 4])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 3, 5])\n"
       + "      DruidQueryRel(table=[druid.supplier], scanProject=[$1, $3, $5, $6])\n"
-      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1996-01-01'), <($11, '1996-04-01'))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)])\n"
+      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1996-01-01'..'1996-04-01')]:CHAR(10))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)])\n"
       + "    DruidOuterQueryRel(EXPR$0=[MAX($0)])\n"
-      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1996-01-01'), <($11, '1996-04-01'))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)], aggregateProject=[$1])\n";
+      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1996-01-01'..'1996-04-01')]:CHAR(10))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)], aggregateProject=[$1])\n";
 
   public static final String TPCH15_EXPLAIN_JR =
       "DruidOuterQueryRel(sort=[$0:ASC])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[4, 2, 1, 3, 0])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[3], outputColumns=[1, 2, 3, 4, 5])\n"
-      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1996-01-01'), <($11, '1996-04-01'))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)])\n"
+      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1996-01-01'..'1996-04-01')]:CHAR(10))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)])\n"
       + "      DruidQueryRel(table=[druid.supplier], scanProject=[$1, $3, $5, $6])\n"
       + "    DruidOuterQueryRel(EXPR$0=[MAX($0)])\n"
-      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1996-01-01'), <($11, '1996-04-01'))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)], aggregateProject=[$1])\n";
+      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1996-01-01'..'1996-04-01')]:CHAR(10))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)], aggregateProject=[$1])\n";
 
   public static final Object[][] TPCH15_RESULT = {
       {"6", "Supplier#000000006", "tQxuVm7s7CnK", "24-696-997-4969", 1080265.1420867585D}
@@ -1812,9 +1812,9 @@ public class TpchTest extends TpchTestHelper
       + "    DruidJoinRel(joinType=[INNER])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1])\n"
       + "        DruidQueryRel(table=[druid.partsupp], scanProject=[$2, $3])\n"
-      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(OR(=($7, 22), =($7, 14), =($7, 27), =($7, 49), =($7, 21), =($7, 33), =($7, 35), =($7, 28)), <>($0, 'Brand#34'), NOT(LIKE($8, 'ECONOMY BRUSHED%')))], scanProject=[$0, $5, $7, $8])\n"
+      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(SEARCH($7, Sarg[14L:BIGINT, 21L:BIGINT, 22L:BIGINT, 27L:BIGINT, 28L:BIGINT, 33L:BIGINT, 35L:BIGINT, 49L:BIGINT]:BIGINT), <>($0, 'Brand#34'), NOT(LIKE($8, 'ECONOMY BRUSHED%')))], scanProject=[$0, $5, $7, $8])\n"
       + "      DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6], c=[COUNT()], ck=[COUNT($0)])\n"
-      + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6, true], group=[{0, 1}])\n";
+      + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6], group=[{0}], i=[LITERAL_AGG(true)])\n";
 
   public static final String TPCH16_EXPLAIN_JR =
       "DruidOuterQueryRel(scanFilter=[OR(=($4, 0), AND(IS NULL($5), >=($6, $4), IS NOT NULL($3)))], scanProject=[$0, $1, $2, $3], group=[{0, 1, 2}], supplier_cnt=[COUNT(DISTINCT $3)], sort=[$3:DESC, $0:ASC, $1:ASC, $2:ASC])\n"
@@ -1822,8 +1822,8 @@ public class TpchTest extends TpchTestHelper
       + "    DruidJoinRel(joinType=[LEFT], leftKeys=[1], rightKeys=[0])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1])\n"
       + "        DruidQueryRel(table=[druid.partsupp], scanProject=[$2, $3])\n"
-      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(OR(=($7, 22), =($7, 14), =($7, 27), =($7, 49), =($7, 21), =($7, 33), =($7, 35), =($7, 28)), <>($0, 'Brand#34'), NOT(LIKE($8, 'ECONOMY BRUSHED%')))], scanProject=[$0, $5, $7, $8])\n"
-      + "      DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6, true], group=[{0, 1}])\n"
+      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(SEARCH($7, Sarg[14L:BIGINT, 21L:BIGINT, 22L:BIGINT, 27L:BIGINT, 28L:BIGINT, 33L:BIGINT, 35L:BIGINT, 49L:BIGINT]:BIGINT), <>($0, 'Brand#34'), NOT(LIKE($8, 'ECONOMY BRUSHED%')))], scanProject=[$0, $5, $7, $8])\n"
+      + "      DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6], group=[{0}], i=[LITERAL_AGG(true)])\n"
       + "    DruidQueryRel(table=[druid.supplier], scanFilter=[LIKE($2, '%fluffily%requests%')], scanProject=[$6], c=[COUNT()], ck=[COUNT($0)])\n";
 
   public static final Object[][] TPCH16_RESULT = {
@@ -1984,32 +1984,32 @@ public class TpchTest extends TpchTestHelper
 
     if (semiJoin) {
       hook.verifyHooked(
-          "qwyWFq+UYXuIeBPzak+hsA==",
+          "4991rV1WyxZ4K6kQCvm4ZQ==",
           "StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}",
-          "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=InDimFilter{dimension='PS_PARTKEY', values=[105, 106, 111, 116, 127, 134, 14, 150, 155, 162, ..139 more]}, columns=[PS_PARTKEY, PS_SUPPKEY]}, MaterializedQuery{dataSource=[part]}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
+          "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=InDimFilter{dimension='PS_PARTKEY', values=[105, 106, 111, 116, 127, 134, 14, 150, 155, 162, ..139 more]}, columns=[PS_PARTKEY, PS_SUPPKEY]}, MaterializedQuery{dataSource=[part]}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}], filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[LiteralAggregatorFactory{value=true}], outputColumns=[d0, a0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='d2'}], filter=((a0=='0' || a00==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=-1}, outputColumns=[d0, d1, d2, _a0]}",
           "StreamQuery{dataSource='partsupp', filter=InDimFilter{dimension='PS_PARTKEY', values=[105, 106, 111, 116, 127, 134, 14, 150, 155, 162, ..139 more]}, columns=[PS_PARTKEY, PS_SUPPKEY]}",
           "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
-          "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
+          "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}], filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[LiteralAggregatorFactory{value=true}], outputColumns=[d0, a0], $hash=true}"
       );
     } else {
       if (bloomFilter) {
         hook.verifyHooked(
-            "/jII5b2xXQOfTQCcHvyMWA==",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY]((InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%'))), fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop, maxNumEntries=149}, columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
+            "/xtM46xZrrHoL0Few4+D2Q==",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY]((InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%'))), fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop, maxNumEntries=149}, columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}], filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[LiteralAggregatorFactory{value=true}], outputColumns=[d0, a0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='d2'}], filter=((a0=='0' || a00==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=-1}, outputColumns=[d0, d1, d2, _a0]}",
             "TimeseriesQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=149}]}",
             "StreamQuery{dataSource='partsupp', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop}, columns=[PS_PARTKEY, PS_SUPPKEY]}",
             "StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}",
             "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
-            "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
+            "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}], filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[LiteralAggregatorFactory{value=true}], outputColumns=[d0, a0], $hash=true}"
         );
       } else {
         hook.verifyHooked(
-            "ojMmykFx2RVLZovWQYuEYA==",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d2'}], filter=((a0=='0' || d1==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _d2, _a0]}",
+            "9mIQjtVGgzbm6EkFHaHmbw==",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}], filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[LiteralAggregatorFactory{value=true}], outputColumns=[d0, a0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='d0'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='d1'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='d2'}], filter=((a0=='0' || a00==NULL) && (a0=='0' || MathExprFilter{expression='(a1 >= a0)'}) && (a0=='0' || !(PS_SUPPKEY==NULL))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fieldNames=[PS_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=-1}, outputColumns=[d0, d1, d2, _a0]}",
             "StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY]}",
             "StreamQuery{dataSource='part', filter=(InDimFilter{dimension='P_SIZE', values=[14, 21, 22, 27, 28, 33, 35, 49]} && !(P_BRAND=='Brand#34') && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}",
             "TimeseriesQuery{dataSource='supplier', filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], $hash=true}",
-            "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%fluffily%requests%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
+            "GroupByQuery{dataSource='supplier', dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}], filter=S_COMMENT LIKE '%fluffily%requests%', aggregatorSpecs=[LiteralAggregatorFactory{value=true}], outputColumns=[d0, a0], $hash=true}"
         );
       }
     }
@@ -2305,9 +2305,9 @@ public class TpchTest extends TpchTestHelper
       + "    )";
 
   public static final String TPCH19_EXPLAIN =
-      "DruidOuterQueryRel(scanFilter=[OR(AND(=($2, 'Brand#32'), OR(=($3, 'SM CASE'), =($3, 'SM BOX'), =($3, 'SM PACK'), =($3, 'SM PKG')), >=($4, 7), <=($4, 17), <=($5, 5)), AND(=($2, 'Brand#35'), OR(=($3, 'MED BAG'), =($3, 'MED BOX'), =($3, 'MED PKG'), =($3, 'MED PACK')), >=($4, 15), <=($4, 25), <=($5, 10)), AND(=($2, 'Brand#24'), OR(=($3, 'LG CASE'), =($3, 'LG BOX'), =($3, 'LG PACK'), =($3, 'LG PKG')), >=($4, 26), <=($4, 36), <=($5, 15)))], scanProject=[*($0, -(1, $1))], REVENUE=[SUM($0)])\n"
+      "DruidOuterQueryRel(scanFilter=[OR(AND(=($2, 'Brand#32'), SEARCH($3, Sarg['SM BOX':VARCHAR(7), 'SM CASE':VARCHAR(7), 'SM PACK':VARCHAR(7), 'SM PKG':VARCHAR(7)]:VARCHAR(7)), SEARCH($4, Sarg[[7..17]]), <=($5, 5)), AND(=($2, 'Brand#35'), SEARCH($3, Sarg['MED BAG':VARCHAR(8), 'MED BOX':VARCHAR(8), 'MED PACK':VARCHAR(8), 'MED PKG':VARCHAR(8)]:VARCHAR(8)), SEARCH($4, Sarg[[15..25]]), <=($5, 10)), AND(=($2, 'Brand#24'), SEARCH($3, Sarg['LG BOX':VARCHAR(7), 'LG CASE':VARCHAR(7), 'LG PACK':VARCHAR(7), 'LG PKG':VARCHAR(7)]:VARCHAR(7)), SEARCH($4, Sarg[[26..36]]), <=($5, 15)))], scanProject=[*($0, -(1, $1))], REVENUE=[SUM($0)])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[2], outputColumns=[1, 0, 4, 5, 3, 7])\n"
-      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(OR(=($13, 'AIR'), =($13, 'AIR REG')), =($12, 'NONE'))], scanProject=[$2, $3, $7, $8])\n"
+      + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($13, Sarg['AIR':VARCHAR(7), 'AIR REG':VARCHAR(7)]:VARCHAR(7)), =($12, 'NONE'))], scanProject=[$2, $3, $7, $8])\n"
       + "    DruidQueryRel(table=[druid.part], scanFilter=[>=($7, 1)], scanProject=[$0, $2, $5, $7])\n";
 
   public static final Object[][] TPCH19_RESULT = {{96705.38689177096D}};
@@ -2319,24 +2319,24 @@ public class TpchTest extends TpchTestHelper
 
     if (semiJoin) {
       hook.verifyHooked(
-          "N1MIm1DLHENEMYqvNePmGg==",
+          "4ivqiaEoawK2svM6UfmUaQ==",
           "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
-          "TimeseriesQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[lineitem]}, StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && InDimFilter{dimension='P_PARTKEY', values=[1, 10, 100, 1000, 102, 103, 106, 108, 109, 11, ..656 more]}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
+          "TimeseriesQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[lineitem]}, StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && InDimFilter{dimension='P_PARTKEY', values=[1, 10, 100, 1000, 102, 103, 106, 108, 109, 11, ..656 more]}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)} && BoundDimFilter{P_SIZE <= 5(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)} && BoundDimFilter{P_SIZE <= 10(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)} && BoundDimFilter{P_SIZE <= 15(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
           "StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && InDimFilter{dimension='P_PARTKEY', values=[1, 10, 100, 1000, 102, 103, 106, 108, 109, 11, ..656 more]}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}"
       );
     } else {
       if (bloomFilter) {
         hook.verifyHooked(
-            "2hUH1d3RnV92772zeR+e5A==",
-            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && BloomDimFilter.Factory{bloomSource=$view:lineitem[L_PARTKEY]((InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE')), fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='P_PARTKEY'}], groupingSets=Noop, maxNumEntries=1107}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
+            "h3WFh52UXNfUS5JBMjpSnA==",
+            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && BloomDimFilter.Factory{bloomSource=$view:lineitem[L_PARTKEY]((InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE')), fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='P_PARTKEY'}], groupingSets=Noop, maxNumEntries=1107}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)} && BoundDimFilter{P_SIZE <= 5(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)} && BoundDimFilter{P_SIZE <= 10(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)} && BoundDimFilter{P_SIZE <= 15(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
             "TimeseriesQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[L_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=1107}]}",
             "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
             "StreamQuery{dataSource='part', filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && BloomFilter{fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='P_PARTKEY'}], groupingSets=Noop}), columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}"
         );
       } else {
         hook.verifyHooked(
-            "UvqVWmhCBJlyrDfqIjg+ww==",
-            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, StreamQuery{dataSource='part', filter=BoundDimFilter{1 <= P_SIZE(numeric)}, columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
+            "ceqFG93OeJ0ymP2KSdh1PQ==",
+            "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, StreamQuery{dataSource='part', filter=BoundDimFilter{1 <= P_SIZE(numeric)}, columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}], timeColumnName=__time}', filter=((P_BRAND=='Brand#32' && InDimFilter{dimension='P_CONTAINER', values=[SM BOX, SM CASE, SM PACK, SM PKG]} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)} && BoundDimFilter{P_SIZE <= 5(numeric)}) || (P_BRAND=='Brand#35' && InDimFilter{dimension='P_CONTAINER', values=[MED BAG, MED BOX, MED PACK, MED PKG]} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)} && BoundDimFilter{P_SIZE <= 10(numeric)}) || (P_BRAND=='Brand#24' && InDimFilter{dimension='P_CONTAINER', values=[LG BOX, LG CASE, LG PACK, LG PKG]} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)} && BoundDimFilter{P_SIZE <= 15(numeric)})), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * (1 - L_DISCOUNT))', inputType='double'}], outputColumns=[a0]}",
             "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[AIR, AIR REG]} && L_SHIPINSTRUCT=='NONE'), columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
             "StreamQuery{dataSource='part', filter=BoundDimFilter{1 <= P_SIZE(numeric)}, columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE]}"
         );
@@ -2393,7 +2393,7 @@ public class TpchTest extends TpchTestHelper
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 1, 2])\n"
       + "          DruidQueryRel(table=[druid.partsupp], scanFilter=[AND(IS NOT NULL($2), IS NOT NULL($3))], scanProject=[$0, $2, $3])\n"
       + "          DruidQueryRel(table=[druid.part], scanFilter=[AND(LIKE($4, 'forest%'), IS NOT NULL($5))], scanProject=[$5], group=[{0}])\n"
-      + "        DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1994-01-01'), <($11, '1995-01-01'), IS NOT NULL($7), IS NOT NULL($14))], scanProject=[$7, $14, $8], group=[{0, 1}], agg#0=[SUM($2)])\n";
+      + "        DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($11, Sarg[['1994-01-01'..'1995-01-01')]:CHAR(10)), IS NOT NULL($7), IS NOT NULL($14))], scanProject=[$7, $14, $8], group=[{0, 1}], agg#0=[SUM($2)])\n";
 
   public static final String TPCH20_EXPLAIN_JR =
       "DruidOuterQueryRel(sort=[$0:ASC])\n"
@@ -2403,7 +2403,7 @@ public class TpchTest extends TpchTestHelper
       + "      DruidQueryRel(table=[druid.nation], scanFilter=[=($1, 'RUSSIA')], scanProject=[$2])\n"
       + "    DruidOuterQueryRel(scanFilter=[>($1, *(0.5:DECIMAL(2, 1), $2))], scanProject=[$0], group=[{0}])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0, 1], rightKeys=[1, 2], outputColumns=[5, 3, 2])\n"
-      + "        DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1994-01-01'), <($11, '1995-01-01'), IS NOT NULL($7), IS NOT NULL($14))], scanProject=[$7, $14, $8], group=[{0, 1}], agg#0=[SUM($2)])\n"
+      + "        DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($11, Sarg[['1994-01-01'..'1995-01-01')]:CHAR(10)), IS NOT NULL($7), IS NOT NULL($14))], scanProject=[$7, $14, $8], group=[{0, 1}], agg#0=[SUM($2)])\n"
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 1, 2])\n"
       + "          DruidQueryRel(table=[druid.partsupp], scanFilter=[AND(IS NOT NULL($2), IS NOT NULL($3))], scanProject=[$0, $2, $3])\n"
       + "          DruidQueryRel(table=[druid.part], scanFilter=[AND(LIKE($4, 'forest%'), IS NOT NULL($5))], scanProject=[$5], group=[{0}])\n";
@@ -2418,7 +2418,7 @@ public class TpchTest extends TpchTestHelper
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
       + "        DruidOuterQueryRel(scanFilter=[>($2, *(0.5:DECIMAL(2, 1), $3))], scanProject=[$0, $1])\n"
       + "          DruidJoinRel(joinType=[INNER], leftKeys=[0, 1], rightKeys=[1, 2], outputColumns=[4, 5, 3, 2])\n"
-      + "            DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1994-01-01'), <($11, '1995-01-01'), IS NOT NULL($7), IS NOT NULL($14))], scanProject=[$7, $14, $8], group=[{0, 1}], agg#0=[SUM($2)])\n"
+      + "            DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($11, Sarg[['1994-01-01'..'1995-01-01')]:CHAR(10)), IS NOT NULL($7), IS NOT NULL($14))], scanProject=[$7, $14, $8], group=[{0, 1}], agg#0=[SUM($2)])\n"
       + "            DruidQueryRel(table=[druid.partsupp], scanFilter=[AND(IS NOT NULL($2), IS NOT NULL($3))], scanProject=[$0, $2, $3])\n"
       + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(LIKE($4, 'forest%'), IS NOT NULL($5))], scanProject=[$5], group=[{0}])\n";
 
@@ -2431,40 +2431,40 @@ public class TpchTest extends TpchTestHelper
 
     if (semiJoin) {
       hook.verifyHooked(
-          "7WQPSG/Y657WQ2YJRRWw8w==",
+          "1ay9nCT/P8JmXoh0Q45sTQ==",
           "StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY]}",
           "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0]}",
-          "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), sampleRatio=0.050}",
+          "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), sampleRatio=0.050}",
           "StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL) && InDimFilter{dimension='PS_PARTKEY', values=[304, 447, 488, 5, 696, 722, 748, 986]}), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY], $hash=true}",
-          "GroupByQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[partsupp]}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && InDimsFilter{dimensions=[L_PARTKEY, L_SUPPKEY], values=[[304, 23], [304, 41], [304, 5], [304, 9], [447, 18], [447, 38], [447, 48], [447, 8], [488, 10], [488, 2], [..20 more]]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}",
-          "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && InDimsFilter{dimensions=[L_PARTKEY, L_SUPPKEY], values=[[304, 23], [304, 41], [304, 5], [304, 9], [447, 18], [447, 38], [447, 48], [447, 8], [488, 10], [488, 2], [..20 more]]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}",
+          "GroupByQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[partsupp]}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && InDimsFilter{dimensions=[L_PARTKEY, L_SUPPKEY], values=[[304, 23], [304, 41], [304, 5], [304, 9], [447, 18], [447, 38], [447, 48], [447, 8], [488, 10], [488, 2], [..20 more]]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}",
+          "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && InDimsFilter{dimensions=[L_PARTKEY, L_SUPPKEY], values=[[304, 23], [304, 41], [304, 5], [304, 9], [447, 18], [447, 38], [447, 48], [447, 8], [488, 10], [488, 2], [..20 more]]}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}",
           "StreamQuery{dataSource='StreamQuery{dataSource='supplier', filter=(!(S_SUPPKEY==NULL) && S_NATIONKEY=='22' && InDimFilter{dimension='S_SUPPKEY', values=[1, 10, 18, 22, 23, 25, 30, 31, 37, 38, ..6 more]}), columns=[S_NAME, S_ADDRESS]}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
           "StreamQuery{dataSource='supplier', filter=(!(S_SUPPKEY==NULL) && S_NATIONKEY=='22' && InDimFilter{dimension='S_SUPPKEY', values=[1, 10, 18, 22, 23, 25, 30, 31, 37, 38, ..6 more]}), columns=[S_NAME, S_ADDRESS]}"
       );
     } else {
       if (broadcastJoin) {
         hook.verifyHooked(
-            "1hME7XXGuWwU5KJcAmvTqg==",
+            "8FTTkbE+Alxa09tQ04nw3A==",
             "StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY]}",
-            "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), sampleRatio=0.050}",
-            "StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_NATIONKEY, S_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier, leftJoinColumns=[S_NATIONKEY], rightAlias=nation, rightJoinColumns=[N_NATIONKEY]}, hashLeft=false, hashSignature={N_NATIONKEY:string}, applyFilter=true}, $hash=true}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}",
+            "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), sampleRatio=0.050}",
+            "StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_NATIONKEY, S_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier, leftJoinColumns=[S_NATIONKEY], rightAlias=nation, rightJoinColumns=[N_NATIONKEY]}, hashLeft=false, hashSignature={N_NATIONKEY:string}, applyFilter=true}, $hash=true}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}",
             "StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}",
             "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}",
-            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}",
+            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}",
             "StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_NATIONKEY, S_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier, leftJoinColumns=[S_NATIONKEY], rightAlias=nation, rightJoinColumns=[N_NATIONKEY]}, hashLeft=false, hashSignature={N_NATIONKEY:string}, applyFilter=true}, $hash=true}"
         );
       } else {
         hook.verifyHooked(
-            "QMo4VWG6igLuXGmxGhZAPw==",
-            "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), sampleRatio=0.050}",
-            "StreamQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
+            "AQolzcuDq/+4RZxWYDCpBg==",
+            "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), sampleRatio=0.050}",
+            "StreamQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
             "StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_NATIONKEY, S_SUPPKEY]}",
             "StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > (0.5B * a0))'}, outputColumns=[d0]}",
             "StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && !(PS_SUPPKEY==NULL)), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}",
             "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_NAME LIKE 'forest%' && !(P_PARTKEY==NULL)), outputColumns=[d0], $hash=true}",
-            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(!(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}"
+            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE < 1995-01-01} && !(L_PARTKEY==NULL) && !(L_SUPPKEY==NULL)), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], outputColumns=[d0, d1, a0]}"
         );
       }
     }
@@ -2520,7 +2520,7 @@ public class TpchTest extends TpchTestHelper
       + "          DruidQueryRel(table=[druid.part], scanFilter=[LIKE($4, 'forest%')], scanProject=[$5], group=[{0}])\n"
       + "        DruidOuterQueryRel(group=[{0, 1}], agg#0=[SUM($2)], aggregateProject=[$0, *(0.5:DECIMAL(2, 1), $2), $1])\n"
       + "          DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 2, 1])\n"
-      + "            DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1994-01-01'), <=($11, '1995-01-01'), IS NOT NULL($7))], scanProject=[$7, $8, $14])\n"
+      + "            DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($11, Sarg[['1994-01-01'..'1995-01-01']]:CHAR(10)), IS NOT NULL($7))], scanProject=[$7, $8, $14])\n"
       + "            DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
       + "              DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
       + "              DruidQueryRel(table=[druid.nation], scanFilter=[=($1, 'RUSSIA')], scanProject=[$2])\n";
@@ -2532,42 +2532,42 @@ public class TpchTest extends TpchTestHelper
 
     if (semiJoin) {
       hook.verifyHooked(
-          "JMfmTPOQFiKPdwi+vfX4Ug==",
+          "YWzoMDMLeUhmaFVqA78cyA==",
           "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0]}",
           "StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY]}",
           "StreamQuery{dataSource='supplier', filter=S_NATIONKEY=='22', columns=[S_SUPPKEY]}",
           "StreamQuery{dataSource='partsupp', filter=(!(PS_SUPPKEY==NULL) && InDimFilter{dimension='PS_PARTKEY', values=[304, 447, 488, 5, 696, 722, 748, 986]}), columns=[PS_PARTKEY, PS_SUPPKEY, PS_AVAILQTY], $hash=true}",
-          "GroupByQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[partsupp]}, GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && InDimFilter{dimension='L_SUPPKEY', values=[16, 25, 40, 42]}), columns=[L_PARTKEY, L_SUPPKEY, L_QUANTITY]}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=InDimsFilter{dimensions=[L_PARTKEY, L_SUPPKEY], values=[[304, 23], [304, 41], [304, 5], [304, 9], [447, 18], [447, 38], [447, 48], [447, 8], [488, 10], [488, 2], [..20 more]]}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0]}",
-          "GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && InDimFilter{dimension='L_SUPPKEY', values=[16, 25, 40, 42]}), columns=[L_PARTKEY, L_SUPPKEY, L_QUANTITY]}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=InDimsFilter{dimensions=[L_PARTKEY, L_SUPPKEY], values=[[304, 23], [304, 41], [304, 5], [304, 9], [447, 18], [447, 38], [447, 48], [447, 8], [488, 10], [488, 2], [..20 more]]}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}",
-          "StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && InDimFilter{dimension='L_SUPPKEY', values=[16, 25, 40, 42]}), columns=[L_PARTKEY, L_SUPPKEY, L_QUANTITY]}",
+          "GroupByQuery{dataSource='CommonJoin{queries=[MaterializedQuery{dataSource=[partsupp]}, GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL) && InDimFilter{dimension='L_SUPPKEY', values=[16, 25, 40, 42]}), columns=[L_PARTKEY, L_SUPPKEY, L_QUANTITY]}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=InDimsFilter{dimensions=[L_PARTKEY, L_SUPPKEY], values=[[304, 23], [304, 41], [304, 5], [304, 9], [447, 18], [447, 38], [447, 48], [447, 8], [488, 10], [488, 2], [..20 more]]}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0]}",
+          "GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL) && InDimFilter{dimension='L_SUPPKEY', values=[16, 25, 40, 42]}), columns=[L_PARTKEY, L_SUPPKEY, L_QUANTITY]}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], filter=InDimsFilter{dimensions=[L_PARTKEY, L_SUPPKEY], values=[[304, 23], [304, 41], [304, 5], [304, 9], [447, 18], [447, 38], [447, 48], [447, 8], [488, 10], [488, 2], [..20 more]]}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}",
+          "StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL) && InDimFilter{dimension='L_SUPPKEY', values=[16, 25, 40, 42]}), columns=[L_PARTKEY, L_SUPPKEY, L_QUANTITY]}",
           "StreamQuery{dataSource='StreamQuery{dataSource='supplier', filter=(!(S_SUPPKEY==NULL) && S_SUPPKEY=='25'), columns=[S_NAME, S_ADDRESS]}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
           "StreamQuery{dataSource='supplier', filter=(!(S_SUPPKEY==NULL) && S_SUPPKEY=='25'), columns=[S_NAME, S_ADDRESS]}"
       );
     } else {
       if (broadcastJoin) {
         hook.verifyHooked(
-            "yqPbVhTiTXBuRY54d9aO2A==",
+            "1s53y4M8YY7Icov0b+jsXg==",
             "StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY]}",
             "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier, leftJoinColumns=[S_NATIONKEY], rightAlias=nation, rightJoinColumns=[N_NATIONKEY]}, hashLeft=false, hashSignature={N_NATIONKEY:string}, applyFilter=true}}",
-            "StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_SUPPKEY]}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01}), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string}, applyFilter=true}}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0], $hash=true}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01}), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string}, applyFilter=true}}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0], $hash=true}",
+            "StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_SUPPKEY]}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL)), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string}, applyFilter=true}}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0], $hash=true}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL)), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string}, applyFilter=true}}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0], $hash=true}",
             "StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}",
             "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}",
-            "GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01}), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string}, applyFilter=true}}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}",
-            "StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01}), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string}, applyFilter=true}}",
+            "GroupByQuery{dataSource='StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL)), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string}, applyFilter=true}}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}",
+            "StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL)), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string}, applyFilter=true}}",
             "StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_SUPPKEY]}"
         );
       } else {
         hook.verifyHooked(
-            "bfzRkllvzW8F7C3B1yBewg==",
-            "StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_SUPPKEY]}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01}), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY]}, CommonJoin{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}], timeColumnName=__time}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0], $hash=true}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01}), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY]}, CommonJoin{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}], timeColumnName=__time}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0], $hash=true}",
+            "Vs/1PTmcTpiNAHJIRhvuFQ==",
+            "StreamQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_SUPPKEY]}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL)), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY]}, CommonJoin{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}], timeColumnName=__time}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0], $hash=true}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL)), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY]}, CommonJoin{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}], timeColumnName=__time}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='d0'}], filter=MathExprFilter{expression='(PS_AVAILQTY > p0)'}, outputColumns=[d0], $hash=true}",
             "StreamQuery{dataSource='partsupp', filter=!(PS_SUPPKEY==NULL), columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}",
             "GroupByQuery{dataSource='part', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', outputColumns=[d0], $hash=true}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01}), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY]}, CommonJoin{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}], timeColumnName=__time}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL)), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY]}, CommonJoin{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}], timeColumnName=__time}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * a0)', finalize=true}], outputColumns=[d0, p0, d1]}",
             "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}",
             "StreamQuery{dataSource='nation', filter=N_NAME=='RUSSIA', columns=[N_NATIONKEY], $hash=true}",
-            "StreamQuery{dataSource='lineitem', filter=(!(L_PARTKEY==NULL) && BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01}), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY]}",
+            "StreamQuery{dataSource='lineitem', filter=(BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01} && !(L_PARTKEY==NULL)), columns=[L_PARTKEY, L_QUANTITY, L_SUPPKEY]}",
             "StreamQuery{dataSource='supplier', filter=!(S_SUPPKEY==NULL), columns=[S_ADDRESS, S_NAME, S_SUPPKEY]}"
         );
       }

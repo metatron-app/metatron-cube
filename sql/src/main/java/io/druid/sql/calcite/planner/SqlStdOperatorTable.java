@@ -22,6 +22,7 @@ package io.druid.sql.calcite.planner;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
@@ -71,6 +72,25 @@ public class SqlStdOperatorTable extends org.apache.calcite.sql.fun.SqlStdOperat
 
   public static final SqlFunction INITCAP = new InjectTypeInference(
       org.apache.calcite.sql.fun.SqlStdOperatorTable.INITCAP, NULLABLE_VARCHAR, explicit(P_NVARCHAR)
+  );
+
+  public static final SqlBinaryOperator LESS_THAN = DynamicBinaryOperator.wrap(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.LESS_THAN
+  );
+  public static final SqlBinaryOperator LESS_THAN_OR_EQUAL = DynamicBinaryOperator.wrap(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.LESS_THAN_OR_EQUAL
+  );
+  public static final SqlBinaryOperator GREATER_THAN = DynamicBinaryOperator.wrap(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.GREATER_THAN
+  );
+  public static final SqlBinaryOperator GREATER_THAN_OR_EQUAL = DynamicBinaryOperator.wrap(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.GREATER_THAN_OR_EQUAL
+  );
+  public static final SqlBinaryOperator EQUALS = DynamicBinaryOperator.wrap(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.EQUALS
+  );
+  public static final SqlBinaryOperator NOT_EQUALS = DynamicBinaryOperator.wrap(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.NOT_EQUALS
   );
 
   private static SqlOperandTypeInference explicit(RelDataType... dataTypes)

@@ -297,7 +297,7 @@ public class DruidTable implements TranslatableTable
   @Override
   public RelNode toRel(final RelOptTable.ToRelContext context, final RelOptTable table)
   {
-    return LogicalTableScan.create(context.getCluster(), table);
+    return LogicalTableScan.create(context.getCluster(), table, Arrays.asList());
   }
 
   @Override

@@ -35,6 +35,7 @@ import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
+import java.util.Arrays;
 import java.util.Set;
 
 public class DruidValuesRel extends DruidRel
@@ -180,6 +181,7 @@ public class DruidValuesRel extends DruidRel
   {
     return super.explainTerms(pw)
                 .input("source", source)
+                .item("leaf", leaf)
                 .itemIf("table", tableName, tableName != null);
   }
 }

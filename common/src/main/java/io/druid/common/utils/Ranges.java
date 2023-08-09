@@ -154,4 +154,44 @@ public class Ranges
     }
     throw new IllegalArgumentException(op);
   }
+
+  public static Range transform(Range range, Function function)
+  {
+    Comparable l = null;
+    Comparable u = null;
+    if (range.hasLowerBound()) {
+      l = (Comparable) function.apply(range.lowerEndpoint());
+    }
+    if (range.hasUpperBound()) {
+      u = (Comparable) function.apply(range.upperEndpoint());
+    }
+    if (range.hasLowerBound() && range.hasUpperBound()) {
+      if (range.lowerBoundType() == BoundType.CLOSED) {
+        if (range.upperBoundType() == BoundType.CLOSED) {
+          return Range.closed(l, u);
+        } else {
+          return Range.closedOpen(l, u);
+        }
+      } else {
+        if (range.upperBoundType() == BoundType.CLOSED) {
+          return Range.openClosed(l, u);
+        } else {
+          return Range.open(l, u);
+        }
+      }
+    } else if (range.hasLowerBound()) {
+      if (range.lowerBoundType() == BoundType.CLOSED) {
+        return Range.atLeast(l);
+      } else {
+        return Range.greaterThan(l);
+      }
+    } else if (range.hasUpperBound()) {
+      if (range.upperBoundType() == BoundType.CLOSED) {
+        return Range.lessThan(u);
+      } else {
+        return Range.atMost(u);
+      }
+    }
+    return range;
+  }
 }

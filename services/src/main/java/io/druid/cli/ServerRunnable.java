@@ -30,7 +30,7 @@ import io.druid.initialization.Initialization;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.Shutdown;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
@@ -203,7 +203,7 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
 
   private static void warnWithbox(String message)
   {
-    String box = StringUtils.repeat('-', message.length());
+    String box = StringUtils.repeat("-", message.length());
     LOGGER.warn(box);
     LOGGER.warn(message);
     LOGGER.warn(box);

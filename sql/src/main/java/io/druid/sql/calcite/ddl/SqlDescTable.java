@@ -95,7 +95,7 @@ public class SqlDescTable
 
     SqlNodeList selectList = new SqlNodeList(select, SqlParserPos.ZERO);
     return new SqlSelect(
-        SqlParserPos.ZERO, null, selectList, fromClause, where, null, null, null, null, null, null
+        SqlParserPos.ZERO, null, selectList, fromClause, where, null, null, null, null, null, null, null, null
     );
   }
 }

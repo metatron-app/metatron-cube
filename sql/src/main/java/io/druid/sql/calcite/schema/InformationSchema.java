@@ -461,7 +461,7 @@ public class InformationSchema extends AbstractSchema
   private static TranslatableTable getView(final SchemaPlus schemaPlus, final String functionName)
   {
     // Look for a zero-arg function that is also a TableMacro. The returned value
-    // is never null so we don't need to check for that.
+    // is never null, so we don't need to check for that.
     for (org.apache.calcite.schema.Function function : schemaPlus.getFunctions(functionName)) {
       if (function.getParameters().isEmpty() && function instanceof TableMacro) {
         return ((TableMacro) function).apply(ImmutableList.of());

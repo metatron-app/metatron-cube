@@ -42,6 +42,7 @@ import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.LiteralAggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.ArrayMetricSerde;
 import io.druid.query.aggregation.AverageAggregatorFactory;
@@ -195,6 +196,7 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "bloomFilter", value = BloomFilterAggregatorFactory.class),
 
       @JsonSubTypes.Type(name = "dimension", value = DimensionAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "literal", value = LiteralAggregatorFactory.class),
   })
   public static interface AggregatorFactoryMixin
   {

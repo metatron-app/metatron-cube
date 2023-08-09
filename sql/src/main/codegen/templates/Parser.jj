@@ -103,7 +103,6 @@ import org.apache.calcite.sql.SqlWithItem;
 import org.apache.calcite.sql.fun.SqlCase;
 import org.apache.calcite.sql.fun.SqlInternalOperators;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.parser.Span;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
@@ -124,6 +123,9 @@ import org.apache.calcite.util.trace.CalciteTrace;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
+
+import io.druid.sql.calcite.planner.SqlStdOperatorTable;
+import io.druid.sql.calcite.Utils;
 
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -1699,6 +1701,12 @@ SqlNode CreateSetSemanticsTableIfNeeded(
  */
 SqlNode SqlInsert() :
 {
+    boolean isOverwrite = false;
+    SqlNode directory = null;
+    SqlNode format = null;
+    SqlProperties properties = null;
+    SqlNode query = null;
+
     final List<SqlLiteral> keywords = new ArrayList<SqlLiteral>();
     final SqlNodeList keywordList;
     final SqlIdentifier tableName;
@@ -1709,6 +1717,22 @@ SqlNode SqlInsert() :
     final Pair<SqlNodeList, SqlNodeList> p;
 }
 {
+  LOOKAHEAD(4)
+  (
+    <INSERT> { s = span(); } [ <OVERWRITE> { isOverwrite = true; } ] <INTO> <DIRECTORY> { directory = StringLiteral(); }
+    [
+        <AS> { format = StringLiteral(); } [ <WITH> { properties = Properties(); } ]
+    ]
+
+    query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    {
+        return new SqlInsertDirectory(s.end(this), isOverwrite, directory, format, properties, query);
+    }
+  )
+
+  |
+
+  (
     (
         <INSERT>
     |
@@ -1738,6 +1762,57 @@ SqlNode SqlInsert() :
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new SqlInsert(s.end(source), keywordList, tableRef, source,
             columnList);
+    }
+  )
+}
+
+/**
+ * Parses an LOAD statement.
+ */
+SqlNode SqlLoadTable() :
+{
+    boolean isOverwrite = false;
+    boolean isTemporary = false;
+    SqlNode path;
+    SqlIdentifier table;
+    SqlProperties properties = null;
+
+    final Span s;
+}
+{
+    <LOAD> { s = span(); }
+    <DATA> <PATH> { path = StringLiteral(); } [ <OVERWRITE> { isOverwrite = true; } ]
+    <INTO> [ <TEMPORARY> { isTemporary = true; } ] <TABLE> { table = CompoundIdentifier(); } [ <WITH> { properties = Properties(); } ]
+
+    {
+      return new SqlLoadTable(s.end(this), path, isOverwrite, isTemporary, table, properties);
+    }
+}
+
+SqlProperties Properties() :
+{
+    final Span s = span();
+    final List<SqlNode> list = new ArrayList();
+}
+{
+    <LPAREN> Property(list) ( <COMMA> Property(list) )* <RPAREN>
+    {
+        return new SqlProperties(list, s.end(this));
+    }
+}
+
+void Property(List<SqlNode> list) :
+{
+    SqlNode key = null;
+    SqlNode value = null;
+}
+{
+    [ key = StringLiteral() <COLON> value = Literal() ]
+    {
+        if (key != null) {
+            list.add(key);
+            list.add(value);
+        }
     }
 }
 
@@ -2692,9 +2767,11 @@ SqlWindow WindowSpecification() :
     final SqlNodeList partitionList;
     final SqlNodeList orderList;
     final SqlLiteral isRows;
-    final SqlNode lowerBound, upperBound;
+    SqlNode lowerBound, upperBound;
     final Span s, s1, s2;
     final SqlLiteral allowPartial;
+    SqlNode increment = null;
+    SqlNode offset = null;
 }
 {
     <LPAREN> { s = span(); }
@@ -2741,8 +2818,37 @@ SqlWindow WindowSpecification() :
         }
     |   { allowPartial = null; }
     )
+    (
+        <INCREMENT> <BY> { increment = Expression(ExprContext.ACCEPT_NON_QUERY); }
+    )?
+    (
+        <OFFSET> { offset = Expression(ExprContext.ACCEPT_NON_QUERY);}
+    )?
+
     <RPAREN>
     {
+        if (increment != null || offset != null) {
+            if (lowerBound == null) {
+              throw new IllegalArgumentException("cannot use INCREMENT or OFFSET without bound");
+            }
+            switch(lowerBound.getKind()) {
+                case FOLLOWING:
+                case PRECEDING:
+                    SqlCall call = (SqlCall) lowerBound;
+                    call.setOperand(0, Utils.frame(call.operand(0), increment, offset));
+                    break;
+                case LITERAL:
+                    if (SqlWindow.isCurrentRow(lowerBound)) {
+                        lowerBound = SqlWindow.createPreceding(
+                            Utils.frame("0", increment, offset), lowerBound.getParserPosition()
+                        );
+                    } else if (SqlWindow.isUnboundedPreceding(lowerBound)) {
+                        lowerBound = SqlWindow.createPreceding(
+                            Utils.frame("-1", increment, offset), lowerBound.getParserPosition()
+                        );
+                    }
+            }
+        }
         return SqlWindow.create(null, id, partitionList, orderList,
             isRows, lowerBound, upperBound, allowPartial, s.end(this));
     }
@@ -7987,6 +8093,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < DESCRIPTOR: "DESCRIPTOR" >
 |   < DETERMINISTIC: "DETERMINISTIC" >
 |   < DIAGNOSTICS: "DIAGNOSTICS" >
+|   < DIRECTORY: "DIRECTORY" >
 |   < DISALLOW: "DISALLOW" >
 |   < DISCONNECT: "DISCONNECT" >
 |   < DISPATCH: "DISPATCH" >
@@ -8218,6 +8325,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < OVERLAPS: "OVERLAPS" >
 |   < OVERLAY: "OVERLAY" >
 |   < OVERRIDING: "OVERRIDING" >
+|   < OVERWRITE: "OVERWRITE" >
 |   < PAD: "PAD" >
 |   < PARAMETER: "PARAMETER" >
 |   < PARAMETER_MODE: "PARAMETER_MODE" >

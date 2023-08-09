@@ -59,6 +59,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 import static io.druid.query.filter.DimFilterCacheKey.OTHER_PREFIX;
 
@@ -255,22 +256,35 @@ next:
   // should be string type
   public static DimFilter toFilter(String dimension, List<Range> ranges)
   {
+    return toFilter(dimension, ranges, v -> (String) v, null);
+  }
+
+  public static DimFilter toFilter(String dimension, List<Range> ranges, Function<Object, String> prepare, String comparator)
+  {
     Iterable<Range> filtered = Iterables.filter(ranges, Ranges.VALID);
     List<String> equalValues = Lists.newArrayList();
     List<DimFilter> dimFilters = Lists.newArrayList();
     for (Range range : filtered) {
-      String lower = range.hasLowerBound() ? (String) range.lowerEndpoint() : null;
-      String upper = range.hasUpperBound() ? (String) range.upperEndpoint() : null;
+      Object lower = range.hasLowerBound() ? range.lowerEndpoint() : null;
+      Object upper = range.hasUpperBound() ? range.upperEndpoint() : null;
       if (lower == null && upper == null) {
         return null;
       }
       if (Objects.equals(lower, upper)) {
-        equalValues.add(lower);
+        equalValues.add(prepare.apply(lower));
         continue;
       }
       boolean lowerStrict = range.hasLowerBound() && range.lowerBoundType() == BoundType.OPEN;
       boolean upperStrict = range.hasUpperBound() && range.upperBoundType() == BoundType.OPEN;
-      dimFilters.add(new BoundDimFilter(dimension, lower, upper, lowerStrict, upperStrict, false, null));
+      dimFilters.add(new BoundDimFilter(
+          dimension,
+          prepare.apply(lower),
+          prepare.apply(upper),
+          lowerStrict,
+          upperStrict,
+          comparator,
+          null
+      ));
     }
     if (equalValues.size() > 1) {
       dimFilters.add(InDimFilter.of(dimension, equalValues));

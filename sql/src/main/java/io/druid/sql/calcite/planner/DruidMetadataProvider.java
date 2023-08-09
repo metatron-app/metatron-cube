@@ -39,6 +39,7 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.BuiltInMetadata;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
@@ -48,6 +49,7 @@ import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.BuiltInMethod;
@@ -105,7 +107,7 @@ public class DruidMetadataProvider
     {
       double rc = mq.getRowCount(rel.getInput());
       double cost = 0;
-      if (!rel.getChildExps().isEmpty()) {
+      if (!rel.getSortExps().isEmpty()) {
         cost += rc * PartialDruidQuery.SORT_MULTIPLIER;
       }
       return DruidCost.FACTORY.makeCost(0, cost, 0);
@@ -152,7 +154,12 @@ public class DruidMetadataProvider
 
     public Double getSelectivity(RelNode rel, RelMetadataQuery mq, RexNode predicate)
     {
-      if (predicate == null || predicate.isAlwaysTrue() || rel.getTable() == null) {
+      return Utils.selectivity(predicate);
+    }
+
+    public Double getSelectivity(TableScan rel, RelMetadataQuery mq, RexNode predicate)
+    {
+      if (predicate == null || predicate.isAlwaysTrue()) {
         return Utils.selectivity(predicate);
       }
       QueryMaker context = CONTEXT.get();
@@ -165,8 +172,9 @@ public class DruidMetadataProvider
     private static double evaluate(RelNode rel, RexNode predicate, QueryMaker context)
     {
       long p = System.currentTimeMillis();
+      RexBuilder builder = rel.getCluster().getRexBuilder();
       RowSignature signature = RowSignature.from(rel.getRowType());
-      DimFilter filter = Expressions.toFilter(context.getPlannerContext(), signature, predicate);
+      DimFilter filter = Expressions.toFilter(context.getPlannerContext(), signature, builder, predicate);
       if (filter == null) {
         return Utils.selectivity(predicate);
       }

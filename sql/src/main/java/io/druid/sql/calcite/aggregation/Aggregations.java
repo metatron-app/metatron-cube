@@ -115,6 +115,11 @@ public class Aggregations
                                      .computeAggregations(query);
   }
 
+  public PlannerContext context()
+  {
+    return plannerContext;
+  }
+
   private GroupingSetSpec computeGroupingSetSpec()
   {
     switch (aggregate.getGroupType()) {
@@ -173,7 +178,7 @@ public class Aggregations
   {
     Project project = GuavaUtils.nvl(query.getAggregateProject(), query.getSortProject());
     if (project != null) {
-      ImmutableBitSet bitSet = RelOptUtil.InputFinder.bits(project.getChildExps(), null);
+      ImmutableBitSet bitSet = RelOptUtil.InputFinder.bits(project.getProjects(), null);
       for (int i = 0; i < dimensions.size(); i++) {
         if (!bitSet.get(i) && !removedDimensions.get(i) && dimensions.get(i).isConstant()) {
           removedDimensions.set(i);
@@ -238,8 +243,9 @@ public class Aggregations
   @Nullable
   private DimFilter toAggregateFilter(int filterOn)
   {
-    final RexNode expression = project.getChildExps().get(filterOn);
-    final DimFilter filter = Expressions.toFilter(plannerContext, signature, expression);
+    final RexBuilder builder = project.getCluster().getRexBuilder();
+    final RexNode expression = project.getProjects().get(filterOn);
+    final DimFilter filter = Expressions.toFilter(plannerContext, signature, builder, expression);
     if (filter != null) {
       return Filtration.create(filter).optimizeFilterOnly(signature).getDimFilter();
     }
@@ -263,7 +269,7 @@ public class Aggregations
     int ix = 0;
     final List<String> outputNames = new ArrayList<>();
     final String prefix = Calcites.findUnusedPrefix(base, signature.getColumnNames());
-    for (RexNode rexNode : project.getChildExps()) {
+    for (RexNode rexNode : project.getProjects()) {
       // Dimension might need to create virtual columns. Avoid giving it a name that would lead to colliding columns.
       final DruidExpression expression = toExpression(signature, rexNode);
       if (expression == null) {
@@ -391,11 +397,8 @@ public class Aggregations
 
   public DimFilter toFilter(RexNode rexNode)
   {
-    DimFilter filter = Expressions.toFilter(
-        plannerContext,
-        signature,
-        rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(rexNode))
-    );
+    RexNode call = rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(rexNode));
+    DimFilter filter = Expressions.toFilter(plannerContext, signature, rexBuilder, call);
     return filter == null ? null : Filtration.create(filter).optimizeFilterOnly(signature).getDimFilter();
   }
 

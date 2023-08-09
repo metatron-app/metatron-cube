@@ -47,6 +47,7 @@ import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
@@ -101,7 +102,7 @@ public class Expressions
   public static RexNode fromFieldAccess(RowSignature rowSignature, Project project, int fieldNumber)
   {
     if (project != null) {
-      return project.getChildExps().get(fieldNumber);
+      return project.getProjects().get(fieldNumber);
     }
     return new RexInputRef(
         fieldNumber, Calcites.asRelDataType(rowSignature.columnName(fieldNumber), rowSignature.columnType(fieldNumber))
@@ -225,30 +226,32 @@ public class Expressions
    *
    * @param plannerContext planner context
    * @param rowSignature   row signature of the dataSource to be filtered
+   * @param builder
    * @param expression     Calcite row expression
    */
   @Nullable
   public static DimFilter toFilter(
       final PlannerContext plannerContext,
       final RowSignature rowSignature,
+      final RexBuilder builder,
       final RexNode expression
   )
   {
     final SqlKind kind = expression.getKind();
 
     if (kind == SqlKind.IS_TRUE || kind == SqlKind.IS_NOT_FALSE) {
-      return toFilter(plannerContext, rowSignature, Iterables.getOnlyElement(((RexCall) expression).getOperands()));
+      return toFilter(plannerContext, rowSignature, builder, Utils.soleOperand(expression));
     } else if (kind == SqlKind.IS_FALSE || kind == SqlKind.IS_NOT_TRUE) {
       return new NotDimFilter(
-          toFilter(plannerContext, rowSignature, Iterables.getOnlyElement(((RexCall) expression).getOperands()))
+          toFilter(plannerContext, rowSignature, builder, Utils.soleOperand(expression))
       );
     } else if (kind == SqlKind.CAST && expression.getType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
       // Calcite sometimes leaves errant, useless cast-to-booleans inside filters. Strip them and continue.
-      return toFilter(plannerContext, rowSignature, Iterables.getOnlyElement(((RexCall) expression).getOperands()));
+      return toFilter(plannerContext, rowSignature, builder, Utils.soleOperand(expression));
     } else if (kind == SqlKind.AND || kind == SqlKind.OR || kind == SqlKind.NOT) {
       final List<DimFilter> filters = new ArrayList<>();
       for (final RexNode rexNode : ((RexCall) expression).getOperands()) {
-        final DimFilter nextFilter = toFilter(plannerContext, rowSignature, rexNode);
+        final DimFilter nextFilter = toFilter(plannerContext, rowSignature, builder, rexNode);
         if (nextFilter == null) {
           return null;
         }
@@ -263,6 +266,8 @@ public class Expressions
         assert kind == SqlKind.NOT;
         return new NotDimFilter(Iterables.getOnlyElement(filters));
       }
+    } else if (kind == SqlKind.SEARCH) {
+      return toFilter(plannerContext, rowSignature, builder, Utils.expand(builder, expression));
     } else {
       // Handle filter conditions on everything else.
       return toLeafFilter(plannerContext, rowSignature, expression);
@@ -310,18 +315,18 @@ public class Expressions
       return toSimpleLeafFilter(
           plannerContext,
           rowSignature,
-          Iterables.getOnlyElement(((RexCall) rexNode).getOperands())
+          Utils.soleOperand(rexNode)
       );
     } else if (kind == SqlKind.IS_FALSE || kind == SqlKind.IS_NOT_TRUE) {
       return new NotDimFilter(
           toSimpleLeafFilter(
               plannerContext,
               rowSignature,
-              Iterables.getOnlyElement(((RexCall) rexNode).getOperands())
+              Utils.soleOperand(rexNode)
           )
       );
     } else if (kind == SqlKind.IS_NULL || kind == SqlKind.IS_NOT_NULL) {
-      final RexNode operand = Iterables.getOnlyElement(((RexCall) rexNode).getOperands());
+      final RexNode operand = Utils.soleOperand(rexNode);
 
       // operand must be translatable to a SimpleExtraction to be simple-filterable
       final DruidExpression druidExpression = toDruidExpression(plannerContext, rowSignature, operand);

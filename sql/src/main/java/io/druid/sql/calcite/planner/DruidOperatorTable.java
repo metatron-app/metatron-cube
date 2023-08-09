@@ -46,6 +46,7 @@ import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.ApproxCountDistinctSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.AvgSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.CountSqlAggregator;
+import io.druid.sql.calcite.aggregation.builtin.LiteralAggregator;
 import io.druid.sql.calcite.aggregation.builtin.MaxSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.MinSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.RelayAggregator;
@@ -60,6 +61,7 @@ import io.druid.sql.calcite.expression.DirectOperatorConversion;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.NominalBitSetToStringConversion;
+import io.druid.sql.calcite.expression.SearchOperatorConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.ArrayConstructorOperatorConversion;
@@ -103,6 +105,7 @@ import io.druid.sql.calcite.expression.builtin.TruncateOperatorConversion;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
@@ -113,10 +116,13 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.SqlTableFunction;
+import org.apache.calcite.sql.fun.SqlLiteralAggFunction;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.util.Optionality;
@@ -146,6 +152,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new RelayAggregator(new RelayAggFunction("ANY"), RelayType.FIRST))
           .add(new RelayAggregator(new RelayAggFunction("EARLIEST"), RelayType.FIRST))
           .add(new RelayAggregator(new RelayAggFunction("LATEST"), RelayType.LAST))
+          .add(new LiteralAggregator(SqlLiteralAggFunction.INSTANCE))
           .build();
 
   // STRLEN has so many aliases.
@@ -243,6 +250,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new DedupOperatorConversion())
           .add(new DirectOperatorConversion(SqlStdOperatorTable.COALESCE, "COALESCE"))
           .add(new DirectOperatorConversion(SqlStdOperatorTable.INITCAP, "INITCAP"))
+          .add(new SearchOperatorConversion())
           .build();
 
   // Operators that have no conversion, but are handled in the convertlet table, so they still need to exist.
@@ -316,7 +324,9 @@ public class DruidOperatorTable implements SqlOperatorTable
 
     for (final Function.Factory factory : Parser.getAllFunctions()) {
       SqlReturnTypeInference retType;
-      if (factory instanceof Function.FixedTyped) {
+      if (factory instanceof Function.TableFunctionMapper) {
+        retType = opBinding -> opBinding.getTypeFactory().createSqlType(SqlTypeName.CURSOR);
+      } else if (factory instanceof Function.FixedTyped) {
         ValueDesc type = ((Function.FixedTyped) factory).returns();
         if (type == null || type.asClass() == Object.class) {
           continue;
@@ -361,6 +371,8 @@ public class DruidOperatorTable implements SqlOperatorTable
       SqlOperator operator;
       if (factory instanceof WindowFunctions.Factory) {
         operator = new DummyAggregatorFunction(name, retType);
+      } else if (factory instanceof Function.TableFunctionMapper) {
+        operator = new DummySqlTableFunction(name, retType);
       } else {
         operator = new DummySqlFunction(name, retType);
       }
@@ -394,26 +406,14 @@ public class DruidOperatorTable implements SqlOperatorTable
     return sqlAggregator != null && sqlAggregator.register(aggregations, predicate, aggregateCall, outputName);
   }
 
-  public SqlOperatorConversion lookupOperatorConversion(final SqlOperator operator)
+  public SqlOperatorConversion lookupOperatorConversion(SqlOperator operator)
   {
-    final OperatorKey operatorKey = OperatorKey.of(operator);
-    final SqlOperatorConversion operatorConversion = operatorConversions.get(operatorKey);
-    if (operatorConversion != null && operatorConversion.calciteOperator().equals(operator)) {
-      return operatorConversion;
-    } else {
-      return null;
-    }
+    return operatorConversions.get(OperatorKey.of(operator));
   }
 
-  public DimFilterConversion lookupDimFilterConversion(final SqlOperator operator)
+  public DimFilterConversion lookupDimFilterConversion(SqlOperator operator)
   {
-    final OperatorKey operatorKey = OperatorKey.of(operator);
-    final DimFilterConversion operatorConversion = dimFilterConversions.get(operatorKey);
-    if (operatorConversion != null && operatorConversion.calciteOperator().equals(operator)) {
-      return operatorConversion;
-    } else {
-      return null;
-    }
+    return dimFilterConversions.get(OperatorKey.of(operator));
   }
 
   @Override
@@ -574,6 +574,30 @@ public class DruidOperatorTable implements SqlOperatorTable
           OperandTypes.VARIADIC,
           SqlFunctionCategory.SYSTEM
       );
+    }
+  }
+
+  private static class DummySqlTableFunction extends DummySqlFunction implements SqlTableFunction
+  {
+    public DummySqlTableFunction(String name, SqlReturnTypeInference retType)
+    {
+      super(name, retType);
+    }
+
+    @Override
+    public SqlReturnTypeInference getRowTypeInference()
+    {
+      return opBinding -> {
+        int count = opBinding.getOperandCount();
+        List<String> names = Lists.newArrayList();
+        List<RelDataType> types = Lists.newArrayList();
+        RelDataTypeFactory factory = opBinding.getTypeFactory();
+        for (int i = 0; i < count; i++) {
+          names.add("_p" + i);
+          types.add(Calcites.asRelDataType(factory, Calcites.asValueDesc(opBinding.getOperandType(i)).subElement()));
+        }
+        return factory.createStructType(types, names);
+      };
     }
   }
 
