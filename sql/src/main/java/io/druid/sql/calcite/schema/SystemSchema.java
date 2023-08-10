@@ -72,6 +72,7 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -237,18 +238,23 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      return scan(serverView.getDataSources());
+      return _scan(serverView.getDataSources(), Arrays.asList());
     }
 
     @Override
     public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
     {
-      return scan(filter(serverView.getDataSources(), filters));
+      return _scan(filter(serverView.getDataSources(), filters), filters);
     }
 
-    private Enumerable<Object[]> scan(Iterable<String> dataSources)
+    @SuppressWarnings("unchecked")
+    private Enumerable<Object[]> _scan(Iterable<String> dataSources, List<RexNode> filters)
     {
       Iterable<ServerSelector> selectors = GuavaUtils.explode(dataSources, ds -> serverView.getSelectors(ds));
+      Predicate predicate = Utils.extractFilter(0, filters);   // 0 : SEGMENTS_SIGNATURE.indexOf("segment_id")
+      if (predicate != null) {
+        selectors = Iterables.filter(selectors, selector -> predicate.apply(selector.getSegment().getIdentifier()));
+      }
       return Linq4j.asEnumerable(Iterables.transform(selectors, selector -> toRow(selector)))
                    .where(t -> t != null);
     }
@@ -421,17 +427,27 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      return scan(serverView.getDruidServers());
+      return _scan(serverView.getDruidServers(), Arrays.asList());
     }
 
     @Override
     public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
     {
-      return scan(filter(serverView.getDruidServers(), filters));
+      return _scan(filter(serverView.getDruidServers(), filters), filters);
     }
 
-    private Enumerable<Object[]> scan(Iterable<ImmutableDruidServer> servers)
+    @SuppressWarnings("unchecked")
+    private Enumerable<Object[]> _scan(Iterable<ImmutableDruidServer> servers, List<RexNode> filters)
     {
+      Predicate predicate = Utils.extractFilter(1, filters);   // 1 : SERVER_SEGMENTS.indexOf("segment_id")
+      if (predicate != null) {
+        return Linq4j.asEnumerable(GuavaUtils.explode(servers, server ->
+            Iterables.transform(
+                Iterables.filter(server.getSegments().values(), segment -> predicate.apply(server)),
+                segment -> new Object[]{server.getHost(), segment.getIdentifier()}
+            )
+        ));
+      }
       return Linq4j.asEnumerable(GuavaUtils.explode(servers, server ->
           Iterables.transform(
               server.getSegments().values(), segment -> new Object[]{server.getHost(), segment.getIdentifier()}
