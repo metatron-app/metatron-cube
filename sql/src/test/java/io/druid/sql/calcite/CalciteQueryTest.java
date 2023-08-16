@@ -4351,7 +4351,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       GenericSumAggregatorFactory.ofLong("a0", "cnt"),
                       BOUND(
                           "__time",
-                          String.valueOf(T("2000-01-01")),
+                          null,
                           String.valueOf(T("2000-02-01")),
                           false,
                           true,
@@ -4364,7 +4364,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       BOUND(
                           "__time",
                           String.valueOf(T("2001-01-01")),
-                          String.valueOf(T("2001-02-01")),
+                          String.valueOf(T("2001-02-01")),    // should be null (bug in RexSimplify.residue)
                           false,
                           true,
                           null,

@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.DSuppliers;
 import io.druid.java.util.common.logger.Logger;
@@ -36,12 +35,12 @@ import io.druid.sql.calcite.rule.DruidTableScanRule;
 import io.druid.sql.calcite.rule.DruidValuesRule;
 import io.druid.sql.calcite.rule.PreFilteringRule;
 import io.druid.sql.calcite.rule.ProjectAggregatePruneUnusedCallRule;
+import io.druid.sql.calcite.rule.ReduceExpressionsRule;
 import io.druid.sql.calcite.rule.SortCollapseRule;
 import org.apache.calcite.plan.RelOptLattice;
 import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepMatchOrder;
@@ -50,9 +49,7 @@ import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
-import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.rules.CoreRules;
@@ -60,7 +57,6 @@ import org.apache.calcite.rel.rules.DateRangeRules;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.PruneEmptyRules;
-import org.apache.calcite.rel.rules.ReduceExpressionsRule;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql2rel.RelDecorrelator;
@@ -80,19 +76,6 @@ public class Rules
   static final Logger LOG = new Logger(DruidPlanner.class);
 
   public static final int DRUID_CONVENTION_RULES = 0;
-
-  public static final RelOptRule PROJECT_REDUCE_EXPRESSIONS =
-      new ReduceExpressionsRule.ProjectReduceExpressionsRule(LogicalProject.class, true, RelFactories.LOGICAL_BUILDER)
-      {
-        @Override
-        public void onMatch(RelOptRuleCall call)
-        {
-          final Project project = call.rel(0);
-          if (!Iterables.all(project.getProjects(), Utils::isInputRef)) {
-            super.onMatch(call);
-          }
-        }
-      };
 
   // RelOptRules.BASE_RULES
   static final List<RelOptRule> DEFAULT_RULES =
@@ -244,9 +227,8 @@ public class Rules
         ProjectJoinTransposeRule.Config.DEFAULT.withPreserveExprCondition(Rules::pushdown).toRule()
     ));
 
-    // sarg ruined this (see CalciteQueryTest.testFilteredTimeAggregators)
     programs.add(hepProgram(
-        PROJECT_REDUCE_EXPRESSIONS,
+        ReduceExpressionsRule.PROJECT_REDUCE,
         CoreRules.FILTER_REDUCE_EXPRESSIONS,
         CoreRules.CALC_REDUCE_EXPRESSIONS,
         CoreRules.WINDOW_REDUCE_EXPRESSIONS,

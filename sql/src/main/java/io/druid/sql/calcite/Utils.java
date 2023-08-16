@@ -46,6 +46,7 @@ import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -713,5 +714,27 @@ public class Utils
   public static RexNode expand(RexBuilder builder, RexNode rex)
   {
     return RexUtil.expandSearch(builder, null, rex);
+  }
+
+  public static RelOptPredicateList expand(RexBuilder builder, RelOptPredicateList predicates)
+  {
+    List<RexNode> source = predicates.pulledUpPredicates;
+    if (source.isEmpty() || source.stream().noneMatch(p -> p.isA(SqlKind.SEARCH))) {
+      return predicates;
+    }
+    List<RexNode> converted = Lists.newArrayList();
+    for (int i = 0; i < source.size(); i++) {
+      if (source.get(i).isA(SqlKind.SEARCH)) {
+        RexNode expanded = expand(builder, source.get(i));
+        if (expanded.isA(SqlKind.AND)) {
+          converted.addAll(((RexCall) expanded).getOperands());
+        } else {
+          converted.add(expanded);
+        }
+      } else {
+        converted.add(source.get(i));
+      }
+    }
+    return RelOptPredicateList.of(builder, converted);
   }
 }
