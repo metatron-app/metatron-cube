@@ -19,19 +19,21 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
+
+import java.util.List;
 
 public class LeftOperatorConversion implements SqlOperatorConversion
 {
@@ -49,27 +51,23 @@ public class LeftOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
+    final List<RexNode> operands = Utils.operands(rexNode);
     final DruidExpression input = Expressions.toDruidExpression(
-        plannerContext,
-        rowSignature,
-        call.getOperands().get(0)
+        context,
+        signature,
+        operands.get(0)
     );
     if (input == null) {
       return null;
     }
-    if (call.getOperands().size() != 2) {
+    if (operands.size() != 2) {
       return null;
     }
     return OperatorConversions.convertCall(
-        plannerContext,
-        rowSignature,
+        context,
+        signature,
         rexNode,
         druidExpressions -> DruidExpression.of(
             null,

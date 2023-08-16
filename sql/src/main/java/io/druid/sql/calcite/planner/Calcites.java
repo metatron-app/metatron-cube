@@ -33,6 +33,7 @@ import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ordering.StringComparators;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.InformationSchema;
 import io.druid.sql.calcite.schema.SystemSchema;
@@ -41,7 +42,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.StructKind;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
@@ -154,7 +154,7 @@ public class Calcites
   {
     return rexNode.isA(SqlKind.CAST) &&
            Calcites.getTypeName(rexNode.getType()) == SqlTypeName.DOUBLE &&
-           Calcites.getTypeName(((RexCall) rexNode).getOperands().get(0).getType()) == SqlTypeName.FLOAT;
+           Calcites.getTypeName(Utils.operands(rexNode).get(0).getType()) == SqlTypeName.FLOAT;
   }
 
   public static boolean isLiteralDouble(RexNode rexNode)

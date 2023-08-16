@@ -47,12 +47,8 @@ public class TimeFloorOperatorConversion extends TimeGranularConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    return toDruidExpression("timestamp_floor", plannerContext, rowSignature, rexNode);
+    return toDruidExpression("timestamp_floor", context, signature, rexNode);
   }
 }

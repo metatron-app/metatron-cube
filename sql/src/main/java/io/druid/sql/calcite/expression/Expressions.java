@@ -250,7 +250,7 @@ public class Expressions
       return toFilter(plannerContext, rowSignature, builder, Utils.soleOperand(expression));
     } else if (kind == SqlKind.AND || kind == SqlKind.OR || kind == SqlKind.NOT) {
       final List<DimFilter> filters = new ArrayList<>();
-      for (final RexNode rexNode : ((RexCall) expression).getOperands()) {
+      for (final RexNode rexNode : Utils.operands(expression)) {
         final DimFilter nextFilter = toFilter(plannerContext, rowSignature, builder, rexNode);
         if (nextFilter == null) {
           return null;
@@ -347,7 +347,7 @@ public class Expressions
                || kind == SqlKind.GREATER_THAN_OR_EQUAL
                || kind == SqlKind.LESS_THAN
                || kind == SqlKind.LESS_THAN_OR_EQUAL) {
-      final List<RexNode> operands = ((RexCall) rexNode).getOperands();
+      final List<RexNode> operands = Utils.operands(rexNode);
       Preconditions.checkState(operands.size() == 2, "Expected 2 operands, got[%,d]", operands.size());
       boolean flip = false;
       RexNode lhs = operands.get(0);
@@ -432,7 +432,7 @@ public class Expressions
       // Always use BoundDimFilters, to simplify filter optimization later (it helps to remember the comparator).
       return Bounds.toFilter(flippedKind, boundRefKey, Objects.toString(literal));
     } else if (kind == SqlKind.LIKE) {
-      final List<RexNode> operands = ((RexCall) rexNode).getOperands();
+      final List<RexNode> operands = Utils.operands(rexNode);
       final DruidExpression druidExpression = toDruidExpression(
           plannerContext,
           rowSignature,

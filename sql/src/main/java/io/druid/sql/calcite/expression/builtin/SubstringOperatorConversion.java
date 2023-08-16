@@ -21,13 +21,13 @@ package io.druid.sql.calcite.expression.builtin;
 
 import io.druid.common.utils.StringUtils;
 import io.druid.query.extraction.SubstringDimExtractionFn;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
@@ -35,6 +35,8 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeFamily;
+
+import java.util.List;
 
 public class SubstringOperatorConversion implements SqlOperatorConversion
 {
@@ -53,28 +55,24 @@ public class SubstringOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     // Can't simply pass through operands, since SQL standard args don't match what Druid's expression language wants.
     // SQL is 1-indexed, Druid is 0-indexed.
 
-    final RexCall call = (RexCall) rexNode;
+    final List<RexNode> operands = Utils.operands(rexNode);
     final DruidExpression input = Expressions.toDruidExpression(
-        plannerContext,
-        rowSignature,
-        call.getOperands().get(0)
+        context,
+        signature,
+        operands.get(0)
     );
     if (input == null) {
       return null;
     }
-    final int index = RexLiteral.intValue(call.getOperands().get(1)) - 1;
+    final int index = RexLiteral.intValue(operands.get(1)) - 1;
     final int length;
-    if (call.getOperands().size() > 2) {
-      length = RexLiteral.intValue(call.getOperands().get(2));
+    if (operands.size() > 2) {
+      length = RexLiteral.intValue(operands.get(2));
     } else {
       length = -1;
     }

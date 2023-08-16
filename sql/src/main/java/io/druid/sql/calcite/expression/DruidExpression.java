@@ -59,54 +59,69 @@ public class DruidExpression implements Cacheable
   private final SimpleExtraction simpleExtraction;
   private final String expression;
 
-  private DruidExpression(final SimpleExtraction simpleExtraction, final String expression)
+  private DruidExpression(SimpleExtraction simpleExtraction, String expression)
   {
     this.simpleExtraction = simpleExtraction;
     this.expression = Preconditions.checkNotNull(expression);
   }
 
   // LOOKUP, REGEXP_EXTRACT
-  public static DruidExpression of(final SimpleExtraction simpleExtraction, final String expression)
+  public static DruidExpression of(SimpleExtraction simpleExtraction, String expression)
   {
     return new DruidExpression(simpleExtraction, expression);
   }
 
-  public static DruidExpression fromColumn(final String column)
+  public static DruidExpression fromColumn(String column)
   {
     return new DruidExpression(SimpleExtraction.of(column, null), identifier(column));
   }
 
-  public static DruidExpression fromExpression(final String expression)
+  public static DruidExpression fromExpression(String expression)
   {
     return new DruidExpression(null, expression);
   }
 
-  public static DruidExpression fromStringLiteral(final String n)
+  public static DruidExpression fromStringLiteral(String n)
   {
     return new DruidExpression(null, stringLiteral(n));
   }
 
-  public static DruidExpression fromNumericLiteral(final Number n, final SqlTypeName typeName)
+  public static DruidExpression fromNumericLiteral(Number n, SqlTypeName typeName)
   {
     return new DruidExpression(null, numberLiteral(n, typeName));
   }
 
-  public static DruidExpression fromFunctionCall(final String functionName, final List<DruidExpression> args)
+  public static DruidExpression fromFunctionCall(String functionName, String... expressions)
+  {
+    return fromExpression(functionCall(functionName, Arrays.asList(expressions)));
+  }
+
+  public static DruidExpression fromFunctionCall(String functionName, DruidExpression... expressions)
+  {
+    return fromExpression(functionCall(functionName, Arrays.asList(expressions)));
+  }
+
+  public static DruidExpression fromFunctionCall(String functionName, List<DruidExpression> args)
   {
     return fromExpression(functionCall(functionName, args));
   }
 
-  public static DruidExpression numberLiteral(final long n)
+  public static Function<List<DruidExpression>, DruidExpression> functionCall(String functionName)
+  {
+    return expressions -> fromFunctionCall(functionName, expressions);
+  }
+  
+  public static DruidExpression numberLiteral(long n)
   {
     return DruidExpression.fromExpression(String.valueOf(n));
   }
 
-  public static String numberLiteral(final double n)
+  public static String numberLiteral(double n)
   {
     return String.valueOf(n);
   }
 
-  public static String numberLiteral(final Number n, final SqlTypeName typeName)
+  public static String numberLiteral(Number n, SqlTypeName typeName)
   {
     if (n == null) {
       return nullLiteral();
@@ -122,7 +137,7 @@ public class DruidExpression implements Cacheable
     return v;
   }
 
-  public static String stringLiteral(final String s)
+  public static String stringLiteral(String s)
   {
     return s == null ? nullLiteral() : "'" + escape(s) + "'";
   }
@@ -132,7 +147,7 @@ public class DruidExpression implements Cacheable
     return "''";
   }
 
-  public static String functionCall(final String functionName, final List<DruidExpression> args)
+  public static String functionCall(String functionName, List<DruidExpression> args)
   {
     Preconditions.checkNotNull(functionName, "functionName");
     Preconditions.checkNotNull(args, "args");
@@ -144,8 +159,8 @@ public class DruidExpression implements Cacheable
 
   public static String functionCall(String functionName, Iterable<String> expressions)
   {
-    final Iterator<String> iterator = expressions.iterator();
-    final StringBuilder builder = new StringBuilder(functionName).append('(');
+    Iterator<String> iterator = expressions.iterator();
+    StringBuilder builder = new StringBuilder(functionName).append('(');
     while (iterator.hasNext()) {
       builder.append(iterator.next());
       if (iterator.hasNext()) {
@@ -155,21 +170,21 @@ public class DruidExpression implements Cacheable
     return builder.append(')').toString();
   }
 
-  public static String functionCall(final String functionName, final DruidExpression... args)
+  public static String functionCall(String functionName, DruidExpression... args)
   {
     return functionCall(functionName, Arrays.asList(args));
   }
 
-  public static String identifier(final String s)
+  public static String identifier(String s)
   {
     return StringUtils.isSimpleIdentifier(s) ? s : StringUtils.format("\"%s\"", escape(s));
   }
 
-  private static String escape(final String s)
+  private static String escape(String s)
   {
-    final StringBuilder escaped = new StringBuilder();
+    StringBuilder escaped = new StringBuilder();
     for (int i = 0; i < s.length(); i++) {
-      final char c = s.charAt(i);
+      char c = s.charAt(i);
       if (Character.isLetterOrDigit(c) || Arrays.binarySearch(SAFE_CHARS, c) >= 0) {
         escaped.append(c);
       } else {
@@ -214,9 +229,14 @@ public class DruidExpression implements Cacheable
     return new ExprVirtualColumn(expression, name);
   }
 
+  public DruidExpression map(Function<String, String> expressionMap)
+  {
+    return map(e -> null, expressionMap);
+  }
+
   public DruidExpression map(
-      final Function<SimpleExtraction, SimpleExtraction> extractionMap,
-      final Function<String, String> expressionMap
+      Function<SimpleExtraction, SimpleExtraction> extractionMap,
+      Function<String, String> expressionMap
   )
   {
     return new DruidExpression(
@@ -245,7 +265,7 @@ public class DruidExpression implements Cacheable
   }
 
   @Override
-  public boolean equals(final Object o)
+  public boolean equals(Object o)
   {
     if (this == o) {
       return true;
@@ -253,7 +273,7 @@ public class DruidExpression implements Cacheable
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    final DruidExpression that = (DruidExpression) o;
+    DruidExpression that = (DruidExpression) o;
     return Objects.equals(simpleExtraction, that.simpleExtraction) &&
            Objects.equals(expression, that.expression);
   }

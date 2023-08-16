@@ -154,17 +154,17 @@ public class DruidMetadataProvider
 
     public Double getSelectivity(RelNode rel, RelMetadataQuery mq, RexNode predicate)
     {
-      return Utils.selectivity(predicate);
+      return Utils.selectivity(rel.getCluster().getRexBuilder(), predicate);
     }
 
     public Double getSelectivity(TableScan rel, RelMetadataQuery mq, RexNode predicate)
     {
       if (predicate == null || predicate.isAlwaysTrue()) {
-        return Utils.selectivity(predicate);
+        return Utils.selectivity(rel.getCluster().getRexBuilder(), predicate);
       }
       QueryMaker context = CONTEXT.get();
       if (context == null || !context.getPlannerContext().getPlannerConfig().isEstimateSelectivity()) {
-        return Utils.selectivity(predicate);
+        return Utils.selectivity(rel.getCluster().getRexBuilder(), predicate);
       }
       return context.cardinality(rel, predicate, k -> evaluate(rel, predicate, context));
     }
@@ -176,7 +176,7 @@ public class DruidMetadataProvider
       RowSignature signature = RowSignature.from(rel.getRowType());
       DimFilter filter = Expressions.toFilter(context.getPlannerContext(), signature, builder, predicate);
       if (filter == null) {
-        return Utils.selectivity(predicate);
+        return Utils.selectivity(builder, predicate);
       }
       String table = Utils.tableName(rel.getTable());
       long[] estimation = Utils.estimateSelectivity(table, Filtration.create(filter).optimize(signature), context);

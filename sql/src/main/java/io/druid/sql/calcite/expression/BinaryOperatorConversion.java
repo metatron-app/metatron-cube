@@ -22,10 +22,10 @@ package io.druid.sql.calcite.expression;
 import com.google.common.base.Joiner;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.ISE;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
@@ -53,18 +53,14 @@ public class BinaryOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    RexCall call = (RexCall) rexNode;
-    RexNode op1 = call.getOperands().get(0);
-    RexNode op2 = call.getOperands().get(1);
+    List<RexNode> operands = Utils.operands(rexNode);
+    RexNode op1 = operands.get(0);
+    RexNode op2 = operands.get(1);
     if (Calcites.isFloatCastedToDouble(op1) && Calcites.isLiteralDouble(op2)) {
       DruidExpression expression = Expressions.toDruidExpression(
-          plannerContext, rowSignature, ((RexCall) op1).getOperands().get(0)
+          context, signature, Utils.operands(op1).get(0)
       );
       DruidExpression constant = DruidExpression.fromNumericLiteral((Number) RexLiteral.value(op2), SqlTypeName.FLOAT);
       if (expression != null && constant != null) {
@@ -73,18 +69,13 @@ public class BinaryOperatorConversion implements SqlOperatorConversion
     } else if (Calcites.isLiteralDouble(op1) && Calcites.isFloatCastedToDouble(op2)) {
       DruidExpression constant = DruidExpression.fromNumericLiteral((Number) RexLiteral.value(op1), SqlTypeName.FLOAT);
       DruidExpression expression = Expressions.toDruidExpression(
-          plannerContext, rowSignature, ((RexCall) op2).getOperands().get(0)
+          context, signature, Utils.operands(op2).get(0)
       );
       if (expression != null && constant != null) {
         return opExpression(Arrays.asList(constant, expression));
       }
     }
-    return OperatorConversions.convertCall(
-        plannerContext,
-        rowSignature,
-        rexNode,
-        operands -> opExpression(operands)
-    );
+    return OperatorConversions.convertCall(context, signature, rexNode, this::opExpression);
   }
 
   private DruidExpression opExpression(List<DruidExpression> operands)

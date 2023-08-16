@@ -19,12 +19,12 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
@@ -60,14 +60,9 @@ public class EvalOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    final List<RexNode> operands = call.getOperands();
+    List<RexNode> operands = Utils.operands(rexNode);
     if (operands.size() == 1) {
       return DruidExpression.fromExpression(RexLiteral.stringValue(operands.get(0)));
     }

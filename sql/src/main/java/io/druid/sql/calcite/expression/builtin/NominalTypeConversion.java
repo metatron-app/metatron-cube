@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.expression.builtin;
 
 import io.druid.data.ValueDesc;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.OperatorConversions;
@@ -27,7 +28,6 @@ import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -56,13 +56,8 @@ public class NominalTypeConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    return Expressions.toDruidExpression(plannerContext, rowSignature, call.getOperands().get(0));
+    return Expressions.toDruidExpression(context, signature, Utils.operands(rexNode).get(0));
   }
 }

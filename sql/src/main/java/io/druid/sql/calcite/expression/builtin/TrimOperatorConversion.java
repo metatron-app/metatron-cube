@@ -20,28 +20,24 @@
 package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.collect.ImmutableList;
-import io.druid.sql.calcite.planner.SqlStdOperatorTable;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlTrimFunction;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.planner.SqlStdOperatorTable;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlTrimFunction;
 
 import javax.annotation.Nullable;
 
 public class TrimOperatorConversion implements SqlOperatorConversion
 {
   @Nullable
-  public static DruidExpression makeTrimExpression(
-      final SqlTrimFunction.Flag trimStyle,
-      final DruidExpression stringExpression,
-      final DruidExpression charsExpression
-  )
+  public static DruidExpression makeTrimExpression(SqlTrimFunction.Flag trimStyle, String... operands)
   {
     final String functionName;
 
@@ -61,7 +57,7 @@ public class TrimOperatorConversion implements SqlOperatorConversion
     }
 
     // Druid version of trim is multi-function (ltrim/rtrim/trim) and the other two args are swapped.
-    return DruidExpression.fromFunctionCall(functionName, ImmutableList.of(stringExpression, charsExpression));
+    return DruidExpression.fromFunctionCall(functionName, operands);
   }
 
   @Override
@@ -71,34 +67,21 @@ public class TrimOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     // TRIM(<style> <chars> FROM <arg>)
 
-    final RexCall call = (RexCall) rexNode;
-    final RexLiteral flag = (RexLiteral) call.getOperands().get(0);
+    final ImmutableList<RexNode> operands = Utils.operands(rexNode);
+    final RexLiteral flag = (RexLiteral) operands.get(0);
     final SqlTrimFunction.Flag trimStyle = (SqlTrimFunction.Flag) flag.getValue();
 
-    final DruidExpression charsExpression = Expressions.toDruidExpression(
-        plannerContext,
-        rowSignature,
-        call.getOperands().get(1)
-    );
-
-    final DruidExpression stringExpression = Expressions.toDruidExpression(
-        plannerContext,
-        rowSignature,
-        call.getOperands().get(2)
-    );
+    final DruidExpression charsExpression = Expressions.toDruidExpression(context, signature, operands.get(1));
+    final DruidExpression stringExpression = Expressions.toDruidExpression(context, signature, operands.get(2));
 
     if (charsExpression == null || stringExpression == null) {
       return null;
     }
 
-    return makeTrimExpression(trimStyle, stringExpression, charsExpression);
+    return makeTrimExpression(trimStyle, stringExpression.getExpression(), charsExpression.getExpression());
   }
 }

@@ -19,13 +19,13 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.planner.SqlStdOperatorTable;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
@@ -42,10 +42,10 @@ public class ItemOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    List<RexNode> operands = ((RexCall) rexNode).getOperands();
-    DruidExpression input = Expressions.toDruidExpression(plannerContext, rowSignature, operands.get(0));
+    List<RexNode> operands = Utils.operands(rexNode);
+    DruidExpression input = Expressions.toDruidExpression(context, signature, operands.get(0));
     return input == null ? null : input.nested(value(operands.get(1)));
   }
 

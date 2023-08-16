@@ -36,17 +36,13 @@ public interface SqlOperatorConversion
   /**
    * Translate a Calcite {@code RexNode} to a Druid expression.
    *
-   * @param plannerContext SQL planner context
-   * @param rowSignature   signature of the rows to be extracted from
+   * @param context SQL planner context
+   * @param signature   signature of the rows to be extracted from
    * @param rexNode        expression meant to be applied on top of the rows
    *
    * @return Druid expression, or null if translation is not possible
    *
    * @see Expressions#toDruidExpression(PlannerContext, RowSignature, RexNode)
    */
-  DruidExpression toDruidExpression(
-      PlannerContext plannerContext,
-      RowSignature rowSignature,
-      RexNode rexNode
-  );
+  DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode);
 }

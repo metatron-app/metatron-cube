@@ -20,19 +20,19 @@
 package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.base.Preconditions;
+import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
-import io.druid.common.utils.StringUtils;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.SqlTypeFamily;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import java.util.List;
 
@@ -48,7 +48,7 @@ public abstract class TimeArithmeticOperatorConversion implements SqlOperatorCon
   {
     this.operator = operator;
     this.direction = direction;
-    Preconditions.checkArgument(direction > 0 || direction < 0);
+    Preconditions.checkArgument(direction != 0);
   }
 
   @Override
@@ -58,14 +58,9 @@ public abstract class TimeArithmeticOperatorConversion implements SqlOperatorCon
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    final List<RexNode> operands = call.getOperands();
+    final List<RexNode> operands = Utils.operands(rexNode);
     if (operands.size() != 2) {
       throw new IAE("Expected 2 args, got %s", operands.size());
     }
@@ -73,8 +68,8 @@ public abstract class TimeArithmeticOperatorConversion implements SqlOperatorCon
     final RexNode timeRexNode = operands.get(0);
     final RexNode shiftRexNode = operands.get(1);
 
-    final DruidExpression timeExpr = Expressions.toDruidExpression(plannerContext, rowSignature, timeRexNode);
-    final DruidExpression shiftExpr = Expressions.toDruidExpression(plannerContext, rowSignature, shiftRexNode);
+    final DruidExpression timeExpr = Expressions.toDruidExpression(context, signature, timeRexNode);
+    final DruidExpression shiftExpr = Expressions.toDruidExpression(context, signature, shiftRexNode);
 
     if (timeExpr == null || shiftExpr == null) {
       return null;
@@ -87,10 +82,7 @@ public abstract class TimeArithmeticOperatorConversion implements SqlOperatorCon
           DruidExpression.functionCall(
               "timestamp_shift",
               timeExpr,
-              shiftExpr.map(
-                  simpleExtraction -> null,
-                  expression -> StringUtils.format("'P%sM'", expression)
-              ),
+              shiftExpr.map(expression -> StringUtils.format("'P%sM'", expression)),
               DruidExpression.numberLiteral(direction > 0 ? 1 : -1)
           )
       );

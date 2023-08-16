@@ -19,18 +19,17 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import com.google.common.collect.ImmutableList;
+import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.expression.OperatorConversions;
+import io.druid.sql.calcite.expression.SqlOperatorConversion;
+import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
-import io.druid.sql.calcite.table.RowSignature;
-import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.OperatorConversions;
-import io.druid.sql.calcite.expression.SqlOperatorConversion;
-import io.druid.sql.calcite.planner.PlannerContext;
 
 public class LPadOperatorConversion implements SqlOperatorConversion
 {
@@ -49,34 +48,26 @@ public class LPadOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     return OperatorConversions.convertCall(
-        plannerContext,
-        rowSignature,
+        context,
+        signature,
         rexNode,
         druidExpressions -> {
           if (druidExpressions.size() > 2) {
             return DruidExpression.fromFunctionCall(
                 "lpad",
-                ImmutableList.of(
-                    druidExpressions.get(0),
-                    druidExpressions.get(1),
-                    druidExpressions.get(2)
-                )
+                druidExpressions.get(0),
+                druidExpressions.get(1),
+                druidExpressions.get(2)
             );
           } else {
             return DruidExpression.fromFunctionCall(
                 "lpad",
-                ImmutableList.of(
-                    druidExpressions.get(0),
-                    druidExpressions.get(1),
-                    DruidExpression.fromStringLiteral(" ")
-                )
+                druidExpressions.get(0).getExpression(),
+                druidExpressions.get(1).getExpression(),
+                DruidExpression.stringLiteral(" ")
             );
           }
         }

@@ -141,12 +141,12 @@ public class Utils
 
   public static boolean isOr(RexNode op)
   {
-    return op instanceof RexCall && op.getKind() == SqlKind.OR;
+    return op.isA(SqlKind.OR);
   }
 
   public static boolean isAnd(RexNode op)
   {
-    return op instanceof RexCall && op.getKind() == SqlKind.AND;
+    return op.isA(SqlKind.AND);
   }
 
   public static boolean isRelational(RexNode op)
@@ -157,7 +157,7 @@ public class Utils
         return true;
       }
       if (kind == SqlKind.NOT) {
-        return isRelational(((RexCall) op).getOperands().get(0));
+        return isRelational(Utils.operands(op).get(0));
       }
     }
     return false;
@@ -435,7 +435,12 @@ public class Utils
     );
   }
 
-  public static double selectivity(RexNode condition)
+  public static double selectivity(RelNode source, RexNode condition)
+  {
+    return selectivity(source.getCluster().getRexBuilder(), condition);
+  }
+
+  public static double selectivity(RexBuilder builder, RexNode condition)
   {
     if (condition == null || condition.isAlwaysTrue()) {
       return 1.0D;
@@ -443,13 +448,13 @@ public class Utils
     final double estimate;
     switch (condition.getKind()) {
       case AND:
-        return ((RexCall) condition).getOperands().stream()
-                                    .mapToDouble(op -> selectivity(op)).min().orElse(1);
+        return Utils.operands(condition).stream()
+                    .mapToDouble(op -> selectivity(builder, op)).min().orElse(1);
       case OR:
-        return Math.max(1, ((RexCall) condition).getOperands().stream()
-                                                .mapToDouble(op -> selectivity(op)).sum());
+        return Math.max(1, Utils.operands(condition).stream()
+                                .mapToDouble(op -> selectivity(builder, op)).sum());
       case NOT:
-        return 1 - selectivity(((RexCall) condition).getOperands().get(0));
+        return 1 - selectivity(builder, Utils.operands(condition).get(0));
       case BETWEEN:
         return 0.3;
       case LIKE:
@@ -467,6 +472,8 @@ public class Utils
         return 0.02;
       case IS_NOT_NULL:
         return 0.98;
+      case SEARCH:
+        return selectivity(builder, Utils.expand(builder, condition));
       default:
         return 0.8;
     }
@@ -494,7 +501,7 @@ public class Utils
     }
     double cost = 0;
     if (rexNode instanceof RexCall) {
-      cost = rexEvalCost(((RexCall) rexNode).getOperands());
+      cost = rexEvalCost(Utils.operands(rexNode));
       switch (rexNode.getKind()) {
         case OTHER_FUNCTION:
           return CUSTOM_FN_CALL + cost;   // todo
@@ -555,7 +562,7 @@ public class Utils
 
   public static List<RexNode> decomposeOnAnd(RexNode rexNode)
   {
-    return rexNode.getKind() == SqlKind.AND ? ((RexCall) rexNode).getOperands() : Arrays.asList(rexNode);
+    return rexNode.isA(SqlKind.AND) ? Utils.operands(rexNode) : Arrays.asList(rexNode);
   }
 
   public static Object extractLiteral(RexLiteral literal, PlannerContext context)
@@ -576,9 +583,9 @@ public class Utils
 
   public static int extractSimpleCastedColumn(RexNode rex)
   {
-    if (rex.getKind() == SqlKind.CAST) {
+    if (rex.isA(SqlKind.CAST)) {
       final ImmutableList<RexNode> operands = ((RexCall) rex).operands;
-      if (operands.size() == 1 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
+      if (operands.size() == 1 && operands.get(0).isA(SqlKind.INPUT_REF)) {
         return ((RexInputRef) operands.get(0)).getIndex();
       }
     }
@@ -590,33 +597,33 @@ public class Utils
     final Iterator<RexNode> iterator = filters.iterator();
     while (iterator.hasNext()) {
       RexNode node = iterator.next();
-      if (node.getKind() == SqlKind.EQUALS) {
-        RexNode op1 = ((RexCall) node).getOperands().get(0);
-        RexNode op2 = ((RexCall) node).getOperands().get(1);
-        if (op1.getKind() == SqlKind.INPUT_REF && op2.getKind() == SqlKind.LITERAL) {
+      if (node.isA(SqlKind.EQUALS)) {
+        RexNode op1 = Utils.operands(node).get(0);
+        RexNode op2 = Utils.operands(node).get(1);
+        if (op1.isA(SqlKind.INPUT_REF) && op2.isA(SqlKind.LITERAL)) {
           if (ref == ((RexInputRef) op1).getIndex()) {
             iterator.remove();
             Object coereced = QueryMaker.coerece(RexLiteral.value(op2), op2.getType());
             return v -> Objects.equals(v, coereced);
           }
-        } else if (op2.getKind() == SqlKind.INPUT_REF && op1.getKind() == SqlKind.LITERAL) {
+        } else if (op2.isA(SqlKind.INPUT_REF) && op1.isA(SqlKind.LITERAL)) {
           if (ref == ((RexInputRef) op2).getIndex()) {
             iterator.remove();
             Object coereced = QueryMaker.coerece(RexLiteral.value(op1), op1.getType());
             return v -> Objects.equals(v, coereced);
           }
         }
-      } else if (node.getKind() == SqlKind.LIKE) {
-        RexNode op1 = ((RexCall) node).getOperands().get(0);
-        RexNode op2 = ((RexCall) node).getOperands().get(1);
-        if (op1.getKind() == SqlKind.INPUT_REF && op2.getKind() == SqlKind.LITERAL) {
+      } else if (node.isA(SqlKind.LIKE)) {
+        RexNode op1 = Utils.operands(node).get(0);
+        RexNode op2 = Utils.operands(node).get(1);
+        if (op1.isA(SqlKind.INPUT_REF) && op2.isA(SqlKind.LITERAL)) {
           if (ref == ((RexInputRef) op1).getIndex()) {
             iterator.remove();
             Object coereced = QueryMaker.coerece(RexLiteral.value(op2), op2.getType());
             return LikeMatcher.from(String.valueOf(coereced), null).asPredicate();
           }
         }
-      } else if (node.getKind() == SqlKind.OR) {
+      } else if (node.isA(SqlKind.OR)) {
         return extractIn(ref, (RexCall) node);
       }
     }
@@ -632,14 +639,14 @@ public class Utils
     }
     Set<Object> values = Sets.newHashSet();
     for (RexNode rex : node.getOperands()) {
-      RexNode op1 = ((RexCall) rex).getOperands().get(0);
-      RexNode op2 = ((RexCall) rex).getOperands().get(1);
-      if (op1.getKind() == SqlKind.INPUT_REF && op2.getKind() == SqlKind.LITERAL) {
+      RexNode op1 = Utils.operands(rex).get(0);
+      RexNode op2 = Utils.operands(rex).get(1);
+      if (op1.isA(SqlKind.INPUT_REF) && op2.isA(SqlKind.LITERAL)) {
         if (ref != ((RexInputRef) op1).getIndex()) {
           return null;
         }
         values.add(QueryMaker.coerece(RexLiteral.value(op2), op2.getType()));
-      } else if (op2.getKind() == SqlKind.INPUT_REF && op1.getKind() == SqlKind.LITERAL) {
+      } else if (op2.isA(SqlKind.INPUT_REF) && op1.isA(SqlKind.LITERAL)) {
         if (ref != ((RexInputRef) op2).getIndex()) {
           return null;
         }
@@ -703,7 +710,7 @@ public class Utils
 
   public static RexNode soleOperand(RexNode rexNode)
   {
-    return Iterables.getOnlyElement(((RexCall) rexNode).getOperands());
+    return Iterables.getOnlyElement(Utils.operands(rexNode));
   }
 
   public static List<RexNode> expand(RexBuilder builder, List<RexNode> exprs)
@@ -727,7 +734,7 @@ public class Utils
       if (source.get(i).isA(SqlKind.SEARCH)) {
         RexNode expanded = expand(builder, source.get(i));
         if (expanded.isA(SqlKind.AND)) {
-          converted.addAll(((RexCall) expanded).getOperands());
+          converted.addAll(Utils.operands(expanded));
         } else {
           converted.add(expanded);
         }

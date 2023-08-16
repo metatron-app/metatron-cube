@@ -48,12 +48,8 @@ public class TimeShiftOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    return OperatorConversions.convertCall(plannerContext, rowSignature, rexNode, "timestamp_shift");
+    return OperatorConversions.convertCall(context, signature, rexNode, "timestamp_shift");
   }
 }

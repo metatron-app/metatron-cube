@@ -19,17 +19,10 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.IAE;
 import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Evals;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.calcite.sql.type.SqlTypeName;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.sql.calcite.expression.DruidExpression;
@@ -37,6 +30,12 @@ import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Period;
 
 import java.util.Map;
@@ -79,18 +78,14 @@ public class DateTruncOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     return OperatorConversions.convertCall(
-        plannerContext,
-        rowSignature,
+        context,
+        signature,
         rexNode,
         inputExpressions -> {
-          final Expr truncTypeExpr = Parser.parse(inputExpressions.get(0).getExpression(), rowSignature);
+          final Expr truncTypeExpr = Parser.parse(inputExpressions.get(0).getExpression(), signature);
 
           if (!Evals.isConstantString(truncTypeExpr)) {
             throw new IAE("Operator[%s] truncType must be a literal", calciteOperator().getName());
@@ -105,12 +100,10 @@ public class DateTruncOperatorConversion implements SqlOperatorConversion
 
           return DruidExpression.fromFunctionCall(
               "timestamp_floor",
-              ImmutableList.of(
-                  inputExpressions.get(1),
-                  DruidExpression.fromStringLiteral(truncPeriod.toString()),
-                  DruidExpression.fromStringLiteral(null),
-                  DruidExpression.fromStringLiteral(plannerContext.getTimeZone().getID())
-              )
+              inputExpressions.get(1).getExpression(),
+              DruidExpression.stringLiteral(truncPeriod.toString()),
+              DruidExpression.stringLiteral(null),
+              DruidExpression.stringLiteral(context.getTimeZone().getID())
           );
         }
     );

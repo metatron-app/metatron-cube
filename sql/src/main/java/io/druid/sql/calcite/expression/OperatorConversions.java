@@ -74,7 +74,7 @@ public class OperatorConversions
         plannerContext,
         rowSignature,
         rexNode,
-        druidExpressions -> DruidExpression.fromFunctionCall(functionName, druidExpressions)
+        DruidExpression.functionCall(functionName)
     );
   }
 

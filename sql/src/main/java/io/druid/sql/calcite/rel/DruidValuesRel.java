@@ -35,7 +35,6 @@ import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import java.util.Arrays;
 import java.util.Set;
 
 public class DruidValuesRel extends DruidRel

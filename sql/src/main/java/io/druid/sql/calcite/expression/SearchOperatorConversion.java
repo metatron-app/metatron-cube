@@ -29,8 +29,6 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 
-import javax.annotation.Nullable;
-
 public class SearchOperatorConversion implements SqlOperatorConversion
 {
   private static final RexBuilder REX_BUILDER = new RexBuilder(new JavaTypeFactoryImpl(DruidTypeSystem.INSTANCE));
@@ -41,14 +39,9 @@ public class SearchOperatorConversion implements SqlOperatorConversion
     return SqlStdOperatorTable.SEARCH;
   }
 
-  @Nullable
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    return Expressions.toDruidExpression(plannerContext, rowSignature, Utils.expand(REX_BUILDER, rexNode));
+    return Expressions.toDruidExpression(context, signature, Utils.expand(REX_BUILDER, rexNode));
   }
 }

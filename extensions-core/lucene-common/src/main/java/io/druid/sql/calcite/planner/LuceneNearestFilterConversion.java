@@ -21,9 +21,9 @@ package io.druid.sql.calcite.planner;
 
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.LuceneNearestFilter;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
@@ -40,8 +40,7 @@ public class LuceneNearestFilterConversion implements DimFilterConversion
   @Override
   public DimFilter toDruidFilter(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    final List<RexNode> operands = call.getOperands();
+    List<RexNode> operands = Utils.operands(rexNode);
     if (operands.size() != 4 && operands.size() != 5) {
       return null;
     }

@@ -20,15 +20,14 @@
 package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
@@ -39,7 +38,6 @@ import org.joda.time.Period;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 public abstract class TimeGranularConversion implements SqlOperatorConversion
 {
@@ -73,16 +71,13 @@ public abstract class TimeGranularConversion implements SqlOperatorConversion
       }
     }
 
+    Long origin = granularity.getOrigin() == null ? null : granularity.getOrigin().getMillis();
     return DruidExpression.fromFunctionCall(
         functionName,
-        ImmutableList.of(
-            input.getExpression(),
-            DruidExpression.stringLiteral(granularity.getPeriod().toString()),
-            DruidExpression.numberLiteral(
-                granularity.getOrigin() == null ? null : granularity.getOrigin().getMillis(), SqlTypeName.BIGINT
-            ),
-            DruidExpression.stringLiteral(granularity.getTimeZone().toString())
-        ).stream().map(DruidExpression::fromExpression).collect(Collectors.toList())
+        input.getExpression(),
+        DruidExpression.stringLiteral(granularity.getPeriod().toString()),
+        DruidExpression.numberLiteral(origin, SqlTypeName.BIGINT),
+        DruidExpression.stringLiteral(granularity.getTimeZone().toString())
     );
   }
 
@@ -102,8 +97,7 @@ public abstract class TimeGranularConversion implements SqlOperatorConversion
       final RexNode rexNode
   )
   {
-    final RexCall call = (RexCall) rexNode;
-    final List<RexNode> operands = call.getOperands();
+    final List<RexNode> operands = Utils.operands(rexNode);
     final List<DruidExpression> druidExpressions = Expressions.toDruidExpressions(
         plannerContext,
         rowSignature,

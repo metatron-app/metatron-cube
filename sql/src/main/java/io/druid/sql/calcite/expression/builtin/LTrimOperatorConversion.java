@@ -49,28 +49,24 @@ public class LTrimOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     return OperatorConversions.convertCall(
-        plannerContext,
-        rowSignature,
+        context,
+        signature,
         rexNode,
         druidExpressions -> {
           if (druidExpressions.size() > 1) {
             return TrimOperatorConversion.makeTrimExpression(
                 SqlTrimFunction.Flag.LEADING,
-                druidExpressions.get(0),
-                druidExpressions.get(1)
+                druidExpressions.get(0).getExpression(),
+                druidExpressions.get(1).getExpression()
             );
           } else {
             return TrimOperatorConversion.makeTrimExpression(
                 SqlTrimFunction.Flag.LEADING,
-                druidExpressions.get(0),
-                DruidExpression.fromStringLiteral(" ")
+                druidExpressions.get(0).getExpression(),
+                DruidExpression.stringLiteral(" ")
             );
           }
         }

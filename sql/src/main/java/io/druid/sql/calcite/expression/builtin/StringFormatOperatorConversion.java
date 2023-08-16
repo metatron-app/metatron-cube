@@ -53,13 +53,9 @@ public class StringFormatOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    return OperatorConversions.convertCall(plannerContext, rowSignature, rexNode, "format");
+    return OperatorConversions.convertCall(context, signature, rexNode, "format");
   }
 
   private static class StringFormatOperandTypeChecker implements SqlOperandTypeChecker

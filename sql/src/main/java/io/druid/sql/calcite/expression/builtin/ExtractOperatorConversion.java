@@ -21,6 +21,7 @@ package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.collect.ImmutableMap;
 import io.druid.math.expr.DateTimeFunctions;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlExtractFunction;
@@ -28,12 +29,11 @@ import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.avatica.util.TimeUnitRange;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
+import java.util.List;
 import java.util.Map;
 
 public class ExtractOperatorConversion implements SqlOperatorConversion
@@ -60,19 +60,15 @@ public class ExtractOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     // EXTRACT(timeUnit FROM arg)
-    final RexCall call = (RexCall) rexNode;
-    final RexLiteral flag = (RexLiteral) call.getOperands().get(0);
+    final List<RexNode> operands = Utils.operands(rexNode);
+    final RexLiteral flag = (RexLiteral) operands.get(0);
     final TimeUnitRange calciteUnit = (TimeUnitRange) flag.getValue();
-    final RexNode arg = call.getOperands().get(1);
+    final RexNode arg = operands.get(1);
 
-    final DruidExpression input = Expressions.toDruidExpression(plannerContext, rowSignature, arg);
+    final DruidExpression input = Expressions.toDruidExpression(context, signature, arg);
     if (input == null) {
       return null;
     }
@@ -83,6 +79,6 @@ public class ExtractOperatorConversion implements SqlOperatorConversion
       return null;
     }
 
-    return TimeExtractOperatorConversion.applyTimeExtract(input, druidUnit, plannerContext.getTimeZone());
+    return TimeExtractOperatorConversion.applyTimeExtract(input, druidUnit, context.getTimeZone());
   }
 }

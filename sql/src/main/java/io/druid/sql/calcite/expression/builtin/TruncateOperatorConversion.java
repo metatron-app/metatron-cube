@@ -50,20 +50,16 @@ public class TruncateOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     return OperatorConversions.convertCall(
-        plannerContext,
-        rowSignature,
+        context,
+        signature,
         rexNode,
         inputExpressions -> {
           final DruidExpression arg = inputExpressions.get(0);
           final Expr digitsExpr = inputExpressions.size() > 1
-                                  ? inputExpressions.get(1).parse(rowSignature)
+                                  ? inputExpressions.get(1).parse(signature)
                                   : null;
 
           final String factorString;

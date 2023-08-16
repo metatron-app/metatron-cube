@@ -60,20 +60,16 @@ public class LookupOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     return OperatorConversions.convertCall(
-        plannerContext,
-        rowSignature,
+        context,
+        signature,
         rexNode,
         StringUtils.toLowerCase(calciteOperator().getName()),
         inputExpressions -> {
           final DruidExpression arg = inputExpressions.get(0);
-          final Expr lookupNameExpr = inputExpressions.get(1).parse(rowSignature);
+          final Expr lookupNameExpr = inputExpressions.get(1).parse(signature);
 
           if (arg.isSimpleExtraction() && Evals.isConstantString(lookupNameExpr)) {
             return arg.getSimpleExtraction().cascade(

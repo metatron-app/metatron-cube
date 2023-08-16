@@ -771,7 +771,7 @@ public class PartialDruidQuery
     if (scanFilter != null) {
       RexNode condition = scanFilter.getCondition();
       cost += estimate * Utils.rexEvalCost(condition);
-      estimate *= Utils.selectivity(condition);
+      estimate *= Utils.selectivity(scanFilter, condition);
     }
 
     if (scanProject != null) {
@@ -800,7 +800,7 @@ public class PartialDruidQuery
     if (aggregateFilter != null) {
       RexNode condition = aggregateFilter.getCondition();
       cost += estimate * Utils.rexEvalCost(condition);
-      estimate *= Utils.selectivity(condition);
+      estimate *= Utils.selectivity(aggregateFilter, condition);
     }
 
     if (window != null) {

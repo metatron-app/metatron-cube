@@ -20,25 +20,25 @@
 package io.druid.sql.calcite.expression;
 
 import io.druid.java.util.common.IAE;
+import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 
 public class AliasedOperatorConversion implements SqlOperatorConversion
 {
   private final SqlOperatorConversion baseConversion;
   private final SqlOperator operator;
 
-  public AliasedOperatorConversion(final SqlOperatorConversion baseConversion, final String name)
+  public AliasedOperatorConversion(SqlOperatorConversion baseConversion, String name)
   {
     if (!SqlKind.FUNCTION.contains(baseConversion.calciteOperator().getKind())) {
       throw new IAE("Base operator must be a function but was[%s]", baseConversion.calciteOperator().getKind());
     }
 
-    final SqlFunction baseFunction = (SqlFunction) baseConversion.calciteOperator();
+    SqlFunction baseFunction = (SqlFunction) baseConversion.calciteOperator();
 
     this.baseConversion = baseConversion;
     this.operator = new SqlFunction(
@@ -58,12 +58,8 @@ public class AliasedOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    return baseConversion.toDruidExpression(plannerContext, rowSignature, rexNode);
+    return baseConversion.toDruidExpression(context, signature, rexNode);
   }
 }

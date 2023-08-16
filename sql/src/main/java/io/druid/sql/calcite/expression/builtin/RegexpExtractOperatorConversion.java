@@ -52,22 +52,18 @@ public class RegexpExtractOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
     return OperatorConversions.convertCall(
-        plannerContext,
-        rowSignature,
+        context,
+        signature,
         rexNode,
         "regex",
         inputExpressions -> {
           final DruidExpression arg = inputExpressions.get(0);
-          final Expr patternExpr = inputExpressions.get(1).parse(rowSignature);
+          final Expr patternExpr = inputExpressions.get(1).parse(signature);
           final Expr indexExpr = inputExpressions.size() > 2
-                                 ? inputExpressions.get(2).parse(rowSignature)
+                                 ? inputExpressions.get(2).parse(signature)
                                  : null;
 
           if (arg.isSimpleExtraction() && Evals.isConstantString(patternExpr) &&

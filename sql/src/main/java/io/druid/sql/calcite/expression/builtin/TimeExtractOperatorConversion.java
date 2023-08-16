@@ -19,16 +19,15 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.DateTimeFunctions;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
@@ -36,6 +35,8 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTimeZone;
+
+import java.util.List;
 
 public class TimeExtractOperatorConversion implements SqlOperatorConversion
 {
@@ -55,11 +56,9 @@ public class TimeExtractOperatorConversion implements SqlOperatorConversion
   {
     return DruidExpression.fromFunctionCall(
         "timestamp_extract",
-        ImmutableList.of(
-            DruidExpression.fromStringLiteral(unit.name()),
-            timeExpression,
-            DruidExpression.fromStringLiteral(timeZone.getID())
-        )
+        DruidExpression.stringLiteral(unit.name()),
+        timeExpression.getExpression(),
+        DruidExpression.stringLiteral(timeZone.getID())
     );
   }
 
@@ -70,26 +69,22 @@ public class TimeExtractOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    final RexNode timeArg = call.getOperands().get(0);
-    final DruidExpression timeExpression = Expressions.toDruidExpression(plannerContext, rowSignature, timeArg);
+    final List<RexNode> operands = Utils.operands(rexNode);
+    final RexNode timeArg = operands.get(0);
+    final DruidExpression timeExpression = Expressions.toDruidExpression(context, signature, timeArg);
     if (timeExpression == null) {
       return null;
     }
 
     final DateTimeFunctions.Unit unit = DateTimeFunctions.Unit.valueOf(
-        StringUtils.toUpperCase(RexLiteral.stringValue(call.getOperands().get(1)))
+        StringUtils.toUpperCase(RexLiteral.stringValue(operands.get(1)))
     );
 
-    final DateTimeZone timeZone = call.getOperands().size() > 2 && !RexLiteral.isNullLiteral(call.getOperands().get(2))
-                                  ? DateTimeZone.forID(RexLiteral.stringValue(call.getOperands().get(2)))
-                                  : plannerContext.getTimeZone();
+    final DateTimeZone timeZone = operands.size() > 2 && !RexLiteral.isNullLiteral(operands.get(2))
+                                  ? DateTimeZone.forID(RexLiteral.stringValue(operands.get(2)))
+                                  : context.getTimeZone();
 
     return applyTimeExtract(timeExpression, unit, timeZone);
   }

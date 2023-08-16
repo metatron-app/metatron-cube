@@ -21,6 +21,7 @@ package io.druid.sql.calcite.expression.builtin;
 
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
@@ -28,9 +29,10 @@ import io.druid.sql.calcite.expression.TimeUnits;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.avatica.util.TimeUnitRange;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+
+import java.util.List;
 
 public abstract class GranularConversion implements SqlOperatorConversion
 {
@@ -42,8 +44,8 @@ public abstract class GranularConversion implements SqlOperatorConversion
       final RexNode rexNode
   )
   {
-    final RexCall call = (RexCall) rexNode;
-    final RexNode arg = call.getOperands().get(0);
+    final List<RexNode> operands = Utils.operands(rexNode);
+    final RexNode arg = operands.get(0);
     final DruidExpression druidExpression = Expressions.toDruidExpression(
         plannerContext,
         rowSignature,
@@ -51,15 +53,12 @@ public abstract class GranularConversion implements SqlOperatorConversion
     );
     if (druidExpression == null) {
       return null;
-    } else if (call.getOperands().size() == 1) {
+    } else if (operands.size() == 1) {
       // func(expr)
-      return druidExpression.map(
-          simpleExtraction -> null,
-          expression -> StringUtils.format("%s(%s)", unary, expression)
-      );
-    } else if (call.getOperands().size() == 2) {
+      return druidExpression.map(expression -> StringUtils.format("%s(%s)", unary, expression));
+    } else if (operands.size() == 2) {
       // func(expr TO timeUnit)
-      final RexLiteral flag = (RexLiteral) call.getOperands().get(1);
+      final RexLiteral flag = (RexLiteral) operands.get(1);
       final TimeUnitRange timeUnit = (TimeUnitRange) flag.getValue();
       final PeriodGranularity granularity = TimeUnits.toQueryGranularity(timeUnit, plannerContext.getTimeZone());
       if (granularity == null) {

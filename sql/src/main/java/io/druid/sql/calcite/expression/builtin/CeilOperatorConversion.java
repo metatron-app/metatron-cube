@@ -35,8 +35,8 @@ public class CeilOperatorConversion extends GranularConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    return toDruidExpression("ceil", "timestamp_ceil", plannerContext, rowSignature, rexNode);
+    return toDruidExpression("ceil", "timestamp_ceil", context, signature, rexNode);
   }
 }

@@ -47,12 +47,8 @@ public class TimeCeilOperatorConversion extends TimeGranularConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    return toDruidExpression("timestamp_ceil", plannerContext, rowSignature, rexNode);
+    return toDruidExpression("timestamp_ceil", context, signature, rexNode);
   }
 }

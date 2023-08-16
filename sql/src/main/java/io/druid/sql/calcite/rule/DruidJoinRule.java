@@ -33,7 +33,6 @@ import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
@@ -94,7 +93,7 @@ public class DruidJoinRule extends RelOptRule
     }
     final String opName = Utils.opName(condition);
     if (SUPPORTED.contains(opName)) {
-      final List<RexNode> operands = ((RexCall) condition).getOperands();
+      final List<RexNode> operands = Utils.operands(condition);
       final int[] refs = Utils.getInputRefs(operands);
       if (refs == null || refs.length != 2) {
         return null;

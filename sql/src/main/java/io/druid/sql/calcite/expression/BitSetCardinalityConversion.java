@@ -19,10 +19,10 @@
 
 package io.druid.sql.calcite.expression;
 
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
@@ -62,16 +62,11 @@ public class BitSetCardinalityConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    final List<RexNode> operands = call.getOperands();
+    List<RexNode> operands = Utils.operands(rexNode);
     if (operands.size() == 1 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
-      String column = rowSignature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
+      String column = signature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
       return DruidExpression.fromExpression(String.format("bitset.cardinality(%s)", DruidExpression.identifier(column)));
     }
     return null;

@@ -114,7 +114,7 @@ public class PreFilteringRule extends RelOptRule
 
     switch (topFilterCondition.getKind()) {
       case AND:
-        ImmutableList<RexNode> operands = RexUtil.flattenAnd(((RexCall) topFilterCondition).getOperands());
+        ImmutableList<RexNode> operands = RexUtil.flattenAnd(Utils.operands(topFilterCondition));
 
         Set<String> operandsToPushDownDigest = new HashSet<String>();
 
@@ -195,7 +195,7 @@ public class PreFilteringRule extends RelOptRule
 
     // 1. We extract the information necessary to create the predicate for the
     // new filter; currently we support comparison functions, in and between
-    for (RexNode operand : RexUtil.flattenOr(((RexCall) condition).getOperands())) {
+    for (RexNode operand : RexUtil.flattenOr(Utils.operands(condition))) {
       boolean relational = Utils.isRelational(operand);
       RexNode operandCNF = relational ? RexUtil.toCnf(rexBuilder, -1, operand) : operand;
       List<RexNode> conjunctions = relational ? RelOptUtil.conjunctions(operandCNF) : Arrays.asList(operand);

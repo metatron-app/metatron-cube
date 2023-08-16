@@ -19,19 +19,18 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.java.util.common.ISE;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -76,18 +75,10 @@ public class CastOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    final RexNode operand = ((RexCall) rexNode).getOperands().get(0);
-    final DruidExpression operandExpression = Expressions.toDruidExpression(
-        plannerContext,
-        rowSignature,
-        operand
-    );
+    final RexNode operand = Utils.operands(rexNode).get(0);
+    final DruidExpression operandExpression = Expressions.toDruidExpression(context, signature, operand);
 
     if (operandExpression == null) {
       return null;
@@ -97,9 +88,9 @@ public class CastOperatorConversion implements SqlOperatorConversion
     final SqlTypeName toType = Calcites.getTypeName(rexNode.getType());
 
     if (SqlTypeName.CHAR_TYPES.contains(fromType) && SqlTypeName.DATETIME_TYPES.contains(toType)) {
-      return castCharToDateTime(plannerContext, operandExpression, toType, rowSignature);
+      return castCharToDateTime(context, operandExpression, toType, signature);
     } else if (SqlTypeName.DATETIME_TYPES.contains(fromType) && SqlTypeName.CHAR_TYPES.contains(toType)) {
-      return castDateTimeToChar(plannerContext, operandExpression, fromType);
+      return castDateTimeToChar(context, operandExpression, fromType);
     } else {
       // Handle other casts.
       final ValueDesc fromExprType = EXPRESSION_TYPES.get(fromType);
@@ -112,24 +103,23 @@ public class CastOperatorConversion implements SqlOperatorConversion
 
       final DruidExpression typeCastExpression;
 
-      if (!fromExprType.equals(toExprType)) {
+      if (fromExprType.equals(toExprType)) {
+        typeCastExpression = operandExpression;
+      } else {
         // Ignore casts for simple extractions (use Function.identity) since it is ok in many cases.
         typeCastExpression = operandExpression.map(
-            simpleExtraction -> null,
             expression -> StringUtils.format(
                 "CAST(%s, '%s')", expression, toExprType.isPrimitive() ? toExprType.type() : toExprType.toString()
             )
         );
-      } else {
-        typeCastExpression = operandExpression;
       }
 
       if (toType == SqlTypeName.DATE) {
         // Floor to day when casting to DATE.
         return TimeFloorOperatorConversion.applyTimeFloor(
             typeCastExpression,
-            new PeriodGranularity(Period.days(1), null, plannerContext.getTimeZone()),
-            rowSignature
+            PeriodGranularity.of(Period.days(1), context.getTimeZone()),
+            signature
         );
       } else {
         return typeCastExpression;
@@ -147,17 +137,15 @@ public class CastOperatorConversion implements SqlOperatorConversion
     // Cast strings to datetimes by parsing them from SQL format.
     final DruidExpression timestampExpression = DruidExpression.fromFunctionCall(
         "timestamp_parse",
-        ImmutableList.of(
-            operand,
-            DruidExpression.fromExpression(DruidExpression.nullLiteral()),
-            DruidExpression.fromStringLiteral(plannerContext.getTimeZone().getID())
-        )
+        operand.getExpression(),
+        DruidExpression.nullLiteral(),
+        DruidExpression.stringLiteral(plannerContext.getTimeZone().getID())
     );
 
     if (toType == SqlTypeName.DATE) {
       return TimeFloorOperatorConversion.applyTimeFloor(
           timestampExpression,
-          new PeriodGranularity(Period.days(1), null, plannerContext.getTimeZone()),
+          PeriodGranularity.of(Period.days(1), plannerContext.getTimeZone()),
           signature
       );
     } else if (toType == SqlTypeName.TIMESTAMP) {
@@ -175,11 +163,9 @@ public class CastOperatorConversion implements SqlOperatorConversion
   {
     return DruidExpression.fromFunctionCall(
         "timestamp_format",
-        ImmutableList.of(
-            operand,
-            DruidExpression.fromStringLiteral(dateTimeFormatString(fromType)),
-            DruidExpression.fromStringLiteral(plannerContext.getTimeZone().getID())
-        )
+        operand.getExpression(),
+        DruidExpression.stringLiteral(dateTimeFormatString(fromType)),
+        DruidExpression.stringLiteral(plannerContext.getTimeZone().getID())
     );
   }
 

@@ -35,8 +35,8 @@ public class FloorOperatorConversion extends GranularConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    return toDruidExpression("floor", "timestamp_floor", plannerContext, rowSignature, rexNode);
+    return toDruidExpression("floor", "timestamp_floor", context, signature, rexNode);
   }
 }

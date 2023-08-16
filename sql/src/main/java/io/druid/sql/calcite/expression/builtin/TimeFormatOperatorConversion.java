@@ -19,15 +19,14 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.JodaUtils;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
@@ -37,7 +36,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTimeZone;
 
-import java.util.stream.Collectors;
+import java.util.List;
 
 public class TimeFormatOperatorConversion implements SqlOperatorConversion
 {
@@ -56,33 +55,27 @@ public class TimeFormatOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext context, RowSignature signature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    final RexNode timeArg = call.getOperands().get(0);
-    final DruidExpression timeExpression = Expressions.toDruidExpression(plannerContext, rowSignature, timeArg);
+    final List<RexNode> operands = Utils.operands(rexNode);
+    final RexNode timeArg = operands.get(0);
+    final DruidExpression timeExpression = Expressions.toDruidExpression(context, signature, timeArg);
     if (timeExpression == null) {
       return null;
     }
 
-    final String pattern = call.getOperands().size() > 1 && !RexLiteral.isNullLiteral(call.getOperands().get(1))
-                           ? RexLiteral.stringValue(call.getOperands().get(1))
+    final String pattern = operands.size() > 1 && !RexLiteral.isNullLiteral(operands.get(1))
+                           ? RexLiteral.stringValue(operands.get(1))
                            : "yyyy-MM-dd'T'HH:mm:ss.SSSZZ";
-    final DateTimeZone timeZone = call.getOperands().size() > 2 && !RexLiteral.isNullLiteral(call.getOperands().get(2))
-                                  ? JodaUtils.toTimeZone(RexLiteral.stringValue(call.getOperands().get(2)))
-                                  : plannerContext.getTimeZone();
+    final DateTimeZone timeZone = operands.size() > 2 && !RexLiteral.isNullLiteral(operands.get(2))
+                                  ? JodaUtils.toTimeZone(RexLiteral.stringValue(operands.get(2)))
+                                  : context.getTimeZone();
 
     return DruidExpression.fromFunctionCall(
         "timestamp_format",
-        ImmutableList.of(
-            timeExpression.getExpression(),
-            DruidExpression.stringLiteral(pattern),
-            DruidExpression.stringLiteral(timeZone.getID())
-        ).stream().map(DruidExpression::fromExpression).collect(Collectors.toList())
+        timeExpression.getExpression(),
+        DruidExpression.stringLiteral(pattern),
+        DruidExpression.stringLiteral(timeZone.getID())
     );
   }
 }
