@@ -24,7 +24,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.sql.calcite.Utils;
@@ -81,11 +83,28 @@ public class PreFilteringRule extends RelOptRule
       return;
     }
 
-    // 1. Recompose filter possibly by pulling out common elements from DNF
-    // expressions
-    RexNode topFilterCondition = RexUtil.pullFactors(rexBuilder, filter.getCondition());
-    if (!topFilterCondition.isA(Arrays.asList(SqlKind.AND, SqlKind.OR))) {
+    RexNode condition = filter.getCondition();
+
+    // 1. Recompose filter possibly by pulling out common elements from DNF expressions
+    RexNode topFilterCondition = RexUtil.pullFactors(rexBuilder, condition);
+    if (!topFilterCondition.isA(SqlKind.AND)) {
       return;
+    }
+
+    // hack to keep ordering of pulled filters
+    if (condition.isA(SqlKind.OR)) {
+      List<RexNode> ordering = Lists.newArrayList();
+      for (RexNode rexNode : RexUtil.flattenOr(Arrays.asList(Utils.operands(condition).get(0)))) {
+        ordering.addAll(RelOptUtil.conjunctions(rexNode));
+      }
+      List<RexNode> operands = Lists.newArrayList(Utils.operands(topFilterCondition));
+      for (RexNode rex : operands) {
+        if (!ordering.contains(rex)) {
+          ordering.add(rex);
+        }
+      }
+      Collections.sort(operands, Ordering.explicit(ordering));
+      topFilterCondition= RexUtil.composeConjunction(rexBuilder, operands);
     }
 
     // 2. We extract possible candidates to be pushed down
@@ -186,7 +205,7 @@ public class PreFilteringRule extends RelOptRule
         return Collections.emptyList();
       }
 
-      Set<String> refsInCurrentOperand = Sets.newHashSet();
+      Set<String> refsInCurrentOperand = Sets.newLinkedHashSet();
       for (RexNode conjunction : conjunctions) {
         ImmutableBitSet refs = RelOptUtil.InputFinder.bits(conjunction);
         if (refs.cardinality() != 1) {

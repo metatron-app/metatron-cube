@@ -737,4 +737,9 @@ public class Utils
     }
     return RelOptPredicateList.of(builder, converted);
   }
+
+  public static ImmutableList<RexNode> operands(RexNode rexNode)
+  {
+    return ((RexCall) rexNode).operands;
+  }
 }
