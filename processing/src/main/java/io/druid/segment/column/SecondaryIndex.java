@@ -86,7 +86,7 @@ public interface SecondaryIndex<T> extends Closeable
         case "==":
           if (withNot) {
             return BitmapHolder.union(
-                context.bitmapFactory(),
+                context,
                 Arrays.asList(
                     filterFor(Range.lessThan(value), context),
                     filterFor(Range.greaterThan(value), context)
@@ -106,7 +106,7 @@ public interface SecondaryIndex<T> extends Closeable
     {
       if (withNot) {
         return BitmapHolder.union(
-            context.bitmapFactory(),
+            context,
             Arrays.asList(
                 filterFor(Range.lessThan((T) lower), context),
                 filterFor(Range.greaterThan((T) upper), context)
@@ -124,7 +124,7 @@ public interface SecondaryIndex<T> extends Closeable
       for (Comparable value : values) {
         holders.add(filterFor(Range.closed((T) value, (T) value), context));
       }
-      return BitmapHolder.union(context.bitmapFactory(), holders);
+      return BitmapHolder.union(context, holders);
     }
   }
 

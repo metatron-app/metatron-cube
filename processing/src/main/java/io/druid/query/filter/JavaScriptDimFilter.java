@@ -32,6 +32,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.JavaScriptFilter;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
@@ -111,6 +112,12 @@ public class JavaScriptDimFilter extends SingleInput
     }
 
     return new JavaScriptFilter(dimension, predicate);
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return FULLSCAN * 10;
   }
 
   @Override

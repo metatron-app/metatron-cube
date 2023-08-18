@@ -39,6 +39,7 @@ import io.druid.query.filter.DimFilter.BestEffort;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.filter.DictionaryMatcher;
 import io.druid.segment.filter.DimensionPredicateFilter;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.PrefixFilter;
 import io.druid.segment.filter.SelectorFilter;
 
@@ -571,6 +572,12 @@ public class LikeDimFilter extends SingleInput implements BestEffort
         return new DictionaryMatcher.WithRawPrefix(matcher.prefix, predicate1, predicate2);
       }
     };
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return context.scanningCost(dimension, extractionFn);
   }
 
   @Override

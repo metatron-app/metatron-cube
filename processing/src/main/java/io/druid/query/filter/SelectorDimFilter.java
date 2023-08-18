@@ -41,7 +41,9 @@ import io.druid.query.filter.DimFilter.IndexedIDSupport;
 import io.druid.query.filter.DimFilter.Mergeable;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.filter.DimensionPredicateFilter;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.SelectorFilter;
 import io.netty.util.internal.StringUtil;
 
@@ -53,7 +55,7 @@ import java.util.Objects;
  *
  */
 public class SelectorDimFilter extends SingleInput
-    implements RangeFilter, BooleanColumnSupport, Mergeable, IndexedIDSupport
+    implements RangeFilter, BooleanColumnSupport, Mergeable, IndexedIDSupport, DimFilter.WithExtraction
 {
   public static DimFilter or(String dimension, String... values)
   {
@@ -144,6 +146,7 @@ public class SelectorDimFilter extends SingleInput
     return value;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()
@@ -164,6 +167,16 @@ public class SelectorDimFilter extends SingleInput
     ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING).unwrapDimension();
     Comparable c = resolved.isString() ? value : (Comparable) resolved.cast(value);
     return Arrays.<Range>asList(Ranges.of(c, "=="));
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    ColumnCapabilities capabilities = context.getCapabilities(dimension);
+    if (capabilities != null) {
+      return extractionFn == null && (StringUtil.isNullOrEmpty(value) || capabilities.isDictionaryEncoded()) ? PICK : FULLSCAN;
+    }
+    return ZERO;
   }
 
   @Override

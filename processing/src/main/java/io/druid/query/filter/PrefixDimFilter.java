@@ -31,6 +31,7 @@ import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.filter.DimensionPredicateFilter;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.PrefixFilter;
 
 import java.util.Objects;
@@ -105,6 +106,12 @@ public class PrefixDimFilter extends SingleInput
     } else {
       return PrefixFilter.of(dimension, prefix);
     }
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return context.scanningCost(dimension, extractionFn);
   }
 
   @Override

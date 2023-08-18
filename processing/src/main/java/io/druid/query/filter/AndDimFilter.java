@@ -30,6 +30,7 @@ import io.druid.math.expr.Expression.AndExpression;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.AndFilter;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 
 import java.util.Arrays;
@@ -124,6 +125,12 @@ public class AndDimFilter implements DimFilter, AndExpression
   public List<DimFilter> getChildren()
   {
     return fields;
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return PICK + fields.stream().mapToDouble(f -> f.cost(context)).sum();
   }
 
   @Override

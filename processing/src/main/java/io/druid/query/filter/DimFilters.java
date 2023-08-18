@@ -36,6 +36,7 @@ import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Expression;
+import io.druid.math.expr.Expression.RelationExpression;
 import io.druid.math.expr.Expressions;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
@@ -55,7 +56,7 @@ import org.roaringbitmap.IntIterator;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -148,10 +149,6 @@ next:
     return and(Arrays.asList(filters));
   }
 
-  public static final Comparator<DimFilter> ORDERING = Comparators.explicit(
-      v -> v.getClass(), SelectorDimFilter.class, InDimFilter.class, BoundDimFilter.class
-  );
-
   public static DimFilter and(List<DimFilter> filters)
   {
     if (filters.contains(NONE)) {
@@ -225,12 +222,23 @@ next:
       return context;
     }
     final long start = System.currentTimeMillis();
+    final ImmutableBitmap bitmap = _extractBitmap(filter, context).baseBitmap();
+    if (bitmap != null && LOG.isDebugEnabled()) {
+      LOG.debug("%,d / %,d (%d msec)", bitmap.size(), context.numRows(), System.currentTimeMillis() - start);
+    }
+    return context;
+  }
+
+  private static FilterContext _extractBitmap(DimFilter filter, FilterContext context)
+  {
     if (filter instanceof AndDimFilter) {
+      List<DimFilter> children = Lists.newArrayList(((AndDimFilter) filter).getChildren());
+      Collections.sort(children, Comparators.score(f -> f.cost(context)));
       List<DimFilter> remainings = Lists.newArrayList();
-      for (DimFilter child : ((AndDimFilter) filter).getChildren()) {
+      for (DimFilter child : children) {
         BitmapHolder holder = Filters.toBitmapHolder(child, context.root(child));
-        if (holder != null) {
-          context.andBaseBitmap(holder.bitmap());   // for incremental access
+        if (holder != null && context.andBaseBitmap(holder.bitmap()) == 0) {
+          return context;
         }
         if (holder == null || !holder.exact()) {
           remainings.add(child);
@@ -245,10 +253,6 @@ next:
       if (holder == null || !holder.exact()) {
         context.matcher(filter);
       }
-    }
-    final ImmutableBitmap bitmap = context.baseBitmap();
-    if (bitmap != null && LOG.isDebugEnabled()) {
-      LOG.debug("%,d / %,d (%d msec)", bitmap.size(), context.numRows(), System.currentTimeMillis() - start);
     }
     return context;
   }
@@ -459,6 +463,12 @@ next:
     }
 
     @Override
+    public double cost(FilterContext context)
+    {
+      return ZERO;
+    }
+
+    @Override
     public boolean equals(Object other)
     {
       return other instanceof None;
@@ -501,6 +511,12 @@ next:
           return ValueMatcher.TRUE;
         }
       };
+    }
+
+    @Override
+    public double cost(FilterContext context)
+    {
+      return ZERO;
     }
 
     @Override
@@ -580,28 +596,41 @@ next:
     }
   }
 
-  // it's not serious
+  // it's not serious (todo: move to DimFilter)
   public static double cost(DimFilter filter)
   {
-    if (filter == null) {
+    return DimFilter.hasExtraction(filter) ? Math.max(0.1, _cost(filter)) : _cost(filter);
+  }
+
+  private static double _cost(DimFilter filter)
+  {
+    if (filter == null || filter instanceof DimFilters.All || filter instanceof DimFilters.None) {
       return 0;
-    } else if (filter instanceof Expression.RelationExpression) {
-      return ((Expression.RelationExpression) filter).getChildren().stream().mapToDouble(f -> cost((DimFilter) f)).sum();
-    }
-    if (filter instanceof SelectorDimFilter || filter instanceof IsNullDimFilter) {
-      return 0.001;
+    } else if (filter instanceof NotDimFilter) {
+      return 0.0001 + cost(((NotDimFilter) filter).getField());
+    } else if (filter instanceof RelationExpression) {
+      List<DimFilter> children = ((RelationExpression) filter).getChildren();
+      return children.stream().mapToDouble(DimFilters::cost).sum();
+    } else if (filter instanceof SelectorDimFilter || filter instanceof IsNullDimFilter) {
+      return 0.0001;
     } else if (filter instanceof InDimFilter) {
-      return Math.min(0.1, 0.001 * ((InDimFilter) filter).getValues().size());
+      return 0.0001 * ((InDimFilter) filter).getValues().size() * 1.2;
+    } else if (filter instanceof BoundDimFilter) {
+      return ((BoundDimFilter) filter).hasBoth() ? 0.01 : 0.004;
     } else if (filter instanceof PrefixDimFilter) {
-      return 0.01;
-    } else if (filter instanceof BoundDimFilter || filter instanceof LikeDimFilter) {
+      return 0.02;
+    } else if (filter instanceof LikeDimFilter) {
       return 0.04;
     } else if (filter instanceof MathExprFilter || filter instanceof RegexDimFilter) {
       return 0.1;
     } else if (filter instanceof BloomDimFilter || filter instanceof InDimsFilter) {
       return 0.2;
-    } else if (filter instanceof Compressed || filter instanceof DimFilter.LuceneFilter) {
+    } else if (filter instanceof DimFilter.LuceneFilter || filter instanceof SpatialDimFilter) {
       return 0.4;
+    } else if (filter instanceof JavaScriptDimFilter) {
+      return 1.0;
+    } else if (filter instanceof Compressed) {
+      return 0.1;
     }
     return 0.5;
   }

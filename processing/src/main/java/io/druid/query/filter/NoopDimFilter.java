@@ -40,6 +40,12 @@ public class NoopDimFilter implements DimFilter
   }
 
   @Override
+  public double cost(FilterContext context)
+  {
+    return 0;
+  }
+
+  @Override
   public void addDependent(Set<String> handler)
   {
   }
@@ -49,7 +55,6 @@ public class NoopDimFilter implements DimFilter
   {
     return new Filter()
     {
-
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
@@ -57,10 +62,7 @@ public class NoopDimFilter implements DimFilter
       }
 
       @Override
-      public ValueMatcher makeMatcher(
-          MatcherContext context,
-          ColumnSelectorFactory factory
-      )
+      public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
       {
         return BooleanValueMatcher.of(true);
       }

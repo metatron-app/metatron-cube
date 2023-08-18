@@ -41,7 +41,9 @@ import io.druid.query.filter.DimFilter.IndexedIDSupport;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.query.ordering.StringComparators;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.filter.BoundFilter;
+import io.druid.segment.filter.FilterContext;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -50,7 +52,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.ToIntFunction;
 
-public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedIDSupport
+public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedIDSupport, DimFilter.WithExtraction
 {
   private final String dimension;
   private final String upper;
@@ -269,6 +271,12 @@ public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedI
     return !lowerStrict && !upperStrict && Objects.equals(lower, upper);
   }
 
+  public boolean hasBoth()
+  {
+    return hasLowerBound() && hasUpperBound();
+  }
+
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()
@@ -322,6 +330,19 @@ public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedI
   public Filter toFilter(TypeResolver resolver)
   {
     return new BoundFilter(this);
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    ColumnCapabilities capabilities = context.getCapabilities(dimension);
+    if (capabilities == null) {
+      return ZERO;
+    }
+    if (capabilities.isDictionaryEncoded()) {
+      return extractionFn == null ? hasBoth() ? 0.01 : 0.004 : DIMENSIONSCAN;
+    }
+    return FULLSCAN;
   }
 
   @Override

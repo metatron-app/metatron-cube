@@ -35,6 +35,7 @@ import io.druid.data.TypeResolver;
 import io.druid.query.Query;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.InFilter;
@@ -170,7 +171,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
             holders.add(holder);
           }
         }
-        return holders.isEmpty() ? null : BitmapHolder.intersection(context.bitmapFactory(), holders, false);
+        return holders.isEmpty() ? null : BitmapHolder.intersection(context, holders, false);
       }
 
       @Override
@@ -211,6 +212,21 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
         };
       }
     };
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    double cost = 0;
+    for (int i = 0; i < values.size(); i++) {
+      String dimension = dimensions.get(i);
+      ColumnCapabilities capabilities = context.getCapabilities(dimension);
+      if (capabilities == null) {
+        return cost;    // should not be happened
+      }
+      cost += capabilities.isDictionaryEncoded() ? PICK * values.get(i).size() * 1.2 : FULLSCAN;
+    }
+    return cost;
   }
 
   @Override

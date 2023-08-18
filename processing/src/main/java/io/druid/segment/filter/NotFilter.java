@@ -61,16 +61,8 @@ public class NotFilter implements Filter, Expression.NotExpression
   @Override
   public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
-    final ValueMatcher baseMatcher = baseFilter.makeMatcher(context, factory);
-
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        return !baseMatcher.matches();
-      }
-    };
+    ValueMatcher matcher = baseFilter.makeMatcher(context, factory);
+    return () -> !matcher.matches();
   }
 
   @Override

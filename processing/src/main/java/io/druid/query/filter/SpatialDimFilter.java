@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.metamx.collections.spatial.search.Bound;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.SpatialFilter;
 
 import java.util.Map;
@@ -86,6 +87,12 @@ public class SpatialDimFilter implements DimFilter
   public Filter toFilter(TypeResolver resolver)
   {
     return new SpatialFilter(dimension, bound);
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return FULLSCAN * 4;
   }
 
   @Override

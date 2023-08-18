@@ -515,9 +515,9 @@ public class Filters
       }
       // concise returns 1,040,187,360. roaring returns 0. makes wrong result anyway
       if (dimFilter instanceof AndExpression) {
-        return BitmapHolder.intersection(context.factory, holders);
+        return BitmapHolder.intersection(context, holders);
       } else if (dimFilter instanceof OrExpression) {
-        return BitmapHolder.union(context.factory, holders);
+        return BitmapHolder.union(context, holders);
       } else if (dimFilter instanceof NotExpression) {
         return BitmapHolder.not(context.factory, Iterables.getOnlyElement(holders), context.numRows());
       }
@@ -566,7 +566,7 @@ public class Filters
         for (Range range : ((RangeFilter) filter).toRanges(selector)) {
           holders.add(index.filterFor(range, context));
         }
-        return BitmapHolder.intersection(context.factory, holders);
+        return BitmapHolder.intersection(context, holders);
       }
       if (column.getType().isPrimitiveNumeric()) {
         ImmutableBitmap bitmap = null;
@@ -792,7 +792,7 @@ public class Filters
               holders.add(extracted);
             }
           }
-          return BitmapHolder.intersection(context.factory, holders);
+          return BitmapHolder.intersection(context, holders);
         } else if (expr instanceof OrExpression) {
           List<BitmapHolder> holders = Lists.newArrayList();
           for (Expression child : ((OrExpression) expr).getChildren()) {
@@ -802,7 +802,7 @@ public class Filters
             }
             holders.add(extracted);
           }
-          return BitmapHolder.union(context.factory, holders);
+          return BitmapHolder.union(context, holders);
         } else if (expr instanceof NotExpression) {
           return toExprBitmap(((NotExpression) expr).getChild(), context, !withNot);
         }

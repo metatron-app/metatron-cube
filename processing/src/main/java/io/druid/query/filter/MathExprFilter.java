@@ -29,6 +29,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Expressions;
 import io.druid.math.expr.Parser;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 
 import java.util.Map;
@@ -89,6 +90,12 @@ public class MathExprFilter implements DimFilter, DimFilter.BestEffort
   public Filter toFilter(TypeResolver resolver)
   {
     return Filters.ofExpr(this, Expressions.convertToCNF(Parser.parse(expression, resolver), Parser.EXPR_FACTORY));
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return Parser.findRequiredBindings(expression).stream().mapToDouble(d -> context.scanningCost(d)).sum();
   }
 
   @Override

@@ -32,6 +32,7 @@ import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.Dictionary;
@@ -69,6 +70,13 @@ public class IsNullDimFilter extends DimFilter.SingleInput implements DimFilter.
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(IS_NULL_CACHE_ID).append(dimension);
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    ColumnCapabilities capabilities = context.getCapabilities(dimension);
+    return capabilities == null ? ZERO : capabilities.isDictionaryEncoded() ? PICK : FULLSCAN;
   }
 
   @Override

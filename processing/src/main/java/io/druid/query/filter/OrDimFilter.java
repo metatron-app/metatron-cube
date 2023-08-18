@@ -29,6 +29,7 @@ import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.OrExpression;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.OrFilter;
 
@@ -124,6 +125,12 @@ public class OrDimFilter implements DimFilter, OrExpression
   public List<DimFilter> getChildren()
   {
     return fields;
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return PICK + fields.stream().mapToDouble(f -> f.cost(context)).sum();
   }
 
   @Override

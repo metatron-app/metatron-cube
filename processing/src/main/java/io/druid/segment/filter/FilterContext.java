@@ -26,6 +26,7 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.Cacheable;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
@@ -128,9 +129,10 @@ public class FilterContext implements Closeable
     return baseBitmap == null ? null : baseBitmap.iterator();
   }
 
-  public void andBaseBitmap(ImmutableBitmap bitmap)
+  public int andBaseBitmap(ImmutableBitmap bitmap)
   {
     baseBitmap = baseBitmap == null ? bitmap : DimFilters.intersection(factory, baseBitmap, bitmap);
+    return baseBitmap.size();
   }
 
   public void matcher(DimFilter matcher)
@@ -214,6 +216,23 @@ public class FilterContext implements Closeable
   public Map<String, ImmutableBitmap> ranges()
   {
     return ranges;
+  }
+
+  public double scanningCost(String dimension)
+  {
+    return scanningCost(dimension, null);
+  }
+
+  public double scanningCost(String dimension, ExtractionFn extractionFn)
+  {
+    ColumnCapabilities capabilities = getCapabilities(dimension);
+    if (capabilities == null) {
+      return DimFilter.ZERO;
+    }
+    if (capabilities.isDictionaryEncoded()) {
+      return extractionFn == null ? DimFilter.DICTIONARYSCAN : DimFilter.DIMENSIONSCAN;
+    }
+    return DimFilter.FULLSCAN;
   }
 
   public void clear()

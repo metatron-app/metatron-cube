@@ -46,6 +46,8 @@ import io.druid.query.filter.DimFilter.LogProvider;
 import io.druid.query.filter.DimFilter.Mergeable;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
+import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.InFilter;
 
 import java.util.Arrays;
@@ -57,7 +59,7 @@ import java.util.stream.Collectors;
 
 @JsonTypeName("in")
 public class InDimFilter extends SingleInput
-    implements RangeFilter, LogProvider, Compressible, Mergeable, IndexedIDSupport
+    implements RangeFilter, LogProvider, Compressible, Mergeable, IndexedIDSupport, DimFilter.WithExtraction
 {
   public static InDimFilter of(String dimension, Collection<String> values)
   {
@@ -139,6 +141,7 @@ public class InDimFilter extends SingleInput
     return prepared;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()
@@ -205,6 +208,19 @@ public class InDimFilter extends SingleInput
       ranges.add(Ranges.of((Comparable) resolved.type().cast(value), "=="));
     }
     return ranges;
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    ColumnCapabilities capabilities = context.getCapabilities(dimension);
+    if (capabilities == null) {
+      return ZERO;
+    }
+    if (capabilities.isDictionaryEncoded()) {
+      return extractionFn == null ? PICK * values.size() * 1.2 : DIMENSIONSCAN;
+    }
+    return FULLSCAN;
   }
 
   @Override

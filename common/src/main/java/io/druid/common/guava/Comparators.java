@@ -19,14 +19,15 @@
 
 package io.druid.common.guava;
 
-import com.google.common.base.Function;
-import com.google.common.primitives.Ints;
 import io.druid.data.ValueDesc;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 
 /**
  */
@@ -227,9 +228,15 @@ public class Comparators
     for (int i = 0; i < values.length; i++) {
       ranks.put(values[i], i);
     }
-    return (l, r) -> Ints.compare(
-        ranks.getOrDefault(converter.apply(l), values.length),
-        ranks.getOrDefault(converter.apply(r), values.length)
+    return (l, r) -> Integer.compare(
+        ranks.computeIfAbsent(converter.apply(l), k -> ranks.size()),
+        ranks.computeIfAbsent(converter.apply(r), k -> ranks.size())
     );
+  }
+
+  public static <T> Comparator<T> score(Function<T, Double> score)
+  {
+    Map<T, Double> cache = new IdentityHashMap<>();
+    return (l, r) -> Double.compare(cache.computeIfAbsent(l, score), cache.computeIfAbsent(r, score));
   }
 }

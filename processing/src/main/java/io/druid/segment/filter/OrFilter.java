@@ -19,32 +19,24 @@
 
 package io.druid.segment.filter;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.math.expr.Expression;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
  */
 public class OrFilter implements Filter, Expression.OrExpression
 {
-  public static Filter of(Filter... filters)
-  {
-    return filters == null ? null : filters.length == 1 ? filters[0] : new OrFilter(Arrays.asList(filters));
-  }
-
   private final List<Filter> filters;
 
   public OrFilter(List<Filter> filters)
   {
-    if (filters.size() == 0) {
-      throw new IllegalArgumentException("Can't construct empty OrFilter (the universe does not exist)");
-    }
-
+    Preconditions.checkArgument(!filters.isEmpty(), "empty OR");
     this.filters = filters;
   }
 
@@ -58,43 +50,26 @@ public class OrFilter implements Filter, Expression.OrExpression
         holders.add(holder);
       }
     }
-    return BitmapHolder.union(context.bitmapFactory(), holders);
+    return BitmapHolder.union(context, holders);
   }
 
   @Override
-  public ValueMatcher makeMatcher(
-      MatcherContext context,
-      ColumnSelectorFactory factory
-  )
+  public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
-    if (filters.size() == 0) {
-      return BooleanValueMatcher.FALSE;
+    if (filters.size() == 1) {
+      return filters.get(0).makeMatcher(context, factory);
     }
     ValueMatcher[] matchers = new ValueMatcher[filters.size()];
     for (int i = 0; i < filters.size(); i++) {
       matchers[i] = filters.get(i).makeMatcher(context, factory);
     }
-    return makeMatcher(matchers);
-  }
-
-  private ValueMatcher makeMatcher(final ValueMatcher[] baseMatchers)
-  {
-    if (baseMatchers.length == 1) {
-      return baseMatchers[0];
-    }
-
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        for (ValueMatcher matcher : baseMatchers) {
-          if (matcher.matches()) {
-            return true;
-          }
+    return () -> {
+      for (ValueMatcher matcher : matchers) {
+        if (matcher.matches()) {
+          return true;
         }
-        return false;
       }
+      return false;
     };
   }
 

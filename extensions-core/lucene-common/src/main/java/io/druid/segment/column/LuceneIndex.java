@@ -53,7 +53,7 @@ public interface LuceneIndex extends SecondaryIndex<Query>
       case "==":
         if (withNot) {
           return BitmapHolder.union(
-              context.bitmapFactory(),
+              context,
               Arrays.asList(
                   filterFor(Lucenes.lessThan(column, constant), context),
                   filterFor(Lucenes.greaterThan(column, constant), context)
@@ -72,7 +72,7 @@ public interface LuceneIndex extends SecondaryIndex<Query>
   {
     if (withNot) {
       return BitmapHolder.union(
-          context.bitmapFactory(),
+          context,
           Arrays.asList(
               filterFor(Lucenes.lessThan(column, lower), context),
               filterFor(Lucenes.greaterThan(column, upper), context)
@@ -89,6 +89,6 @@ public interface LuceneIndex extends SecondaryIndex<Query>
     for (Comparable value : values) {
       holders.add(filterFor(Lucenes.point(column, value), context));
     }
-    return BitmapHolder.union(context.bitmapFactory(), holders);
+    return BitmapHolder.union(context, holders);
   }
 }

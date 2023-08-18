@@ -296,6 +296,12 @@ public class BloomDimFilter implements LogProvider, BestEffort
   }
 
   @Override
+  public double cost(FilterContext context)
+  {
+    return DIMENSIONSCAN * (fields != null ? fields.size() : fieldNames.size());
+  }
+
+  @Override
   public String toString()
   {
     if (fieldNames != null) {

@@ -19,6 +19,7 @@
 
 package io.druid.segment.filter;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.math.expr.Expression;
 import io.druid.query.filter.Filter;
@@ -35,6 +36,7 @@ public class AndFilter implements Filter, Expression.AndExpression
 
   public AndFilter(List<Filter> filters)
   {
+    Preconditions.checkArgument(!filters.isEmpty(), "empty AND");
     this.filters = filters;
   }
 
@@ -48,43 +50,26 @@ public class AndFilter implements Filter, Expression.AndExpression
         holders.add(holder);
       }
     }
-    return BitmapHolder.intersection(context.bitmapFactory(), holders);
+    return BitmapHolder.intersection(context, holders);
   }
 
   @Override
   public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
-    if (filters.size() == 0) {
-      return BooleanValueMatcher.FALSE;
+    if (filters.size() == 1) {
+      return filters.get(0).makeMatcher(context, factory);
     }
-    final List<ValueMatcher> matchers = Lists.newArrayList();
-    for (Filter filter : filters) {
-      matchers.add(filter.makeMatcher(context, factory));
+    ValueMatcher[] matchers = new ValueMatcher[filters.size()];
+    for (int i = 0; i < filters.size(); i++) {
+      matchers[i] = filters.get(i).makeMatcher(context, factory);
     }
-    return makeMatcher(matchers);
-  }
-
-  public static ValueMatcher makeMatcher(final List<ValueMatcher> baseMatchers)
-  {
-    if (baseMatchers.size() == 0) {
-      return ValueMatcher.TRUE;
-    }
-    if (baseMatchers.size() == 1) {
-      return baseMatchers.get(0);
-    }
-
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        for (ValueMatcher matcher : baseMatchers) {
-          if (!matcher.matches()) {
-            return false;
-          }
+    return () -> {
+      for (ValueMatcher matcher : matchers) {
+        if (!matcher.matches()) {
+          return false;
         }
-        return true;
       }
+      return true;
     };
   }
 

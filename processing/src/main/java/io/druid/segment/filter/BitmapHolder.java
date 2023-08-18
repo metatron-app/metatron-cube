@@ -64,7 +64,7 @@ public class BitmapHolder extends Pair<Boolean, ImmutableBitmap>
     return rhs.size();
   }
 
-  public static BitmapHolder union(BitmapFactory factory, List<BitmapHolder> holders)
+  public static BitmapHolder union(FilterContext context, List<BitmapHolder> holders)
   {
     if (GuavaUtils.isNullOrEmpty(holders)) {
       return null;
@@ -75,20 +75,34 @@ public class BitmapHolder extends Pair<Boolean, ImmutableBitmap>
     boolean exact = true;
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
     for (BitmapHolder holder : holders) {
-      if (holder != null) {
-        exact &= holder.exact();
-        bitmaps.add(holder.bitmap());
+      if (holder == null) {
+        continue;
       }
+      ImmutableBitmap bitmap = holder.bitmap();
+      if (bitmap.isEmpty()) {
+        continue;
+      }
+      if (context.isAll(bitmap)) {
+        return BitmapHolder.of(exact & holder.exact(), bitmap);
+      }
+      exact &= holder.exact();
+      bitmaps.add(bitmap);
     }
-    return of(exact, factory.union(bitmaps));
+    if (bitmaps.isEmpty()) {
+      return null;
+    } else if (bitmaps.size() == 1) {
+      return BitmapHolder.of(exact, bitmaps.get(0));
+    } else {
+      return of(exact, context.factory.union(bitmaps));
+    }
   }
 
-  public static BitmapHolder intersection(BitmapFactory factory, List<BitmapHolder> holders)
+  public static BitmapHolder intersection(FilterContext context, List<BitmapHolder> holders)
   {
-    return intersection(factory, holders, true);
+    return intersection(context, holders, true);
   }
 
-  public static BitmapHolder intersection(BitmapFactory factory, List<BitmapHolder> holders, boolean exact)
+  public static BitmapHolder intersection(FilterContext context, List<BitmapHolder> holders, boolean exact)
   {
     if (GuavaUtils.isNullOrEmpty(holders)) {
       return null;
@@ -99,12 +113,26 @@ public class BitmapHolder extends Pair<Boolean, ImmutableBitmap>
     }
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
     for (BitmapHolder holder : holders) {
-      if (holder != null) {
-        exact &= holder.exact();
-        bitmaps.add(holder.bitmap());
+      if (holder == null) {
+        continue;
       }
+      ImmutableBitmap bitmap = holder.bitmap();
+      if (context.isAll(bitmap)) {
+        continue;
+      }
+      if (bitmap.isEmpty()) {
+        return BitmapHolder.of(exact & holder.exact(), bitmap);
+      }
+      exact &= holder.exact();
+      bitmaps.add(bitmap);
     }
-    return of(exact, factory.intersection(bitmaps));
+    if (bitmaps.isEmpty()) {
+      return null;
+    } else if (bitmaps.size() == 1) {
+      return BitmapHolder.of(exact, bitmaps.get(0));
+    } else {
+      return of(exact, context.factory.intersection(bitmaps));
+    }
   }
 
   public static BitmapHolder not(BitmapFactory factory, BitmapHolder holder, int size)

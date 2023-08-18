@@ -36,11 +36,13 @@ import io.druid.math.expr.Parser;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowResolver;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.AttachmentVirtualColumn;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.filter.FilterContext;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -105,6 +107,17 @@ public interface DimFilter extends Expression, Cacheable
   default DimFilter withRedirection(Map<String, String> mapping)
   {
     return this;
+  }
+
+  double ZERO = 0;
+  double PICK = 0.0001;
+  double DICTIONARYSCAN = 0.02;
+  double FULLSCAN = 0.1;
+  double DIMENSIONSCAN = 0.2;
+
+  default double cost(FilterContext context)
+  {
+    return 0.5f;
   }
 
   /**
@@ -202,6 +215,12 @@ public interface DimFilter extends Expression, Cacheable
     public VirtualColumn inflate()
     {
       return scoreField != null ? new AttachmentVirtualColumn(scoreField, ValueDesc.FLOAT) : null;
+    }
+
+    @Override
+    public double cost(FilterContext context)
+    {
+      return FULLSCAN * 4;
     }
 
     @Override
@@ -398,5 +417,15 @@ public interface DimFilter extends Expression, Cacheable
   interface Discardable
   {
     boolean discard(DimFilter filter);
+  }
+
+  interface WithExtraction
+  {
+    ExtractionFn getExtractionFn();
+  }
+
+  static boolean hasExtraction(DimFilter filter)
+  {
+    return filter instanceof WithExtraction && ((WithExtraction) filter).getExtractionFn() != null;
   }
 }

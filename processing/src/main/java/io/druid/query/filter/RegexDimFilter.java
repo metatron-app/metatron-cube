@@ -32,6 +32,7 @@ import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.filter.DimensionPredicateFilter;
+import io.druid.segment.filter.FilterContext;
 
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -110,6 +111,12 @@ public class RegexDimFilter extends SingleInput
     final Predicate<String> predicate = match ? v -> v != null && matcher.reset(v).matches()
                                               : v -> v != null && matcher.reset(v).find();
     return new DimensionPredicateFilter(dimension, predicate, null, extractionFn);
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return context.scanningCost(dimension, extractionFn);
   }
 
   @Override

@@ -27,6 +27,7 @@ import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.NotExpression;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.NotFilter;
 
 import java.util.Arrays;
@@ -106,6 +107,12 @@ public class NotDimFilter implements DimFilter, NotExpression
   public List<DimFilter> getChildren()
   {
     return Arrays.asList(field);
+  }
+
+  @Override
+  public double cost(FilterContext context)
+  {
+    return PICK + field.cost(context);
   }
 
   @Override
