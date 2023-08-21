@@ -30,7 +30,6 @@ import io.druid.common.IntTagged;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.java.util.common.guava.Comparators;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.timeline.DataSegment;
@@ -169,23 +168,22 @@ public class SimpleBalancerStrategy implements BalancerStrategy
         if (excessive.isEmpty()) {
           continue;
         }
-        if (deficit.isEmpty()) {
-          IntStream.range(0, holders.length)
-                   .filter(x -> !holders[x].isDecommissioned())
-                   .filter(x -> totalSegments[x] <= baseLine && totalSegmentsPerDs[x] <= excessiveThreshold)
-                   .limit(Math.max(1, excessive.size() >> 2))
-                   .forEach(deficit);
-        }
-        if (deficit.isEmpty()) {
-          continue;
-        }
+        deficit.sortOn(totalSegmentsPerDs, true);
+        excessive.sortOn(totalSegmentsPerDs, false);
 
-        deficit.sortOn(totalSegmentsPerDs, Comparators.INT_COMPARATOR_ASC);
-        excessive.sortOn(totalSegmentsPerDs, Comparators.INT_COMPARATOR_DSC);
-
+        int counter = Math.max(1, excessive.size() >> 2);
         int remain = deficit.size();
         for (int x = 0; remain > 0 && x < excessive.size() && !params.isStopNow(); x++) {
           final int from = excessive.get(x);
+          boolean assigned = false;
+          if (deficit.isEmpty() && counter-- > 0) {
+            IntStream.range(0, holders.length)
+                     .filter(to -> totalSegments[to] <= baseLine)
+                     .filter(to -> totalSegmentsPerDs[from] - totalSegmentsPerDs[to] > 1)
+                     .forEach(deficit);
+            deficit.sortOn(totalSegmentsPerDs, true);
+            assigned = !deficit.isEmpty();
+          }
           for (int y = 0; remain > 0 && y < deficit.size(); y++) {
             final int to = deficit.get(y);
             if (to < 0 || from == to) {
@@ -206,6 +204,9 @@ public class SimpleBalancerStrategy implements BalancerStrategy
               deficit.set(y, -1);
               remain--;
             }
+          }
+          if (assigned) {
+            deficit.clear();
           }
         }
         if (params.isStopNow()) {

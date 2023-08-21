@@ -214,15 +214,14 @@ public class IntList implements Iterable<Integer>, IntConsumer
 
   public void shuffle(Random r)
   {
-    if (size <= 1) {
-      return;
-    }
-    for (int i = size; i > 1; i--) {
-      final int from = i - 1;
-      final int to = r.nextInt(i);
-      final int x = array[from];
-      array[from] = array[to];
-      array[to] = x;
+    if (size > 1) {
+      for (int i = size; i > 1; i--) {
+        final int from = i - 1;
+        final int to = r.nextInt(i);
+        final int x = array[from];
+        array[from] = array[to];
+        array[to] = x;
+      }
     }
   }
 
@@ -248,13 +247,20 @@ public class IntList implements Iterable<Integer>, IntConsumer
 
   public IntList sortOn(IntComparator cp)
   {
-    it.unimi.dsi.fastutil.Arrays.quickSort(0, size, (x1, x2) -> cp.compare(array[x1], array[x2]), this::swap);
+    if (size > 1) {
+      it.unimi.dsi.fastutil.Arrays.quickSort(0, size, (x1, x2) -> cp.compare(array[x1], array[x2]), this::swap);
+    }
     return this;
   }
 
-  public IntList sortOn(int[] v, IntComparator cp)
+  public IntList sortOn(int[] v, boolean ascending)
   {
-    it.unimi.dsi.fastutil.Arrays.quickSort(0, size, (x1, x2) -> cp.compare(v[array[x1]], v[array[x2]]), this::swap);
+    if (size > 1) {
+      IntComparator comparator = ascending
+                                 ? (x1, x2) -> Integer.compare(v[array[x1]], v[array[x2]])
+                                 : (x1, x2) -> Integer.compare(v[array[x2]], v[array[x1]]);
+      it.unimi.dsi.fastutil.Arrays.quickSort(0, size, comparator, this::swap);
+    }
     return this;
   }
 

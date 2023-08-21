@@ -177,7 +177,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       Preconditions.checkArgument(polling > 0);
 
       lock.started = true;
-      String name = String.format("MetadataSegmentManager(%s)", polling);
+      String name = String.format("MetadataSegmentManager (%d msec)", polling);
       exec = MoreExecutors.listeningDecorator(Execs.singleThreaded(name));
 
       exec.execute(
