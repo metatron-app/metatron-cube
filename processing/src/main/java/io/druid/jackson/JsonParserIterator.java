@@ -27,19 +27,15 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryException;
-import io.netty.channel.ChannelException;
 
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.TimeoutException;
 
 /**
  */
@@ -88,7 +84,7 @@ public class JsonParserIterator<T> implements Iterator<T>
       return retVal;
     }
     catch (Throwable e) {
-      throw handleException(e);
+      throw QueryException.wrapIfNeeded(e, host, type);
     }
   }
 
@@ -124,25 +120,9 @@ public class JsonParserIterator<T> implements Iterator<T>
         }
       }
       catch (Throwable e) {
-        throw handleException(e);
+        throw QueryException.wrapIfNeeded(e, host, type);
       }
     }
-  }
-
-  private RuntimeException handleException(final Throwable t)
-  {
-    for (Throwable ex = t; ex != null; ex = ex.getCause()) {
-      if (ex instanceof TimeoutException ||
-          ex instanceof InterruptedException ||
-          ex instanceof QueryException ||
-          ex instanceof org.jboss.netty.handler.timeout.TimeoutException ||
-          ex instanceof CancellationException ||
-          ex instanceof ChannelException) {
-        // todo should retry to other replica if exists?
-        throw QueryException.wrapIfNeeded(ex, host, type);
-      }
-    }
-    throw new RE(t, "Failure getting results from[%s(%s)] because of [%s]", host, type, t.getMessage());
   }
 
   public boolean close()

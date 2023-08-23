@@ -20,6 +20,9 @@
 package io.druid.query.aggregation;
 
 import com.google.common.collect.ImmutableList;
+import io.druid.data.ValueDesc;
+import io.druid.query.aggregation.AggregatorFactory.LiteralAggregatorFactory;
+import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -76,5 +79,15 @@ public class AggregatorFactoryTest
     };
     Assert.assertNull(AggregatorFactory.mergeAggregators(ImmutableList.of(af1, af2))
     );
+  }
+
+  @Test
+  public void testLiteralAggregatorFactorySerDe() throws Exception
+  {
+    LiteralAggregatorFactory factory = new LiteralAggregatorFactory("v", ValueDesc.BOOLEAN, "true");
+    String s = TestHelper.JSON_MAPPER.writeValueAsString(factory);
+    Assert.assertEquals("{\"type\":\"literal\",\"name\":\"v\",\"valuleType\":\"boolean\",\"value\":true}", s);
+    AggregatorFactory f = TestHelper.JSON_MAPPER.readValue(s, AggregatorFactory.class);
+    Assert.assertEquals(factory, f);
   }
 }

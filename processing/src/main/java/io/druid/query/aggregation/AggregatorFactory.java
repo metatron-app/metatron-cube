@@ -68,6 +68,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.DoubleStream;
 import java.util.stream.LongStream;
@@ -803,13 +804,13 @@ public abstract class AggregatorFactory implements Cacheable
 
     public LiteralAggregatorFactory(
         @JsonProperty("name") String name,
-        @JsonProperty("type") ValueDesc type,
+        @JsonProperty("valuleType") ValueDesc valuleType,
         @JsonProperty("value") Object value
     )
     {
       this.name = name;
-      this.type = type;
-      this.value = type.cast(value);
+      this.type = valuleType;
+      this.value = valuleType.cast(value);
     }
 
     @Override
@@ -862,7 +863,7 @@ public abstract class AggregatorFactory implements Cacheable
     }
 
     @Override
-    @JsonProperty
+    @JsonProperty("valuleType")
     public ValueDesc getOutputType()
     {
       return type;
@@ -881,7 +882,18 @@ public abstract class AggregatorFactory implements Cacheable
     }
 
     @Override
-    public String toString() {
+    public boolean equals(Object other)
+    {
+      if (!(other instanceof LiteralAggregatorFactory)) {
+        return false;
+      }
+      LiteralAggregatorFactory f = (LiteralAggregatorFactory) other;
+      return name.equals(f.name) && type.equals(f.type) && Objects.equals(value, f.value);
+    }
+
+    @Override
+    public String toString()
+    {
       return "LiteralAggregatorFactory{value=" + value + "}";
     }
   }

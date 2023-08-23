@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.ExceptionUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.DruidNode;
+import io.netty.channel.ChannelException;
 
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -215,6 +216,16 @@ public class QueryException extends RuntimeException
           qie.serviceName = serviceName;
         }
         return qie;
+      }
+      if (t instanceof TimeoutException ||
+          t instanceof InterruptedException ||
+          t instanceof org.jboss.netty.handler.timeout.TimeoutException ||
+          t instanceof CancellationException ||
+          t instanceof ChannelException ||
+          t instanceof RejectedExecutionException) {
+        // todo should retry to other replica if exists?
+        e = t;
+        break;
       }
     }
     return new QueryException(e, hostPort, serviceName);
