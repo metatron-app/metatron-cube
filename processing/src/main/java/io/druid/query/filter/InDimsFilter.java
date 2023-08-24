@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.collections.IntList;
@@ -309,9 +310,11 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
     return this;
   }
 
+  private final Supplier<DimFilter> compressed = Suppliers.memoize(() -> CompressedInsFilter.build(this));
+
   @Override
   public DimFilter compress(Query parent)
   {
-    return CompressedInsFilter.build(this);
+    return compressed.get();
   }
 }

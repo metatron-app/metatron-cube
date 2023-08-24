@@ -24,10 +24,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.FrontCoding;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
@@ -62,8 +60,8 @@ public class CompressedInFilter implements DimFilter.Compressed
     final int compressed = LZ4_COMP.compress(ref.bytes, 0, ref.length, compressing, 0);
     final int reduction = 100 * (ref.length - compressed) / ref.length;
     LOG.debug(
-        "-- compressed in filter [%s], %,d bytes into %,d bytes (%d%% reduction, %d msec)",
-        filter.getDimension(), ref.length, compressed, reduction, System.currentTimeMillis() - start
+        "--- compressed in filter [%s:%d], %,d bytes into %,d bytes (%d%% reduction, %d msec)",
+        filter.getDimension(), values.size(), ref.length, compressed, reduction, System.currentTimeMillis() - start
     );
     return new CompressedInFilter(
         filter.getDimension(),

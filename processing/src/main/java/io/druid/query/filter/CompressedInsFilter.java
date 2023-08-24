@@ -54,6 +54,7 @@ public class CompressedInsFilter implements DimFilter.Compressed
     if (values.get(0).size() < CompressedInFilter.TRIVIAL_SIZE) {
       return filter;
     }
+    LOG.debug("-- compressing ins filter with [%d] values", values.get(0).size());
     final long start = System.currentTimeMillis();
     final int[] destLens = new int[values.size()];
     final byte[][] bytes = new byte[values.size()][];
@@ -70,8 +71,8 @@ public class CompressedInsFilter implements DimFilter.Compressed
       final int compressed = LZ4_COMP.compress(ref.bytes, 0, ref.length, compressing, 0);
       final int reduction = 100 * (ref.length - compressed) / ref.length;
       LOG.debug(
-          "-- compressed ins filter %s[%d], %,d bytes into %,d bytes (%d%% reduction, %d msec)",
-          filter.getDimensions(), i, ref.length, compressed, reduction, System.currentTimeMillis() - start
+          "--- compressed ins filter [%d:%s], %,d bytes into %,d bytes (%d%% reduction, %d msec)",
+          i, filter.getDimensions(), ref.length, compressed, reduction, System.currentTimeMillis() - start
       );
       destLens[i] = ref.length;
       bytes[i] = Arrays.copyOf(compressing, compressed);

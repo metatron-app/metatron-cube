@@ -418,13 +418,11 @@ public class QueryUtils
     }
     if (input instanceof Query.FilterSupport) {
       input = DimFilters.inflate((Query.FilterSupport) input);
-      input = DimFilters.rewrite(input, DimFilters.compressor(input));
       input = DimFilters.rewrite(input, DimFilters.rewriter(segmentWalker, input));
     }
     if (input.getDataSource() instanceof ViewDataSource) {
       ViewDataSource view = (ViewDataSource) input.getDataSource();
       ViewDataSource rewrite = DimFilters.inflate(view);
-      rewrite = DimFilters.rewrite(rewrite, DimFilters.compressor(input));
       rewrite = DimFilters.rewrite(rewrite, DimFilters.rewriter(segmentWalker, input));
       if (rewrite != input.getDataSource()) {
         input = input.withDataSource(rewrite);

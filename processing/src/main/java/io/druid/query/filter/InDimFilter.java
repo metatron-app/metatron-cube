@@ -27,6 +27,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -291,10 +293,12 @@ public class InDimFilter extends SingleInput
     return this;
   }
 
+  private final Supplier<DimFilter> compressed = Suppliers.memoize(() -> CompressedInFilter.build(this));
+
   @Override
   public DimFilter compress(Query parent)
   {
-    return CompressedInFilter.build(this);
+    return compressed.get();
   }
 
   @Override
