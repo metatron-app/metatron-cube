@@ -54,8 +54,11 @@ import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -698,6 +701,23 @@ public class Utils
   {
     List<RelDataTypeField> fields = rel.getRowType().getFieldList();
     return Arrays.stream(bits.toArray()).mapToObj(x -> fields.get(x).getName()).collect(Collectors.toList());
+  }
+
+  public static boolean distributed(Aggregate rel)
+  {
+    return distributed(rel.getInput());
+  }
+
+  private static boolean distributed(RelNode rel)
+  {
+    rel = rel.stripped();
+    if (rel instanceof TableScan) {
+      return true;
+    }
+    if (rel instanceof Project || rel instanceof Filter) {
+      return distributed(rel.getInput(0));
+    }
+    return false;
   }
 
   public static String comparatorFor(TypeResolver resolver, SimpleExtraction extraction)

@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import io.druid.common.guava.DSuppliers;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.DruidFilterableTableScanRule;
 import io.druid.sql.calcite.rule.DruidJoinProjectRule;
@@ -41,6 +42,7 @@ import org.apache.calcite.plan.RelOptLattice;
 import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepMatchOrder;
@@ -48,7 +50,11 @@ import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
+import org.apache.calcite.rel.RelCollationTraitDef;
+import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
@@ -76,6 +82,26 @@ public class Rules
   static final Logger LOG = new Logger(DruidPlanner.class);
 
   public static final int DRUID_CONVENTION_RULES = 0;
+
+  static final RelOptRule SET_COLLATION_ON_AGGREGATE = new RelOptRule(
+      DruidRel.operand(Aggregate.class, Utils::distributed), "SET_COLLATION_ON_AGGREGATE")
+  {
+    @Override
+    public void onMatch(RelOptRuleCall call)
+    {
+      final Aggregate aggregate = call.rel(0);
+      if (aggregate.getGroupSet().isEmpty() || aggregate.getGroupSets().size() != 1) {
+        return;
+      }
+      final RelTraitSet traitSet = aggregate.getTraitSet();
+      if (traitSet.getTrait(RelCollationTraitDef.INSTANCE) == RelCollations.EMPTY) {
+        List<RelFieldCollation> collations = Lists.newArrayList();
+        aggregate.getGroupSet().forEachInt(x -> collations.add(new RelFieldCollation(x)));
+        call.transformTo(aggregate.copy(traitSet.plus(RelCollations.of(collations)), aggregate.getInputs()));
+        call.getPlanner().prune(aggregate);
+      }
+    }
+  };
 
   // RelOptRules.BASE_RULES
   static final List<RelOptRule> DEFAULT_RULES =
@@ -134,8 +160,8 @@ public class Rules
           CoreRules.AGGREGATE_REMOVE,
           CoreRules.UNION_TO_DISTINCT,
 //          CoreRules.PROJECT_REMOVE,
-          CoreRules.PROJECT_AGGREGATE_MERGE,
-          CoreRules.AGGREGATE_JOIN_TRANSPOSE,
+//          CoreRules.PROJECT_AGGREGATE_MERGE,
+//          CoreRules.AGGREGATE_JOIN_TRANSPOSE,
           CoreRules.AGGREGATE_MERGE,
           CoreRules.AGGREGATE_PROJECT_MERGE,
           CoreRules.CALC_REMOVE,
@@ -234,6 +260,19 @@ public class Rules
         CoreRules.WINDOW_REDUCE_EXPRESSIONS,
         CoreRules.JOIN_REDUCE_EXPRESSIONS
     ));
+
+    if (!config.isUseApproximateCountDistinct()) {
+      // We'll need this to expand COUNT DISTINCTs.
+      // Avoid AggregateExpandDistinctAggregatesRule.INSTANCE; it uses grouping function, and we don't support those.
+      programs.add(hepProgram(CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES_TO_JOIN));
+    }
+
+    programs.add(hepProgram(
+        CoreRules.AGGREGATE_CASE_TO_FILTER, CoreRules.PROJECT_AGGREGATE_MERGE, CoreRules.AGGREGATE_JOIN_TRANSPOSE
+    ));
+
+    // collation is removed by rel builder (AggregateExpandDistinctAggregatesRule, AggregateCaseToFilterRule, etc.)
+    programs.add(hepProgram(SET_COLLATION_ON_AGGREGATE));
 
     programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
 
@@ -356,18 +395,12 @@ public class Rules
     rules.addAll(ABSTRACT_RELATIONAL_RULES);
     rules.addAll(ABSTRACT_RULES);
 
-    if (!plannerConfig.isUseApproximateCountDistinct()) {
-      // We'll need this to expand COUNT DISTINCTs.
-      // Avoid AggregateExpandDistinctAggregatesRule.INSTANCE; it uses grouping sets, and we don't support those.
-      rules.add(CoreRules.AGGREGATE_EXPAND_DISTINCT_AGGREGATES_TO_JOIN);
-    }
     if (plannerConfig.isUseJoinReordering()) {
       rules.remove(JoinPushThroughJoinRule.RIGHT);
       rules.remove(JoinPushThroughJoinRule.LEFT);
     }
 
     rules.add(SortCollapseRule.instance());
-    rules.add(CoreRules.AGGREGATE_CASE_TO_FILTER);
     rules.add(ProjectAggregatePruneUnusedCallRule.instance());
 
     return rules;
@@ -388,11 +421,8 @@ public class Rules
         List<RelOptLattice> lattices
     )
     {
-      final RelNode decorrelatedRel = RelDecorrelator.decorrelateQuery(
-          rel, RelFactories.LOGICAL_BUILDER.create(rel.getCluster(), null)
-      );
-      final RelBuilder relBuilder = RelFactories.LOGICAL_BUILDER.create(decorrelatedRel.getCluster(), null);
-      return new RelFieldTrimmer(null, relBuilder).trim(decorrelatedRel);
+      final RelBuilder builder = RelFactories.LOGICAL_BUILDER.create(rel.getCluster(), null);
+      return new RelFieldTrimmer(null, builder).trim(RelDecorrelator.decorrelateQuery(rel, builder));
     }
   }
 }

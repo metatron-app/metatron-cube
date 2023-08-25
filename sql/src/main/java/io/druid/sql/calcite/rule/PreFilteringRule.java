@@ -183,6 +183,7 @@ public class PreFilteringRule extends RelOptRule
     visited.add(newTopFilter);
 
     call.transformTo(newTopFilter);
+    call.getPlanner().prune(filter);
   }
 
   private static List<RexNode> extractCommonOperands(RexBuilder rexBuilder, RexNode condition)

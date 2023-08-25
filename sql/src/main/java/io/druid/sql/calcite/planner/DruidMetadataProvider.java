@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.DimFilter;
 import io.druid.sql.calcite.Utils;
@@ -32,6 +33,9 @@ import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Filter;
@@ -56,6 +60,8 @@ import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NumberUtil;
 
+import java.util.List;
+
 public class DruidMetadataProvider
 {
   public static final ThreadLocal<QueryMaker> CONTEXT = new ThreadLocal<>();
@@ -68,8 +74,13 @@ public class DruidMetadataProvider
           DruidRelMdSelectivity.SOURCE,
           DruidRelMdRowCount.SOURCE,
           DruidRelMdDistinctRowCount.SOURCE,
+          DruidRelMdCollation.SOURCE,
           DefaultRelMetadataProvider.INSTANCE
       )
+  );
+
+  public static final RelMetadataProvider COLLATION_ONLY = ChainedRelMetadataProvider.of(
+      ImmutableList.of(DruidRelMdCollation.SOURCE, DefaultRelMetadataProvider.INSTANCE)
   );
 
   public static class DruidCostModel implements MetadataHandler<BuiltInMetadata.NonCumulativeCost>
@@ -283,6 +294,29 @@ public class DruidMetadataProvider
         rc = Math.min(rc, RexLiteral.intValue(rel.fetch));
       }
       return rc;
+    }
+  }
+
+  public static class DruidRelMdCollation implements MetadataHandler<BuiltInMetadata.Collation>
+  {
+    public static final RelMetadataProvider SOURCE =
+        ReflectiveRelMetadataProvider.reflectiveSource(
+            BuiltInMethod.COLLATIONS.method, new DruidRelMdCollation());
+
+    @Override
+    public MetadataDef<BuiltInMetadata.Collation> getDef()
+    {
+      return BuiltInMetadata.Collation.DEF;
+    }
+
+    public ImmutableList<RelCollation> collations(Aggregate aggregate, RelMetadataQuery mq)
+    {
+      if (Utils.distributed(aggregate) && aggregate.groupSets.size() == 1) {
+        List<RelFieldCollation> collations = Lists.newArrayList();
+        aggregate.getGroupSet().forEachInt(x -> collations.add(new RelFieldCollation(x)));
+        return ImmutableList.of(RelCollations.of(collations));
+      }
+      return null;
     }
   }
 }

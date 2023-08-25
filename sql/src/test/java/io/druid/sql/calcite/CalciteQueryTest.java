@@ -791,7 +791,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("cnt", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("d0", "a0")
             .build(),
         new Object[]{1L, 6L}
@@ -4322,7 +4321,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(Granularities.MONTH)
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{3L, T("2000-01-01")},
@@ -4397,7 +4395,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .addPostAggregator(
                   EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
               )
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{1L, T("1999-12-01", LOS_ANGELES)},
@@ -4422,7 +4419,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(Granularities.MONTH)
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{3L, T("2000-01-01")},
@@ -4441,7 +4437,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(Granularities.MONTH)
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_ceil(__time,'P1M','','UTC')"))
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{3L, T("2000-02-01")},
@@ -4466,7 +4461,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("a0", "d0")
             .build(),
         new Object[]{1L, T("1999-12-01")},
@@ -4489,7 +4483,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("a0", "d0")
             .build(),
         new Object[]{1L, T("2000-01-01")},
@@ -4516,7 +4509,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("a0", "d0")
             .build(),
         new Object[]{1L, T("1999-12-01")},
@@ -4547,7 +4539,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               )
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M',3723000,'UTC')"))
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{1L, T("1999-12-01T01:02:03")},
@@ -4574,7 +4565,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .addPostAggregator(
                   EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
               )
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{1L, T("1999-12-01T08")},
@@ -4603,7 +4593,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .addPostAggregator(
                   EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
               )
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{1L, T("1999-12-01", LOS_ANGELES)},
@@ -4686,7 +4675,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(PeriodGranularity.of(Period.days(1)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')"))
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{1L, D("2000-01-01")},
@@ -4713,7 +4701,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(PeriodGranularity.of(Period.months(3)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P3M','','UTC')"))
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{3L, D("2000-01-01")},
@@ -5002,7 +4989,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .granularity(Granularities.YEAR)
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
             .postAggregators(EXPR_POST_AGG("d0", "timestamp_extract('YEAR',__time,'UTC')"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("d0", "a0")
             .build(),
         new Object[]{2000L, 3L},
@@ -5025,7 +5011,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .virtualColumns(EXPR_VC("d0:v", "timestamp_format(__time,'yyyy MM','UTC')"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("d0", "a0")
             .build(),
         new Object[]{"2000 01", 3L},
@@ -5171,7 +5156,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             )
             .virtualColumns(EXPR_VC("d1:v", "timestamp_floor(__time,'P1M','','UTC')"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0"), OrderByColumnSpec.asc("d1")))
             .outputColumns("d0", "d1", "a0")
             .build(),
         new Object[]{"", T("2000-01-01"), 2L},
@@ -5885,7 +5869,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(Granularities.MONTH)
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
-              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
         new Object[]{3L, T("2000-01-01")},

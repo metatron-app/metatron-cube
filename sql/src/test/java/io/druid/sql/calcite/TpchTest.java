@@ -27,8 +27,6 @@ import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
-import io.druid.query.groupby.orderby.LimitSpec;
-import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -93,8 +91,7 @@ public class TpchTest extends TpchTestHelper
       "DruidQueryRel(table=[druid.lineitem], "
       + "scanFilter=[<=($11, '1998-09-16')], "
       + "scanProject=[$10, $5, $8, $3, *($3, -(1, $2)), *(*($3, -(1, $2)), +(1, $15)), $2], "
-      + "group=[{0, 1}], SUM_QTY=[SUM($2)], SUM_BASE_PRICE=[SUM($3)], SUM_DISC_PRICE=[SUM($4)], SUM_CHARGE=[SUM($5)], AVG_QTY=[AVG($2)], AVG_PRICE=[AVG($3)], AVG_DISC=[AVG($6)], COUNT_ORDER=[COUNT()], "
-      + "sort=[$0:ASC, $1:ASC])\n";
+      + "group=[{0, 1}], SUM_QTY=[SUM($2)], SUM_BASE_PRICE=[SUM($3)], SUM_DISC_PRICE=[SUM($4)], SUM_CHARGE=[SUM($5)], AVG_QTY=[AVG($2)], AVG_PRICE=[AVG($3)], AVG_DISC=[AVG($6)], COUNT_ORDER=[COUNT()])\n";
 
   public static final Object[][] TPCH1_RESULT = {
       {"A", "F", 189203L, 2.649171512299999E8D, 2.5172256669044656E8D, 2.618137696907937E8D, 25.287757284148622D, 35407.26426490242D, 0.05014434653122463D, 7482L},
@@ -151,10 +148,6 @@ public class TpchTest extends TpchTestHelper
                     new FieldAccessPostAggregator(null, "a6:count")
                 ))
             )
-            .limitSpec(LimitSpec.of(
-                OrderByColumnSpec.asc("d0"),
-                OrderByColumnSpec.asc("d1")
-            ))
             .outputColumns("d0", "d1", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7")
             .build(),
         TPCH1_RESULT
