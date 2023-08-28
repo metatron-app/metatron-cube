@@ -21,6 +21,7 @@ package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.DimFilter;
 import io.druid.sql.calcite.Utils;
@@ -32,7 +33,6 @@ import io.druid.sql.calcite.rule.DruidCost;
 import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
@@ -44,7 +44,11 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.metadata.BuiltInMetadata;
+import org.apache.calcite.rel.metadata.BuiltInMetadata.Collation;
+import org.apache.calcite.rel.metadata.BuiltInMetadata.DistinctRowCount;
+import org.apache.calcite.rel.metadata.BuiltInMetadata.NonCumulativeCost;
+import org.apache.calcite.rel.metadata.BuiltInMetadata.RowCount;
+import org.apache.calcite.rel.metadata.BuiltInMetadata.Selectivity;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
 import org.apache.calcite.rel.metadata.MetadataDef;
@@ -56,10 +60,10 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NumberUtil;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 public class DruidMetadataProvider
@@ -79,20 +83,16 @@ public class DruidMetadataProvider
       )
   );
 
-  public static final RelMetadataProvider COLLATION_ONLY = ChainedRelMetadataProvider.of(
-      ImmutableList.of(DruidRelMdCollation.SOURCE, DefaultRelMetadataProvider.INSTANCE)
-  );
-
-  public static class DruidCostModel implements MetadataHandler<BuiltInMetadata.NonCumulativeCost>
+  public static class DruidCostModel implements MetadataHandler<NonCumulativeCost>
   {
     public static final RelMetadataProvider SOURCE =
         ReflectiveRelMetadataProvider.reflectiveSource(
-            BuiltInMethod.NON_CUMULATIVE_COST.method, new DruidCostModel());
+            new DruidCostModel(), NonCumulativeCost.Handler.class);
 
     @Override
-    public MetadataDef<BuiltInMetadata.NonCumulativeCost> getDef()
+    public MetadataDef<NonCumulativeCost> getDef()
     {
-      return BuiltInMetadata.NonCumulativeCost.DEF;
+      return NonCumulativeCost.DEF;
     }
 
     public RelOptCost getNonCumulativeCost(RelNode rel, RelMetadataQuery mq)
@@ -151,90 +151,143 @@ public class DruidMetadataProvider
     }
   }
 
-  public static class DruidRelMdSelectivity implements MetadataHandler<BuiltInMetadata.Selectivity>
+  public static class DruidRelMdSelectivity implements MetadataHandler<Selectivity>
   {
     public static final RelMetadataProvider SOURCE =
         ReflectiveRelMetadataProvider.reflectiveSource(
-            BuiltInMethod.SELECTIVITY.method, new DruidRelMdSelectivity());
+            new DruidRelMdSelectivity(), Selectivity.Handler.class);
 
     @Override
-    public MetadataDef<BuiltInMetadata.Selectivity> getDef()
+    public MetadataDef<Selectivity> getDef()
     {
-      return BuiltInMetadata.Selectivity.DEF;
+      return Selectivity.DEF;
     }
 
     public Double getSelectivity(RelNode rel, RelMetadataQuery mq, RexNode predicate)
     {
-      return Utils.selectivity(rel.getCluster().getRexBuilder(), predicate);
+      return Utils.selectivity(rel, predicate);
     }
 
-    public Double getSelectivity(TableScan rel, RelMetadataQuery mq, RexNode predicate)
+//    public Double getSelectivity(Project rel, RelMetadataQuery mq, RexNode predicate)
+//    {
+//      List<RexNode> notPushable = Lists.newArrayList();
+//      List<RexNode> pushable = Lists.newArrayList();
+//      ImmutableBitSet bitmap = ImmutableBitSet.range(rel.getRowType().getFieldCount());
+//      RelOptUtil.splitFilters(bitmap, predicate, pushable, notPushable);
+//
+//      RexBuilder builder = rel.getCluster().getRexBuilder();
+//      RexNode childPred = RexUtil.composeConjunction(builder, pushable, true);
+//
+//      RexNode pushedPred = childPred == null ? null : RelOptUtil.pushPastProject(childPred, rel);
+//      Double selectivity = mq.getSelectivity(rel.getInput(), pushedPred);
+//      if (selectivity == null || notPushable.isEmpty()) {
+//        return selectivity;
+//      }
+//      RexNode pred = RexUtil.composeConjunction(builder, notPushable, true);
+//      return selectivity * Utils.selectivity(rel, pred);
+//    }
+
+    public Double getSelectivity(TableScan scan, RelMetadataQuery mq, RexNode predicate)
     {
       if (predicate == null || predicate.isAlwaysTrue()) {
-        return Utils.selectivity(rel.getCluster().getRexBuilder(), predicate);
+        return Utils.selectivity(scan, predicate);
       }
       QueryMaker context = CONTEXT.get();
       if (context == null || !context.getPlannerContext().getPlannerConfig().isEstimateSelectivity()) {
-        return Utils.selectivity(rel.getCluster().getRexBuilder(), predicate);
+        return Utils.selectivity(scan, predicate);
       }
-      return context.cardinality(rel, predicate, k -> evaluate(rel, predicate, context));
+      return context.selectivity(scan, predicate, k -> selectivity(scan, predicate, context));
     }
 
-    private static double evaluate(RelNode rel, RexNode predicate, QueryMaker context)
+    private static Double selectivity(TableScan rel, RexNode predicate, QueryMaker context)
     {
       long p = System.currentTimeMillis();
-      RexBuilder builder = rel.getCluster().getRexBuilder();
-      RowSignature signature = RowSignature.from(rel.getRowType());
-      DimFilter filter = Expressions.toFilter(context.getPlannerContext(), signature, builder, predicate);
-      if (filter == null) {
-        return Utils.selectivity(builder, predicate);
+      Filtration filtration = toFiltration(rel, predicate, context, RowSignature.from(rel.getRowType()));
+      if (filtration == null) {
+        return null;
       }
       String table = Utils.tableName(rel.getTable());
-      long[] estimation = Utils.estimateSelectivity(table, Filtration.create(filter).optimize(signature), context);
+      long[] estimation = Utils.estimateSelectivity(table, filtration, context);
       double selectivity = estimation[1] == 0 ? 0D : estimation[0] / (double) estimation[1];
-      LOG.debug("%s : %s = %.3f (%d msec)", table, predicate, selectivity, System.currentTimeMillis() - p);
+      LOG.debug("--- selectivity(%s : %s) = %.3f (%d msec)", table, predicate, selectivity, System.currentTimeMillis() - p);
       return selectivity;
     }
   }
 
-  public static class DruidRelMdDistinctRowCount implements MetadataHandler<BuiltInMetadata.DistinctRowCount>
+  public static class DruidRelMdDistinctRowCount implements MetadataHandler<DistinctRowCount>
   {
     public static final RelMetadataProvider SOURCE =
         ReflectiveRelMetadataProvider.reflectiveSource(
-            BuiltInMethod.DISTINCT_ROW_COUNT.method, new DruidRelMdDistinctRowCount());
+            new DruidRelMdDistinctRowCount(), DistinctRowCount.Handler.class);
 
     @Override
-    public MetadataDef<BuiltInMetadata.DistinctRowCount> getDef()
+    public MetadataDef<DistinctRowCount> getDef()
     {
-      return BuiltInMetadata.DistinctRowCount.DEF;
+      return DistinctRowCount.DEF;
     }
 
-    public Double getDistinctRowCount(RelNode rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate)
+    public Double getDistinctRowCount(TableScan scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate)
     {
-      RelOptTable optTable = rel.getTable();
-      if (optTable != null) {
-        DruidTable table = optTable.unwrap(DruidTable.class);
-        if (table != null) {
-          long[] cardinalities = table.cardinalityRange(groupKey);
-          if (cardinalities != null) {
-            return (double) cardinalities[1];
-          }
+      DruidTable table = scan.getTable().unwrap(DruidTable.class);
+      if (table == null) {
+        return null;
+      }
+      double selectivity = mq.getSelectivity(scan, predicate);
+      if (selectivity > 0.999) {
+        long[] cardinalities = table.cardinalityRange(groupKey);
+        if (cardinalities != null && cardinalities[1] < cardinalities[0] >> 2) {
+          LOG.debug("-- cardinality(%s%s : %s) = %d", Utils.tableName(scan.getTable()), groupKey, predicate, cardinalities[1]);
+          return (double) cardinalities[1];
         }
+      }
+      QueryMaker context = CONTEXT.get();
+      if (context != null && context.getPlannerContext().getPlannerConfig().isEstimateCardinality()) {
+        return context.cardinality(scan, groupKey, predicate, k -> cardinality(scan, groupKey, predicate, context));
       }
       return null;
     }
+
+    private static Double cardinality(TableScan rel, ImmutableBitSet groupKey, RexNode predicate, QueryMaker context)
+    {
+      long p = System.currentTimeMillis();
+      RowSignature signature = RowSignature.from(rel.getRowType());
+      List<String> fields = Lists.newArrayList();
+      groupKey.forEachInt(x -> fields.add(signature.columnName(x)));
+      if (fields.contains(Row.TIME_COLUMN_NAME)) {
+        return null;    // todo
+      }
+      Filtration filtration = toFiltration(rel, predicate, context, signature);
+      if (filtration == null) {
+        return null;
+      }
+      String table = Utils.tableName(rel.getTable());
+      long estimation = Utils.estimateCardinality(table, filtration, fields, context);
+      LOG.debug("-- cardinality(%s%s : %s) = %d (%d msec)", table, groupKey, predicate, estimation, System.currentTimeMillis() - p);
+      return (double) estimation;
+    }
   }
 
-  public static class DruidRelMdRowCount implements MetadataHandler<BuiltInMetadata.RowCount>
+  @Nullable
+  private static Filtration toFiltration(RelNode rel, RexNode predicate, QueryMaker context, RowSignature signature)
+  {
+    if (predicate == null) {
+      return Filtration.create(null);
+    }
+    RexBuilder builder = rel.getCluster().getRexBuilder();
+    DimFilter filter = Expressions.toFilter(context.getPlannerContext(), signature, builder, predicate);
+    return filter == null ? null : Filtration.create(filter).optimize(signature);
+  }
+
+  public static class DruidRelMdRowCount implements MetadataHandler<RowCount>
   {
     public static final RelMetadataProvider SOURCE =
         ReflectiveRelMetadataProvider.reflectiveSource(
-            BuiltInMethod.ROW_COUNT.method, new DruidRelMdRowCount());
+            new DruidRelMdRowCount(), RowCount.Handler.class);
 
     @Override
-    public MetadataDef<BuiltInMetadata.RowCount> getDef()
+    public MetadataDef<RowCount> getDef()
     {
-      return BuiltInMetadata.RowCount.DEF;
+      return RowCount.DEF;
     }
 
     public Double getRowCount(Join join, RelMetadataQuery mq)
@@ -297,16 +350,16 @@ public class DruidMetadataProvider
     }
   }
 
-  public static class DruidRelMdCollation implements MetadataHandler<BuiltInMetadata.Collation>
+  public static class DruidRelMdCollation implements MetadataHandler<Collation>
   {
     public static final RelMetadataProvider SOURCE =
         ReflectiveRelMetadataProvider.reflectiveSource(
-            BuiltInMethod.COLLATIONS.method, new DruidRelMdCollation());
+            new DruidRelMdCollation(), Collation.Handler.class);
 
     @Override
-    public MetadataDef<BuiltInMetadata.Collation> getDef()
+    public MetadataDef<Collation> getDef()
     {
-      return BuiltInMetadata.Collation.DEF;
+      return Collation.DEF;
     }
 
     public ImmutableList<RelCollation> collations(Aggregate aggregate, RelMetadataQuery mq)

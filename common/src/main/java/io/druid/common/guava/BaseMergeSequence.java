@@ -37,6 +37,9 @@ public abstract class BaseMergeSequence<T> extends YieldingSequenceBase<T>
 
   protected final Hack<Yielder<T>> createQueue(Comparator<T> ordering, int capacity)
   {
+    if (ordering == null) {
+      return new Hack<>(capacity, (left, right) -> 0);
+    }
     return new Hack<>(capacity, (left, right) -> ordering.compare(left.get(), right.get()));
   }
 

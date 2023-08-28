@@ -438,6 +438,18 @@ public class Utils
     );
   }
 
+  public static long estimateCardinality(String table, Filtration filtration, List<String> fields, QueryMaker context)
+  {
+    return Queries.estimateCardinality(
+        TableDataSource.of(table),
+        filtration.getQuerySegmentSpec(),
+        filtration.getDimFilter(),
+        fields,
+        context.getPlannerContext().getQueryContext(),
+        context.getSegmentWalker()
+    );
+  }
+
   public static double selectivity(RelNode source, RexNode condition)
   {
     return selectivity(source.getCluster().getRexBuilder(), condition);
@@ -485,6 +497,8 @@ public class Utils
   private static final double REF_PER_COLUMN = 0.001;
   private static final double LITERAL_PER_COLUMN = 0.00001;
 
+  private static final double ARITHMETIC_FN = 0.001;
+  private static final double COMPARE_FN = 0.002;
   private static final double CUSTOM_FN_CALL = 0.02;
   private static final double LIKE_PER_COLUMN = 0.05;
   private static final double EXPR_PER_COLUMN = 0.005;
@@ -506,6 +520,21 @@ public class Utils
     if (rexNode instanceof RexCall) {
       cost = rexEvalCost(Utils.operands(rexNode));
       switch (rexNode.getKind()) {
+        case PLUS:
+        case MINUS:
+        case TIMES:
+        case DIVIDE:
+        case MOD:
+          return ARITHMETIC_FN + cost;
+        case EQUALS:
+        case NOT_EQUALS:
+        case LESS_THAN:
+        case LESS_THAN_OR_EQUAL:
+        case GREATER_THAN:
+        case GREATER_THAN_OR_EQUAL:
+          return COMPARE_FN + cost;
+        case BETWEEN:
+          return COMPARE_FN * 2 + cost;
         case OTHER_FUNCTION:
           return CUSTOM_FN_CALL + cost;   // todo
         case LIKE:

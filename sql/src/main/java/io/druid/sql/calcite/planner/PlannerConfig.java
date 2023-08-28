@@ -63,6 +63,9 @@ public class PlannerConfig
   @JsonProperty
   private boolean estimateSelectivity = false;
 
+  @JsonProperty
+  private boolean estimateCardinality = false;
+
   public int getMaxTopNLimit()
   {
     return maxTopNLimit;
@@ -113,6 +116,11 @@ public class PlannerConfig
     return estimateSelectivity;
   }
 
+  public boolean isEstimateCardinality()
+  {
+    return estimateCardinality;
+  }
+
   public PlannerConfig withOverrides(final Map<String, Object> context)
   {
     if (context == null || context.isEmpty()) {
@@ -138,6 +146,7 @@ public class PlannerConfig
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
     newConfig.estimateSelectivity = isEstimateSelectivity();
+    newConfig.estimateCardinality = isEstimateCardinality();
     return newConfig;
   }
 
@@ -178,7 +187,8 @@ public class PlannerConfig
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone) &&
-           estimateSelectivity == that.estimateSelectivity;
+           estimateSelectivity == that.estimateSelectivity &&
+           estimateCardinality == that.estimateCardinality;
   }
 
   @Override
@@ -194,7 +204,8 @@ public class PlannerConfig
         requireTimeCondition,
         dumpPlan,
         sqlTimeZone,
-        estimateSelectivity
+        estimateSelectivity,
+        estimateCardinality
     );
   }
 
@@ -212,6 +223,7 @@ public class PlannerConfig
            ", dumpPlan=" + dumpPlan +
            ", sqlTimeZone=" + sqlTimeZone +
            ", estimateSelectivity=" + estimateSelectivity +
+           ", estimateCardinality=" + estimateCardinality +
            '}';
   }
 }

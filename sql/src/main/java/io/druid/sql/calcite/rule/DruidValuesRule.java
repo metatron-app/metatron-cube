@@ -38,7 +38,9 @@ public class DruidValuesRule extends ConverterRule
 
   public DruidValuesRule(QueryMaker maker)
   {
-    super(LogicalValues.class, r -> true, Convention.NONE, BindableConvention.INSTANCE, "DruidValuesRule");
+    super(Config.INSTANCE.withConversion(
+        LogicalValues.class, Convention.NONE, BindableConvention.INSTANCE, "DruidValuesRule")
+    );
     this.maker = maker;
   }
 
@@ -50,7 +52,7 @@ public class DruidValuesRule extends ConverterRule
         ((LogicalValues) rel).tuples,
         new Function<List<RexLiteral>, Object[]>()
         {
-          private final Function[] coercer = maker.coerce(rel.getRowType().getFieldList());
+          private final java.util.function.Function[] coercer = maker.coerce(rel.getRowType().getFieldList());
 
           @Override
           public Object[] apply(List<RexLiteral> input)

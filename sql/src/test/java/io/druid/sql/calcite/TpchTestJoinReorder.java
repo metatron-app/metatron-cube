@@ -58,7 +58,13 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch2S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH2, TpchTest.TPCH2_EXPLAIN_JR2, TpchTest.TPCH2_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH2, TpchTest.TPCH2_EXPLAIN_JR_S, TpchTest.TPCH2_RESULT);
+  }
+
+  @Test
+  public void tpch2SC() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SC, TpchTest.TPCH2, TpchTest.TPCH2_EXPLAIN_JR_SC, TpchTest.TPCH2_RESULT);
   }
 
   @Test
@@ -70,7 +76,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch3S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH3, TpchTest.TPCH3_EXPLAIN_JR, TpchTest.TPCH3_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH3, TpchTest.TPCH3_EXPLAIN_JR, TpchTest.TPCH3_RESULT);
   }
 
   @Test
@@ -82,7 +88,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch4S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH4, TpchTest.TPCH4_EXPLAIN, TpchTest.TPCH4_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH4, TpchTest.TPCH4_EXPLAIN, TpchTest.TPCH4_RESULT);
   }
 
   @Test
@@ -94,7 +100,13 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch5S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH5, TpchTest.TPCH5_EXPLAIN_JR2, TpchTest.TPCH5_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH5, TpchTest.TPCH5_EXPLAIN_JR_S, TpchTest.TPCH5_RESULT);
+  }
+
+  @Test
+  public void tpch5SC() throws Exception
+  {
+    testQuery(JOIN_REORDERING_WITH_SC, TpchTest.TPCH5, TpchTest.TPCH5_EXPLAIN_JR_S, TpchTest.TPCH5_RESULT);
   }
 
   @Test
@@ -106,7 +118,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch6S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH6, TpchTest.TPCH6_EXPLAIN, TpchTest.TPCH6_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH6, TpchTest.TPCH6_EXPLAIN, TpchTest.TPCH6_RESULT);
   }
 
   @Test
@@ -118,7 +130,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch7S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH7, TpchTest.TPCH7_EXPLAIN_JR2, TpchTest.TPCH7_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH7, TpchTest.TPCH7_EXPLAIN_JR2, TpchTest.TPCH7_RESULT);
   }
 
   @Test
@@ -130,7 +142,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch8S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH8, TpchTest.TPCH8_EXPLAIN_JR2, TpchTest.TPCH8_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH8, TpchTest.TPCH8_EXPLAIN_JR2, TpchTest.TPCH8_RESULT);
   }
 
   @Test
@@ -142,7 +154,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch9S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH9, TpchTest.TPCH9_EXPLAIN_JR, TpchTest.TPCH9_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH9, TpchTest.TPCH9_EXPLAIN_JR, TpchTest.TPCH9_RESULT);
   }
 
   @Test
@@ -154,7 +166,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch10S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH10, TpchTest.TPCH10_EXPLAIN_JR2, TpchTest.TPCH10_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH10, TpchTest.TPCH10_EXPLAIN_JR2, TpchTest.TPCH10_RESULT);
   }
 
   @Test
@@ -166,7 +178,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch11S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH11, TpchTest.TPCH11_EXPLAIN_JR, TpchTest.TPCH11_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH11, TpchTest.TPCH11_EXPLAIN_JR, TpchTest.TPCH11_RESULT);
   }
 
   @Test
@@ -178,7 +190,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch12S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH12, TpchTest.TPCH12_EXPLAIN, TpchTest.TPCH12_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH12, TpchTest.TPCH12_EXPLAIN, TpchTest.TPCH12_RESULT);
   }
 
   @Test
@@ -190,7 +202,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch13S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH13, TpchTest.TPCH13_EXPLAIN, TpchTest.TPCH13_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH13, TpchTest.TPCH13_EXPLAIN, TpchTest.TPCH13_RESULT);
   }
 
   @Test
@@ -202,7 +214,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch14S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH14, TpchTest.TPCH14_EXPLAIN, TpchTest.TPCH14_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH14, TpchTest.TPCH14_EXPLAIN, TpchTest.TPCH14_RESULT);
   }
 
   @Test
@@ -214,7 +226,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch15S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH15, TpchTest.TPCH15_EXPLAIN_JR, TpchTest.TPCH15_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH15, TpchTest.TPCH15_EXPLAIN_JR, TpchTest.TPCH15_RESULT);
   }
 
   @Test
@@ -226,7 +238,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch16S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR, TpchTest.TPCH16_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH16, TpchTest.TPCH16_EXPLAIN_JR, TpchTest.TPCH16_RESULT);
   }
 
   @Test
@@ -238,7 +250,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch17S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH17, TpchTest.TPCH17_EXPLAIN_JR, TpchTest.TPCH17_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH17, TpchTest.TPCH17_EXPLAIN_JR, TpchTest.TPCH17_RESULT);
   }
 
   @Test
@@ -250,7 +262,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch18S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH18, TpchTest.TPCH18_EXPLAIN_JR, TpchTest.TPCH18_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH18, TpchTest.TPCH18_EXPLAIN_JR, TpchTest.TPCH18_RESULT);
   }
 
   @Test
@@ -262,7 +274,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch19S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH19, TpchTest.TPCH19_EXPLAIN, TpchTest.TPCH19_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH19, TpchTest.TPCH19_EXPLAIN, TpchTest.TPCH19_RESULT);
   }
 
   @Test
@@ -274,7 +286,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch20S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH20, TpchTest.TPCH20_EXPLAIN_JR2, TpchTest.TPCH20_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH20, TpchTest.TPCH20_EXPLAIN_JR2, TpchTest.TPCH20_RESULT);
   }
 
   @Test
@@ -286,7 +298,7 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch21S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH21, TpchTest.TPCH21_EXPLAIN_JR2, TpchTest.TPCH21_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH21, TpchTest.TPCH21_EXPLAIN_JR2, TpchTest.TPCH21_RESULT);
   }
 
   @Test
@@ -298,6 +310,6 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void tpch22S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, TpchTest.TPCH22, TpchTest.TPCH22_EXPLAIN_JR, TpchTest.TPCH22_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, TpchTest.TPCH22, TpchTest.TPCH22_EXPLAIN_JR, TpchTest.TPCH22_RESULT);
   }
 }

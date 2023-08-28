@@ -149,13 +149,31 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     public boolean isUseJoinReordering() { return true;}
   };
 
-  protected static final PlannerConfig JOIN_REORDERING_WITH_SELECTIVITY = new PlannerConfig()
+  protected static final PlannerConfig JOIN_REORDERING_WITH_S = new PlannerConfig()
   {
     @Override
     public boolean isUseJoinReordering() { return true;}
 
     @Override
     public boolean isEstimateSelectivity()
+    {
+      return true;
+    }
+  };
+
+  protected static final PlannerConfig JOIN_REORDERING_WITH_SC = new PlannerConfig()
+  {
+    @Override
+    public boolean isUseJoinReordering() { return true;}
+
+    @Override
+    public boolean isEstimateSelectivity()
+    {
+      return true;
+    }
+
+    @Override
+    public boolean isEstimateCardinality()
     {
       return true;
     }
@@ -436,6 +454,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {
         PlannerResult plan = planner.plan("EXPLAIN PLAN WITH TYPE FOR " + sql, null);
         explain = Objects.toString(Sequences.only(plan.run(parameters))[0], null);
+        walker().getHook().clear();
       }
     }
     try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {

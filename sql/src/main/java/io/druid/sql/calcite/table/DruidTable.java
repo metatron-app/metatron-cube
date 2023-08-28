@@ -51,6 +51,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.logical.LogicalValues;
+import org.apache.calcite.rel.metadata.BuiltInMetadata;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
@@ -73,7 +75,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-public class DruidTable implements TranslatableTable
+public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCount.Handler
 {
   private static final Logger LOG = new Logger(DruidTable.class);
 
@@ -217,6 +219,12 @@ public class DruidTable implements TranslatableTable
       }
     }
     return tenants;
+  }
+
+  @Override
+  public Double getMaxRowCount(RelNode r, RelMetadataQuery mq)
+  {
+    return getStatistic().getRowCount();
   }
 
   private static class Holder

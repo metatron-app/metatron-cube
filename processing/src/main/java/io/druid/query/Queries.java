@@ -484,6 +484,24 @@ public class Queries
     return Sequences.only(QueryRunners.run(query, segmentWalker), new long[] {0, 0});
   }
 
+  public static long estimateCardinality(
+      DataSource dataSource,
+      QuerySegmentSpec segmentSpec,
+      DimFilter filter,
+      List<String> fields,
+      Map<String, Object> context,
+      QuerySegmentWalker segmentWalker
+  )
+  {
+    GroupByQuery source = new GroupByQuery.Builder().dataSource(dataSource)
+                                                    .segmentSpec(segmentSpec)
+                                                    .dimensions(DefaultDimensionSpec.toSpec(fields))
+                                                    .filters(filter)
+                                                    .context(context)
+                                                    .build();
+    return estimateCardinality(source, segmentWalker)[0];
+  }
+
   public static long[] estimateCardinality(TimeseriesQuery query, QuerySegmentWalker segmentWalker)
   {
     Granularity granularity = query.getGranularity();

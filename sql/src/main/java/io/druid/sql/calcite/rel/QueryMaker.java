@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
@@ -57,6 +56,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NlsString;
 import org.apache.logging.log4j.util.Strings;
 import org.joda.time.DateTime;
@@ -68,6 +68,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 public class QueryMaker
@@ -77,7 +78,8 @@ public class QueryMaker
   private final QueryLifecycleFactory lifecycleFactory;
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
-  private final Map<String, Map<RexNode, Double>> cardinalities = Maps.newHashMap();
+  private final Map<String, Double> selectivities = Maps.newHashMap();
+  private final Map<String, Double> cardinalities = Maps.newHashMap();
 
   public QueryMaker(
       final QueryLifecycleFactory lifecycleFactory,
@@ -379,9 +381,20 @@ public class QueryMaker
     }
   }
 
-  public double cardinality(RelNode rel, RexNode predicate, java.util.function.Function<RexNode, Double> populator)
+  public Double selectivity(RelNode rel, RexNode predicate, Function<String, Double> populator)
   {
-    return cardinalities.computeIfAbsent(Utils.tableName(rel.getTable()), k -> Maps.newHashMap())
-                        .computeIfAbsent(predicate, populator);
+    String key = Utils.tableName(rel.getTable()) + Objects.toString(predicate, "");
+    return selectivities.computeIfAbsent(key, populator);
+  }
+
+  public Double cardinality(
+      RelNode rel,
+      ImmutableBitSet groupKey,
+      RexNode predicate,
+      Function<String, Double> populator
+  )
+  {
+    String key = Utils.tableName(rel.getTable()) + groupKey + Objects.toString(predicate, "");
+    return cardinalities.computeIfAbsent(key, populator);
   }
 }

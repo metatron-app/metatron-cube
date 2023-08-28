@@ -51,6 +51,11 @@ import java.util.Objects;
 
 public class CardinalityAggregatorFactory extends HashAggregatorFactory implements CubeSupport, FinalizingCombinerFactory
 {
+  public static AggregatorFactory fields(String name, List<String> fieldNames)
+  {
+    return fields(name, fieldNames, GroupingSetSpec.EMPTY);
+  }
+
   public static AggregatorFactory fields(String name, List<String> fieldNames, GroupingSetSpec groupingSets)
   {
     return new CardinalityAggregatorFactory(name, fieldNames, null, groupingSets, null, true, true, 0);

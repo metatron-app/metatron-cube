@@ -734,6 +734,12 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       }
     }
 
+    public Builder<T> segmentSpec(QuerySegmentSpec querySegmentSpec)
+    {
+      this.querySegmentSpec = querySegmentSpec;
+      return this;
+    }
+
     public Builder<T> setQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
     {
       this.querySegmentSpec = querySegmentSpec;

@@ -118,7 +118,7 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void ssb2_1S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB2_1, SSB2_1_PLAN_JR2, SSB2_1_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, SSB2_1, SSB2_1_PLAN_JR2, SSB2_1_RESULT);
 
     hook.verifyHooked(
         "pCzqW4nDH1eE0haGjeHGWQ==",
@@ -148,7 +148,7 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void ssb2_2S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB2_2, SSB2_2_PLAN_JR2, SSB2_2_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, SSB2_2, SSB2_2_PLAN_JR2, SSB2_2_RESULT);
 
     hook.verifyHooked(
         "nM8cKcCAHXDQpCpvwAvK6Q==",
@@ -178,7 +178,7 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void ssb3_1S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB3_1, SSB3_1_PLAN_JR2, SSB3_1_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, SSB3_1, SSB3_1_PLAN_JR2, SSB3_1_RESULT);
 
     hook.verifyHooked(
         "htWyISHrota8hwqaJyrFWQ==",
@@ -208,7 +208,7 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void ssb3_2S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB3_2, SSB3_2_PLAN_JR2, SSB3_2_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, SSB3_2, SSB3_2_PLAN_JR2, SSB3_2_RESULT);
 
     hook.verifyHooked(
         "nMIEwNgujPFQRJr0FFqmDw==",
@@ -239,7 +239,7 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void ssb4_1S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB4_1, SSB4_1_PLAN_JR2, SSB4_1_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, SSB4_1, SSB4_1_PLAN_JR2, SSB4_1_RESULT);
 
     hook.verifyHooked(
         "9de8UGOEa7uwjBSsjtwAAA==",
@@ -271,7 +271,7 @@ public class SsbTestJoinReorder extends CalciteQueryTestHelper
   @Test
   public void ssb4_2S() throws Exception
   {
-    testQuery(JOIN_REORDERING_WITH_SELECTIVITY, SSB4_2, SSB4_2_PLAN_JR2, SSB4_2_RESULT);
+    testQuery(JOIN_REORDERING_WITH_S, SSB4_2, SSB4_2_PLAN_JR2, SSB4_2_RESULT);
 
     hook.verifyHooked(
         "nVCxQZjv2b2c4g3jEh0/Wg==",

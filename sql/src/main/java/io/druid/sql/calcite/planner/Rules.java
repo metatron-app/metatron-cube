@@ -83,6 +83,14 @@ public class Rules
 
   public static final int DRUID_CONVENTION_RULES = 0;
 
+  // Based on Calcite's Programs.DecorrelateProgram and Programs.TrimFieldsProgram, which are private and only
+  // accessible through Programs.standard (which we don't want, since it also adds Enumerable rules).
+  static final Program DECORRELATE_TRIM_PROGRAM = (planner, rel, traits, materializations, lattices) -> {
+    final RelBuilder builder = RelFactories.LOGICAL_BUILDER.create(rel.getCluster(), null);
+    return new RelFieldTrimmer(null, builder).trim(RelDecorrelator.decorrelateQuery(rel, builder));
+  };
+
+  // set collation on distributed aggregation operator
   static final RelOptRule SET_COLLATION_ON_AGGREGATE = new RelOptRule(
       DruidRel.operand(Aggregate.class, Utils::distributed), "SET_COLLATION_ON_AGGREGATE")
   {
@@ -214,8 +222,8 @@ public class Rules
     PlannerConfig config = plannerContext.getPlannerConfig();
 
     List<Program> programs = Lists.newArrayList();
-    programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
-    programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
+    programs.add(Programs.subQuery(DruidMetadataProvider.INSTANCE));  // uses minRow/maxRow/uniqueKey
+    programs.add(DECORRELATE_TRIM_PROGRAM);
 
     programs.add(hepProgram(PreFilteringRule.instance(), CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW));
 
@@ -404,25 +412,5 @@ public class Rules
     rules.add(ProjectAggregatePruneUnusedCallRule.instance());
 
     return rules;
-  }
-
-  // Based on Calcite's Programs.DecorrelateProgram and Programs.TrimFieldsProgram, which are private and only
-  // accessible through Programs.standard (which we don't want, since it also adds Enumerable rules).
-  private static class DecorrelateAndTrimFieldsProgram implements Program
-  {
-    static final DecorrelateAndTrimFieldsProgram INSTANCE = new DecorrelateAndTrimFieldsProgram();
-
-    @Override
-    public RelNode run(
-        RelOptPlanner planner,
-        RelNode rel,
-        RelTraitSet requiredOutputTraits,
-        List<RelOptMaterialization> materializations,
-        List<RelOptLattice> lattices
-    )
-    {
-      final RelBuilder builder = RelFactories.LOGICAL_BUILDER.create(rel.getCluster(), null);
-      return new RelFieldTrimmer(null, builder).trim(RelDecorrelator.decorrelateQuery(rel, builder));
-    }
   }
 }
