@@ -620,9 +620,9 @@ public class DruidBaseQuery implements DruidQuery
     }
 
     final DimensionExpression dimensionExpr = Iterables.getOnlyElement(grouping.getDimensions());
-    final DimensionSpec dimensionSpec = dimensionExpr.toDimensionSpec();
-    if (!dimensionSpec.getDimension().equals(Row.TIME_COLUMN_NAME) &&
-        !ValueDesc.isDimension(sourceRowSignature.resolve(dimensionSpec.getDimension()))) {
+    final DimensionSpec dimensionSpec = Iterables.getOnlyElement(grouping.getDimensionSpecs());
+    if (!Row.TIME_COLUMN_NAME.equals(dimensionSpec.getDimension()) &&
+        !ValueDesc.isDimension(dimensionExpr.getOutputType())) {
       return null;
     }
     final OrderByColumnSpec limitColumn;

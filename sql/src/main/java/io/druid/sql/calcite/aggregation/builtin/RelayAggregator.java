@@ -58,7 +58,7 @@ public class RelayAggregator implements SqlAggregator
     if (arguments.size() != 1) {
       return false; // todo
     }
-    RexNode rexNode = aggregations.toRexNode(arguments.get(0));
+    RexNode rexNode = aggregations.toFieldRef(arguments.get(0));
     DruidExpression arg = aggregations.toExpression(rexNode);
     if (arg == null) {
       return false;

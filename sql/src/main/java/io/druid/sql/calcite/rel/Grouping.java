@@ -31,7 +31,6 @@ import io.druid.sql.calcite.table.RowSignature;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Objects;
 
 public class Grouping
 {
@@ -39,8 +38,8 @@ public class Grouping
   private final List<DimensionExpression> dimensions;
   private final List<DimensionSpec> dimensionSpecs;
   private final GroupingSetSpec groupingSet;
-  private final List<VirtualColumn> virtualColumns;
   private final List<AggregatorFactory> aggregations;
+  private final List<VirtualColumn> virtualColumns;
   private final List<PostAggregator> postAggregators;
   private final HavingSpec havingFilter;
   private final RowSignature outputRowSignature;
@@ -50,8 +49,8 @@ public class Grouping
       final List<DimensionExpression> dimensions,
       final List<DimensionSpec> dimensionSpecs,
       final GroupingSetSpec groupingSet,
-      final List<VirtualColumn> virtualColumns,
       final List<AggregatorFactory> aggregations,
+      final List<VirtualColumn> virtualColumns,
       final List<PostAggregator> postAggregators,
       final HavingSpec havingFilter,
       final RowSignature outputRowSignature
@@ -61,9 +60,9 @@ public class Grouping
     this.dimensions = dimensions;
     this.dimensionSpecs = dimensionSpecs;
     this.groupingSet = groupingSet;
-    this.virtualColumns = virtualColumns;
     this.aggregations = aggregations;
     this.havingFilter = havingFilter;
+    this.virtualColumns = virtualColumns;
     this.postAggregators = postAggregators;
     this.outputRowSignature = outputRowSignature;
   }
@@ -115,35 +114,14 @@ public class Grouping
   }
 
   @Override
-  public boolean equals(final Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    final Grouping grouping = (Grouping) o;
-    return Objects.equals(dimensionSpecs, grouping.dimensionSpecs) &&
-           Objects.equals(virtualColumns, grouping.virtualColumns) &&
-           Objects.equals(aggregations, grouping.aggregations) &&
-           Objects.equals(havingFilter, grouping.havingFilter) &&
-           Objects.equals(outputRowSignature, grouping.outputRowSignature);
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(dimensionSpecs, virtualColumns, aggregations, havingFilter, outputRowSignature);
-  }
-
-  @Override
   public String toString()
   {
     return "Grouping{" +
            "dimensions=" + dimensionSpecs +
            ", virtualColumns=" + virtualColumns +
+           ", groupingSet=" + groupingSet +
            ", aggregations=" + aggregations +
+           ", postAggregators=" + postAggregators +
            ", havingFilter=" + havingFilter +
            ", outputRowSignature=" + outputRowSignature +
            '}';

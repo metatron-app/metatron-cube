@@ -52,7 +52,7 @@ public class AvgSqlAggregator implements SqlAggregator
     if (call.isDistinct() || call.getArgList().size() != 1) {
       return false;
     }
-    RexNode rexNode = aggregations.toRexNode(call.getArgList().get(0));
+    RexNode rexNode = aggregations.toFieldRef(call.getArgList().get(0));
     DruidExpression expression = aggregations.toExpression(rexNode);
     if (expression == null) {
       return false;

@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite.aggregation;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -28,9 +27,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.Pair;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.AggregatorFactory.FieldExpressionSupport;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
@@ -40,7 +37,6 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
-import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
@@ -60,7 +56,7 @@ import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import javax.annotation.Nullable;
@@ -91,7 +87,7 @@ public class Aggregations
 
   private final RowSignature output;
 
-  private final Map<DruidExpression, ReferenceCounter<VirtualColumn>> virtualColumns = Maps.newLinkedHashMap();
+  private final VColumnRegistry virtualColumns = new VColumnRegistry();
   private final Map<ByteArray, AggregatorFactory> aggregators = Maps.newLinkedHashMap();
   private final List<PostAggregator> postAggregators = Lists.newArrayList();
 
@@ -111,7 +107,7 @@ public class Aggregations
     this.finalizeAggregations = finalizeAggregations;
     this.groupingSet = computeGroupingSetSpec();
     this.output = computeDimensions().computeNotProjectedConstantDimensions(query)
-                                     .computeDimensionVirtualColumns(query)
+                                     .registerVirtualColumnDimensions(query)
                                      .computeAggregations(query);
   }
 
@@ -188,11 +184,12 @@ public class Aggregations
     return this;
   }
 
-  private Aggregations computeDimensionVirtualColumns(PartialDruidQuery query)
+  private Aggregations registerVirtualColumnDimensions(PartialDruidQuery query)
   {
     for (int i = 0; i < dimensions.size(); i++) {
-      if (!removedDimensions.get(i)) {
-        registerDimension(dimensions.get(i));
+      DimensionExpression dimension = dimensions.get(i);
+      if (!removedDimensions.get(i) && !dimension.getDruidExpression().isSimpleExtraction()) {
+        virtualColumns.register(dimension.getOutputName(), dimension.getDruidExpression());
       }
     }
     return this;
@@ -307,6 +304,7 @@ public class Aggregations
     return expressions.size() == fields.size() ? expressions : null;
   }
 
+  @Nullable
   public static List<DruidExpression> argumentsToExpressions(
       List<Integer> fields,
       PlannerContext plannerContext,
@@ -329,21 +327,16 @@ public class Aggregations
     return toExpression(Expressions.fromFieldAccess(signature, project, field));
   }
 
+  @Nullable
   public DruidExpression toExpression(RexNode rexNode)
   {
     return Expressions.toDruidExpression(plannerContext, signature, rexNode);
   }
 
+  @Nullable
   public DruidExpression toExpression(RowSignature signature, RexNode rexNode)
   {
     return Expressions.toDruidExpression(plannerContext, signature, rexNode);
-  }
-
-  public void registerDimension(DimensionExpression dimension)
-  {
-    if (!dimension.getDruidExpression().isSimpleExtraction()) {
-      _register(dimension.getOutputName(), dimension.getDruidExpression());
-    }
   }
 
   public String registerColumn(String outputName, DruidExpression expression)
@@ -351,7 +344,7 @@ public class Aggregations
     if (expression.isDirectColumnAccess()) {
       return expression.getDirectColumn();
     }
-    return _register(outputName, expression).getOutputName();
+    return virtualColumns.register(outputName, expression).getOutputName();
   }
 
   public DimensionSpec registerDimension(String outputName, DruidExpression expression)
@@ -359,16 +352,7 @@ public class Aggregations
     if (expression.isSimpleExtraction()) {
       return expression.getSimpleExtraction().toDimensionSpec(null);
     }
-    return DefaultDimensionSpec.of(_register(outputName, expression).getOutputName());
-  }
-
-  private VirtualColumn _register(String outputName, DruidExpression expression)
-  {
-    ReferenceCounter<VirtualColumn> vc = virtualColumns.computeIfAbsent(
-        expression, k -> new ReferenceCounter<>(expression.toVirtualColumn(Calcites.vcName(outputName)))
-    );
-    vc.counter++;
-    return vc.object;
+    return DefaultDimensionSpec.of(virtualColumns.register(outputName, expression).getOutputName());
   }
 
   public void register(AggregatorFactory factory, DimFilter predicate)
@@ -390,23 +374,28 @@ public class Aggregations
     return plannerContext.getPlannerConfig().isUseApproximateCountDistinct();
   }
 
-  public RexNode toRexNode(int field)
+  public RexNode toFieldRef(int field)
   {
     return Expressions.fromFieldAccess(signature, project, field);
   }
 
+  public RexNode makeCall(SqlOperator op, RexNode... exprs)
+  {
+    return rexBuilder.makeCall(op, exprs);
+  }
+
+  @Nullable
   public DimFilter toFilter(RexNode rexNode)
   {
-    RexNode call = rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, ImmutableList.of(rexNode));
-    DimFilter filter = Expressions.toFilter(plannerContext, signature, rexBuilder, call);
+    DimFilter filter = Expressions.toFilter(plannerContext, signature, rexBuilder, rexNode);
     return filter == null ? null : Filtration.create(filter).optimizeFilterOnly(signature).getDimFilter();
   }
 
   public RowSignature asTypeSolver()
   {
     RowSignature.Builder builder = RowSignature.builderFrom(signature);
-    for (ReferenceCounter<VirtualColumn> vc : virtualColumns.values()) {
-      builder.add(vc.object.getOutputName(), vc.object.resolveType(signature));
+    for (VirtualColumn vc : virtualColumns.virtualColumns()) {
+      builder.add(vc.getOutputName(), vc.resolveType(signature));
     }
     for (AggregatorFactory factory : aggregators.values()) {
       builder.add(factory.getName(), factory.getOutputType());
@@ -423,54 +412,19 @@ public class Aggregations
   {
     List<DimensionSpec> dimensionSpecs = IntStream.range(0, dimensions.size())
                                                   .filter(x -> !removedDimensions.get(x))
-                                                  .mapToObj(x -> dimensions.get(x).toDimensionSpec())
+                                                  .mapToObj(x -> dimensions.get(x).toDimensionSpec(virtualColumns))
                                                   .collect(Collectors.toList());
-
-    Pair<List<VirtualColumn>, List<AggregatorFactory>> optimized = optimize();
     return new Grouping(
         granularity,
         dimensions,
         dimensionSpecs,
         groupingSet,
-        optimized.lhs,
-        optimized.rhs,
+        virtualColumns.simplify(aggregators.values()),
+        virtualColumns.virtualColumns(),
         postAggregators,
         having,
         output
     );
-  }
-
-  private Pair<List<VirtualColumn>, List<AggregatorFactory>> optimize()
-  {
-    Map<String, VirtualColumn> mapping = Maps.newLinkedHashMap();
-    virtualColumns.values().stream().filter(h -> h.counter == 1 && h.object instanceof ExprVirtualColumn)
-                  .forEach(h -> mapping.put(h.object.getOutputName(), h.object));
-    if (mapping.isEmpty() || !Iterables.any(aggregators.values(), f -> f instanceof FieldExpressionSupport)) {
-      return Pair.of(
-          GuavaUtils.transform(virtualColumns.values(), vc -> vc.object),
-          ImmutableList.copyOf(aggregators.values())
-      );
-    }
-    List<AggregatorFactory> inlined = Lists.newArrayList();
-    for (AggregatorFactory factory : aggregators.values()) {
-      if (factory instanceof FieldExpressionSupport) {
-        FieldExpressionSupport exprSupport = ((FieldExpressionSupport) factory);
-        VirtualColumn vc = mapping.remove(exprSupport.getFieldName());
-        if (vc != null) {
-          factory = exprSupport.withFieldExpression(((ExprVirtualColumn) vc).getExpression());
-        }
-      }
-      inlined.add(factory);
-    }
-    return Pair.of(ImmutableList.copyOf(mapping.values()), inlined);
-  }
-
-  private static class ReferenceCounter<T>
-  {
-    private final T object;
-    int counter;
-
-    public ReferenceCounter(T object) {this.object = object;}
   }
 
   public DruidExpression getNonDistinctSingleArgument(AggregateCall call)

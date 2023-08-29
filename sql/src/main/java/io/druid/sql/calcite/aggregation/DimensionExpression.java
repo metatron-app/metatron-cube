@@ -25,9 +25,7 @@ import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.planner.Calcites;
 
 import java.util.Objects;
 
@@ -63,23 +61,18 @@ public class DimensionExpression
     return outputType;
   }
 
-  public DimensionSpec toDimensionSpec()
+  public DimensionSpec toDimensionSpec(VColumnRegistry virtualColumns)
   {
     if (expression.isSimpleExtraction()) {
       return expression.getSimpleExtraction().toDimensionSpec(outputName);
     } else {
-      return DefaultDimensionSpec.of(Calcites.vcName(outputName), getOutputName());
+      return DefaultDimensionSpec.of(virtualColumns.register(outputName, expression).getOutputName(), outputName);
     }
   }
 
   public boolean isConstant()
   {
     return expression.isConstant();
-  }
-
-  public VirtualColumn toVirtualColumn()
-  {
-    return expression.isSimpleExtraction() ? null : expression.toVirtualColumn(Calcites.vcName(outputName));
   }
 
   public PostAggregator toPostAggregator()

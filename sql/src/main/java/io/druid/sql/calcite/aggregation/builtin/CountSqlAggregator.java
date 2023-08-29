@@ -61,14 +61,14 @@ public class CountSqlAggregator implements SqlAggregator
     } else if (fields.size() == 1) {
       // Not COUNT(*), not distinct
       // COUNT(x) should count all non-null values of x.
-      final RexNode rexNode = aggregations.toRexNode(fields.get(0));
+      final RexNode rexNode = aggregations.toFieldRef(fields.get(0));
       if (rexNode.getType().isNullable()) {
         final DruidExpression expression = aggregations.toExpression(rexNode);
         if (expression.isDirectColumnAccess()) {
           // it's fieldName.. fieldExpression later if really needed
           aggregations.register(CountAggregatorFactory.of(outputName, expression.getDirectColumn()), predicate);
         } else {
-          DimFilter filter = aggregations.toFilter(rexNode);
+          DimFilter filter = aggregations.toFilter(aggregations.makeCall(SqlStdOperatorTable.IS_NOT_NULL, rexNode));
           if (filter == null) {
             // Don't expect this to happen.
             throw new ISE("Could not create not-null filter for rexNode[%s]", rexNode);
