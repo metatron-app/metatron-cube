@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
 
 public class SegmentAnalysis implements Comparable<SegmentAnalysis>
 {
-  public static final SegmentAnalysis EMPTY = new SegmentAnalysis(Intervals.ONLY_ETERNITY)
+  public static final SegmentAnalysis EMPTY = new SegmentAnalysis(Intervals.ONLY_ETERNITY, 0)
   {
     @Override
     public RowSignature asSignature(BooleanFunction<ValueDesc> converter) {return RowSignature.EMPTY;}
@@ -56,6 +56,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   private final Map<String, AggregatorFactory> aggregators;
   private final Granularity queryGranularity;
   private final Granularity segmentGranularity;
+  private final int numSegments;
   private final Boolean rollup;
 
   @JsonCreator
@@ -71,6 +72,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       @JsonProperty("aggregators") Map<String, AggregatorFactory> aggregators,
       @JsonProperty("queryGranularity") Granularity queryGranularity,
       @JsonProperty("segmentGranularity") Granularity segmentGranularity,
+      @JsonProperty("numSegments") int numSegments,
       @JsonProperty("rollup") Boolean rollup
   )
   {
@@ -85,6 +87,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     this.aggregators = aggregators;
     this.queryGranularity = queryGranularity;
     this.segmentGranularity = segmentGranularity;
+    this.numSegments = numSegments;
     this.rollup = rollup;
   }
 
@@ -96,15 +99,16 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       long serializedSize,
       long numRows,
       Map<String, AggregatorFactory> aggregators,
-      Granularity queryGranularity
+      Granularity queryGranularity,
+      int numSegments
   )
   {
-    this(id, interval, columnNames, columnAnalyses, serializedSize, numRows, -1L, -1L, aggregators, queryGranularity, null, null);
+    this(id, interval, columnNames, columnAnalyses, serializedSize, numRows, -1L, -1L, aggregators, queryGranularity, null, numSegments, null);
   }
 
-  public SegmentAnalysis(List<Interval> interval)
+  public SegmentAnalysis(List<Interval> interval, int numSegments)
   {
-    this("merged", interval, null, null, -1, -1, null, null);
+    this("merged", interval, null, null, -1, -1, null, null, numSegments);
   }
 
   @JsonProperty
@@ -176,6 +180,12 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   }
 
   @JsonProperty
+  public int getNumSegments()
+  {
+    return numSegments;
+  }
+
+  @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public Boolean isRollup()
   {
@@ -203,6 +213,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         aggregators,
         queryGranularity,
         segmentGranularity,
+        numSegments,
         rollup
     );
   }

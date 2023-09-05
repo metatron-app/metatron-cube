@@ -34,6 +34,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
 
 import java.util.ArrayList;
@@ -131,6 +132,13 @@ public class RowSignature extends io.druid.query.RowSignature
       newColumnTypes.add(columnTypes.get(index));
     }
     return new RowSignature(newColumnNames, newColumnTypes);
+  }
+
+  public List<String> columnNames(ImmutableBitSet bitSet)
+  {
+    List<String> columnNames = Lists.newArrayList();
+    bitSet.forEachInt(x -> columnNames.add(columnName(x)));
+    return columnNames;
   }
 
   @Override

@@ -24,6 +24,8 @@ import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.multibindings.MapBinder;
+import io.druid.query.CardinalityMetaQuery;
+import io.druid.query.CardinalityMetaQueryToolChest;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DimensionSamplingQuery;
 import io.druid.query.DimensionSamplingQueryToolChest;
@@ -102,6 +104,7 @@ public class QueryToolChestModule implements Module
                   .put(SelectMetaQuery.class, SelectMetaQueryToolChest.class)
                   .put(FilterMetaQuery.class, FilterMetaQueryToolChest.class)
                   .put(DimensionSamplingQuery.class, DimensionSamplingQueryToolChest.class)
+                  .put(CardinalityMetaQuery.class, CardinalityMetaQueryToolChest.class)
                   .put(SchemaQuery.class, SchemaQueryToolChest.class)
                   .put(SelectQuery.class, SelectQueryQueryToolChest.class)
                   .put(StreamQuery.class, StreamQueryToolChest.class)

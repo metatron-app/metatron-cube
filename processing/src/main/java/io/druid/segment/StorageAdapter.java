@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.data.Indexed;
@@ -52,6 +53,11 @@ public interface StorageAdapter extends CursorFactory
   ColumnMeta getColumnMeta(String columnName);
   long getSerializedSize(String column);
   long getSerializedSize();
+
+  default ValueDesc getType(String column)
+  {
+    return getColumnCapabilities(column) == null ? null : getColumnCapabilities(column).getTypeDesc();
+  }
 
   default Map<String, String> getColumnDescriptor(String column)
   {

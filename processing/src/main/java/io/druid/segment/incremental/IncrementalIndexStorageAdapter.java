@@ -85,6 +85,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  */
@@ -397,11 +399,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
                 final int dimIndex = dimensionDesc.getIndex();
                 final int pivotIx = dimensionDesc.getPivotIndex();
-                final IncrementalIndex.DimDim dimValLookup = dimensionDesc.getValues();
+                final IncrementalIndex.DimDim<String> dimValLookup = dimensionDesc.getValues();
 
                 final int maxId = dimValLookup.size();
 
-                class MultiValued implements DimensionSelector
+                class MultiValued implements DimensionSelector, DimensionSelector.WithDictionary
                 {
                   @Override
                   public IndexedInts getRow()
@@ -483,7 +485,19 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                           "cannot perform lookup when applying an extraction function"
                       );
                     }
-                    return dimValLookup.getId(name);
+                    return dimValLookup.getId((String) name);
+                  }
+
+                  @Override
+                  public boolean isUnique()
+                  {
+                    return extractionFn == null;
+                  }
+
+                  @Override
+                  public Stream<String> values()
+                  {
+                    return IntStream.range(0, maxId).mapToObj(dimValLookup::getValue);
                   }
                 }
                 if (pivotIx >= 0 || dimensionDesc.getCapabilities().hasMultipleValues()) {
@@ -491,6 +505,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
 
                 class SingleValued extends MultiValued implements DimensionSelector.SingleValued { }
+
                 return new SingleValued()
                 {
                   @Override

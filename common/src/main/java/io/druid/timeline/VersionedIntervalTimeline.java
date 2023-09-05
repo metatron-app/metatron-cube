@@ -216,24 +216,33 @@ public class VersionedIntervalTimeline<ObjectType> implements TimelineLookup<Obj
   @Override
   public PartitionHolder<ObjectType> findEntry(Interval interval, String version)
   {
+    return findEntry(interval, version, e -> new ImmutablePartitionHolder<ObjectType>(e.partitionHolder));
+  }
+
+  public TimelineObjectHolder<ObjectType> findTimeline(Interval interval, String version)
+  {
+    return findEntry(interval, version, e -> new TimelineObjectHolder<ObjectType>(interval, version, e.partitionHolder));
+  }
+
+  private <V> V findEntry(Interval interval, String version, Function<TimelineEntry, V> function)
+  {
     lock.readLock().lock();
     try {
       KVArraySortedMap<String, TimelineEntry> entryMap = allTimelineEntries.get(interval);
       if (entryMap != null) {
         TimelineEntry foundEntry = entryMap.get(version);
         if (foundEntry != null) {
-          return new ImmutablePartitionHolder<ObjectType>(foundEntry.partitionHolder);
+          return function.apply(foundEntry);
         }
       }
       for (Map.Entry<Interval, KVArraySortedMap<String, TimelineEntry>> entry : allTimelineEntries.entrySet()) {
         if (entry.getKey().contains(interval)) {
           TimelineEntry foundEntry = entry.getValue().get(version);
           if (foundEntry != null) {
-            return new ImmutablePartitionHolder<ObjectType>(foundEntry.partitionHolder);
+            return function.apply(foundEntry);
           }
         }
       }
-
       return null;
     }
     finally {

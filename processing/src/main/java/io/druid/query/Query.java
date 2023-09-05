@@ -84,6 +84,7 @@ import java.util.UUID;
     @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class),
     @JsonSubTypes.Type(name = Query.FILTER_META, value = FilterMetaQuery.class),
     @JsonSubTypes.Type(name = Query.DIMENSION_SAMPLING, value = DimensionSamplingQuery.class),
+    @JsonSubTypes.Type(name = Query.CARDINALITY_META, value = CardinalityMetaQuery.class),
     @JsonSubTypes.Type(name = "kmeans", value = KMeansQuery.class),
     @JsonSubTypes.Type(name = "kmeans.nearest", value = FindNearestQuery.class),
     @JsonSubTypes.Type(name = "kmeans.tagging", value = KMeansTaggingQuery.class),
@@ -108,6 +109,7 @@ public interface Query<T> extends QueryContextKeys
   String JOIN = "join";
   String FILTER_META = "$filter.meta";    // internal query
   String DIMENSION_SAMPLING = "$dimension.sampling";  // internal query
+  String CARDINALITY_META = "$cardinality.meta";  // internal query
 
   DataSource getDataSource();
 

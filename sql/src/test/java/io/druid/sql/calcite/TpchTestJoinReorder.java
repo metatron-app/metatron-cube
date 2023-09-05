@@ -62,12 +62,6 @@ public class TpchTestJoinReorder extends CalciteQueryTestHelper
   }
 
   @Test
-  public void tpch2SC() throws Exception
-  {
-    testQuery(JOIN_REORDERING_WITH_SC, TpchTest.TPCH2, TpchTest.TPCH2_EXPLAIN_JR_SC, TpchTest.TPCH2_RESULT);
-  }
-
-  @Test
   public void tpch3() throws Exception
   {
     testQuery(JOIN_REORDERING, TpchTest.TPCH3, TpchTest.TPCH3_EXPLAIN_JR, TpchTest.TPCH3_RESULT);

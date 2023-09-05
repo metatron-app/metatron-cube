@@ -186,6 +186,7 @@ public class SegmentMetadataQueryQueryToolChest
         null,
         null,
         null,
+        arg1.getNumSegments() + arg2.getNumSegments(),
         null
     );
   }
@@ -324,6 +325,7 @@ public class SegmentMetadataQueryQueryToolChest
         aggregators.isEmpty() ? null : aggregators,
         queryGranularity,
         segmentGranularity,
+        arg1.getNumSegments() + arg2.getNumSegments(),
         rollup
     );
   }
@@ -347,6 +349,7 @@ public class SegmentMetadataQueryQueryToolChest
         analysis.getAggregators(),
         analysis.getQueryGranularity(),
         analysis.getSegmentGranularity(),
+        analysis.getNumSegments(),
         analysis.isRollup()
     );
   }

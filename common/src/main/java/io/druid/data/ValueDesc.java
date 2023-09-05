@@ -228,6 +228,11 @@ public class ValueDesc implements Serializable, Cacheable
     return ValueDesc.of(INDEXED_ID_PREFIX + valueType.getName());
   }
 
+  public static boolean isString(ValueDesc valueDesc)
+  {
+    return valueDesc != null && valueDesc.isString();
+  }
+
   public static boolean isGeometry(ValueDesc valueType)
   {
     return isPrefixed(valueType.typeName, GEOMETRY.typeName);

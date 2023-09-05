@@ -20,7 +20,6 @@
 package io.druid.query.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -29,7 +28,6 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BySegmentResultValue;
@@ -57,10 +55,8 @@ import io.druid.segment.TestIndex;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.LogicalSegment;
 import org.joda.time.Interval;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -196,7 +192,8 @@ public class SegmentMetadataQueryTest
         mmap1 ? 63874 : 0,
         1209,
         null,
-        null
+        null,
+        1
     );
     expectedSegmentAnalysis2 = new SegmentAnalysis(
         id2,
@@ -237,7 +234,8 @@ public class SegmentMetadataQueryTest
         mmap2 ? 63874 : 0,
         1209,
         null,
-        null
+        null,
+        1
     );
   }
 
@@ -283,7 +281,8 @@ public class SegmentMetadataQueryTest
         mmap1 ? 63874 : 0,
         1209,
         null,
-        null
+        null,
+        1
     );
     List<SegmentAnalysis> results = Sequences.toList(
         runner1.run(query, Maps.newHashMap()),
@@ -317,7 +316,8 @@ public class SegmentMetadataQueryTest
         mmap1 ? 63874 : 0,
         1209,
         null,
-        null
+        null,
+        1
     );
     List<SegmentAnalysis> results = Sequences.toList(
         runner1.run(query, Maps.newHashMap()),
@@ -345,6 +345,7 @@ public class SegmentMetadataQueryTest
         null,
         null,
         null,
+        2,
         rollup1 != rollup2 ? null : rollup1
     );
 
@@ -399,7 +400,8 @@ public class SegmentMetadataQueryTest
         (mmap1 ? 63874 : 0) + (mmap2 ? 63874 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
-        null
+        null,
+        1
     );
 
     SegmentMetadataQuery query =
@@ -459,7 +461,8 @@ public class SegmentMetadataQueryTest
         (mmap1 ? 63874 : 0) + (mmap2 ? 63874 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
-        null
+        null,
+        1
     );
     SegmentMetadataQuery query = Druids.newSegmentMetadataQueryBuilder()
                                        .dataSource("testing")
@@ -576,7 +579,8 @@ public class SegmentMetadataQueryTest
         expectedSegmentAnalysis1.getSerializedSize() + expectedSegmentAnalysis2.getSerializedSize(),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
-        null
+        null,
+        1
     );
 
     SegmentMetadataQuery query = testQuery.withColumns(new ListColumnIncluderator(Arrays.asList("__time", "index", column)));
@@ -620,7 +624,8 @@ public class SegmentMetadataQueryTest
         (mmap1 ? 63874 : 0) + (mmap2 ? 63874 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
-        null
+        null,
+        1
     );
     SegmentMetadataQuery query = Druids.newSegmentMetadataQueryBuilder()
                                        .dataSource("testing")
@@ -673,7 +678,8 @@ public class SegmentMetadataQueryTest
         (mmap1 ? 63874 : 0) + (mmap2 ? 63874 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         expectedAggregators,
-        null
+        null,
+        1
     );
     SegmentMetadataQuery query = Druids.newSegmentMetadataQueryBuilder()
                                        .dataSource("testing")
@@ -723,7 +729,8 @@ public class SegmentMetadataQueryTest
         (mmap1 ? 63874 : 0) + (mmap2 ? 63874 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
-        QueryGranularities.NONE
+        QueryGranularities.NONE,
+        1
     );
     SegmentMetadataQuery query = Druids.newSegmentMetadataQueryBuilder()
                                        .dataSource("testing")
@@ -840,182 +847,6 @@ public class SegmentMetadataQueryTest
 
     // test serialize and deserialize
     Assert.assertEquals(query, MAPPER.readValue(MAPPER.writeValueAsString(query), Query.class));
-  }
-
-  @Test
-  @Ignore("deprecated")
-  public void testDefaultIntervalAndFiltering() throws Exception
-  {
-    SegmentMetadataQuery testQuery = Druids.newSegmentMetadataQueryBuilder()
-                                           .dataSource("testing")
-                                           .toInclude(new ListColumnIncluderator(Arrays.asList("placement")))
-                                           .merge(true)
-                                           .build();
-
-    Interval expectedInterval = new Interval(
-        JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT
-    );
-
-    /* No interval specified, should use default interval */
-    Assert.assertTrue(testQuery.isUsingDefaultInterval());
-    Assert.assertEquals(testQuery.getIntervals().get(0), expectedInterval);
-    Assert.assertEquals(testQuery.getIntervals().size(), 1);
-
-    List<LogicalSegment> testSegments = Arrays.asList(
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2012-01-01/P1D");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2012-01-01T01/PT1H");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2013-01-05/P1D");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2013-05-20/P1D");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2014-01-05/P1D");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2014-02-05/P1D");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2015-01-19T01/PT1H");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2015-01-20T02/PT1H");
-          }
-        }
-    );
-
-    /* Test default period filter */
-    List<LogicalSegment> filteredSegments = new SegmentMetadataQueryQueryToolChest(
-        new SegmentMetadataQueryConfig()
-    ).filterSegments(
-        testQuery,
-        testSegments
-    );
-
-    List<LogicalSegment> expectedSegments = Arrays.asList(
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2015-01-19T01/PT1H");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2015-01-20T02/PT1H");
-          }
-        }
-    );
-
-    Assert.assertEquals(filteredSegments.size(), 2);
-    for (int i = 0; i < filteredSegments.size(); i++) {
-      Assert.assertEquals(expectedSegments.get(i).getInterval(), filteredSegments.get(i).getInterval());
-    }
-
-    /* Test 2 year period filtering */
-    SegmentMetadataQueryConfig twoYearPeriodCfg = new SegmentMetadataQueryConfig("P2Y");
-    List<LogicalSegment> filteredSegments2 = new SegmentMetadataQueryQueryToolChest(
-        twoYearPeriodCfg
-    ).filterSegments(
-        testQuery,
-        testSegments
-    );
-
-    List<LogicalSegment> expectedSegments2 = Arrays.asList(
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2013-05-20/P1D");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2014-01-05/P1D");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2014-02-05/P1D");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2015-01-19T01/PT1H");
-          }
-        },
-        new LogicalSegment()
-        {
-          @Override
-          public Interval getInterval()
-          {
-            return new Interval("2015-01-20T02/PT1H");
-          }
-        }
-    );
-
-    Assert.assertEquals(filteredSegments2.size(), 5);
-    for (int i = 0; i < filteredSegments2.size(); i++) {
-      Assert.assertEquals(expectedSegments2.get(i).getInterval(), filteredSegments2.get(i).getInterval());
-    }
   }
 
   @Test

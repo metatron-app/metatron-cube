@@ -79,12 +79,16 @@ public class ServerSelector
       final Map<QueryableDruidServer, MutableInt> counts
   )
   {
+    if (servers.isEmpty()) {
+      return null;
+    }
+    if (servers.size() == 1) {
+      QueryableDruidServer server = servers.get(0);
+      return predicate == null || predicate.apply(server) ? server : null;
+    }
     Iterator<QueryableDruidServer> iterator = servers.iterator();
     if (predicate != null) {
       iterator = Iterators.filter(iterator, predicate);
-    }
-    if (!iterator.hasNext()) {
-      return null;
     }
     QueryableDruidServer selected = iterator.next();
     if (!iterator.hasNext()) {

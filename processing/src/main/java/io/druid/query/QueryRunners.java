@@ -34,6 +34,7 @@ import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.select.StreamQuery;
+import io.druid.segment.Segment;
 import io.druid.utils.StopWatch;
 import org.apache.commons.io.IOUtils;
 
@@ -447,6 +448,24 @@ public class QueryRunners
                                    .applyFinalQueryDecoration()
                                    .applyPostProcessingOperator()
                                    .build();
+  }
+
+  public static <T> QueryRunner.WithSegment<T> withSegment(Segment segment, QueryRunner<T> runner)
+  {
+    return new QueryRunner.WithSegment<T>()
+    {
+      @Override
+      public Segment segmenr()
+      {
+        return segment;
+      }
+
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return runner.run(query, responseContext);
+      }
+    };
   }
 
   public static <T> PrioritizedCallable<Sequence<T>> asCallable(QueryRunner<T> runner, Query<T> query)

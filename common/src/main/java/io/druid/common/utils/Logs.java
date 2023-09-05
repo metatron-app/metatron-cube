@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,27 +17,28 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.common.utils;
 
-import io.druid.common.guava.Sequence;
-import io.druid.segment.Segment;
+import com.google.common.base.Supplier;
 
-import java.util.Map;
+import java.util.Objects;
 
-/**
- */
-public interface QueryRunner<T>
+public class Logs
 {
-  /**
-   * Runs the given query and returns results in a time-ordered sequence
-   * @param query
-   * @param responseContext
-   * @return
-   */
-  Sequence<T> run(Query<T> query, Map<String, Object> responseContext);
-
-  interface WithSegment<T> extends QueryRunner<T>
+  public static Object lazy(Supplier supplier)
   {
-    Segment segmenr();
+    return new Object()
+    {
+      @Override
+      public String toString()
+      {
+        return Objects.toString(supplier.get(), null);
+      }
+    };
+  }
+
+  public static Object lazy(String format, Object x)
+  {
+    return lazy(() -> x == null ? "" : String.format(format, x));
   }
 }

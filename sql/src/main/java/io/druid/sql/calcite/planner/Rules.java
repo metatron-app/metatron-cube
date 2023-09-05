@@ -21,7 +21,7 @@ package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.common.guava.DSuppliers;
+import io.druid.common.utils.Logs;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidRel;
@@ -325,7 +325,7 @@ public class Rules
   private static Program relLogProgram(final String subject)
   {
     return (planner, rel, requiredOutputTraits, materializations, lattices) -> {
-      LOG.info("<<<< %s >>>>\n%s", subject, DSuppliers.lazyLog(() -> RelOptUtil.toString(rel)));
+      LOG.info("<<<< %s >>>>\n%s", subject, Logs.lazy(() -> RelOptUtil.toString(rel)));
       return rel;
     };
   }

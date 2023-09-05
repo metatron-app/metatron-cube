@@ -35,12 +35,12 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  */
 public class TimeBoundaryQueryQueryToolChestTest
 {
-
   private static final TimeBoundaryQuery TIME_BOUNDARY_QUERY = new TimeBoundaryQuery(
       new TableDataSource("test"),
       null,
@@ -62,107 +62,101 @@ public class TimeBoundaryQueryQueryToolChestTest
       null
   );
 
-
-  private static LogicalSegment createLogicalSegment(final Interval interval)
+  private static class TestSegment implements LogicalSegment
   {
-    return new LogicalSegment()
+    private final Interval interval;
+
+    private TestSegment(String interval) {this.interval = new Interval(interval);}
+
+    @Override
+    public Interval getInterval()
     {
-      @Override
-      public Interval getInterval()
-      {
-        return interval;
-      }
-    };
+      return interval;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      return interval.equals(((TestSegment) o).interval);
+    }
   }
+
+  private List<LogicalSegment> segments(String... intervals)
+  {
+    return Arrays.stream(intervals).map(TestSegment::new).collect(Collectors.toList());
+  }
+
+  private final TimeBoundaryQueryQueryToolChest toolChest = new TimeBoundaryQueryQueryToolChest();
 
   @Test
   public void testFilterSegments() throws Exception
   {
-    List<LogicalSegment> segments = new TimeBoundaryQueryQueryToolChest().filterSegments(
-        TIME_BOUNDARY_QUERY,
-        Arrays.asList(
-            createLogicalSegment(new Interval("2013-01-01/P1D")),
-            createLogicalSegment(new Interval("2013-01-01T01/PT1H")),
-            createLogicalSegment(new Interval("2013-01-01T02/PT1H")),
-            createLogicalSegment(new Interval("2013-01-02/P1D")),
-            createLogicalSegment(new Interval("2013-01-03T01/PT1H")),
-            createLogicalSegment(new Interval("2013-01-03T02/PT1H")),
-            createLogicalSegment(new Interval("2013-01-03/P1D"))
-        )
+    List<LogicalSegment> segments = segments(
+        "2013-01-01/P1D",
+        "2013-01-01T01/PT1H",
+        "2013-01-01T02/PT1H",
+        "2013-01-02/P1D",
+        "2013-01-03T01/PT1H",
+        "2013-01-03T02/PT1H",
+        "2013-01-03/P1D"
     );
 
-    Assert.assertEquals(6, segments.size());
+    List<LogicalSegment> filtered = toolChest.filterSegments(TIME_BOUNDARY_QUERY, segments);
 
-    List<LogicalSegment> expected = Arrays.asList(
-        createLogicalSegment(new Interval("2013-01-01/P1D")),
-        createLogicalSegment(new Interval("2013-01-01T01/PT1H")),
-        createLogicalSegment(new Interval("2013-01-01T02/PT1H")),
-        createLogicalSegment(new Interval("2013-01-03T01/PT1H")),
-        createLogicalSegment(new Interval("2013-01-03T02/PT1H")),
-        createLogicalSegment(new Interval("2013-01-03/P1D"))
+    Assert.assertEquals(6, filtered.size());
+
+    List<LogicalSegment> expected = segments(
+        "2013-01-01/P1D",
+        "2013-01-01T01/PT1H",
+        "2013-01-01T02/PT1H",
+        "2013-01-03T01/PT1H",
+        "2013-01-03T02/PT1H",
+        "2013-01-03/P1D"
     );
 
-    for (int i = 0; i < segments.size(); i++) {
-       Assert.assertEquals(segments.get(i).getInterval(), expected.get(i).getInterval());
-    }
+    Assert.assertEquals(expected, filtered);
   }
 
   @Test
   public void testMaxTimeFilterSegments() throws Exception
   {
-    List<LogicalSegment> segments = new TimeBoundaryQueryQueryToolChest().filterSegments(
-        MAXTIME_BOUNDARY_QUERY,
-        Arrays.asList(
-            createLogicalSegment(new Interval("2013-01-01/P1D")),
-            createLogicalSegment(new Interval("2013-01-01T01/PT1H")),
-            createLogicalSegment(new Interval("2013-01-01T02/PT1H")),
-            createLogicalSegment(new Interval("2013-01-02/P1D")),
-            createLogicalSegment(new Interval("2013-01-03T01/PT1H")),
-            createLogicalSegment(new Interval("2013-01-03T02/PT1H")),
-            createLogicalSegment(new Interval("2013-01-03/P1D"))
-        )
+    List<LogicalSegment> segments = segments(
+        "2013-01-01/P1D",
+        "2013-01-01T01/PT1H",
+        "2013-01-01T02/PT1H",
+        "2013-01-02/P1D",
+        "2013-01-03T01/PT1H",
+        "2013-01-03T02/PT1H",
+        "2013-01-03/P1D"
     );
+    List<LogicalSegment> filtered = toolChest.filterSegments(MAXTIME_BOUNDARY_QUERY, segments);
 
-    Assert.assertEquals(3, segments.size());
+    Assert.assertEquals(3, filtered.size());
 
-    List<LogicalSegment> expected = Arrays.asList(
-        createLogicalSegment(new Interval("2013-01-03T01/PT1H")),
-        createLogicalSegment(new Interval("2013-01-03T02/PT1H")),
-        createLogicalSegment(new Interval("2013-01-03/P1D"))
-    );
+    List<LogicalSegment> expected = segments("2013-01-03T01/PT1H", "2013-01-03T02/PT1H", "2013-01-03/P1D");
 
-    for (int i = 0; i < segments.size(); i++) {
-      Assert.assertEquals(segments.get(i).getInterval(), expected.get(i).getInterval());
-    }
+    Assert.assertEquals(expected, filtered);
   }
 
   @Test
   public void testMinTimeFilterSegments() throws Exception
   {
-    List<LogicalSegment> segments = new TimeBoundaryQueryQueryToolChest().filterSegments(
-        MINTIME_BOUNDARY_QUERY,
-        Arrays.asList(
-            createLogicalSegment(new Interval("2013-01-01/P1D")),
-            createLogicalSegment(new Interval("2013-01-01T01/PT1H")),
-            createLogicalSegment(new Interval("2013-01-01T02/PT1H")),
-            createLogicalSegment(new Interval("2013-01-02/P1D")),
-            createLogicalSegment(new Interval("2013-01-03T01/PT1H")),
-            createLogicalSegment(new Interval("2013-01-03T02/PT1H")),
-            createLogicalSegment(new Interval("2013-01-03/P1D"))
-        )
+    List<LogicalSegment> segments = segments(
+        "2013-01-01/P1D",
+        "2013-01-01T01/PT1H",
+        "2013-01-01T02/PT1H",
+        "2013-01-02/P1D",
+        "2013-01-03T01/PT1H",
+        "2013-01-03T02/PT1H",
+        "2013-01-03/P1D"
     );
+    List<LogicalSegment> filtered = toolChest.filterSegments(MINTIME_BOUNDARY_QUERY, segments);
 
-    Assert.assertEquals(3, segments.size());
+    Assert.assertEquals(3, filtered.size());
 
-    List<LogicalSegment> expected = Arrays.asList(
-        createLogicalSegment(new Interval("2013-01-01/P1D")),
-        createLogicalSegment(new Interval("2013-01-01T01/PT1H")),
-        createLogicalSegment(new Interval("2013-01-01T02/PT1H"))
-    );
+    List<LogicalSegment> expected = segments("2013-01-01/P1D", "2013-01-01T01/PT1H", "2013-01-01T02/PT1H");
 
-    for (int i = 0; i < segments.size(); i++) {
-      Assert.assertEquals(segments.get(i).getInterval(), expected.get(i).getInterval());
-    }
+    Assert.assertEquals(expected, filtered);
   }
 
   @Test
@@ -181,9 +175,7 @@ public class TimeBoundaryQueryQueryToolChestTest
         null
     );
     CacheStrategy<Result<TimeBoundaryResultValue>, Object, TimeBoundaryQuery> strategy =
-        new TimeBoundaryQueryQueryToolChest().getCacheStrategyIfExists(
-            query
-        );
+        toolChest.getCacheStrategyIfExists(query);
 
     final Result<TimeBoundaryResultValue> result = new Result<>(
         new DateTime(123L), new TimeBoundaryResultValue(
@@ -194,9 +186,7 @@ public class TimeBoundaryQueryQueryToolChestTest
     )
     );
 
-    Object preparedValue = strategy.prepareForCache(query).apply(
-        result
-    );
+    Object preparedValue = strategy.prepareForCache(query).apply(result);
 
     ObjectMapper objectMapper = new DefaultObjectMapper();
     Object fromCacheValue = objectMapper.readValue(

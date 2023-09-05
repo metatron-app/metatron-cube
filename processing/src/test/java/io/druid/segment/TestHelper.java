@@ -44,6 +44,9 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BySegmentResultValue;
+import io.druid.query.CardinalityMetaQuery;
+import io.druid.query.CardinalityMetaQueryRunnerFactory;
+import io.druid.query.CardinalityMetaQueryToolChest;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DefaultQueryMetrics;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
@@ -295,6 +298,13 @@ public class TestHelper
                 FrequencyQuery.class,
                 new FrequencyQueryRunnerFactory(
                     new FrequencyQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                CardinalityMetaQuery.class,
+                new CardinalityMetaQueryRunnerFactory(
+                    new CardinalityMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                     NOOP_QUERYWATCHER
                 )
             )

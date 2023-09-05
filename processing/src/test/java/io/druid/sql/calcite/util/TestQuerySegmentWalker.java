@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
@@ -108,7 +109,6 @@ import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -664,72 +664,26 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     QuerySegmentSpec segmentSpec = input.getQuerySegmentSpec();
     if (segmentSpec instanceof MultipleSpecificSegmentSpec) {
       List<SegmentDescriptor> segments = ((MultipleSpecificSegmentSpec) segmentSpec).getDescriptors();
-      return Iterables.transform(
-          segments, new Function<SegmentDescriptor, Pair<SegmentDescriptor, Segment>>()
-          {
-            @Override
-            public Pair<SegmentDescriptor, Segment> apply(SegmentDescriptor input)
-            {
-              PartitionHolder<Segment> entry = timeline.findEntry(
-                  input.getInterval(), input.getVersion()
-              );
-              if (entry != null) {
-                PartitionChunk<Segment> chunk = entry.getChunk(input.getPartitionNumber());
-                if (chunk != null) {
-                  return Pair.of(input, chunk.getObject());
-                }
-              }
-              return Pair.of(input, null);
-            }
+      return Iterables.transform(segments, segment -> {
+        PartitionHolder<Segment> entry = timeline.findEntry(segment.getInterval(), segment.getVersion());
+        if (entry != null) {
+          PartitionChunk<Segment> chunk = entry.getChunk(segment.getPartitionNumber());
+          if (chunk != null) {
+            return Pair.of(segment, chunk.getObject());
           }
-      );
+        }
+        return Pair.of(segment, null);
+      });
     }
-    return Iterables.concat(
-        Iterables.transform(
-            Iterables.concat(
-                Iterables.transform(
-                    input.getIntervals(),
-                    new Function<Interval, Iterable<TimelineObjectHolder<Segment>>>()
-                    {
-                      @Override
-                      public Iterable<TimelineObjectHolder<Segment>> apply(Interval input)
-                      {
-                        return timeline.lookup(input);
-                      }
-                    }
-                )
-            ),
-            new Function<TimelineObjectHolder<Segment>, Iterable<Pair<SegmentDescriptor, Segment>>>()
-            {
-              @Override
-              public Iterable<Pair<SegmentDescriptor, Segment>> apply(
-                  @Nullable final TimelineObjectHolder<Segment> holder
-              )
-              {
-                if (holder == null) {
-                  return null;
-                }
-
-                return Iterables.transform(
-                    holder.getObject(),
-                    new Function<PartitionChunk<Segment>, Pair<SegmentDescriptor, Segment>>()
-                    {
-                      @Override
-                      public Pair<SegmentDescriptor, Segment> apply(PartitionChunk<Segment> chunk)
-                      {
-                        return Pair.of(
-                            new SegmentDescriptor(
-                                dataSourceName,
-                                holder.getInterval(),
-                                holder.getVersion(),
-                                chunk.getChunkNumber()
-                            ), chunk.getObject()
-                        );
-                      }
-                    }
-                );
-              }
-            }
+    Iterable<TimelineObjectHolder<Segment>> holders = GuavaUtils.explode(input.getIntervals(), timeline::lookup);
+    return GuavaUtils.explode(
+        Iterables.filter(holders, Predicates.notNull()),
+        holder -> Iterables.transform(
+            holder.getObject(),
+            chunk -> Pair.of(
+                new SegmentDescriptor(dataSourceName, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()),
+                chunk.getObject()
+            )
         )
     );
   }
@@ -776,9 +730,12 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
         query = QueryUtils.decompress(query);
+        Iterable<Pair<SegmentDescriptor, Segment>> segments0 = getSegment(query, 0);
+        Iterable<Pair<SegmentDescriptor, Segment>> segments1 = getSegment(query, 1);
+        // todo toolchest.filterSegments
         return QueryUtils.mergeSort(query, Arrays.asList(
-            toDataQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
-            toDataQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
+            toDataQueryRunner(query, segments0).run(query, responseContext),
+            toDataQueryRunner(query, segments1).run(query, responseContext)
         ));
       }
     };

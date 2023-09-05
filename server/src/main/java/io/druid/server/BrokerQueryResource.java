@@ -32,9 +32,9 @@ import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.Progressing;
-import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.Logs;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
@@ -255,7 +255,7 @@ public class BrokerQueryResource extends QueryResource
 
     if (query != prepared) {
       Query logging = query;
-      log.debug("Base query is rewritten to %s", DSuppliers.lazyLog(() -> toLoggingQuery(logging).toString()));
+      log.debug("Base query is rewritten to %s", Logs.lazy(() -> toLoggingQuery(logging).toString()));
     }
 
     if (BaseQuery.isParallelForwarding(query)) {

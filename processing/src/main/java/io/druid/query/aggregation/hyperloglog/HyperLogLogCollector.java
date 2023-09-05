@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.UnsignedBytes;
+import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BytesOutputStream;
@@ -189,22 +190,24 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
     return new HyperLogLogCollector(context);
   }
 
-  public static Object deserialize(Object object)
+  public static HyperLogLogCollector[] deserialize(String[] object)
   {
-    final ByteBuffer buffer;
+    return Arrays.stream(object).map(HyperLogLogCollector::deserialize).toArray(x -> new HyperLogLogCollector[x]);
+  }
 
-    if (object instanceof byte[]) {
-      buffer = ByteBuffer.wrap((byte[]) object);
+  public static HyperLogLogCollector deserialize(Object object)
+  {
+    if (object == null || object instanceof HyperLogLogCollector) {
+      return (HyperLogLogCollector) object;
+    } else if (object instanceof byte[]) {
+      return from(ByteBuffer.wrap((byte[]) object));
     } else if (object instanceof ByteBuffer) {
       // Be conservative, don't assume we own this buffer.
-      buffer = ((ByteBuffer) object).duplicate();
+      return from(((ByteBuffer) object).duplicate());
     } else if (object instanceof String) {
-      buffer = ByteBuffer.wrap(StringUtils.decodeBase64((String) object));
-    } else {
-      return object;
+      return from(ByteBuffer.wrap(StringUtils.decodeBase64((String) object)));
     }
-
-    return from(buffer);
+    throw new IAE("?? %s", object.getClass());
   }
 
   /**
@@ -528,6 +531,11 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
     }
 
     addOnBucket(bucket, positionOf1);
+  }
+
+  public void add(final String value)
+  {
+    add(Murmur3.hash64(StringUtils.toUtf8WithNullToEmpty(value)));
   }
 
   // use high bits for bucket. Murmur3 seemed coliding frequently in lower 32 bits

@@ -38,6 +38,7 @@ import org.roaringbitmap.IntIterator;
 import java.util.BitSet;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.stream.Stream;
 
 /**
  */
@@ -112,12 +113,19 @@ public interface DimensionSelector
     return false;
   }
 
+  interface WithDictionary extends DimensionSelector
+  {
+    boolean isUnique();
+
+    Stream<String> values();
+  }
+
   interface SingleValued extends DimensionSelector
   {
   }
 
   // aka. dictionary without extract function
-  interface WithRawAccess extends DimensionSelector
+  interface WithRawAccess extends DimensionSelector.WithDictionary
   {
     Dictionary getDictionary();
 
@@ -254,8 +262,20 @@ public interface DimensionSelector
     final Dictionary<String> dictionary = encoded.dictionary().dedicated();
     if (encoded.hasMultipleValues()) {
       if (extractionFn != null) {
-        return new DimensionSelector()
+        return new DimensionSelector.WithDictionary()
         {
+          @Override
+          public boolean isUnique()
+          {
+            return false;
+          }
+
+          @Override
+          public Stream<String> values()
+          {
+            return dictionary.stream().map(v -> extractionFn.apply(v));
+          }
+
           @Override
           public IndexedInts getRow()
           {
@@ -297,6 +317,18 @@ public interface DimensionSelector
       } else {
         return new DimensionSelector.WithRawAccess()
         {
+          @Override
+          public boolean isUnique()
+          {
+            return true;
+          }
+
+          @Override
+          public Stream<String> values()
+          {
+            return dictionary.stream();
+          }
+
           @Override
           public Dictionary getDictionary()
           {
@@ -356,8 +388,20 @@ public interface DimensionSelector
       if (extractionFn != null) {
         final RowSupplier supplier = encoded.row(context.filtering());
         final IndexedInts row = IndexedInts.from(() -> supplier.row(offset.get()));
-        return new DimensionSelector()
+        return new DimensionSelector.WithDictionary()
         {
+          @Override
+          public boolean isUnique()
+          {
+            return false;
+          }
+
+          @Override
+          public Stream<String> values()
+          {
+            return dictionary.stream().map(v -> extractionFn.apply(v));
+          }
+
           @Override
           public IndexedInts getRow()
           {
@@ -402,6 +446,18 @@ public interface DimensionSelector
         final IndexedInts row = IndexedInts.from(() -> supplier.row(offset.get()));
         return new DimensionSelector.Scannable()
         {
+          @Override
+          public boolean isUnique()
+          {
+            return true;
+          }
+
+          @Override
+          public Stream<String> values()
+          {
+            return dictionary.stream();
+          }
+
           @Override
           public RowSupplier rows()
           {

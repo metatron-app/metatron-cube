@@ -135,6 +135,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                     aggregators,
                     queryGranularity,
                     segmentGranularity,
+                    1,
                     rollup
                 )
             )

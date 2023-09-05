@@ -463,7 +463,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       public QueryRunner<T> apply(Iterable<Segment> segments)
       {
         Iterable<QueryRunner<T>> runners = Iterables.transform(
-            segments, buildAndDecorateQueryRunner(factory, optimizer, reporter)
+            segments, s -> buildAndDecorateQueryRunner(s, factory, optimizer, reporter)
         );
         return QueryRunners.finalizeAndPostProcessing(
             toolChest.mergeResults(
@@ -521,58 +521,53 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     };
   }
 
-  private <T> Function<Segment, QueryRunner<T>> buildAndDecorateQueryRunner(
+  private <T> QueryRunner<T> buildAndDecorateQueryRunner(
+      final Segment segment,
       final QueryRunnerFactory<T> factory,
       final Supplier<Object> optimizer,
       final CPUTimeMetricBuilder<T> reporter
   )
   {
-    return new Function<Segment, QueryRunner<T>>()
-    {
-      @Override
-      public QueryRunner<T> apply(final Segment segment)
-      {
-        final QueryToolChest<T> toolChest = factory.getToolchest();
-        final SpecificSegmentSpec segmentSpec = segment.asSpec();
-        return reporter.accumulate(
-            new SpecificSegmentQueryRunner<T>(
-                new MetricsEmittingQueryRunner<T>(
-                    emitter,
+    final QueryToolChest<T> toolChest = factory.getToolchest();
+    final SpecificSegmentSpec segmentSpec = segment.asSpec();
+
+    return reporter.accumulate(
+        new SpecificSegmentQueryRunner<T>(
+            new MetricsEmittingQueryRunner<T>(
+                emitter,
+                toolChest,
+                new BySegmentQueryRunner<T>(
                     toolChest,
-                    new BySegmentQueryRunner<T>(
-                        toolChest,
+                    segment.getIdentifier(),
+                    segment.getInterval().getStart(),
+                    new CachingQueryRunner<T>(
                         segment.getIdentifier(),
-                        segment.getInterval().getStart(),
-                        new CachingQueryRunner<T>(
-                            segment.getIdentifier(),
-                            segmentSpec.getDescriptor(),
-                            objectMapper,
-                            cache,
+                        segmentSpec.getDescriptor(),
+                        objectMapper,
+                        cache,
+                        toolChest,
+                        new MetricsEmittingQueryRunner<T>(
+                            emitter,
                             toolChest,
-                            new MetricsEmittingQueryRunner<T>(
-                                emitter,
-                                toolChest,
-                                new ReferenceCountingSegmentQueryRunner<T>(
-                                    factory,
-                                    Segments.unwrap(segment, ReferenceCountingSegment.class),
-                                    segmentSpec.getDescriptor(),
-                                    optimizer
-                                ),
-                                QueryMetrics::reportSegmentTime,
-                                queryMetrics -> queryMetrics.segment(segment.getIdentifier())
+                            new ReferenceCountingSegmentQueryRunner<T>(
+                                factory,
+                                Segments.unwrap(segment, ReferenceCountingSegment.class),
+                                segmentSpec.getDescriptor(),
+                                optimizer
                             ),
-                            cachingExec,
-                            cacheConfig
-                        )
-                    ),
-                    QueryMetrics::reportSegmentAndCacheTime,
-                    queryMetrics -> queryMetrics.segment(segment.getIdentifier())
-                ).withWaitMeasuredFromNow(),
-                segmentSpec
-            )
-        );
-      }
-    };
+                            QueryMetrics::reportSegmentTime,
+                            queryMetrics -> queryMetrics.segment(segment.getIdentifier())
+                        ),
+                        cachingExec,
+                        cacheConfig
+                    )
+                ),
+                QueryMetrics::reportSegmentAndCacheTime,
+                queryMetrics -> queryMetrics.segment(segment.getIdentifier())
+            ).withWaitMeasuredFromNow(),
+            segmentSpec
+        )
+    );
   }
 
   @Override

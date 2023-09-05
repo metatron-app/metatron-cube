@@ -753,7 +753,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   }
 
   private static final Set<String> SKIP = Sets.newHashSet(
-      Arrays.asList(Query.JOIN, Query.SEGMENT_METADATA, Query.SELECT_META, Query.FILTER_META, Query.SCHEMA)
+      Arrays.asList(Query.JOIN, Query.SEGMENT_METADATA, Query.SELECT_META, Query.FILTER_META, Query.SCHEMA, Query.CARDINALITY_META)
   );
 
   protected static class MiscQueryHook implements TestHook

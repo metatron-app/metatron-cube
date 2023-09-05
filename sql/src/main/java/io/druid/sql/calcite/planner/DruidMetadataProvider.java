@@ -21,6 +21,7 @@ package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import io.druid.common.utils.Logs;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.DimFilter;
@@ -199,6 +200,7 @@ public class DruidMetadataProvider
       return context.selectivity(scan, predicate, k -> selectivity(scan, predicate, context));
     }
 
+    // todo move this to DruidTable
     private static Double selectivity(TableScan rel, RexNode predicate, QueryMaker context)
     {
       long p = System.currentTimeMillis();
@@ -228,17 +230,21 @@ public class DruidMetadataProvider
 
     public Double getDistinctRowCount(TableScan scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate)
     {
+      if (groupKey.cardinality() == 0) {
+        return Double.valueOf(1);
+      }
       DruidTable table = scan.getTable().unwrap(DruidTable.class);
       if (table == null) {
         return null;
       }
-      double selectivity = mq.getSelectivity(scan, predicate);
-      if (selectivity > 0.999) {
-        long[] cardinalities = table.cardinalityRange(groupKey);
-        if (cardinalities != null && cardinalities[1] < cardinalities[0] >> 2) {
-          LOG.debug("-- cardinality(%s%s : %s) = %d", Utils.tableName(scan.getTable()), groupKey, predicate, cardinalities[1]);
-          return (double) cardinalities[1];
-        }
+      List<String> keys = table.getRowSignature().columnNames(groupKey);
+      if (keys.contains(Row.TIME_COLUMN_NAME)) {
+        return null;    // todo ??
+      }
+      long cardinality = table.estimateCardinality(scan, mq, groupKey, predicate);
+      if (cardinality >= 0) {
+        LOG.debug("--- cardinality(%s%s%s) = %d", table.getName(), keys, Logs.lazy(" : %s", predicate), cardinality);
+        return Double.valueOf(cardinality);
       }
       QueryMaker context = CONTEXT.get();
       if (context != null && context.getPlannerContext().getPlannerConfig().isEstimateCardinality()) {
@@ -247,22 +253,20 @@ public class DruidMetadataProvider
       return null;
     }
 
+    // todo move this to DruidTable
     private static Double cardinality(TableScan rel, ImmutableBitSet groupKey, RexNode predicate, QueryMaker context)
     {
       long p = System.currentTimeMillis();
       RowSignature signature = RowSignature.from(rel.getRowType());
-      List<String> fields = Lists.newArrayList();
-      groupKey.forEachInt(x -> fields.add(signature.columnName(x)));
-      if (fields.contains(Row.TIME_COLUMN_NAME)) {
-        return null;    // todo
-      }
       Filtration filtration = toFiltration(rel, predicate, context, signature);
       if (filtration == null) {
         return null;
       }
       String table = Utils.tableName(rel.getTable());
-      long estimation = Utils.estimateCardinality(table, filtration, fields, context);
-      LOG.debug("-- cardinality(%s%s : %s) = %d (%d msec)", table, groupKey, predicate, estimation, System.currentTimeMillis() - p);
+      List<String> keys = signature.columnNames(groupKey);
+      long estimation = Utils.estimateCardinality(table, filtration, keys, context);
+      long elapsed = System.currentTimeMillis() - p;
+      LOG.debug("--- cardinality(%s%s%s) = %d (%d msec)", table, keys, Logs.lazy(" : %s", predicate), estimation, elapsed);
       return (double) estimation;
     }
   }

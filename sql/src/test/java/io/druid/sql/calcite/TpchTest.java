@@ -207,18 +207,18 @@ public class TpchTest extends TpchTestHelper
   public static final String TPCH2_EXPLAIN_JR =
       "DruidOuterQueryRel(sort=[$0:DESC, $2:ASC, $1:ASC, $3:ASC], fetch=[100])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[5], outputColumns=[3, 6, 9, 2, 1, 4, 7, 5])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[2, 0], rightKeys=[1, 1], outputColumns=[1, 3, 4])\n"
-      + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1], outputColumns=[0, 1, 3])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[3, 1], rightKeys=[0, 1], outputColumns=[0, 2, 3])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2, 3, 4])\n"
       + "        DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-      + "        DruidOuterQueryRel(group=[{0}], EXPR$0=[MIN($1)])\n"
-      + "          DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2])\n"
-      + "            DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-      + "            DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
-      + "              DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
-      + "              DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
-      + "                DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
-      + "                DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
-      + "      DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
+      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
+      + "      DruidOuterQueryRel(group=[{0}], EXPR$0=[MIN($1)])\n"
+      + "        DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2])\n"
+      + "          DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
+      + "          DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
+      + "            DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
+      + "            DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
+      + "              DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
+      + "              DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[4], rightKeys=[1], outputColumns=[0, 1, 2, 3, 5, 6, 7])\n"
       + "      DruidQueryRel(table=[druid.supplier], scanProject=[$0, $1, $2, $3, $4, $5, $6])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1])\n"
@@ -226,27 +226,6 @@ public class TpchTest extends TpchTestHelper
       + "        DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n";
 
   public static final String TPCH2_EXPLAIN_JR_S =
-      "DruidOuterQueryRel(sort=[$0:DESC, $2:ASC, $1:ASC, $3:ASC], fetch=[100])\n"
-      + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[5], outputColumns=[3, 6, 9, 2, 1, 4, 7, 5])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[2, 0], rightKeys=[2, 1], outputColumns=[1, 3, 4])\n"
-      + "      DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-      + "      DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 1, 3])\n"
-      + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
-      + "        DruidOuterQueryRel(group=[{0}], EXPR$0=[MIN($1)])\n"
-      + "          DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 2])\n"
-      + "            DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-      + "            DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
-      + "              DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
-      + "              DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
-      + "                DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
-      + "                DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[4], rightKeys=[1], outputColumns=[0, 1, 2, 3, 5, 6, 7])\n"
-      + "      DruidQueryRel(table=[druid.supplier], scanProject=[$0, $1, $2, $3, $4, $5, $6])\n"
-      + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1])\n"
-      + "        DruidQueryRel(table=[druid.nation], scanProject=[$1, $2, $3])\n"
-      + "        DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n";
-
-  public static final String TPCH2_EXPLAIN_JR_SC =
       "DruidOuterQueryRel(sort=[$0:DESC, $2:ASC, $1:ASC, $3:ASC], fetch=[100])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[5], rightKeys=[0], outputColumns=[0, 3, 6, 9, 8, 1, 4, 2])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[4], rightKeys=[1], outputColumns=[0, 1, 2, 3, 5, 6, 7])\n"
@@ -545,17 +524,17 @@ public class TpchTest extends TpchTestHelper
 
   public static final String TPCH5_EXPLAIN_JR =
       "DruidOuterQueryRel(scanProject=[$0, *($1, -(1, $2))], group=[{0}], REVENUE=[SUM($1)], sort=[$1:DESC])\n"
-      + "  DruidJoinRel(joinType=[INNER], leftKeys=[2, 3], rightKeys=[1, 0], outputColumns=[4, 1, 0])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[1], outputColumns=[0, 1, 2, 4, 6])\n"
-      + "      DruidQueryRel(table=[druid.lineitem], scanProject=[$2, $3, $6, $14])\n"
-      + "      DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 3, 4])\n"
-      + "        DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[2, 4], rightKeys=[1, 0], outputColumns=[3, 1, 0])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1], outputColumns=[0, 1, 3, 4, 5])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[1], outputColumns=[0, 1, 2, 4, 6])\n"
+      + "        DruidQueryRel(table=[druid.lineitem], scanProject=[$2, $3, $6, $14])\n"
       + "        DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[0, 1, 2])\n"
       + "          DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
       + "          DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1])\n"
       + "            DruidQueryRel(table=[druid.nation], scanProject=[$1, $2, $3])\n"
       + "            DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'AFRICA')], scanProject=[$2])\n"
-      + "    DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1993-01-01'..'1994-01-01')]:CHAR(10))], scanProject=[$2, $4])\n";
+      + "      DruidQueryRel(table=[druid.orders], scanFilter=[SEARCH($3, Sarg[['1993-01-01'..'1994-01-01')]:CHAR(10))], scanProject=[$2, $4])\n"
+      + "    DruidQueryRel(table=[druid.customer], scanProject=[$3, $6])\n";
 
   public static final String TPCH5_EXPLAIN_JR_S =
       "DruidOuterQueryRel(scanProject=[$0, *($1, -(1, $2))], group=[{0}], REVENUE=[SUM($1)], sort=[$1:DESC])\n"

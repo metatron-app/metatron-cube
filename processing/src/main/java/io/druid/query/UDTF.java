@@ -32,6 +32,7 @@ import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 public interface UDTF
 {
@@ -165,6 +166,18 @@ public interface UDTF
       public BufferRef getAsRef(int id)
       {
         return delegate.getAsRef(id);
+      }
+
+      @Override
+      public boolean isUnique()
+      {
+        return delegate.isUnique();
+      }
+
+      @Override
+      public Stream<String> values()
+      {
+        return delegate.values();
       }
     }
   }

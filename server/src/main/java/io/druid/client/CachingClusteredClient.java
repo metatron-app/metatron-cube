@@ -227,7 +227,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           new SegmentAnalysis(
               JodaUtils.condenseIntervals(
                   Iterables.transform(segments, s -> s.rhs.getInterval())
-              )
+              ),
+              segments.size()
           )
       );
     }

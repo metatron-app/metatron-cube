@@ -22,8 +22,10 @@ package io.druid.guice;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.MapBinder;
-import io.druid.query.DimensionSamplingQueryRunnerFactory;
+import io.druid.query.CardinalityMetaQuery;
+import io.druid.query.CardinalityMetaQueryRunnerFactory;
 import io.druid.query.DimensionSamplingQuery;
+import io.druid.query.DimensionSamplingQueryRunnerFactory;
 import io.druid.query.FilterMetaQuery;
 import io.druid.query.FilterMetaQueryRunnerFactory;
 import io.druid.query.Query;
@@ -35,10 +37,10 @@ import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQueryRunnerFactory;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.frequency.FrequencyQueryRunnerFactory;
-import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
+import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.kmeans.FindNearestQuery;
 import io.druid.query.kmeans.FindNearestQueryRunnerFactory;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
@@ -80,6 +82,7 @@ public class QueryRunnerFactoryModule extends QueryToolChestModule
                   .put(SelectMetaQuery.class, SelectMetaQueryRunnerFactory.class)
                   .put(FilterMetaQuery.class, FilterMetaQueryRunnerFactory.class)
                   .put(DimensionSamplingQuery.class, DimensionSamplingQueryRunnerFactory.class)
+                  .put(CardinalityMetaQuery.class, CardinalityMetaQueryRunnerFactory.class)
                   .put(SchemaQuery.class, SchemaQueryRunnerFactory.class)
                   .put(SelectQuery.class, SelectQueryRunnerFactory.class)
                   .put(StreamQuery.class, StreamQueryRunnerFactory.class)

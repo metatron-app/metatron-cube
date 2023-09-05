@@ -26,7 +26,6 @@ import io.druid.segment.Tools;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -149,18 +148,6 @@ public class DSuppliers
     {
       threadLocal.remove();
     }
-  }
-
-  public static Object lazyLog(Supplier supplier)
-  {
-    return new Object()
-    {
-      @Override
-      public String toString()
-      {
-        return Objects.toString(supplier.get(), null);
-      }
-    };
   }
 
   public static <T> Supplier<T> wrap(Callable<T> callable)

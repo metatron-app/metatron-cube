@@ -22,6 +22,9 @@ package io.druid.segment.data;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.serde.ColumnPartSerde;
 
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
 import static io.druid.segment.data.DictionaryCompareOp.EQ;
 import static io.druid.segment.data.DictionaryCompareOp.GT;
 import static io.druid.segment.data.DictionaryCompareOp.GTE;
@@ -40,6 +43,12 @@ public interface Dictionary<T> extends Indexed.Searchable<T>
   }
 
   default Dictionary<T> dedicated() {return this;}
+
+  default Stream<T> stream()
+  {
+    Dictionary<T> dedicated = dedicated();
+    return IntStream.range(0, size()).mapToObj(dedicated::get);
+  }
 
   Boolean containsNull();     // null for unknown
 

@@ -86,7 +86,8 @@ public class SegmentMetadataQueryQueryToolChestTest
         ), 71982,
         100,
         null,
-        null
+        null,
+        1
     );
 
     Object preparedValue = strategy.prepareForCache(query).apply(result);
@@ -116,7 +117,8 @@ public class SegmentMetadataQueryQueryToolChestTest
             "foo", new LongSumAggregatorFactory("foo", "foo"),
             "baz", new DoubleSumAggregatorFactory("baz", "baz")
         ),
-        null
+        null,
+        1
     );
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
         "id",
@@ -129,7 +131,8 @@ public class SegmentMetadataQueryQueryToolChestTest
             "foo", new LongSumAggregatorFactory("foo", "foo"),
             "bar", new DoubleSumAggregatorFactory("bar", "bar")
         ),
-        null
+        null,
+        1
     );
 
     Assert.assertEquals(
@@ -161,7 +164,8 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         null,
-        null
+        null,
+        1
     );
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
         "id",
@@ -174,7 +178,8 @@ public class SegmentMetadataQueryQueryToolChestTest
             "foo", new LongSumAggregatorFactory("foo", "foo"),
             "bar", new DoubleSumAggregatorFactory("bar", "bar")
         ),
-        null
+        null,
+        1
     );
 
     Assert.assertNull(mergeStrict(analysis1, analysis2).getAggregators());
@@ -198,7 +203,8 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         null,
-        null
+        null,
+        1
     );
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
         "id",
@@ -208,7 +214,8 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         null,
-        null
+        null,
+        1
     );
 
     Assert.assertNull(mergeStrict(analysis1, analysis2).getAggregators());
@@ -229,7 +236,8 @@ public class SegmentMetadataQueryQueryToolChestTest
             "foo", new LongSumAggregatorFactory("foo", "foo"),
             "bar", new DoubleSumAggregatorFactory("bar", "bar")
         ),
-        null
+        null,
+        1
     );
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
         "id",
@@ -243,7 +251,8 @@ public class SegmentMetadataQueryQueryToolChestTest
             "bar", new DoubleMaxAggregatorFactory("bar", "bar"),
             "baz", new LongMaxAggregatorFactory("baz", "baz")
         ),
-        null
+        null,
+        1
     );
 
     final Map<String, AggregatorFactory> expectedLenient = Maps.newHashMap();
@@ -267,19 +276,19 @@ public class SegmentMetadataQueryQueryToolChestTest
   public void testMergeRollup()
   {
     final SegmentAnalysis analysis1 = new SegmentAnalysis(
-        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, null, null
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, null, null, 1
     );
     final SegmentAnalysis analysis2 = new SegmentAnalysis(
-        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, false
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, 1, false
     );
     final SegmentAnalysis analysis3 = new SegmentAnalysis(
-        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, false
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, 1, false
     );
     final SegmentAnalysis analysis4 = new SegmentAnalysis(
-        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, true
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, 1, true
     );
     final SegmentAnalysis analysis5 = new SegmentAnalysis(
-        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, true
+        "id", null, Arrays.asList(), Arrays.asList(), 0, 0, 0, -1L, null, null, null, 1, true
     );
 
     Assert.assertNull(mergeStrict(analysis1, analysis2).isRollup());
