@@ -42,21 +42,16 @@ public class CardinalityMeta
   private final double[][] params;
   private final int numRows;
 
-  public CardinalityMeta(HyperLogLogCollector[] collectors, double[][] params, int numRows)
-  {
-    this.collectors = collectors;
-    this.params = params;
-    this.numRows = numRows;
-  }
-
   @JsonCreator
   public CardinalityMeta(
-      @JsonProperty("collectors") String[] collectors,
+      @JsonProperty("collectors") HyperLogLogCollector[] collectors,
       @JsonProperty("params") double[][] params,
       @JsonProperty("numRows") int numRows
   )
   {
-    this(params == null ? HyperLogLogCollector.deserialize(collectors) : null, params, numRows);
+    this.collectors = collectors;
+    this.params = params;
+    this.numRows = numRows;
   }
 
   @JsonProperty
@@ -95,7 +90,7 @@ public class CardinalityMeta
       double c3 = e1.fold(e2).estimateCardinality();
       params[i] = coeff(Math.max(c1, c2), c1 > c2 ? numRows : meta.numRows, c3, numRows + meta.numRows);
     }
-    return new CardinalityMeta((HyperLogLogCollector[]) null, params, 0);
+    return new CardinalityMeta(null, params, 0);
   }
 
   public static double[] coeff(double c1, double r1, double c2, double r2)
@@ -105,10 +100,10 @@ public class CardinalityMeta
     double B = r1 - C * Math.pow(c1 - A, 2);
     if (A > r1) {
       A = Double.POSITIVE_INFINITY;
-      B = c1 / r1;    // linear
+      B = Math.min(1, c1 / r1);    // linear
     } else if (C == Double.POSITIVE_INFINITY) {
       A = Double.NEGATIVE_INFINITY;
-      B = c1;         // const
+      B = c1;                      // const
     }
     return new double[]{A, B, C};
   }
@@ -120,7 +115,8 @@ public class CardinalityMeta
 
   public static double estimate(double[] c, DoubleSupplier r)
   {
-    return c[0] == Double.NEGATIVE_INFINITY ? c[1] :
+    return c == null ? Double.NaN :
+           c[0] == Double.NEGATIVE_INFINITY ? c[1] :
            c[0] == Double.POSITIVE_INFINITY ? c[1] * r.getAsDouble() :
            Math.sqrt((r.getAsDouble() - c[1]) / c[2]) + c[0];
   }

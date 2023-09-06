@@ -27,6 +27,7 @@ import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.jackson.DruidDefaultSerializersModule.JsonDeserializerFunc;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.HashCollector;
@@ -55,6 +56,9 @@ import java.util.Arrays;
  */
 public final class HyperLogLogCollector implements Comparable<HyperLogLogCollector>, HashCollector
 {
+  public static final JsonDeserializerFunc<HyperLogLogCollector> DESERIALIZER =
+      (jp, ctxt) -> HyperLogLogCollector.deserialize(jp.getBinaryValue());
+
   public static final String HLL_TYPE_NAME = "hyperUnique";
   public static final ValueDesc HLL_TYPE = ValueDesc.of(HLL_TYPE_NAME, HyperLogLogCollector.class);
 

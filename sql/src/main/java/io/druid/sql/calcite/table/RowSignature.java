@@ -136,6 +136,9 @@ public class RowSignature extends io.druid.query.RowSignature
 
   public List<String> columnNames(ImmutableBitSet bitSet)
   {
+    if (bitSet.size() == 1) {
+      return ImmutableList.of(columnNames.get(bitSet.nextSetBit(0)));
+    }
     List<String> columnNames = Lists.newArrayList();
     bitSet.forEachInt(x -> columnNames.add(columnName(x)));
     return columnNames;

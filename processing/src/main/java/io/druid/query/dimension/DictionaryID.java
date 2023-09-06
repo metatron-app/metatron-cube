@@ -22,9 +22,11 @@ package io.druid.query.dimension;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.Sequences;
+import io.druid.common.utils.StringUtils;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.Scannable;
+import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.ScanContext;
 import io.druid.segment.Scanning;
 import io.druid.segment.bitmap.BitSets;
@@ -164,5 +166,30 @@ public interface DictionaryID
       a[offset] = a[offset] * 31 + hash;
       offset++;
     }
+  }
+
+  // conform to Hashes.append
+  static LongSupplier hasher(ObjectColumnSelector[] selectors)
+  {
+    LongSupplier[] hashes = new LongSupplier[selectors.length];
+    for (int i = 0; i < hashes.length; i++) {
+      ObjectColumnSelector selector = selectors[i];
+      hashes[i] = selector instanceof ObjectColumnSelector.WithRawAccess ?
+                  () -> Murmur3.hash64(((ObjectColumnSelector.WithRawAccess) selector).getAsRef()) :
+                  () -> Murmur3.hash64(StringUtils.toUtf8WithNullToEmpty(selector.get()));
+    }
+    if (hashes.length == 1) {
+      return () -> hashes[0].getAsLong();
+    }
+    if (hashes.length == 2) {
+      return () -> hashes[0].getAsLong() * 31 + hashes[1].getAsLong();
+    }
+    return () -> {
+      long hash = hashes[0].getAsLong();
+      for (int i = 1; i < hashes.length; i++) {
+        hash = hash * 31 + hashes[i].getAsLong();
+      }
+      return hash;
+    };
   }
 }

@@ -211,7 +211,7 @@ public class DruidMetadataProvider
       String table = Utils.tableName(rel.getTable());
       long[] estimation = Utils.estimateSelectivity(table, filtration, context);
       double selectivity = estimation[1] == 0 ? 0D : estimation[0] / (double) estimation[1];
-      LOG.debug("--- selectivity(%s : %s) = %.3f (%d msec)", table, predicate, selectivity, System.currentTimeMillis() - p);
+      LOG.debug("--- selectivity [%s] : %s = %.3f (%d msec)", table, predicate, selectivity, System.currentTimeMillis() - p);
       return selectivity;
     }
   }
@@ -238,13 +238,10 @@ public class DruidMetadataProvider
         return null;
       }
       List<String> keys = table.getRowSignature().columnNames(groupKey);
-      if (keys.contains(Row.TIME_COLUMN_NAME)) {
-        return null;    // todo ??
-      }
-      long cardinality = table.estimateCardinality(scan, mq, groupKey, predicate);
-      if (cardinality >= 0) {
-        LOG.debug("--- cardinality(%s%s%s) = %d", table.getName(), keys, Logs.lazy(" : %s", predicate), cardinality);
-        return Double.valueOf(cardinality);
+      double estimation = table.estimateCardinality(scan, mq, keys, predicate);
+      if (Double.isFinite(estimation)) {
+        LOG.debug("--- cardinality [%s]%s%s = %.1f", table.getName(), keys, Logs.lazy(" : %s", predicate), estimation);
+        return estimation;
       }
       QueryMaker context = CONTEXT.get();
       if (context != null && context.getPlannerContext().getPlannerConfig().isEstimateCardinality()) {
@@ -264,9 +261,12 @@ public class DruidMetadataProvider
       }
       String table = Utils.tableName(rel.getTable());
       List<String> keys = signature.columnNames(groupKey);
+      if (keys.contains(Row.TIME_COLUMN_NAME)) {
+        return null;    // todo ??
+      }
       long estimation = Utils.estimateCardinality(table, filtration, keys, context);
       long elapsed = System.currentTimeMillis() - p;
-      LOG.debug("--- cardinality(%s%s%s) = %d (%d msec)", table, keys, Logs.lazy(" : %s", predicate), estimation, elapsed);
+      LOG.debug("--- cardinality [%s]%s%s = %d (%d msec)", table, keys, Logs.lazy(" : %s", predicate), estimation, elapsed);
       return (double) estimation;
     }
   }

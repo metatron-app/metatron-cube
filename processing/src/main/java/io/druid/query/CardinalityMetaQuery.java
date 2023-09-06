@@ -34,23 +34,26 @@ import java.util.Map;
 @JsonTypeName(Query.CARDINALITY_META)
 public class CardinalityMetaQuery extends BaseQuery<CardinalityMeta>
 {
-  public static CardinalityMetaQuery of(String table, QuerySegmentSpec segmentSpec, List<String> columns)
+  public static Query<CardinalityMeta> of(TableDataSource ds, List<String> columns)
   {
-    return new CardinalityMetaQuery(TableDataSource.of(table), segmentSpec, columns, null);
+    return new CardinalityMetaQuery(ds, null, columns, columns.size() > 1, null).withRandomId();
   }
 
   private final List<String> columns;
+  private final boolean complex;
 
   @JsonCreator
   public CardinalityMetaQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("columns") List<String> columns,
+      @JsonProperty("complex") boolean complex,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
     this.columns = columns;
+    this.complex = complex;
   }
 
   @Override
@@ -65,6 +68,12 @@ public class CardinalityMetaQuery extends BaseQuery<CardinalityMeta>
     return columns;
   }
 
+  @JsonProperty
+  public boolean isComplex()
+  {
+    return complex;
+  }
+
   @Override
   public Comparator<CardinalityMeta> getMergeOrdering(List<String> columns)
   {
@@ -74,13 +83,13 @@ public class CardinalityMetaQuery extends BaseQuery<CardinalityMeta>
   @Override
   public CardinalityMetaQuery withDataSource(DataSource dataSource)
   {
-    return new CardinalityMetaQuery(dataSource, getQuerySegmentSpec(), columns, getContext());
+    return new CardinalityMetaQuery(dataSource, getQuerySegmentSpec(), columns, complex, getContext());
   }
 
   @Override
   public CardinalityMetaQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new CardinalityMetaQuery(getDataSource(), spec, columns, getContext());
+    return new CardinalityMetaQuery(getDataSource(), spec, columns, complex, getContext());
   }
 
   @Override
@@ -90,6 +99,7 @@ public class CardinalityMetaQuery extends BaseQuery<CardinalityMeta>
         getDataSource(),
         getQuerySegmentSpec(),
         columns,
+        complex,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -97,6 +107,11 @@ public class CardinalityMetaQuery extends BaseQuery<CardinalityMeta>
   @Override
   public String toString()
   {
-    return String.format("CardinalityMetaQuery{dataSource='%s', columns=%s}", getDataSource(), columns);
+    return String.format(
+        "CardinalityMetaQuery{dataSource='%s', columns=%s, complex=%s}",
+        getDataSource(),
+        columns,
+        complex
+    );
   }
 }

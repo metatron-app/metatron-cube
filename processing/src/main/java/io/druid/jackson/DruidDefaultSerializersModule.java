@@ -99,6 +99,7 @@ public class DruidDefaultSerializersModule extends SimpleModule
         new JsonSerializer<Sequence>()
         {
           @Override
+          @SuppressWarnings("unchecked")
           public void serialize(Sequence value, final JsonGenerator jgen, SerializerProvider provider)
               throws IOException
           {
@@ -132,8 +133,8 @@ public class DruidDefaultSerializersModule extends SimpleModule
           public Sequence deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
           {
             JavaType type = ctxt.constructType(List.class);
-            List values = (List) ctxt.findContextualValueDeserializer(type, null)
-                                     .deserialize(jp, ctxt);
+            List<?> values = (List) ctxt.findContextualValueDeserializer(type, null)
+                                        .deserialize(jp, ctxt);
             return Sequences.simple(values);
           }
         }
@@ -143,6 +144,7 @@ public class DruidDefaultSerializersModule extends SimpleModule
         new JsonSerializer<Yielder>()
         {
           @Override
+          @SuppressWarnings("unchecked")
           public void serialize(Yielder yielder, final JsonGenerator jgen, SerializerProvider provider)
               throws IOException
           {
@@ -223,6 +225,8 @@ public class DruidDefaultSerializersModule extends SimpleModule
     addSerializer(BulkRow.class, BulkRow.SERIALIZER);
 
     addDeserializer(BulkRow.class, BulkRow.DESERIALIZER);
+
+    addDeserializerFunc(HyperLogLogCollector.class, HyperLogLogCollector.DESERIALIZER);
 
     addSerializer(
         HyperLogLogCollector[].class,
@@ -315,5 +319,39 @@ public class DruidDefaultSerializersModule extends SimpleModule
           }
         }
     );
+  }
+
+  public static interface JsonDeserializerFunc<T>
+  {
+    T deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException;
+  }
+
+  public static interface JsonSerializerFunc<T>
+  {
+    void serialize(T value, JsonGenerator jgen, SerializerProvider provider) throws IOException;
+  }
+
+  private <T> SimpleModule addDeserializerFunc(Class<T> type, JsonDeserializerFunc<? extends T> f)
+  {
+    return addDeserializer(type, new JsonDeserializer<T>()
+    {
+      @Override
+      public T deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
+      {
+        return f.deserialize(jp, ctxt);
+      }
+    });
+  }
+
+  private <T> SimpleModule addSerializerFunc(Class<T> type, JsonSerializerFunc<T> f)
+  {
+    return addSerializer(type, new JsonSerializer<T>()
+    {
+      @Override
+      public void serialize(T value, JsonGenerator jgen, SerializerProvider provider) throws IOException
+      {
+        f.serialize(value, jgen, provider);
+      }
+    });
   }
 }

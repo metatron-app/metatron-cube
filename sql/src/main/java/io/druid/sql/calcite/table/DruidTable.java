@@ -69,7 +69,6 @@ import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.util.ImmutableBitSet;
 
 import java.util.Arrays;
 import java.util.List;
@@ -90,7 +89,7 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
   private int numSegments = -1;
   private Statistic statistic;
   private Map<String, Map<String, String>> descriptors;
-  private Map<String, double[]> cardinalityCoeffs;
+  private final Map<List<String>, double[]> cardinalityCoeffs = Maps.newHashMap();
   private Map<String, long[]> cardinalities;
   private Set<String> tenants;
 
@@ -198,26 +197,32 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     return numSegments;
   }
 
-  public long estimateCardinality(TableScan scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate)
+  public double estimateCardinality(TableScan scan, RelMetadataQuery mq, List<String> groupKey, RexNode predicate)
   {
-    RowSignature signature = getRowSignature();
-
-    if (groupKey.cardinality() == 1) {
-      String columnName = signature.columnName(groupKey.nextSetBit(0));
-      double[] c = cardinalityCoeffs.get(columnName);
-      if (c != null) {
-        double estimate = CardinalityMeta.estimate(c, () -> mq.getMaxRowCount(scan) * mq.getSelectivity(scan, predicate));
-        if (Double.isFinite(estimate)) {
-          return (long) estimate;
-        }
-      }
-      long[] range = cardinalityRange(columnName);
+    double estimate = Double.NaN;
+    if (numSegments() > 1) {
+      estimate = CardinalityMeta.estimate(
+          cardinalityCoeffs.computeIfAbsent(groupKey, this::coeff),
+          () -> mq.getRowCount(scan) * mq.getSelectivity(scan, predicate)
+      );
+    }
+    if (!Double.isFinite(estimate) && groupKey.size() == 1) {
+      long[] range = cardinalities.get(groupKey.get(0));
       if (range != null && range[0] << 2 > range[1]) {
-        return range[1];
+        estimate = range[1];    // todo: min ? max ?
       }
     }
-    // todo
-    return -1;
+    return estimate;
+  }
+
+  private double[] coeff(List<String> groupKey)
+  {
+    long s = System.currentTimeMillis();
+    CardinalityMeta meta = Sequences.only(
+        QueryRunners.run(CardinalityMetaQuery.of(dataSource, groupKey), segmentWalker), null
+    );
+    LOG.info("--- cardinality [%s]%s took %,d msec", dataSource, groupKey, (System.currentTimeMillis() - s));
+    return meta == null || meta.getParams() == null ? null : meta.getParams()[0];
   }
 
   private void updateAll()
@@ -229,7 +234,6 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     this.cardinalities = update.cardinalities;
     this.descriptors = update.descriptors;
     this.statistic = Statistics.of(update.rowCount, ImmutableList.of());
-    this.cardinalityCoeffs = update.cardinalityCoeffs;
     LOG.info("Refreshed schema of [%s].. %,d msec", dataSource.getName(), System.currentTimeMillis() - start);
   }
 
@@ -269,7 +273,6 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     private final RowSignature signature;
     private final Map<String, long[]> cardinalities;
     private final Map<String, Map<String, String>> descriptors;
-    private final Map<String, double[]> cardinalityCoeffs;
     private final int numSegments;
     private final long rowCount;
 
@@ -278,7 +281,6 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
         int numSegments,
         Map<String, long[]> cardinalities,
         Map<String, Map<String, String>> descriptors,
-        Map<String, double[]> cardinalityCoeffs,
         long rowCount
     )
     {
@@ -286,7 +288,6 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
       this.numSegments = numSegments;
       this.cardinalities = cardinalities;
       this.descriptors = descriptors;
-      this.cardinalityCoeffs = cardinalityCoeffs;
       this.rowCount = rowCount;
     }
   }
@@ -308,23 +309,7 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     int numSegments = segment.getNumSegments();
     RowSignature signature = RowSignature.builderFrom(segment.asSignature().explodeNested()).sort().build();
 
-    Map<String, double[]> cardinalityCoeffs = ImmutableMap.of();
-    if (numSegments > 1) {
-      s = System.currentTimeMillis();
-      List<String> dimensions = signature.getDimensionNames();
-      CardinalityMeta meta = Sequences.only(
-          QueryRunners.run(CardinalityMetaQuery.of(datasource, segmentSpec, dimensions).withRandomId(), segmentWalker)
-      );
-      if (meta != null && meta.getParams() != null) {
-        cardinalityCoeffs = Maps.newHashMap();
-        for (int i = 0; i < meta.getParams().length; i++) {
-          cardinalityCoeffs.put(dimensions.get(i), meta.getParams()[i]);
-        }
-        LOG.info("cardinality meta [%s] took %,d msec", datasource, (System.currentTimeMillis() - s));
-      }
-    }
-
-    return new Holder(signature, numSegments, cardinalities, descriptors, cardinalityCoeffs, segment.getNumRows());
+    return new Holder(signature, numSegments, cardinalities, descriptors, segment.getNumRows());
   }
 
   @SuppressWarnings("unchecked")
