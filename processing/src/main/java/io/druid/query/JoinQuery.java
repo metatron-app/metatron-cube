@@ -639,7 +639,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             LOG.debug("-- .. with forced filter from %s (L) to %s (R) + %s", leftAlias, rightAlias, filter);
             MaterializedQuery materialized = MaterializedQuery.of(query0, sequence.columns(), values);
             queries.set(i, segmentWalker.register(left, materialized));
-            queries.set(i + 1, Estimations.mergeSelectivity(DimFilters.and((FilterSupport) query1, filter), leftEstimated.selectivity));
+            queries.set(i + 1, Estimations.mergeSelectivity(DimFilters.and(query1, filter), leftEstimated.selectivity));
           }
         }
         if (!rightBloomed &&
@@ -652,7 +652,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             DimFilter filter = new ForcedFilter(leftJoinColumns, values, GuavaUtils.indexOf(outputColumns, rightJoinColumns));
             LOG.debug("-- .. with forced filter from %s (R) to %s (L) + %s", rightAlias, leftAlias, filter);
             MaterializedQuery materialized = MaterializedQuery.of(query1, sequence.columns(), values);
-            queries.set(i, Estimations.mergeSelectivity(DimFilters.and((FilterSupport) query0, filter), rightEstimated.selectivity));
+            queries.set(i, Estimations.mergeSelectivity(DimFilters.and(query0, filter), rightEstimated.selectivity));
             queries.set(i + 1, query = segmentWalker.register(right, materialized));
           }
         }

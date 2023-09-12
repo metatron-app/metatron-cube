@@ -205,11 +205,6 @@ public class Estimations
     }
   }
 
-  public static Query propagate(Query<?> query, Estimation estimation)
-  {
-    return propagate(query, estimation.estimated, estimation.selectivity);
-  }
-
   public static Query propagate(Query<?> query, long estimation, float selectivity)
   {
     return query.withOverriddenContext(propagate(query.getContext(), estimation, selectivity));
@@ -278,7 +273,7 @@ public class Estimations
     if (estimation != null && selectivity < estimation.selectivity) {
       Estimation updated = estimation.duplicate().update(selectivity);
       LOG.debug("--- selectivity %.3f merged into %s(%s to %s)", selectivity, query.getDataSource(), estimation, updated);
-      return propagate(query, updated);
+      return propagate(query, updated.estimated, updated.selectivity);
     }
     return query;
   }

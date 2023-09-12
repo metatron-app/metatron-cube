@@ -296,6 +296,13 @@ public class DataSources
       QuerySegmentWalker segmentWalker
   )
   {
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Query<Object> nested = ((QueryDataSource) query.getDataSource()).getQuery();
+      Query applied = applyFilter(nested, filter, selectivity, dependents, segmentWalker);
+      if (applied != null) {
+        return query.withDataSource(QueryDataSource.of(applied));
+      }
+    }
     if (query instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport<?> aggregations = (Query.AggregationsSupport) query;
       List<DimensionSpec> dimensions = aggregations.getDimensions();

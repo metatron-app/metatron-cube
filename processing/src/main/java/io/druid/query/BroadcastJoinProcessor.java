@@ -178,7 +178,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
           List<String> filterOn = hashLeft ? rightJoinColumns : leftJoinColumns;
           int[] indices = GuavaUtils.indexOf(rows.columns(), hashLeft ? leftJoinColumns : rightJoinColumns);
           DimFilter filter = SemiJoinFactory.from(filterOn, materialized.iterator(), indices);
-          arrayQuery = (Query.ArrayOutputSupport) DimFilters.and((Query.FilterSupport) arrayQuery, filter);
+          arrayQuery = (Query.ArrayOutputSupport) DimFilters.and(arrayQuery, filter);
           hashing = Sequences.from(hashing.columns(), materialized);
           if (hashLeft) {
             LOG.info("-- %s:%d (L) is applied as filter to %s (R)", leftAlias, materialized.size(), rightAlias);

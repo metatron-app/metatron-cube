@@ -19,6 +19,7 @@
 
 package io.druid.query.filter;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.BoundType;
@@ -167,6 +168,12 @@ next:
     }
     List<DimFilter> merged = merge(list, DimFilter.OP.AND);
     return merged.isEmpty() ? null : merged.size() == 1 ? merged.get(0) : new AndDimFilter(merged);
+  }
+
+  public static <T> Query<T> and(Query<T> query, DimFilter filter)
+  {
+    Preconditions.checkArgument(query instanceof Query.FilterSupport);
+    return and((Query.FilterSupport<T>) query, filter);
   }
 
   public static <T> Query.FilterSupport<T> and(Query.FilterSupport<T> query, DimFilter filter)
