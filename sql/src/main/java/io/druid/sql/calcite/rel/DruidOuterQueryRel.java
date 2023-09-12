@@ -21,6 +21,7 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.DataSource;
@@ -128,6 +129,7 @@ public class DruidOuterQueryRel extends DruidRel
         QueryDataSource.of(subQuery.getQuery(), subQuery.getOutputRowSignature()),
         subQuery.getOutputRowSignature(),
         getPlannerContext(),
+        ImmutableMap.of(),
         getCluster().getRexBuilder(),
         finalizeAggregations
     );
@@ -141,6 +143,7 @@ public class DruidOuterQueryRel extends DruidRel
         DUMMY_DATA_SOURCE,
         RowSignature.from(sourceRel.getRowType()),
         getPlannerContext(),
+        ImmutableMap.of(),
         getCluster().getRexBuilder(),
         false
     );

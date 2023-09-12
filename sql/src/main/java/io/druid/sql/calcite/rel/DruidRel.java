@@ -24,6 +24,7 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.DataSource;
 import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.plan.RelOptCluster;
@@ -42,6 +43,8 @@ import java.util.function.Predicate;
 
 public abstract class DruidRel extends AbstractRelNode
 {
+  static final Logger LOG = new Logger(DruidRel.class);
+
   public static RelOptRuleOperand anyDruid()
   {
     return operand(DruidRel.class);

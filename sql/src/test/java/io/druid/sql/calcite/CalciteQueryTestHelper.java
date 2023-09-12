@@ -149,31 +149,13 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     public boolean isUseJoinReordering() { return true;}
   };
 
-  protected static final PlannerConfig JOIN_REORDERING_WITH_S = new PlannerConfig()
+  protected static final PlannerConfig JOIN_REORDERING_WITH_E = new PlannerConfig()
   {
     @Override
     public boolean isUseJoinReordering() { return true;}
 
     @Override
-    public boolean isEstimateSelectivity()
-    {
-      return true;
-    }
-  };
-
-  protected static final PlannerConfig JOIN_REORDERING_WITH_SC = new PlannerConfig()
-  {
-    @Override
-    public boolean isUseJoinReordering() { return true;}
-
-    @Override
-    public boolean isEstimateSelectivity()
-    {
-      return true;
-    }
-
-    @Override
-    public boolean isEstimateCardinality()
+    public boolean isUseEstimationQuery()
     {
       return true;
     }

@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.google.common.collect.ImmutableMap;
 import io.druid.common.IntTagged;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
@@ -99,14 +100,11 @@ public class Estimations
   {
     Estimation estimation = estimationFromContext(query);
     if (estimation != null) {
-      return estimation.degrade();
+      return estimation;
     }
     DataSource source = query.getDataSource();
     if (source instanceof QueryDataSource || source instanceof ViewDataSource) {
       Estimation estimated = estimate(source, segmentSpec, context, segmentWalker);
-      if (BaseQuery.getDimFilter(query) != null) {
-        estimated.update(x -> x >>> 1);
-      }
       if (query instanceof TimeseriesQuery) {
         estimated.update(Queries.estimateCardinality((TimeseriesQuery) query, segmentWalker)[0]);
       } else if (query instanceof GroupByQuery || query instanceof TopNQuery) {
@@ -147,9 +145,10 @@ public class Estimations
                                       .withOverriddenContext("$skip", true);   // for test hook
           int size = SemiJoinFactory.sizeOf(filter);
           int passed = Sequences.size(QueryUtils.resolve(sampler, segmentWalker).run(segmentWalker, null));
-          estimated.estimated = Math.max(1, cardinality * passed / size);
-          estimated.selectivity *= (float) passed / size;
-          LOG.debug("--- 'having' selectivity by sampling: %f", (float) passed / size);
+          float ratio = Math.max(0.00001f, (float) passed / size);
+          estimated.estimated = Math.max(1, (long) (cardinality * ratio));
+          estimated.selectivity = ratio;
+          LOG.debug("--- 'having' selectivity by sampling: %f", ratio);
         } else {
           estimated.estimated = Math.max(1, cardinality >> 1);
           estimated.selectivity = 0.5f;
@@ -223,7 +222,14 @@ public class Estimations
 
   public static Map<String, Object> propagate(Map<String, Object> context, long estimation, float selectivity)
   {
-    return BaseQuery.copyContextForMeta(context, JoinQuery.CARDINALITY, estimation, JoinQuery.SELECTIVITY, selectivity);
+    return BaseQuery.copyContextForMeta(
+        context, JoinQuery.CARDINALITY, estimation, JoinQuery.SELECTIVITY, Estimation.degrade(selectivity)
+    );
+  }
+
+  public static Map<String, Object> propagate(long estimation, float selectivity)
+  {
+    return ImmutableMap.of(JoinQuery.CARDINALITY, estimation, JoinQuery.SELECTIVITY, selectivity);
   }
 
   private static Estimation estimationFromContext(Query<?> query)

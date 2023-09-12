@@ -94,6 +94,7 @@ public class DruidBaseQuery implements DruidQuery
   private final DataSource dataSource;
   private final RowSignature sourceRowSignature;
   private final PlannerContext plannerContext;
+  private final Map<String, Object> contextOverride;
 
   @Nullable
   private final TableFunction tableFunction;
@@ -126,6 +127,7 @@ public class DruidBaseQuery implements DruidQuery
       final DataSource dataSource,
       final RowSignature sourceRowSignature,
       final PlannerContext plannerContext,
+      final Map<String, Object> contextOverride,
       final RexBuilder rexBuilder,
       final boolean finalizeAggregations
   )
@@ -134,6 +136,7 @@ public class DruidBaseQuery implements DruidQuery
     this.sourceRowSignature = sourceRowSignature;
     this.outputRowType = partialQuery.leafRel().getRowType();
     this.plannerContext = plannerContext;
+    this.contextOverride = contextOverride;
 
     RowSignature inputRowSignature = sourceRowSignature;
 
@@ -591,7 +594,7 @@ public class DruidBaseQuery implements DruidQuery
         limiting == null ? null : limiting.getLimitSpec(),
         ImmutableList.copyOf(outputRowSignature.getColumnNames()),
         null,
-        plannerContext.copyQueryContext()
+        plannerContext.copyQueryContext(contextOverride)
     );
   }
 
@@ -667,7 +670,7 @@ public class DruidBaseQuery implements DruidQuery
         grouping.getAggregatorFactories(),
         grouping.getPostAggregators(),
         ImmutableList.copyOf(outputRowSignature.getColumnNames()),
-        plannerContext.copyQueryContext()
+        plannerContext.copyQueryContext(contextOverride)
     );
   }
 
@@ -692,7 +695,7 @@ public class DruidBaseQuery implements DruidQuery
         limiting == null ? null : limiting.getLimitSpec(),
         ImmutableList.copyOf(outputRowSignature.getColumnNames()),
         null,
-        plannerContext.copyQueryContext()
+        plannerContext.copyQueryContext(contextOverride)
     );
   }
 
@@ -729,7 +732,7 @@ public class DruidBaseQuery implements DruidQuery
         null,
         limiting == null ? null : limiting.getLimitSpec(),
         sortProject == null ? null : sortProject.getColumns(),
-        plannerContext.copyQueryContext()
+        plannerContext.copyQueryContext(contextOverride)
     );
   }
 }

@@ -27,17 +27,20 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.CardinalityMeta;
 import io.druid.query.CardinalityMetaQuery;
+import io.druid.query.Query;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.SetAggregatorFactory;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -46,6 +49,10 @@ import io.druid.query.spec.QuerySegmentSpecs;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQuery.Builder;
+import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.expression.Expressions;
+import io.druid.sql.calcite.filtration.Filtration;
+import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.timeline.DataSegment;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.RelOptTable;
@@ -70,6 +77,7 @@ import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -89,8 +97,12 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
   private int numSegments = -1;
   private Statistic statistic;
   private Map<String, Map<String, String>> descriptors;
+
+  private Map<String, long[]> cardinalityRanges;
   private final Map<List<String>, double[]> cardinalityCoeffs = Maps.newHashMap();
-  private Map<String, long[]> cardinalities;
+  private final Map<String, Double> selectivity = Maps.newHashMap();
+  private final Map<List<String>, Double> cardinalities = Maps.newHashMap();
+
   private Set<String> tenants;
 
   public DruidTable(
@@ -140,6 +152,8 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
         tenants.addAll(newcomers);
       }
     }
+    selectivity.clear();
+    cardinalities.clear();
   }
 
   public String getName()
@@ -183,10 +197,10 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
 
   public synchronized long[] cardinalityRange(String dimension)
   {
-    if (cardinalities == null) {
+    if (cardinalityRanges == null) {
       updateAll();
     }
-    return cardinalities == null ? null : cardinalities.get(dimension);
+    return cardinalityRanges == null ? null : cardinalityRanges.get(dimension);
   }
 
   public synchronized int numSegments()
@@ -197,9 +211,15 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     return numSegments;
   }
 
-  public double estimateCardinality(TableScan scan, RelMetadataQuery mq, List<String> groupKey, RexNode predicate)
+  public Double estimateCardinality(
+      TableScan scan,
+      RelMetadataQuery mq,
+      List<String> groupKey,
+      RexNode predicate,
+      QueryMaker context
+  )
   {
-    double estimate = Double.NaN;
+    Double estimate = Double.NaN;
     if (numSegments() > 1) {
       estimate = CardinalityMeta.estimate(
           cardinalityCoeffs.computeIfAbsent(groupKey, this::coeff),
@@ -207,22 +227,75 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
       );
     }
     if (!Double.isFinite(estimate) && groupKey.size() == 1) {
-      long[] range = cardinalities.get(groupKey.get(0));
+      long[] range = cardinalityRanges.get(groupKey.get(0));
       if (range != null && range[0] << 2 > range[1]) {
-        estimate = range[1];    // todo: min ? max ?
+        return Double.valueOf(range[1]) * mq.getSelectivity(scan, predicate);    // todo: min ? max ?
       }
+    }
+    if (!Double.isFinite(estimate)) {
+      List<String> key = concat(groupKey, predicate);
+      estimate = cardinalities.computeIfAbsent(key, k -> cardinality(scan, groupKey, predicate, context));
     }
     return estimate;
   }
 
   private double[] coeff(List<String> groupKey)
   {
-    long s = System.currentTimeMillis();
-    CardinalityMeta meta = Sequences.only(
-        QueryRunners.run(CardinalityMetaQuery.of(dataSource, groupKey), segmentWalker), null
-    );
-    LOG.info("--- cardinality [%s]%s took %,d msec", dataSource, groupKey, (System.currentTimeMillis() - s));
+    Query<CardinalityMeta> query = CardinalityMetaQuery.of(dataSource, groupKey);
+    CardinalityMeta meta = Sequences.only(QueryRunners.run(query, segmentWalker), null);
     return meta == null || meta.getParams() == null ? null : meta.getParams()[0];
+  }
+
+  private static Double cardinality(TableScan rel, List<String> groupKey, RexNode predicate, QueryMaker context)
+  {
+    if (context == null || !context.getPlannerConfig().isUseEstimationQuery()) {
+      return null;
+    }
+    RowSignature signature = RowSignature.from(rel.getRowType());
+    Filtration filtration = toFiltration(rel, predicate, context, signature);
+    if (filtration == null) {
+      return null;
+    }
+    String table = Utils.tableName(rel.getTable());
+    if (groupKey.contains(Row.TIME_COLUMN_NAME)) {
+      return null;    // todo ??
+    }
+    return (double) Utils.estimateCardinality(table, filtration, groupKey, context);
+  }
+
+  @Nullable
+  private static Filtration toFiltration(RelNode rel, RexNode predicate, QueryMaker context, RowSignature signature)
+  {
+    if (predicate == null) {
+      return Filtration.create(null);
+    }
+    RexBuilder builder = rel.getCluster().getRexBuilder();
+    DimFilter filter = Expressions.toFilter(context.getPlannerContext(), signature, builder, predicate);
+    return filter == null ? null : Filtration.create(filter).optimize(signature);
+  }
+
+  private static List<String> concat(List<String> groupKey, RexNode predicate)
+  {
+    return predicate == null ? groupKey : GuavaUtils.concat(groupKey, predicate.toString());
+  }
+
+  public Double estimateSelectivity(TableScan scan, RexNode predicate, QueryMaker context)
+  {
+    return selectivity.computeIfAbsent(predicate.toString(), k -> selectivity(scan, predicate, context));
+  }
+
+  private static Double selectivity(TableScan rel, RexNode predicate, QueryMaker context)
+  {
+    if (context == null || !context.getPlannerConfig().isUseEstimationQuery()) {
+      return null;
+    }
+    Filtration filtration = toFiltration(rel, predicate, context, RowSignature.from(rel.getRowType()));
+    if (filtration == null) {
+      return null;
+    }
+    long[] estimation = Utils.estimateSelectivity(Utils.tableName(rel.getTable()), filtration, context);
+    double selectivity = estimation[1] == 0 ? 0D : estimation[0] / (double) estimation[1];
+    return selectivity;
   }
 
   private void updateAll()
@@ -231,7 +304,7 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     Holder update = build(dataSource.getName(), QuerySegmentSpec.ETERNITY, segmentWalker);
     this.signature = update.signature;
     this.numSegments = update.numSegments;
-    this.cardinalities = update.cardinalities;
+    this.cardinalityRanges = update.cardinalities;
     this.descriptors = update.descriptors;
     this.statistic = Statistics.of(update.rowCount, ImmutableList.of());
     LOG.info("Refreshed schema of [%s].. %,d msec", dataSource.getName(), System.currentTimeMillis() - start);

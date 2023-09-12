@@ -38,6 +38,8 @@ import io.druid.sql.calcite.filtration.Filtration;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidTypeSystem;
 import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.rel.DruidJoinRel;
+import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.RowSignature;
@@ -54,6 +56,7 @@ import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Filter;
@@ -83,6 +86,8 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.mutable.MutableInt;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -466,7 +471,7 @@ public class Utils
         return Utils.operands(condition).stream()
                     .mapToDouble(op -> selectivity(builder, op)).min().orElse(1);
       case OR:
-        return Math.max(1, Utils.operands(condition).stream()
+        return Math.min(1, Utils.operands(condition).stream()
                                 .mapToDouble(op -> selectivity(builder, op)).sum());
       case NOT:
         return 1 - selectivity(builder, Utils.operands(condition).get(0));
@@ -797,5 +802,30 @@ public class Utils
   public static ImmutableList<RexNode> operands(RexNode rexNode)
   {
     return ((RexCall) rexNode).operands;
+  }
+
+  public static int countDruidJoins(RelNode rootRel)
+  {
+    MutableInt counter = new MutableInt();
+    new RelVisitor()
+    {
+      @Override
+      public void visit(RelNode node, int ordinal, @Nullable RelNode parent)
+      {
+        if (node instanceof DruidJoinRel) {
+          counter.increment();
+        }
+        super.visit(node, ordinal, parent);
+      }
+    }.go(rootRel);
+    return counter.intValue();
+  }
+
+  public static boolean hasHaving(RelNode relNode)
+  {
+    if (relNode instanceof DruidQueryRel) {
+      return ((DruidQueryRel) relNode).getPartialDruidQuery().hasHaving();
+    }
+    return relNode.getInputs().stream().anyMatch(Utils::hasHaving);
   }
 }

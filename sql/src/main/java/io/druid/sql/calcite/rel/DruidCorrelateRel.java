@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.CombinedDataSource;
 import io.druid.query.DataSource;
@@ -215,6 +216,7 @@ public class DruidCorrelateRel extends DruidRel
         query.getQuery().getDataSource(),
         query.getOutputRowSignature(),
         getPlannerContext(),
+        ImmutableMap.of(),
         getCluster().getRexBuilder(),
         finalizeAggregations
     );

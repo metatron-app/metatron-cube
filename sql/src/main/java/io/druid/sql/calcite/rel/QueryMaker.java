@@ -21,7 +21,6 @@ package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -47,16 +46,13 @@ import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.server.QueryLifecycleFactory;
-import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.Calcites;
+import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerContext;
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NlsString;
 import org.apache.logging.log4j.util.Strings;
 import org.joda.time.DateTime;
@@ -78,8 +74,6 @@ public class QueryMaker
   private final QueryLifecycleFactory lifecycleFactory;
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
-  private final Map<String, Double> selectivities = Maps.newHashMap();
-  private final Map<String, Double> cardinalities = Maps.newHashMap();
 
   public QueryMaker(
       final QueryLifecycleFactory lifecycleFactory,
@@ -95,6 +89,11 @@ public class QueryMaker
   public PlannerContext getPlannerContext()
   {
     return plannerContext;
+  }
+
+  public PlannerConfig getPlannerConfig()
+  {
+    return plannerContext.getPlannerConfig();
   }
 
   public ObjectMapper getJsonMapper()
@@ -379,22 +378,5 @@ public class QueryMaker
     catch (Exception e) {
       return Objects.toString(value, null);
     }
-  }
-
-  public Double selectivity(RelNode rel, RexNode predicate, Function<String, Double> populator)
-  {
-    String key = Utils.tableName(rel.getTable()) + Objects.toString(predicate, "");
-    return selectivities.computeIfAbsent(key, populator);
-  }
-
-  public Double cardinality(
-      RelNode rel,
-      ImmutableBitSet groupKey,
-      RexNode predicate,
-      Function<String, Double> populator
-  )
-  {
-    String key = Utils.tableName(rel.getTable()) + groupKey + Objects.toString(predicate, "");
-    return cardinalities.computeIfAbsent(key, populator);
   }
 }

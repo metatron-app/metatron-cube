@@ -1737,10 +1737,19 @@ public class TpchTest extends TpchTestHelper
 
   public static final String TPCH15_EXPLAIN_JR =
       "DruidOuterQueryRel(sort=[$0:ASC])\n"
-      + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[4, 2, 1, 3, 0])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[3], outputColumns=[1, 2, 3, 4, 5])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[3, 1, 0, 2, 5])\n"
+      + "    DruidQueryRel(table=[druid.supplier], scanProject=[$1, $3, $5, $6])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0, 1])\n"
       + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1996-01-01'..'1996-04-01')]:CHAR(10))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)])\n"
+      + "      DruidOuterQueryRel(EXPR$0=[MAX($0)])\n"
+      + "        DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1996-01-01'..'1996-04-01')]:CHAR(10))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)], aggregateProject=[$1])\n";
+
+  public static final String TPCH15_EXPLAIN_JR2 =
+      "DruidOuterQueryRel(sort=[$0:ASC])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[4], rightKeys=[0], outputColumns=[3, 1, 0, 2, 4])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[0], outputColumns=[0, 1, 2, 3, 5])\n"
       + "      DruidQueryRel(table=[druid.supplier], scanProject=[$1, $3, $5, $6])\n"
+      + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1996-01-01'..'1996-04-01')]:CHAR(10))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)])\n"
       + "    DruidOuterQueryRel(EXPR$0=[MAX($0)])\n"
       + "      DruidQueryRel(table=[druid.lineitem], scanFilter=[SEARCH($11, Sarg[['1996-01-01'..'1996-04-01')]:CHAR(10))], scanProject=[$14, *($3, -(1, $2))], group=[{0}], TOTAL_REVENUE=[SUM($1)], aggregateProject=[$1])\n";
 
@@ -2209,11 +2218,11 @@ public class TpchTest extends TpchTestHelper
       "DruidOuterQueryRel(group=[{0, 1, 2, 3, 4}], EXPR$5=[SUM($5)], sort=[$4:DESC, $3:ASC, $2:ASC], fetch=[100])\n"
       + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[6, 5, 3, 2, 4, 1])\n"
       + "    DruidQueryRel(table=[druid.lineitem], scanProject=[$6, $8])\n"
-      + "    DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[1], outputColumns=[1, 2, 3, 4, 5])\n"
-      + "      DruidQueryRel(table=[druid.lineitem], scanProject=[$6, $8], group=[{0}], agg#0=[SUM($1)], aggregateFilter=[>($1, 300)], aggregateProject=[$0])\n"
-      + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1, 2, 3, 4, 5])\n"
+      + "    DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1, 2, 3, 4, 5])\n"
+      + "      DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[0], outputColumns=[0, 1, 2, 3])\n"
       + "        DruidQueryRel(table=[druid.orders], scanProject=[$2, $3, $4, $8])\n"
-      + "        DruidQueryRel(table=[druid.customer], scanProject=[$3, $5])\n";
+      + "        DruidQueryRel(table=[druid.lineitem], scanProject=[$6, $8], group=[{0}], agg#0=[SUM($1)], aggregateFilter=[>($1, 300)], aggregateProject=[$0])\n"
+      + "      DruidQueryRel(table=[druid.customer], scanProject=[$3, $5])\n";
 
   public static final Object[][] TPCH18_RESULT = {
       {"Customer#000000334", "334", "29158", "1995-10-21", 441562.47D, 305L},
@@ -2417,9 +2426,9 @@ public class TpchTest extends TpchTestHelper
       + "    DruidOuterQueryRel(group=[{0}])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[1])\n"
       + "        DruidOuterQueryRel(scanFilter=[>($2, *(0.5:DECIMAL(2, 1), $3))], scanProject=[$0, $1])\n"
-      + "          DruidJoinRel(joinType=[INNER], leftKeys=[0, 1], rightKeys=[1, 2], outputColumns=[4, 5, 3, 2])\n"
-      + "            DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($11, Sarg[['1994-01-01'..'1995-01-01')]:CHAR(10)), IS NOT NULL($7), IS NOT NULL($14))], scanProject=[$7, $14, $8], group=[{0, 1}], agg#0=[SUM($2)])\n"
+      + "          DruidJoinRel(joinType=[INNER], leftKeys=[1, 2], rightKeys=[0, 1], outputColumns=[1, 2, 0, 5])\n"
       + "            DruidQueryRel(table=[druid.partsupp], scanFilter=[AND(IS NOT NULL($2), IS NOT NULL($3))], scanProject=[$0, $2, $3])\n"
+      + "            DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(SEARCH($11, Sarg[['1994-01-01'..'1995-01-01')]:CHAR(10)), IS NOT NULL($7), IS NOT NULL($14))], scanProject=[$7, $14, $8], group=[{0, 1}], agg#0=[SUM($2)])\n"
       + "        DruidQueryRel(table=[druid.part], scanFilter=[AND(LIKE($4, 'forest%'), IS NOT NULL($5))], scanProject=[$5], group=[{0}])\n";
 
   public static final Object[][] TPCH20_RESULT = {{"Supplier#000000025", "RCQKONXMFnrodzz6w7fObFVV6CUm2q"}};
@@ -2782,12 +2791,13 @@ public class TpchTest extends TpchTestHelper
       + "    DruidQueryRel(table=[druid.orders], scanFilter=[IS NOT NULL($2)], scanProject=[$2], group=[{0}], aggregateProject=[$0, true])\n";
 
   public static final String TPCH22_EXPLAIN_JR =
-      "DruidOuterQueryRel(scanFilter=[AND(>($1, $2), IS NULL($3))], scanProject=[SUBSTR($0, 1, 2), $1], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
-      + "  DruidJoinRel(joinType=[INNER], outputColumns=[4, 2, 5, 1])\n"
-      + "    DruidJoinRel(joinType=[RIGHT], leftKeys=[0], rightKeys=[1])\n"
-      + "      DruidQueryRel(table=[druid.orders], scanFilter=[IS NOT NULL($2)], scanProject=[$2], group=[{0}], aggregateProject=[$0, true])\n"
-      + "      DruidQueryRel(table=[druid.customer], scanFilter=[OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17'))], scanProject=[$0, $3, $7])\n"
-      + "    DruidQueryRel(table=[druid.customer], scanFilter=[AND(>($0, 0.00:DECIMAL(3, 2)), OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17')))], scanProject=[$0], EXPR$0=[AVG($0)])\n";
+      "DruidOuterQueryRel(scanFilter=[IS NULL($2)], scanProject=[SUBSTR($0, 1, 2), $1], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
+      + "  DruidJoinRel(joinType=[RIGHT], leftKeys=[0], rightKeys=[1], outputColumns=[4, 2, 1])\n"
+      + "    DruidQueryRel(table=[druid.orders], scanFilter=[IS NOT NULL($2)], scanProject=[$2], group=[{0}], aggregateProject=[$0, true])\n"
+      + "    DruidOuterQueryRel(scanFilter=[>($0, $3)])\n"
+      + "      DruidJoinRel(joinType=[INNER])\n"
+      + "        DruidQueryRel(table=[druid.customer], scanFilter=[OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17'))], scanProject=[$0, $3, $7])\n"
+      + "        DruidQueryRel(table=[druid.customer], scanFilter=[AND(>($0, 0.00:DECIMAL(3, 2)), OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17')))], scanProject=[$0], EXPR$0=[AVG($0)])\n";
 
   public static final Object[][] TPCH22_RESULT = {
       {"13", 5L, 37676.7D},

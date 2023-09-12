@@ -28,6 +28,7 @@ import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.DruidFilterableTableScanRule;
 import io.druid.sql.calcite.rule.DruidJoinProjectRule;
+import io.druid.sql.calcite.rule.DruidMetaQueryRule;
 import io.druid.sql.calcite.rule.DruidProjectableTableScanRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
@@ -56,8 +57,6 @@ import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.RelFactories;
-import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
-import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.rel.rules.DateRangeRules;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
@@ -76,6 +75,7 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.function.Predicate;
 
 public class Rules
 {
@@ -213,13 +213,12 @@ public class Rules
 
   public static List<Program> programs(QueryMaker queryMaker)
   {
-    PlannerContext context = queryMaker.getPlannerContext();
-    return ImmutableList.of(druidPrograms(context, queryMaker));
+    return ImmutableList.of(druidPrograms(queryMaker));
   }
 
-  private static Program druidPrograms(PlannerContext plannerContext, QueryMaker queryMaker)
+  private static Program druidPrograms(QueryMaker queryMaker)
   {
-    PlannerConfig config = plannerContext.getPlannerConfig();
+    PlannerConfig config = queryMaker.getPlannerConfig();
 
     List<Program> programs = Lists.newArrayList();
     programs.add(Programs.subQuery(DruidMetadataProvider.INSTANCE));  // uses minRow/maxRow/uniqueKey
@@ -241,18 +240,10 @@ public class Rules
     if (config.isUseJoinReordering()) {
       // from Programs.heuristicJoinOrder
       Program program = Programs.sequence(
-          hepProgram(DruidMetadataProvider.INSTANCE, HepMatchOrder.BOTTOM_UP, CoreRules.JOIN_TO_MULTI_JOIN),
-          hepProgram(DruidMetadataProvider.INSTANCE, CoreRules.MULTI_JOIN_OPTIMIZE)
+          hepProgram(HepMatchOrder.BOTTOM_UP, CoreRules.JOIN_TO_MULTI_JOIN),
+          hepProgram(CoreRules.MULTI_JOIN_OPTIMIZE)
       );
-      programs.add((planner, rel, traits, materializations, lattices) -> {
-        DruidMetadataProvider.CONTEXT.set(queryMaker);
-        try {
-          return RelOptUtil.countJoins(rel) > 1 ? program.run(planner, rel, traits, materializations, lattices) : rel;
-        }
-        finally {
-          DruidMetadataProvider.CONTEXT.remove();
-        }}
-      );
+      programs.add(runWithContext(queryMaker, program, rel -> RelOptUtil.countJoins(rel) > 1));
     }
     programs.add(hepProgram(
         CoreRules.PROJECT_MERGE,
@@ -282,12 +273,18 @@ public class Rules
     // collation is removed by rel builder (AggregateExpandDistinctAggregatesRule, AggregateCaseToFilterRule, etc.)
     programs.add(hepProgram(SET_COLLATION_ON_AGGREGATE));
 
-    programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
+    programs.add(druidProgram(queryMaker));
 
     programs.add(hepProgram(DruidJoinProjectRule.INSTANCE));
 
-    Program program = Programs.sequence(programs.toArray(new Program[0]));
-    return config.isDumpPlan() ? Dump.wrap(program) : program;
+    if (config.isUseJoinReordering() && config.isUseEstimationQuery()) {
+      // propagate estimations
+      Program program = hepProgram(DruidMetaQueryRule.INSTANCE);
+      programs.add(runWithContext(queryMaker, program, rel -> Utils.countDruidJoins(rel) > 0));
+    }
+
+    Program sequence = Programs.sequence(programs.toArray(new Program[0]));
+    return config.isDumpPlan() ? Dump.wrap(sequence) : sequence;
   }
 
   private static final EnumSet<SqlKind> ALLOWED =  EnumSet.of(SqlKind.INPUT_REF, SqlKind.OTHER_FUNCTION, SqlKind.LIKE);
@@ -302,24 +299,27 @@ public class Rules
     return hepProgram(HepMatchOrder.TOP_DOWN, rules);
   }
 
-  private static Program hepProgram(RelMetadataProvider provider, RelOptRule... rules)
-  {
-    return hepProgram(provider, HepMatchOrder.TOP_DOWN, rules);
-  }
-
   private static Program hepProgram(HepMatchOrder order, RelOptRule... rules)
-  {
-    return hepProgram(DefaultRelMetadataProvider.INSTANCE, order, rules);
-  }
-
-  private static Program hepProgram(RelMetadataProvider provider, HepMatchOrder order, RelOptRule... rules)
   {
     HepProgram program = new HepProgramBuilder()
         .addMatchOrder(order)
         .addRuleCollection(Arrays.asList(rules))
         .addMatchLimit(HEP_DEFAULT_MATCH_LIMIT)
         .build();
-    return Programs.of(program, DAG, provider);
+    return Programs.of(program, DAG, DruidMetadataProvider.INSTANCE);
+  }
+
+  private static Program runWithContext(QueryMaker context, Program program, Predicate<RelNode> predicate)
+  {
+    return (planner, rel, traits, materializations, lattices) -> {
+      DruidMetadataProvider.CONTEXT.set(context);
+      try {
+        return predicate.test(rel) ? program.run(planner, rel, traits, materializations, lattices) : rel;
+      }
+      finally {
+        DruidMetadataProvider.CONTEXT.remove();
+      }
+    };
   }
 
   private static Program relLogProgram(final String subject)
@@ -376,10 +376,23 @@ public class Rules
     }
   }
 
-  private static List<RelOptRule> druidConventionRuleSet(PlannerContext plannerContext, QueryMaker queryMaker)
+  private static Program druidProgram(QueryMaker queryMaker)
   {
     List<RelOptRule> rules = Lists.newArrayList();
-    rules.addAll(baseRuleSet(plannerContext));
+    // Calcite rules.
+    rules.addAll(DEFAULT_RULES);
+    rules.addAll(CONSTANT_REDUCTION_RULES);
+    rules.addAll(ABSTRACT_RELATIONAL_RULES);
+    rules.addAll(ABSTRACT_RULES);
+
+    if (queryMaker.getPlannerConfig().isUseJoinReordering()) {
+      rules.remove(JoinPushThroughJoinRule.RIGHT);
+      rules.remove(JoinPushThroughJoinRule.LEFT);
+    }
+
+    rules.add(SortCollapseRule.instance());
+    rules.add(ProjectAggregatePruneUnusedCallRule.instance());
+
     rules.add(new DruidFilterableTableScanRule(queryMaker));
     rules.add(new DruidProjectableTableScanRule(queryMaker));
     rules.add(new DruidTableScanRule(queryMaker));
@@ -389,28 +402,6 @@ public class Rules
     rules.addAll(DruidRules.RULES);
     rules.add(DruidRelToDruidRule.instance());
 
-    return ImmutableList.copyOf(rules);
-  }
-
-  private static List<RelOptRule> baseRuleSet(PlannerContext plannerContext)
-  {
-    final PlannerConfig plannerConfig = plannerContext.getPlannerConfig();
-    final List<RelOptRule> rules = Lists.newArrayList();
-
-    // Calcite rules.
-    rules.addAll(DEFAULT_RULES);
-    rules.addAll(CONSTANT_REDUCTION_RULES);
-    rules.addAll(ABSTRACT_RELATIONAL_RULES);
-    rules.addAll(ABSTRACT_RULES);
-
-    if (plannerConfig.isUseJoinReordering()) {
-      rules.remove(JoinPushThroughJoinRule.RIGHT);
-      rules.remove(JoinPushThroughJoinRule.LEFT);
-    }
-
-    rules.add(SortCollapseRule.instance());
-    rules.add(ProjectAggregatePruneUnusedCallRule.instance());
-
-    return rules;
+    return Programs.ofRules(rules);
   }
 }

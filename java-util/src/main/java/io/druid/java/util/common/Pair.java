@@ -17,12 +17,12 @@ package io.druid.java.util.common;
 import com.google.common.base.Function;
 
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  */
 public class Pair<T1, T2>
 {
-  
   public static <T1, T2> Pair<T1, T2> of(T1 lhs, T2 rhs) {
     return new Pair<>(lhs, rhs);
   }
@@ -48,22 +48,13 @@ public class Pair<T1, T2>
 
     Pair pair = (Pair) o;
 
-    if (lhs != null ? !lhs.equals(pair.lhs) : pair.lhs != null) {
-      return false;
-    }
-    if (rhs != null ? !rhs.equals(pair.rhs) : pair.rhs != null) {
-      return false;
-    }
-
-    return true;
+    return Objects.equals(lhs, pair.lhs) && Objects.equals(rhs, pair.rhs);
   }
 
   @Override
   public int hashCode()
   {
-    int result = lhs != null ? lhs.hashCode() : 0;
-    result = 31 * result + (rhs != null ? rhs.hashCode() : 0);
-    return result;
+    return Objects.hash(lhs, rhs);
   }
 
   @Override

@@ -379,6 +379,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             List<Object[]> values = Sequences.toList(sequence);
             if (!(array instanceof MaterializedQuery)) {
               segmentWalker.register(right, MaterializedQuery.of(array, sequence.columns(), values));
+              LOG.debug("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
             }
             values = Lists.transform(values, GuavaUtils.mapper(rightColumns, rightJoinColumns));
             Pair<DimFilter, RowExploder> converted = SemiJoinFactory.extract(
@@ -407,6 +408,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             List<Object[]> values = Sequences.toList(sequence);
             if (!(array instanceof MaterializedQuery)) {
               segmentWalker.register(left, MaterializedQuery.of(array, sequence.columns(), values));
+              LOG.debug("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
             }
             values = Lists.transform(values, GuavaUtils.mapper(leftColumns, leftJoinColumns));
             Pair<DimFilter, RowExploder> converted = SemiJoinFactory.extract(
@@ -450,13 +452,13 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           List<Object[]> values = Sequences.toList(sequence);
           if (!(query0 instanceof MaterializedQuery)) {
             segmentWalker.register(left, MaterializedQuery.of(query0, sequence.columns(), values).withSchema(signature));
+            LOG.debug("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
           }
-          LOG.debug("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
           boolean applyfilter = false;
           if (element.isInnerJoin() && leftEstimated.moreSelective(rightEstimated)) {
             if (leftEstimated.lt(rightEstimated) && DataSources.isDataLocalFilterable(query1, rightJoinColumns)) {
               applyfilter = true;
-              LOG.debug("-- %s:%s (L) will be applied as filter to %s (R)", leftAlias, leftEstimated, rightAlias);
+              LOG.debug("-- %s:%s (L) will be applied as local filter to %s (R)", leftAlias, leftEstimated, rightAlias);
             } else if (rightEstimated.gt(bloomFilterThreshold) && query0.hasFilters() && DataSources.isFilterableOn(query1, rightJoinColumns) && !element.isCrossJoin()) {
               RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
               BloomKFilter bloom = BloomFilterAggregator.build(resolver, leftJoinColumns, values.size(), values);
@@ -488,13 +490,13 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           List<Object[]> values = Sequences.toList(sequence);
           if (!(query1 instanceof MaterializedQuery)) {
             segmentWalker.register(right, MaterializedQuery.of(query1, sequence.columns(), values).withSchema(signature));
+            LOG.debug("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
           }
-          LOG.debug("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
           boolean applyfilter = false;
           if (element.isInnerJoin() && rightEstimated.moreSelective(leftEstimated)) {
             if (rightEstimated.lt(leftEstimated) && DataSources.isDataLocalFilterable(query0, leftJoinColumns)) {
               applyfilter = true;
-              LOG.debug("-- %s:%s (R) will be applied as filter to %s (L)", rightAlias, rightEstimated, leftAlias);
+              LOG.debug("-- %s:%s (R) will be applied as local filter to %s (L)", rightAlias, rightEstimated, leftAlias);
             } else if (leftEstimated.gt(bloomFilterThreshold) && query1.hasFilters() && DataSources.isFilterableOn(query0, leftJoinColumns)) {
               RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
               BloomKFilter bloom = BloomFilterAggregator.build(resolver, rightJoinColumns, values.size(), values);
@@ -637,7 +639,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             LOG.debug("-- .. with forced filter from %s (L) to %s (R) + %s", leftAlias, rightAlias, filter);
             MaterializedQuery materialized = MaterializedQuery.of(query0, sequence.columns(), values);
             queries.set(i, segmentWalker.register(left, materialized));
-            queries.set(i + 1, DimFilters.and((FilterSupport) query1, filter));
+            queries.set(i + 1, Estimations.mergeSelectivity(DimFilters.and((FilterSupport) query1, filter), leftEstimated.selectivity));
           }
         }
         if (!rightBloomed &&
@@ -650,7 +652,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             DimFilter filter = new ForcedFilter(leftJoinColumns, values, GuavaUtils.indexOf(outputColumns, rightJoinColumns));
             LOG.debug("-- .. with forced filter from %s (R) to %s (L) + %s", rightAlias, leftAlias, filter);
             MaterializedQuery materialized = MaterializedQuery.of(query1, sequence.columns(), values);
-            queries.set(i, DimFilters.and((FilterSupport) query0, filter));
+            queries.set(i, Estimations.mergeSelectivity(DimFilters.and((FilterSupport) query0, filter), rightEstimated.selectivity));
             queries.set(i + 1, query = segmentWalker.register(right, materialized));
           }
         }

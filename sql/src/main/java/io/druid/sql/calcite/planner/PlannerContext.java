@@ -171,6 +171,16 @@ public class PlannerContext
     return ImmutableMap.copyOf(queryContext);
   }
 
+  public Map<String, Object> copyQueryContext(Map<String, Object> override)
+  {
+    if (override.isEmpty()) {
+      return copyQueryContext();
+    }
+    Map<String, Object> context = Maps.newHashMap(queryContext);
+    context.putAll(override);
+    return context;
+  }
+
   public AuthenticationResult getAuthenticationResult()
   {
     return authenticationResult;

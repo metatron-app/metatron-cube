@@ -58,6 +58,7 @@ import org.apache.calcite.util.Util;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -151,6 +152,11 @@ public class PartialDruidQuery
       relWriter.item("sortProject", StringUtils.join(sortProject.getProjects(), ", "));
     }
     return relWriter;
+  }
+
+  public boolean hasHaving()
+  {
+    return aggregate != null && aggregateFilter != null;
   }
 
   public enum Operator
@@ -664,6 +670,7 @@ public class PartialDruidQuery
       final DataSource dataSource,
       final RowSignature sourceRowSignature,
       final PlannerContext plannerContext,
+      final Map<String, Object> contextOverride,
       final RexBuilder rexBuilder,
       final boolean finalizeAggregations
   )
@@ -673,6 +680,7 @@ public class PartialDruidQuery
         dataSource,
         sourceRowSignature,
         plannerContext,
+        contextOverride,
         rexBuilder,
         finalizeAggregations
     );
@@ -866,7 +874,11 @@ public class PartialDruidQuery
   public String toString()
   {
     StringBuilder builder = new StringBuilder();
+    if (scan.getTable() != null) {
+      builder.append("scan=").append(scan.getTable().getQualifiedName());
+    }
     if (scanFilter != null) {
+      if (builder.length() > 0) builder.append(", ");
       builder.append("scanFilter=").append(scanFilter.getCondition());
     }
     if (scanProject != null) {

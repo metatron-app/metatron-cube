@@ -61,10 +61,7 @@ public class PlannerConfig
   private DateTimeZone sqlTimeZone = DateTimeZone.UTC;
 
   @JsonProperty
-  private boolean estimateSelectivity = false;
-
-  @JsonProperty
-  private boolean estimateCardinality = false;
+  private boolean useEstimationQuery = false;
 
   public int getMaxTopNLimit()
   {
@@ -111,14 +108,9 @@ public class PlannerConfig
     return sqlTimeZone;
   }
 
-  public boolean isEstimateSelectivity()
+  public boolean isUseEstimationQuery()
   {
-    return estimateSelectivity;
-  }
-
-  public boolean isEstimateCardinality()
-  {
-    return estimateCardinality;
+    return useEstimationQuery;
   }
 
   public PlannerConfig withOverrides(final Map<String, Object> context)
@@ -145,8 +137,7 @@ public class PlannerConfig
     newConfig.dumpPlan = getContextBoolean(context, CTX_KEY_DUMP_PLAN, isDumpPlan());
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
-    newConfig.estimateSelectivity = isEstimateSelectivity();
-    newConfig.estimateCardinality = isEstimateCardinality();
+    newConfig.useEstimationQuery = isUseEstimationQuery();
     return newConfig;
   }
 
@@ -187,8 +178,7 @@ public class PlannerConfig
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone) &&
-           estimateSelectivity == that.estimateSelectivity &&
-           estimateCardinality == that.estimateCardinality;
+           useEstimationQuery == that.useEstimationQuery;
   }
 
   @Override
@@ -204,8 +194,7 @@ public class PlannerConfig
         requireTimeCondition,
         dumpPlan,
         sqlTimeZone,
-        estimateSelectivity,
-        estimateCardinality
+        useEstimationQuery
     );
   }
 
@@ -222,8 +211,7 @@ public class PlannerConfig
            ", requireTimeCondition=" + requireTimeCondition +
            ", dumpPlan=" + dumpPlan +
            ", sqlTimeZone=" + sqlTimeZone +
-           ", estimateSelectivity=" + estimateSelectivity +
-           ", estimateCardinality=" + estimateCardinality +
+           ", useEstimationQuery=" + useEstimationQuery +
            '}';
   }
 }

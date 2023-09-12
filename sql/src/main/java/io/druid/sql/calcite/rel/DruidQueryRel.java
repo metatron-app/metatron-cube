@@ -20,7 +20,9 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import io.druid.query.DataSource;
+import io.druid.query.Estimations;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.plan.Convention;
@@ -36,6 +38,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
 import javax.annotation.Nonnull;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -46,6 +49,7 @@ public class DruidQueryRel extends DruidRel
   private final RelOptTable table;
   private final DruidTable druidTable;
   private final PartialDruidQuery partialQuery;
+  private final Map<String, Object> contextOverride;
 
   private DruidQueryRel(
       final RelOptCluster cluster,
@@ -53,12 +57,14 @@ public class DruidQueryRel extends DruidRel
       final RelOptTable table,
       final DruidTable druidTable,
       final PartialDruidQuery partialQuery,
+      final Map<String, Object> contextOverride,
       final QueryMaker queryMaker
   )
   {
     super(cluster, traitSet, queryMaker);
     this.table = Preconditions.checkNotNull(table, "table");
     this.druidTable = Preconditions.checkNotNull(druidTable, "druidTable");
+    this.contextOverride = contextOverride;
     this.partialQuery = Preconditions.checkNotNull(partialQuery, "partialQuery");
   }
 
@@ -78,6 +84,7 @@ public class DruidQueryRel extends DruidRel
         table,
         druidTable,
         PartialDruidQuery.create(scanRel, queryMaker.getPlannerContext()),
+        ImmutableMap.of(),
         queryMaker
     );
   }
@@ -90,6 +97,7 @@ public class DruidQueryRel extends DruidRel
         druidTable.getDataSource(),
         druidTable.getRowSignature(),
         getPlannerContext(),
+        contextOverride,
         getCluster().getRexBuilder(),
         finalizeAggregations
     );
@@ -104,6 +112,7 @@ public class DruidQueryRel extends DruidRel
         table,
         druidTable,
         partialQuery,
+        contextOverride,
         queryMaker
     );
   }
@@ -129,6 +138,20 @@ public class DruidQueryRel extends DruidRel
         table,
         druidTable,
         newQueryBuilder,
+        contextOverride,
+        queryMaker
+    );
+  }
+
+  public DruidQueryRel withContextOverride(Map<String, Object> contextOverride)
+  {
+    return new DruidQueryRel(
+        getCluster(),
+        getTraitSet(),
+        table,
+        druidTable,
+        partialQuery,
+        contextOverride,
         queryMaker
     );
   }
@@ -151,10 +174,35 @@ public class DruidQueryRel extends DruidRel
     return partialQuery.getRowType();
   }
 
+  public DruidQueryRel propagateEstimates(RelMetadataQuery mq)
+  {
+    Double rc = mq.getRowCount(getLeafRel());
+    Double rs = mq.getSelectivity(getLeafRel(), null);
+    if (rc != null && rs != null) {
+      LOG.debug("--- %s = %.2f + %.2f", partialQuery, rc, rs);
+      return withContextOverride(Estimations.propagate(rc.longValue(), rs.floatValue()));
+    }
+    return this;
+  }
+
+  public static boolean appendEstimates(DruidQueryRel query)
+  {
+    return query.contextOverride.isEmpty() && !query.partialQuery.hasHaving();    // todo
+  }
+
+  @Override
+  public void explain(RelWriter pw)
+  {
+    // to conform test explain results
+    partialQuery.explainTerms(pw.item("table", Utils.qualifiedTableName(table)))
+                .done(this);
+  }
+
   @Override
   public RelWriter explainTerms(RelWriter pw)
   {
-    return partialQuery.explainTerms(pw.item("table", Utils.qualifiedTableName(table)));
+    return partialQuery.explainTerms(pw.item("table", Utils.qualifiedTableName(table)))
+                       .itemIf("context", contextOverride.keySet(), !contextOverride.isEmpty());
   }
 
   @Override

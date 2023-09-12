@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rule;
 
 import io.druid.sql.calcite.rel.DruidQueryRel;
+import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.DruidValuesRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.DruidTable;
@@ -35,7 +36,7 @@ public class DruidTableScanRule extends RelOptRule
 
   public DruidTableScanRule(final QueryMaker queryMaker)
   {
-    super(operand(LogicalTableScan.class, any()));
+    super(DruidRel.operand(LogicalTableScan.class));
     this.queryMaker = queryMaker;
   }
 
