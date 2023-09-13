@@ -225,6 +225,12 @@ public class JoinElement
   }
 
   @JsonIgnore
+  public int groupKeys()
+  {
+    return leftJoinColumns.size();
+  }
+
+  @JsonIgnore
   public boolean isCrossJoin()
   {
     return leftJoinColumns.isEmpty();

@@ -64,6 +64,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.SemiJoinFactory;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -710,40 +711,50 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
   }
 
   // todo convert back to JoinQuery and rewrite
-  public static List<Query> changeHashing(
-      List<JoinElement> elements,
-      List<Query> queries,
-      int ix,
-      QuerySegmentWalker segmentWalker
-  )
+  public static List<Query> filterMerged(JoinHolder holder, List<Query> queries, int ix, QuerySegmentWalker walker)
   {
+    JoinElement element = holder.getElements().get(0);
+    if (queries.size() != 2 || !element.isInnerJoin()) {
+      return queries;   // todo
+    }
     Query<?> query0 = queries.get(ix);
     if (JoinQuery.isHashing(query0)) {
       return queries;
     }
-    int current = JoinQuery.getCardinality(query0);
-    int iy = Iterables.indexOf(queries, q -> JoinQuery.isHashing(q) && JoinQuery.getCardinality(q) > current);
-    if (iy < 0 || Math.abs(ix - iy) != 1 || !elements.get(Math.min(ix, iy)).isInnerJoin()) {
+    int iy = ix == 0 ? 1 : 0;
+    Query<?> query1 = queries.get(iy);
+    int cardinality0 = JoinQuery.getCardinality(query0);
+    int cardinality1 = JoinQuery.getCardinality(query1);
+
+    if (cardinality0 < 0 || cardinality1 < 0) {
       return queries;
     }
-    JoinElement element = elements.get(Math.min(ix, iy));
-    Query<?> query1 = queries.get(iy);
-    LOG.debug(
-        "--- reassigned 'hashing' to %s:%d (was %s:%d)", query0.alias(), current, query1.alias(), JoinQuery.getCardinality(query1)
-    );
-    int semiJoinThrehold = segmentWalker.getConfig().getSemiJoinThreshold(query0);
-    int cardinality = JoinQuery.getCardinality(query0);
-    if (semiJoinThrehold > 0 && cardinality < semiJoinThrehold) {
-      List<String> joinColumn0 = ix < iy ? element.getLeftJoinColumns() : element.getRightJoinColumns();
-      List<String> joinColumn1 = ix < iy ? element.getRightJoinColumns() : element.getLeftJoinColumns();
+
+    QueryConfig config = walker.getConfig();
+    if (cardinality0 >= cardinality1 || cardinality0 > config.getHashJoinThreshold(query0)) {
+      return queries;
+    }
+
+    if (JoinQuery.isHashing(query1)) {
+      LOG.debug("--- reassigning 'hashing' to %s:%d (was %s:%d)", query0.alias(), cardinality0, query1.alias(), cardinality1);
+    } else {
+      LOG.debug("--- assigning 'hashing' to %s:%d.. disabling sort-merge join", query0.alias(), cardinality0);
+    }
+    query0 = disableSort(query0, element.getLeftJoinColumns());
+    query1 = disableSort(query1, element.getRightJoinColumns());
+
+    int semiJoinThrehold = config.getSemiJoinThreshold(query0);
+    if (semiJoinThrehold > 0 && cardinality0 <= semiJoinThrehold) {
+      List<String> joinColumn0 = ix == 0 ? element.getLeftJoinColumns() : element.getRightJoinColumns();
+      List<String> joinColumn1 = ix == 0 ? element.getRightJoinColumns() : element.getLeftJoinColumns();
       if (DataSources.isDataNodeSourced(query0) && DataSources.isFilterableOn(query1, joinColumn1)) {
         List<String> outputColumns = query0.estimatedOutputColumns();
         if (outputColumns != null) {
-          Sequence<Object[]> sequence = QueryRunners.resolveAndRun((ArrayOutputSupport) query0, segmentWalker);
+          Sequence<Object[]> sequence = QueryRunners.resolveAndRun((ArrayOutputSupport) query0, walker);
           List<Object[]> values = Sequences.toList(sequence);
           query0 = MaterializedQuery.of(query0, sequence.columns(), values);
           Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, joinColumn0));
-          query1 = DataSources.applyFilter(query1, SemiJoinFactory.from(joinColumn1, keys.iterator()), -1, segmentWalker);
+          query1 = DataSources.applyFilter(query1, SemiJoinFactory.from(joinColumn1, keys.iterator()), -1, walker);
           LOG.debug("--- %s:%d (hash) is applied as filter to %s", query0.alias(), values.size(), query1.alias());
         }
       }
@@ -751,6 +762,25 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     queries.set(ix, query0.withOverriddenContext(JoinQuery.HASHING, true));
     queries.set(iy, query1.withOverriddenContext(JoinQuery.HASHING, null));
     return queries;
+  }
+
+  private static Query<?> disableSort(Query<?> query, List<String> joinKey)
+  {
+    if (!JoinQuery.isSorting(query)) {
+      return query;
+    }
+    if (query instanceof StreamQuery) {
+      StreamQuery stream = (StreamQuery) query;
+      if (OrderByColumnSpec.ascending(joinKey).equals(stream.getOrderingSpecs())) {
+        query = stream.withOrderingSpec(null);
+      }
+    } else if (query instanceof OrderingSupport) {
+      OrderingSupport ordering = (OrderingSupport) query;
+      if (OrderByColumnSpec.ascending(joinKey).equals(ordering.getResultOrdering())) {
+        query = ordering.withResultOrdering(null);    // todo: seemed not working
+      }
+    }
+    return query.withOverriddenContext(JoinQuery.SORTING, null);
   }
 
   private static Factory bloom(
@@ -1054,8 +1084,8 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         // best effort
         JoinPostProcessor proc = PostProcessingOperators.find(processor, JoinPostProcessor.class);
         JoinElement element = proc.getElements()[0];
-        Query<Object[]> query0 = getQueries().get(0);
-        Query<Object[]> query1 = getQueries().get(1);
+        Query<Object[]> query0 = getQuery(0);
+        Query<Object[]> query1 = getQuery(1);
         boolean hashing0 = JoinQuery.isHashing(query0);
         boolean hashing1 = JoinQuery.isHashing(query1);
         if (hashing0 && hashing1) {

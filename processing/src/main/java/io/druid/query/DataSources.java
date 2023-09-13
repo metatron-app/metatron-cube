@@ -323,7 +323,7 @@ public class DataSources
         if (applied != null) {
           List<Query> rewritten = Lists.newArrayList(holder.getQueries());
           rewritten.set(i, applied);
-          return holder.withQueries(JoinQuery.changeHashing(holder.getElements(), rewritten, i, segmentWalker));
+          return holder.withQueries(JoinQuery.filterMerged(holder, rewritten, i, segmentWalker));
         }
       }
     }

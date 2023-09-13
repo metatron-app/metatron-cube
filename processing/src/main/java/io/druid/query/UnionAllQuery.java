@@ -254,6 +254,11 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     throw new IllegalStateException();
   }
 
+  public Query<T> getQuery(int ix)
+  {
+    return queries != null ? queries.get(ix) : ix == 0 ? query : null;
+  }
+
   public UnionAllQuery withQueries(List<Query> queries)
   {
     return newInstance(null, GuavaUtils.cast(queries), parallelism, getContext());
