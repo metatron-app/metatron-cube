@@ -142,9 +142,13 @@ public class PostProcessingOperators
     return query.withOverriddenContext(append(query.getContext(), Query.LOCAL_POST_PROCESSING, processor));
   }
 
-  public static Map<String, Object> appendLocal(Map<String, Object> context, PostProcessingOperator processor)
+  public static Iterable<PostProcessingOperator> getLocals(Query<?> query)
   {
-    return append(context, Query.LOCAL_POST_PROCESSING, processor);
+    PostProcessingOperator operator = query.getContextValue(Query.LOCAL_POST_PROCESSING);
+    if (operator instanceof ListPostProcessingOperator) {
+      return ((ListPostProcessingOperator<?>) operator).getProcessors();
+    }
+    return operator == null ? Arrays.asList() : Arrays.asList(operator);
   }
 
   private static Map<String, Object> append(

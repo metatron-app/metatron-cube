@@ -789,15 +789,21 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
   )
   {
     DimFilter filter = removeTrivials(removeFactory(BaseQuery.getDimFilter(source)), sourceJoinOn);
-    if (filter != null &&
-        DataSources.isDataNodeSourced(source) &&
-        source.getContextValue(Query.LOCAL_POST_PROCESSING) == null) {
-      // this is evaluated in UnionQueryRunner
-      List<DimensionSpec> extracted = DataSources.findFilterableOn(target, targetJoinOn, q -> !Queries.isNestedQuery(q));
-      if (extracted != null) {
-        ViewDataSource view = BaseQuery.asView(source, filter, sourceJoinOn);
-        return Factory.fields(extracted, view, Ints.checkedCast(sourceCardinality));
+    if (filter == null || !DataSources.isDataNodeSourced(source)) {
+      return null;
+    }
+    if (source.getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+      Query view = source.withOverriddenContext(Query.LOCAL_POST_PROCESSING, null);
+      List<String> outputColumns = view.estimatedOutputColumns();
+      if (outputColumns == null || !outputColumns.containsAll(sourceJoinOn)) {
+        return null;
       }
+    }
+    List<DimensionSpec> extracted = DataSources.findFilterableOn(target, targetJoinOn, q -> !Queries.isNestedQuery(q));
+    if (extracted != null) {
+      // bloom factory will be evaluated in UnionQueryRunner
+      ViewDataSource view = BaseQuery.asView(source, filter, sourceJoinOn);
+      return Factory.fields(extracted, view, Ints.checkedCast(sourceCardinality));
     }
     return null;
   }
