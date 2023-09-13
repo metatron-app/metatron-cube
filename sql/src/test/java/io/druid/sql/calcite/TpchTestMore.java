@@ -397,4 +397,30 @@ public class TpchTestMore extends CalciteQueryTestHelper
         expected
     );
   }
+
+  @Test
+  public void tpch4303() throws Exception
+  {
+    JoinQueryConfig join = walker.getQueryConfig().getJoin();
+    join.setHashJoinThreshold(10);
+    join.setSemiJoinThreshold(100000);
+    join.setBroadcastJoinThreshold(51);     // supplier + 1
+    join.setBloomFilterThreshold(100);
+    join.setForcedFilterHugeThreshold(5000);
+    join.setForcedFilterTinyThreshold(100);
+
+    testQuery(JOIN_REORDERING_WITH_E, TpchTest.TPCH9, TpchTest.TPCH9_EXPLAIN_JR, TpchTest.TPCH9_RESULT);
+
+    hook.verifyHooked(
+        "yagI3dFx9lsFWvgBabA15w==",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY]}",
+        "StreamQuery{dataSource='part', filter=P_NAME LIKE '%plum%', columns=[P_PARTKEY]}",
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier, leftJoinColumns=[S_NATIONKEY], rightAlias=nation, rightJoinColumns=[N_NATIONKEY]}, hashLeft=false, hashSignature={N_NAME:string, N_NATIONKEY:string}}}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='orders', columns=[O_ORDERKEY, v0], virtualColumns=[ExprVirtualColumn{expression='YEAR(O_ORDERDATE)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='O_ORDERKEY', direction=ascending}]}, CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=BloomDimFilter.Factory{bloomSource=$view:lineitem[L_SUPPKEY, L_PARTKEY](InDimFilter{dimension='L_PARTKEY', values=[104, 118, 181, 186, 194, 209, 219, 263, 264, 275, ..39 more]}), fields=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='PS_SUPPKEY'}, DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop, maxNumEntries=1479}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], orderingSpecs=[OrderByColumnSpec{dimension='PS_SUPPKEY', direction=ascending}, OrderByColumnSpec{dimension='PS_PARTKEY', direction=ascending}]}, StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[104, 118, 181, 186, 194, 209, 219, 263, 264, 275, ..39 more]}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], orderingSpecs=[OrderByColumnSpec{dimension='L_SUPPKEY', direction=ascending}, OrderByColumnSpec{dimension='L_PARTKEY', direction=ascending}], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem+part, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string, N_NAME:string}}}], timeColumnName=__time}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='N_NAME', outputName='d0'}, DefaultDimensionSpec{dimension='v0', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='((L_EXTENDEDPRICE * (1 - L_DISCOUNT)) - (PS_SUPPLYCOST * L_QUANTITY))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=descending}], limit=-1}, outputColumns=[d0, d1, a0]}",
+        "TimeseriesQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[104, 118, 181, 186, 194, 209, 219, 263, 264, 275, ..39 more]}, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[L_SUPPKEY, L_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=1479}]}",
+        "StreamQuery{dataSource='partsupp', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='PS_SUPPKEY'}, DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], orderingSpecs=[OrderByColumnSpec{dimension='PS_SUPPKEY', direction=ascending}, OrderByColumnSpec{dimension='PS_PARTKEY', direction=ascending}]}",
+        "StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[104, 118, 181, 186, 194, 209, 219, 263, 264, 275, ..39 more]}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], orderingSpecs=[OrderByColumnSpec{dimension='L_SUPPKEY', direction=ascending}, OrderByColumnSpec{dimension='L_PARTKEY', direction=ascending}], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem+part, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier+nation, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:string, N_NAME:string}}}",
+        "StreamQuery{dataSource='orders', columns=[O_ORDERKEY, v0], virtualColumns=[ExprVirtualColumn{expression='YEAR(O_ORDERDATE)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='O_ORDERKEY', direction=ascending}]}"
+    );
+  }
 }

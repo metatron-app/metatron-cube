@@ -244,7 +244,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
   {
     public BloomTestAggregator(List<DimensionSelector> selectorList, int[][] groupings)
     {
-      super(null, selectorList, groupings, false);
+      super(null, selectorList, groupings, true);
     }
 
     @Override
