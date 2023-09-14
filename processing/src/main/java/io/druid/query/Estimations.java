@@ -229,12 +229,8 @@ public class Estimations
 
   private static Estimation estimationFromContext(Query<?> query)
   {
-    int cardinality = JoinQuery.getCardinality(query);
-    if (cardinality >= 0) {
-      float selectivity = JoinQuery.getSelectivity(query);
-      return new Estimation(cardinality, selectivity);
-    }
-    return null;
+    int rc = JoinQuery.getRowCount(query);
+    return rc < 0 ? null : Estimation.of(rc, JoinQuery.getSelectivity(query));
   }
 
   public static long joinEstimation(JoinElement element, Estimation leftEstimated, Estimation rightEstimated)

@@ -73,6 +73,11 @@ public class DataSources
     return Iterables.getOnlyElement(dataSource.getNames());
   }
 
+  public static Query getNestedQuery(DataSource dataSource)
+  {
+    return dataSource instanceof QueryDataSource ? ((QueryDataSource) dataSource).getQuery() : null;
+  }
+
   public static boolean isFilterSupport(DataSource dataSource)
   {
     return dataSource instanceof ViewDataSource || isFromQuery(dataSource, q -> q instanceof FilterSupport);
@@ -167,12 +172,12 @@ public class DataSources
 
   public static boolean isBroadcasting(DataSource ds)
   {
-    return ds instanceof QueryDataSource && isBroadcasting(((QueryDataSource) ds).getQuery());
+    return isBroadcasting(getNestedQuery(ds));
   }
 
   public static boolean isBroadcasting(Query<?> query)
   {
-    return query.getContextValue(Query.LOCAL_POST_PROCESSING) != null;
+    return query != null && query.getContextValue(Query.LOCAL_POST_PROCESSING) != null;
   }
 
   public static boolean isDataLocalFilterable(Query<?> query, List<String> joinColumns)
@@ -297,7 +302,7 @@ public class DataSources
   )
   {
     if (query.getDataSource() instanceof QueryDataSource) {
-      Query<Object> nested = ((QueryDataSource) query.getDataSource()).getQuery();
+      Query<?> nested = getNestedQuery(query.getDataSource());
       Query applied = applyFilter(nested, filter, selectivity, dependents, segmentWalker);
       if (applied != null) {
         return query.withDataSource(QueryDataSource.of(applied));
@@ -323,7 +328,9 @@ public class DataSources
         if (applied != null) {
           List<Query> rewritten = Lists.newArrayList(holder.getQueries());
           rewritten.set(i, applied);
-          return holder.withQueries(JoinQuery.filterMerged(holder, rewritten, i, segmentWalker));
+          return holder.withQueries(
+              JoinQuery.filterMerged(holder.getElement(i), rewritten, i, i == 0 ? 1 : i - 1, segmentWalker)
+          );
         }
       }
     }

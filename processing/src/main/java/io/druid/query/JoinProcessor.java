@@ -20,7 +20,6 @@
 package io.druid.query;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -786,44 +785,21 @@ public class JoinProcessor
     if (right.size() == 1) {
       return Iterators.singletonIterator(concat(left, right.get(0), revert));
     }
-    return Iterators.transform(right.iterator(), new Function<Object[], Object[]>()
-    {
-      @Override
-      public Object[] apply(Object[] right)
-      {
-        return concat(left, right, revert);
-      }
-    });
+    return Iterators.transform(right.iterator(), row -> concat(left, row, revert));
   }
 
   private Iterator<Object[]> lo(final Iterator<Object[]> left, final int right)
   {
-    return Iterators.transform(
-        left, new Function<Object[], Object[]>()
-        {
-          @Override
-          public Object[] apply(Object[] row)
-          {
-            return Arrays.copyOf(row, row.length + right);
-          }
-        }
-    );
+    return Iterators.transform(left, row -> Arrays.copyOf(row, row.length + right));
   }
 
   private Iterator<Object[]> ro(final int left, final Iterator<Object[]> right)
   {
-    return Iterators.transform(
-        right, new Function<Object[], Object[]>()
-        {
-          @Override
-          public Object[] apply(Object[] row)
-          {
-            Object[] concat = new Object[left + row.length];
-            System.arraycopy(row, 0, concat, left, row.length);
-            return concat;
-          }
-        }
-    );
+    return Iterators.transform(right, row -> {
+      Object[] concat = new Object[left + row.length];
+      System.arraycopy(row, 0, concat, left, row.length);
+      return concat;
+    });
   }
 
   private static Object[] concat(final Object[] left, final Object[] right, final boolean revert)

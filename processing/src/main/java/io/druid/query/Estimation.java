@@ -146,10 +146,9 @@ public class Estimation
     return this;
   }
 
-  public Estimation degrade()
+  public float sqrt()
   {
-    selectivity = degrade(selectivity);
-    return this;
+    return (float) Math.sqrt(selectivity);  // pessimistic
   }
 
   public static float degrade(float selectivity)
