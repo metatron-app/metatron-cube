@@ -328,6 +328,29 @@ public class Sequences
            concat(sequences.get(0).columns(), simple(sequences));
   }
 
+  public static Sequence<Object[]> repeat(Object[] v, int exploded)
+  {
+    if (exploded == 1) {
+      return Sequences.simple(v);
+    }
+    return Sequences.once(new Iterator<Object[]>()
+    {
+      private int index;
+
+      @Override
+      public boolean hasNext()
+      {
+        return index < exploded;
+      }
+
+      @Override
+      public Object[] next()
+      {
+        return index++ == 0 ? v : Arrays.copyOf(v, v.length);
+      }
+    });
+  }
+
   public static <From, To> Sequence<To> explode(Sequence<From> sequence, Function<From, Sequence<To>> fn)
   {
     return concat(sequence.columns(), map(sequence, fn));

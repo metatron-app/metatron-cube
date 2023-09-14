@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
@@ -218,9 +219,11 @@ public class QueryRunners
     return runner.run(query, Maps.<String, Object>newHashMap());
   }
 
-  public static <T> Sequence<Object[]> runArray(Query.ArrayOutputSupport<T> query, QueryRunner<T> runner)
+  @SuppressWarnings("unchecked")
+  public static Sequence<Object[]> runArray(Query query, QueryRunner runner)
   {
-    return query.array(runner.run(query, Maps.<String, Object>newHashMap()));
+    Preconditions.checkArgument(query instanceof Query.ArrayOutputSupport, "?? %s", query.getId());
+    return ((Query.ArrayOutputSupport) query).array(runner.run(query, Maps.<String, Object>newHashMap()));
   }
 
   // only for QueryRunnerFactory.mergeRunners (see using Query.estimatedInitialColumns)

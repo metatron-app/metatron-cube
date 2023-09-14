@@ -162,13 +162,17 @@ public class SemiJoinFactory
   }
 
   public static Pair<DimFilter, RowExploder> extract(
-      List<String> fieldNames, Iterable<Object[]> sequence, boolean allowDuplication
+      List<String> fieldNames, Iterable<Object[]> sequence, boolean allowDuplication, List<String> projection
   )
   {
-    return allowDuplication ? Pair.of(from(fieldNames, sequence), null) : extract(fieldNames, sequence);
+    return allowDuplication ? Pair.of(from(fieldNames, sequence), null) : extract(fieldNames, sequence, projection);
   }
 
-  private static Pair<DimFilter, RowExploder> extract(List<String> fieldNames, Iterable<Object[]> sequence)
+  private static Pair<DimFilter, RowExploder> extract(
+      List<String> fieldNames,
+      Iterable<Object[]> sequence,
+      List<String> projection
+  )
   {
     Hasher hasher = Hashing.murmur3_128().newHasher();
     try {
@@ -180,11 +184,12 @@ public class SemiJoinFactory
           mapping.computeInt(key, (k, v) -> v == null ? 1 : v + 1);
           hasher.putUnencodedChars(key);
         }
+        String fieldName = fieldNames.get(0);
         ImmutableList<String> values = ImmutableList.copyOf(mapping.keySet());
-        DimFilter filter = new InDimFilter(fieldNames.get(0), null, values, hasher.hash().asBytes());
+        DimFilter filter = new InDimFilter(fieldName, null, values, hasher.hash().asBytes());
         Map<String, Integer> duplications = Maps.newHashMap(Maps.filterEntries(mapping, e -> e.getValue() > 1));
         if (!duplications.isEmpty()) {
-          return Pair.of(filter, new RowExploder(fieldNames, duplications, null));
+          return Pair.of(filter, RowExploder.of(fieldName, duplications, projection));
         }
         return Pair.of(filter, null);
       } else {
@@ -203,9 +208,9 @@ public class SemiJoinFactory
           }
         }
         DimFilter filter = new InDimsFilter(fieldNames, valuesList, hasher.hash().asBytes());
-        StringArray.IntMap duplications = new StringArray.IntMap(Maps.filterEntries(mapping, e -> e.getValue() > 1));
+        StringArray.ToIntMap duplications = new StringArray.ToIntMap(Maps.filterEntries(mapping, e -> e.getValue() > 1));
         if (!duplications.isEmpty()) {
-          return Pair.of(filter, new RowExploder(fieldNames, null, duplications));
+          return Pair.of(filter, RowExploder.of(fieldNames, duplications, projection));
         }
         return Pair.of(filter, null);
       }

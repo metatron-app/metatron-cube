@@ -384,11 +384,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             }
             values = Lists.transform(values, GuavaUtils.mapper(rightColumns, rightJoinColumns));
             Pair<DimFilter, RowExploder> converted = SemiJoinFactory.extract(
-                leftJoinColumns, values, JoinElement.allowDuplication(left, leftJoinColumns)
+                leftJoinColumns, values, JoinElement.allowDuplication(left, leftJoinColumns), outputColumns
             );
-            DataSource filtered = DataSources.applyFilterAndProjection(
-                left, converted.lhs, rightEstimated.selectivity, outputColumns, converted.rhs == null, segmentWalker
-            );
+            DataSource filtered = DataSources.applyFilter(left, converted.lhs, rightEstimated.selectivity, segmentWalker);
+            if (converted.rhs == null) {
+              filtered = DataSources.applyProjection(filtered, outputColumns);
+            }
             LOG.debug("-- %s:%s (R) is merged into %s (L) as filter on %s", rightAlias, rightEstimated, leftAlias, leftJoinColumns);
             Query query = JoinElement.toQuery(segmentWalker, filtered, segmentSpec, propagated);
             if (converted.rhs != null) {
@@ -413,11 +414,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             }
             values = Lists.transform(values, GuavaUtils.mapper(leftColumns, leftJoinColumns));
             Pair<DimFilter, RowExploder> converted = SemiJoinFactory.extract(
-                rightJoinColumns, values, JoinElement.allowDuplication(right, rightJoinColumns)
+                rightJoinColumns, values, JoinElement.allowDuplication(right, rightJoinColumns), outputColumns
             );
-            DataSource filtered = DataSources.applyFilterAndProjection(
-                right, converted.lhs, leftEstimated.selectivity, outputColumns, converted.rhs == null, segmentWalker
-            );
+            DataSource filtered = DataSources.applyFilter(right, converted.lhs, leftEstimated.selectivity, segmentWalker);
+            if (converted.rhs == null) {
+              filtered = DataSources.applyProjection(filtered, outputColumns);
+            }
             LOG.debug("-- %s:%s (L) is merged into %s (R) as filter on %s", leftAlias, leftEstimated, rightAlias, rightJoinColumns);
             Query query = JoinElement.toQuery(segmentWalker, filtered, segmentSpec, propagated);
             if (converted.rhs != null) {

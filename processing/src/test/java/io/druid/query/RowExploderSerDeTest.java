@@ -38,28 +38,32 @@ public class RowExploderSerDeTest
   @Test
   public void testSerde() throws IOException
   {
-    List<String> columns = Arrays.asList("abc");
+    String column = "abc";
     Map<String, Integer> exploder = ImmutableMap.of("aaa", 1, "bbb", 2);
-    RowExploder processor = new RowExploder(columns, exploder, null);
+    List<String> outputColumns = Arrays.asList("xxx");
+    RowExploder processor = RowExploder.of(column, exploder, outputColumns);
     String string = MAPPER.writeValueAsString(processor);
 
     RowExploder op = (RowExploder) MAPPER.readValue(string, PostProcessingOperator.class);
-    Assert.assertEquals(columns, op.getColumns());
+    Assert.assertEquals(Arrays.asList(column), op.getKeys());
     Assert.assertEquals(exploder, op.getExploder());
+    Assert.assertEquals(outputColumns, op.getOutputColumns());
   }
 
   @Test
   public void testSerdeM() throws IOException
   {
-    List<String> columns = Arrays.asList("abc");
+    List<String> columns = Arrays.asList("abc", "def");
     Map<StringArray, Integer> exploderM = ImmutableMap.of(
         StringArray.of(new String[] {"aaa", "zzz"}), 1, StringArray.of(new String[] {"bbb", "kkk"}), 2
     );
-    RowExploder processor = new RowExploder(columns, null, new StringArray.IntMap(exploderM));
+    List<String> outputColumns = Arrays.asList("xxx");
+    RowExploder processor = RowExploder.of(columns, new StringArray.ToIntMap(exploderM), outputColumns);
     String string = MAPPER.writeValueAsString(processor);
 
     RowExploder op = (RowExploder) MAPPER.readValue(string, PostProcessingOperator.class);
-    Assert.assertEquals(columns, op.getColumns());
+    Assert.assertEquals(columns, op.getKeys());
     Assert.assertEquals(exploderM, op.getExploderM());
+    Assert.assertEquals(outputColumns, op.getOutputColumns());
   }
 }

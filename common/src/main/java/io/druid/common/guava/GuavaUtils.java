@@ -413,7 +413,7 @@ public class GuavaUtils
 
   public static int[] indexOf(List<String> list, List<String> indexing)
   {
-    return indexOf(list, indexing, false);
+    return list == null || indexing == null ? null : indexOf(list, indexing, false);
   }
 
   public static int[] indexOf(List<String> list, List<String> indexing, boolean assertExistence)
@@ -706,15 +706,33 @@ public class GuavaUtils
 
   public static Function<Object[], Object[]> mapper(final int[] indices)
   {
-    return input -> {
-      final Object[] output = new Object[indices.length];
-      for (int i = 0; i < indices.length; i++) {
-        if (indices[i] >= 0) {
-          output[i] = input[indices[i]];
-        }
+    return input -> map(input, indices);
+  }
+
+  public static Object[] map(Object[] input, int[] indices)
+  {
+    if (indices == null) {
+      return input;
+    }
+    final Object[] output = new Object[indices.length];
+    for (int i = 0; i < indices.length; i++) {
+      if (indices[i] >= 0) {
+        output[i] = input[indices[i]];
       }
-      return output;
-    };
+    }
+    return output;
+  }
+
+  public static <T> List<T> map(List<T> input, int[] indices)
+  {
+    if (indices == null) {
+      return input;
+    }
+    final List<T> output = Lists.newArrayListWithCapacity(indices.length);
+    for (int i = 0; i < indices.length; i++) {
+      output.add(indices[i] >= 0 ? input.get(indices[i]) : null);
+    }
+    return output;
   }
 
   public static boolean startsWith(List<String> target, List<String> starts)

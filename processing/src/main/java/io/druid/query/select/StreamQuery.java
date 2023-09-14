@@ -297,7 +297,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @JsonIgnore
-  public boolean isView()
+  public boolean viewLike()
   {
     return outputColumns == null
            && limitSpec.isNoop()

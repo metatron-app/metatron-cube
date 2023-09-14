@@ -441,6 +441,13 @@ public class RowSignature implements TypeResolver
     return RowSignature.of(columns, GuavaUtils.transform(columns, name -> resolve(name, ValueDesc.UNKNOWN)));
   }
 
+  public RowSignature projection(int[] projection)
+  {
+    Builder builder = new Builder();
+    Arrays.stream(projection).forEach(ix -> builder.append(columnName(ix), columnType(ix)));
+    return builder.build();
+  }
+
   public RowSignature concat(RowSignature other)
   {
     return RowSignature.of(

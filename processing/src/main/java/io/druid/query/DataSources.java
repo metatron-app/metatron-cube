@@ -88,18 +88,6 @@ public class DataSources
     return dataSource instanceof QueryDataSource && predicate.apply(((QueryDataSource) dataSource).getQuery());
   }
 
-  public static DataSource applyFilterAndProjection(
-      DataSource dataSource,
-      DimFilter filter,
-      float selectivity,
-      List<String> projection,
-      boolean localize,
-      QuerySegmentWalker segmentWalker
-  )
-  {
-    return applyProjection(applyFilter(dataSource, filter, selectivity, segmentWalker), projection, localize);
-  }
-
   public static DataSource applyFilter(DataSource dataSource, DimFilter filter, float selectivity, QuerySegmentWalker segmentWalker)
   {
     if (dataSource instanceof ViewDataSource) {
@@ -124,7 +112,7 @@ public class DataSources
     throw new ISE("Not filter support %s", dataSource);
   }
 
-  private static DataSource applyProjection(DataSource dataSource, List<String> projection, boolean localize)
+  public static DataSource applyProjection(DataSource dataSource, List<String> projection)
   {
     final List<String> sourceColumns = Preconditions.checkNotNull(DataSources.getOutputColumns(dataSource));
     if (sourceColumns.equals(projection)) {
@@ -133,7 +121,7 @@ public class DataSources
     if (dataSource instanceof QueryDataSource) {
       final Query query = ((QueryDataSource) dataSource).getQuery();
       final RowSignature schema = ((QueryDataSource) dataSource).getSchema();
-      if (localize && query instanceof StreamQuery && ((StreamQuery) query).isView()) {
+      if (query instanceof StreamQuery && ((StreamQuery) query).viewLike()) {
         // special handling
         final PostProcessingOperator processor = (PostProcessingOperator) query.getContextValue(Query.LOCAL_POST_PROCESSING);
         if (processor == null) {

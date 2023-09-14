@@ -2672,7 +2672,7 @@ public class TpchTest extends TpchTestHelper
 
     if (semiJoin) {
       hook.verifyHooked(
-          "nE+p1pNu5jJnl7k1fhbyvA==",
+          "fWjhgDPTZeM0GkYrtBug3g==",
           "StreamQuery{dataSource='orders', filter=O_ORDERSTATUS=='F', columns=[O_ORDERKEY]}",
           "DimensionSamplingQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], sampleRatio=0.050}",
           "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fieldNames=[L_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(a0 > 1)'}, outputColumns=[d0]}",
@@ -2680,8 +2680,8 @@ public class TpchTest extends TpchTestHelper
           "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(L_RECEIPTDATE > L_COMMITDATE)'} && !(L_ORDERKEY==NULL)), aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fieldNames=[L_SUPPKEY], groupingSets=Noop, byRow=true, round=true, b=11}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(a0 == 1)'}, outputColumns=[d0]}",
           "StreamQuery{dataSource='nation', filter=N_NAME=='UNITED STATES', columns=[N_NATIONKEY]}",
           "StreamQuery{dataSource='lineitem', filter=(MathExprFilter{expression='(L_RECEIPTDATE > L_COMMITDATE)'} && InDimFilter{dimension='L_ORDERKEY', values=[10018, 10021, 10022, 10048, 10274, 10305, 10434, 10437, 10438, 10528, ..534 more]}), columns=[L_SUPPKEY]}",
-          "GroupByQuery{dataSource='StreamQuery{dataSource='supplier', filter=(S_NATIONKEY=='24' && InDimFilter{dimension='S_SUPPKEY', values=[1, 10, 11, 12, 13, 14, 15, 16, 17, 18, ..40 more]}), columns=[S_NAME, S_SUPPKEY], outputColumns=[S_NAME], localPostProcessing=RowExplodeProcessor{columns=[S_SUPPKEY]}}', dimensions=[DefaultDimensionSpec{dimension='S_NAME', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='a0', direction=descending}, OrderByColumnSpec{dimension='d0', direction=ascending}], limit=100}, outputColumns=[d0, a0]}",
-          "StreamQuery{dataSource='supplier', filter=(S_NATIONKEY=='24' && InDimFilter{dimension='S_SUPPKEY', values=[1, 10, 11, 12, 13, 14, 15, 16, 17, 18, ..40 more]}), columns=[S_NAME, S_SUPPKEY], outputColumns=[S_NAME], localPostProcessing=RowExplodeProcessor{columns=[S_SUPPKEY]}}"
+          "GroupByQuery{dataSource='StreamQuery{dataSource='supplier', filter=(S_NATIONKEY=='24' && InDimFilter{dimension='S_SUPPKEY', values=[1, 10, 11, 12, 13, 14, 15, 16, 17, 18, ..40 more]}), columns=[S_NAME, S_SUPPKEY], localPostProcessing=RowExplodeProcessor{keys=[S_SUPPKEY], outputColumns=[S_NAME]}}', dimensions=[DefaultDimensionSpec{dimension='S_NAME', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='a0', direction=descending}, OrderByColumnSpec{dimension='d0', direction=ascending}], limit=100}, outputColumns=[d0, a0]}",
+          "StreamQuery{dataSource='supplier', filter=(S_NATIONKEY=='24' && InDimFilter{dimension='S_SUPPKEY', values=[1, 10, 11, 12, 13, 14, 15, 16, 17, 18, ..40 more]}), columns=[S_NAME, S_SUPPKEY], localPostProcessing=RowExplodeProcessor{keys=[S_SUPPKEY], outputColumns=[S_NAME]}}"
       );
     } else {
       if (broadcastJoin) {

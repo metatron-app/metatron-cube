@@ -284,11 +284,11 @@ public class DruidDefaultSerializersModule extends SimpleModule
     );
 
     addSerializer(
-        StringArray.IntMap.class,
-        new JsonSerializer<StringArray.IntMap>()
+        StringArray.ToIntMap.class,
+        new JsonSerializer<StringArray.ToIntMap>()
         {
           @Override
-          public void serialize(StringArray.IntMap map, JsonGenerator jgen, SerializerProvider provider) throws IOException
+          public void serialize(StringArray.ToIntMap map, JsonGenerator jgen, SerializerProvider provider) throws IOException
           {
             jgen.writeStartObject();
             jgen.writeFieldName("k");
@@ -300,11 +300,11 @@ public class DruidDefaultSerializersModule extends SimpleModule
         }
     );
     addDeserializer(
-        StringArray.IntMap.class,
-        new JsonDeserializer<StringArray.IntMap>()
+        StringArray.ToIntMap.class,
+        new JsonDeserializer<StringArray.ToIntMap>()
         {
           @Override
-          public StringArray.IntMap deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
+          public StringArray.ToIntMap deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
           {
             Preconditions.checkArgument(jp.getCurrentToken() == JsonToken.START_OBJECT);
             Preconditions.checkArgument(jp.nextToken() == JsonToken.FIELD_NAME);
@@ -315,6 +315,7 @@ public class DruidDefaultSerializersModule extends SimpleModule
             Preconditions.checkArgument(jp.getText().equals("v"));
             jp.nextToken();
             int[] values = jp.readValueAs(int[].class);
+            jp.nextToken();
             return StringArray.zip(keys, values);
           }
         }

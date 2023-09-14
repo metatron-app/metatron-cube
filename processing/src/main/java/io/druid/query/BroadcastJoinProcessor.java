@@ -31,7 +31,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.BulkRow;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.SemiJoinFactory;
 
@@ -157,8 +156,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map response)
       {
+        // only works with stream query, for now
         Preconditions.checkArgument(query instanceof Query.ArrayOutputSupport, "?? %s", query);
-        Query.ArrayOutputSupport arrayQuery = (Query.ArrayOutputSupport) query;   // currently, stream query only
 
         List<String> leftAlias = Arrays.asList(element.getLeftAlias());
         List<String> rightAlias = Arrays.asList(element.getRightAlias());
@@ -168,7 +167,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         List<List<String>> names;
         LOG.info("Preparing broadcast join %s + %s", leftAlias, rightAlias);
 
-        boolean stringAsRaw = config.useUTF8(arrayQuery);
+        boolean stringAsRaw = config.useUTF8(query);
         Sequence<BulkRow> rows = Sequences.simple(hashSignature.getColumnNames(), deserializeValue(mapper, values));
         Sequence<Object[]> hashing = Sequences.explode(rows, bulk -> Sequences.once(bulk.decompose(stringAsRaw)));
 
@@ -177,8 +176,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
           List<Object[]> materialized = Sequences.toList(hashing);
           List<String> filterOn = hashLeft ? rightJoinColumns : leftJoinColumns;
           int[] indices = GuavaUtils.indexOf(rows.columns(), hashLeft ? leftJoinColumns : rightJoinColumns);
-          DimFilter filter = SemiJoinFactory.from(filterOn, materialized.iterator(), indices);
-          arrayQuery = (Query.ArrayOutputSupport) DimFilters.and(arrayQuery, filter);
+          query = DimFilters.and(query, SemiJoinFactory.from(filterOn, materialized.iterator(), indices));
           hashing = Sequences.from(hashing.columns(), materialized);
           if (hashLeft) {
             LOG.info("-- %s:%d (L) is applied as filter to %s (R)", leftAlias, materialized.size(), rightAlias);
@@ -187,7 +185,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
           }
         }
 
-        Sequence<Object[]> queried = QueryRunners.runArray(arrayQuery, baseRunner);
+        Sequence<Object[]> queried = QueryRunners.runArray(query, baseRunner);
 
         List<String> hashColumns = hashing.columns();
         List<String> queryColumns = queried.columns();

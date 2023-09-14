@@ -71,20 +71,20 @@ public class StringArray extends ObjectArray<String>
     return array;
   }
 
-  public static IntMap zip(List<StringArray> keys, int[] values)
+  public static ToIntMap zip(List<StringArray> keys, int[] values)
   {
-    IntMap mapping = new IntMap();
+    ToIntMap mapping = new ToIntMap();
     for (int i = 0; i < keys.size(); i++) {
       mapping.put(keys.get(i), values[i]);
     }
     return mapping;
   }
 
-  public static class IntMap extends HashMap<StringArray, Integer>
+  public static class ToIntMap extends HashMap<StringArray, Integer>
   {
-    public IntMap() {}
+    public ToIntMap() {}
 
-    public IntMap(java.util.Map<StringArray, Integer> m)
+    public ToIntMap(java.util.Map<StringArray, Integer> m)
     {
       super(m);
     }
