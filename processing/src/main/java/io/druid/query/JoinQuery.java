@@ -434,9 +434,13 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       }
 
       // try broadcast join
-      if (i == 0 && broadcastThreshold > 0 && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
-        boolean leftBroadcast = joinType.isRightDrivable() && leftEstimated.lte(broadcastThreshold) && !segmentWalker.cached(right);
-        boolean rightBroadcast = joinType.isLeftDrivable() && rightEstimated.lte(broadcastThreshold) && !segmentWalker.cached(left);
+      if (i == 0 && !element.isCrossJoin() && broadcastThreshold > 0) {
+        boolean leftBroadcast = joinType.isRightDrivable() && DataSources.isDataNodeSourced(right) &&
+                                leftEstimated.lte(rightEstimated.estimated << 2) &&
+                                leftEstimated.lte(adjust(broadcastThreshold, left, right));
+        boolean rightBroadcast = joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left) &&
+                                 rightEstimated.lte(leftEstimated.estimated << 2) &&
+                                 rightEstimated.lte(adjust(broadcastThreshold, right, left));
         if (leftBroadcast && rightBroadcast) {
           if (leftExpensive(left, leftEstimated, right, rightEstimated)) {
             leftBroadcast = false;
@@ -462,7 +466,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             if (leftEstimated.lt(rightEstimated) && DataSources.isDataLocalFilterable(query1, rightJoinColumns)) {
               applyfilter = true;
               LOG.debug("-- %s:%s (L) will be applied as local filter to %s (R)", leftAlias, leftEstimated, rightAlias);
-            } else if (rightEstimated.gt(bloomFilterThreshold) && query0.hasFilters() && DataSources.isFilterableOn(query1, rightJoinColumns) && !element.isCrossJoin()) {
+            } else if (rightEstimated.gt(bloomFilterThreshold) && query0.hasFilters() && DataSources.isFilterableOn(query1, rightJoinColumns)) {
               RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
               BloomKFilter bloom = BloomFilterAggregator.build(resolver, leftJoinColumns, values.size(), values);
               query1 = DataSources.applyFilter(
@@ -549,6 +553,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           if (outputColumns != null) {
             Sequence<Object[]> sequence = QueryRunners.resolveAndRun((ArrayOutputSupport) query, segmentWalker);
             List<Object[]> values = Sequences.toList(sequence);
+            LOG.debug("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
             Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, leftJoinColumns));
             right = DataSources.applyFilter(
                 right, SemiJoinFactory.from(rightJoinColumns, keys.iterator()), leftEstimated.selectivity, segmentWalker
@@ -582,6 +587,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         if (outputColumns != null) {
           Sequence<Object[]> sequence = QueryRunners.resolveAndRun((ArrayOutputSupport) query, segmentWalker);
           List<Object[]> values = Sequences.toList(sequence);
+          LOG.debug("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
           Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, rightJoinColumns));
           left = DataSources.applyFilter(
               left, SemiJoinFactory.from(leftJoinColumns, keys.iterator()), rightEstimated.selectivity, segmentWalker
@@ -707,10 +713,15 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     );
   }
 
+  private static long adjust(long threshold, DataSource materializing, DataSource current)
+  {
+    return (long) (threshold * DataSources.roughCost(current) / DataSources.roughCost(materializing));
+  }
+
   private static boolean leftExpensive(DataSource ds0, Estimation estimation0, DataSource ds1, Estimation estimation1)
   {
     if (Estimation.delta(estimation0, estimation1) < Estimation.max(estimation0, estimation1) * 0.1f) {
-      return DataSources.cost(ds0) >= DataSources.cost(ds1);
+      return DataSources.roughCost(ds0) >= DataSources.roughCost(ds1);
     }
     return estimation0.gt(estimation1);
   }

@@ -190,9 +190,9 @@ public class PostProcessingOperators
     return processors.size() == 1 ? processors.get(0) : new ListPostProcessingOperator(processors);
   }
 
-  public static int count(Query<?> query)
+  public static double roughCost(Query<?> query)
   {
-    return count(query, Query.POST_PROCESSING) + count(query, Query.LOCAL_POST_PROCESSING);
+    return count(query, Query.POST_PROCESSING) + count(query, Query.LOCAL_POST_PROCESSING) / 2f;
   }
 
   private static int count(Query<?> query, String key)

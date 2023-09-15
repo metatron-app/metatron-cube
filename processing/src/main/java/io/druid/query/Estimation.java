@@ -153,7 +153,7 @@ public class Estimation
 
   public static float degrade(float selectivity)
   {
-    return Math.min(1f, selectivity * 1.2f);
+    return Math.min(1f, selectivity * 1.1f);
   }
 
   private static float normalize(float selectivity)

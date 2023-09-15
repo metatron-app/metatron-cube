@@ -34,7 +34,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.filter.Filters;
 
@@ -191,10 +190,10 @@ public class DataSources
   }
 
   // just for ordering
-  public static double cost(DataSource source)
+  public static double roughCost(DataSource source)
   {
     if (source instanceof QueryDataSource) {
-      return cost(((QueryDataSource) source).getQuery());
+      return roughCost(((QueryDataSource) source).getQuery());
     }
     if (source instanceof ViewDataSource || source instanceof TableDataSource) {
       return 1;
@@ -202,20 +201,18 @@ public class DataSources
     return 100; // ??
   }
 
-  private static double cost(Query<?> query)
+  private static double roughCost(Query<?> query)
   {
     if (query instanceof MaterializedQuery) {
       return 0;
     }
-    double base = cost(query.getDataSource()) + PostProcessingOperators.count(query);
-    base += DimFilters.cost(BaseQuery.getDimFilter(query));
+    double base = roughCost(query.getDataSource()) + PostProcessingOperators.roughCost(query);
     if (query instanceof BaseAggregationQuery) {
-      return base + Math.pow(2, BaseQuery.getDimensions(query).size());
+      return base + Math.pow(1.5, BaseQuery.getDimensions(query).size());
     } else if (query instanceof StreamQuery) {
-      List<OrderByColumnSpec> ordering = ((StreamQuery) query).getOrderingSpecs();
-      return base + (ordering.isEmpty() ? 0 : 2);
+      return base + (((StreamQuery) query).getOrderingSpecs().isEmpty() ? 0 : 2);
     } else if (query instanceof UnionAllQuery) {
-      return base + ((UnionAllQuery<?>) query).getQueries().stream().mapToDouble(q -> cost(q)).sum();
+      return base + ((UnionAllQuery<?>) query).getQueries().stream().mapToDouble(q -> roughCost(q)).sum();
     }
     return 100;
   }
@@ -316,9 +313,8 @@ public class DataSources
         if (applied != null) {
           List<Query> rewritten = Lists.newArrayList(holder.getQueries());
           rewritten.set(i, applied);
-          return holder.withQueries(
-              JoinQuery.filterMerged(holder.getElement(i), rewritten, i, i == 0 ? 1 : i - 1, segmentWalker)
-          );
+          JoinQuery.filterMerged(holder.getElement(i), rewritten, i, i == 0 ? 1 : i - 1, segmentWalker);
+          return rewritten.size() == 1 ? rewritten.get(0) : holder.withQueries(rewritten);
         }
       }
     }
