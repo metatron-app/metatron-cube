@@ -98,7 +98,7 @@ public class Estimations
       QuerySegmentWalker segmentWalker
   )
   {
-    Estimation estimation = estimationFromContext(query);
+    Estimation estimation = Estimation.from(query);
     if (estimation != null) {
       return estimation;
     }
@@ -108,7 +108,7 @@ public class Estimations
       if (query instanceof TimeseriesQuery) {
         estimated.update(Queries.estimateCardinality((TimeseriesQuery) query, segmentWalker)[0]);
       } else if (query instanceof GroupByQuery || query instanceof TopNQuery) {
-        estimated.update(x -> (long) (x * (1 - Math.pow(0.4, BaseQuery.getDimensions(query).size()))));
+        estimated.update(x -> (long) (x * (1 - Math.pow(0.6, BaseQuery.getDimensions(query).size()))));
       }
       return applyLimit(estimated, query);
     }
@@ -205,47 +205,33 @@ public class Estimations
     }
   }
 
-  public static Query propagate(Query<?> query, long estimation, float selectivity)
+  public static Query propagate(Query<?> query, Estimation estimation)
   {
-    return query.withOverriddenContext(propagate(query.getContext(), estimation, selectivity));
+    return query.withOverriddenContext(propagate(query.getContext(), estimation));
   }
 
   public static Map<String, Object> propagate(Map<String, Object> context, Estimation estimation)
   {
-    return propagate(context, estimation.estimated, estimation.selectivity);
-  }
-
-  public static Map<String, Object> propagate(Map<String, Object> context, long estimation, float selectivity)
-  {
     return BaseQuery.copyContextForMeta(
-        context, JoinQuery.CARDINALITY, estimation, JoinQuery.SELECTIVITY, Estimation.degrade(selectivity)
+        context, Estimation.ROWNUM, estimation.estimated, Estimation.SELECTIVITY, estimation.selectivity
     );
   }
 
-  public static Map<String, Object> propagate(long estimation, float selectivity)
+  public static Map<String, Object> context(long estimation, float selectivity)
   {
-    return ImmutableMap.of(JoinQuery.CARDINALITY, estimation, JoinQuery.SELECTIVITY, selectivity);
+    return ImmutableMap.of(Estimation.ROWNUM, estimation, Estimation.SELECTIVITY, selectivity);
   }
 
-  private static Estimation estimationFromContext(Query<?> query)
+  public static Estimation join(JoinElement element, Estimation leftEstimated, Estimation rightEstimated)
   {
-    int rc = JoinQuery.getRowCount(query);
-    return rc < 0 ? null : Estimation.of(rc, JoinQuery.getSelectivity(query));
-  }
-
-  public static long joinEstimation(JoinElement element, Estimation leftEstimated, Estimation rightEstimated)
-  {
+    float selectivity = Math.min(leftEstimated.selectivity, rightEstimated.selectivity);
     if (element.isCrossJoin()) {
-      return leftEstimated.estimated * rightEstimated.estimated;
+      return Estimation.of(leftEstimated.estimated * rightEstimated.estimated, selectivity);
     }
     float estimation = 0;
     switch (element.getJoinType()) {
       case INNER:
-        if (leftEstimated.gtt(rightEstimated)) {
-          estimation = leftEstimated.estimated * rightEstimated.selectivity;
-        } else {
-          estimation = rightEstimated.estimated * leftEstimated.selectivity;
-        }
+        estimation = Math.max(leftEstimated.origin(), rightEstimated.origin()) * selectivity;
         break;
       case LO:
         estimation = leftEstimated.estimated;
@@ -257,7 +243,7 @@ public class Estimations
         estimation = leftEstimated.estimated + rightEstimated.estimated;
         break;
     }
-    return Math.max(1, (long) estimation);
+    return Estimation.of(Math.max(1, (long) estimation), selectivity);
   }
 
   public static Query mergeSelectivity(Query<?> query, float selectivity)
@@ -265,11 +251,11 @@ public class Estimations
     if (selectivity < 0) {
       return query;
     }
-    Estimation estimation = estimationFromContext(query);
+    Estimation estimation = Estimation.from(query);
     if (estimation != null && selectivity < estimation.selectivity) {
       Estimation updated = estimation.duplicate().update(selectivity);
-      LOG.debug("--- selectivity %.3f merged into %s(%s to %s)", selectivity, query.getDataSource(), estimation, updated);
-      return propagate(query, updated.estimated, updated.selectivity);
+      LOG.debug("--- selectivity %.4f merged into %s(%s to %s)", selectivity, query.getDataSource(), estimation, updated);
+      return propagate(query, updated);
     }
     return query;
   }

@@ -191,7 +191,8 @@ public class QueryRunners
   public static Sequence<Object[]> resolveAndRun(Query.ArrayOutputSupport<?> query, QuerySegmentWalker segmentWalker)
   {
     Query<?> resolved = QueryUtils.resolveRecursively(query, segmentWalker);
-    return runArray((Query.ArrayOutputSupport) resolved, segmentWalker, Maps.newHashMap());
+    Query<?> rewritten = QueryUtils.rewriteRecursively(resolved, segmentWalker);
+    return runArray((Query.ArrayOutputSupport) rewritten, segmentWalker, Maps.newHashMap());
   }
 
   @SuppressWarnings("unchecked")

@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import io.druid.common.utils.Logs;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.DruidCost;
@@ -64,7 +65,7 @@ public class DruidMetadataProvider
 {
   public static final ThreadLocal<QueryMaker> CONTEXT = new ThreadLocal<>();
 
-  private static final Logger LOG = new Logger(DruidMetadataProvider.class);
+  public static final Logger LOG = new Logger(DruidMetadataProvider.class);
 
   public static final RelMetadataProvider INSTANCE = ChainedRelMetadataProvider.of(
       ImmutableList.of(
@@ -157,6 +158,11 @@ public class DruidMetadataProvider
       return Selectivity.DEF;
     }
 
+    public Double getSelectivity(DruidRel druidRel, RelMetadataQuery mq, RexNode predicate)
+    {
+      return mq.getSelectivity(druidRel.getLeafRel(), predicate);
+    }
+
     public Double getSelectivity(RelSubset rel, RelMetadataQuery mq, RexNode predicate)
     {
       return mq.getSelectivity(rel.stripped(), predicate);
@@ -194,6 +200,11 @@ public class DruidMetadataProvider
       return DistinctRowCount.DEF;
     }
 
+    public Double getDistinctRowCount(DruidRel druidRel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate)
+    {
+      return mq.getDistinctRowCount(druidRel.getLeafRel(), groupKey, predicate);
+    }
+
     public Double getDistinctRowCount(RelSubset rel, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate)
     {
       return mq.getDistinctRowCount(rel.stripped(), groupKey, predicate);
@@ -201,8 +212,8 @@ public class DruidMetadataProvider
 
     public Double getDistinctRowCount(TableScan scan, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate)
     {
-      if (groupKey.cardinality() == 0) {
-        return Double.valueOf(1);
+      if (groupKey.isEmpty()) {
+        return 1D;
       }
       DruidTable table = scan.getTable().unwrap(DruidTable.class);
       if (table == null) {
@@ -235,6 +246,11 @@ public class DruidMetadataProvider
     public MetadataDef<RowCount> getDef()
     {
       return RowCount.DEF;
+    }
+
+    public Double getRowCount(DruidRel druidRel, RelMetadataQuery mq)
+    {
+      return mq.getRowCount(druidRel.getLeafRel());
     }
 
     public Double getRowCount(Join join, RelMetadataQuery mq)

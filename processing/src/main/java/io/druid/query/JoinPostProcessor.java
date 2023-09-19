@@ -143,11 +143,11 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         for (IntTagged<Callable<JoinAlias>> callable : nonNested) {
           joining[callable.tag] = exec.submit(callable.value);
         }
-        final int estimatedNumRows = JoinQuery.getRowCount(holder);
+        final int rowCount = Estimation.getRowCount(holder);
 
         LOG.debug("Running %d-way join processing %s", joinAliases, toAliases());
         try {
-          JoinResult join = join(joining, estimatedNumRows);
+          JoinResult join = join(joining, rowCount);
           joinQuery.setCollation(join.collations);
 
           List<String> outputAlias = getOutputAlias();
@@ -185,7 +185,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
       return () -> new JoinAlias(aliases, columnNames, joinColumns, indices, Sequences.toIterator(sequence));
     }
     final boolean sorting = JoinQuery.isSorting(source);
-    final int rowCount = JoinQuery.getRowCount(source);
+    final int rowCount = Estimation.getRowCount(source);
     return () -> new JoinAlias(
         aliases, columnNames, joinColumns, sorting ? getCollations(source) : null, indices, Sequences.toIterator(sequence), rowCount
     );

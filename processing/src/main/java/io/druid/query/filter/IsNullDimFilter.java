@@ -156,4 +156,22 @@ public class IsNullDimFilter extends DimFilter.SingleInput implements DimFilter.
       IOUtils.closePropagate(generic);
     }
   }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    return o instanceof IsNullDimFilter && dimension.equals(((IsNullDimFilter)o).dimension);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return dimension.hashCode();
+  }
+
+  @Override
+  public String toString()
+  {
+    return dimension + "==NULL";
+  }
 }

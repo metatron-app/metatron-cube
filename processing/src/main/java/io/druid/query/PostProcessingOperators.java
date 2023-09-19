@@ -192,7 +192,7 @@ public class PostProcessingOperators
 
   public static double roughCost(Query<?> query)
   {
-    return count(query, Query.POST_PROCESSING) + count(query, Query.LOCAL_POST_PROCESSING) / 2f;
+    return count(query, Query.POST_PROCESSING) + count(query, Query.LOCAL_POST_PROCESSING) / 3f;
   }
 
   private static int count(Query<?> query, String key)

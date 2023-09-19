@@ -23,6 +23,9 @@ import it.unimi.dsi.fastutil.longs.Long2LongFunction;
 
 public class Estimation
 {
+  static final String ROWNUM = "$rownum";
+  static final String SELECTIVITY = "$selectivity";
+
   public static Estimation unknown()
   {
     return of(Queries.UNKNOWN, 1f);
@@ -38,6 +41,22 @@ public class Estimation
     return new Estimation(estimated[0], estimated[1] == 0 ? 1f : estimated[0] / (float) estimated[1]);
   }
 
+  public static Estimation from(Query<?> query)
+  {
+    int rc = getRowCount(query);
+    return rc < 0 ? null : of(rc, getSelectivity(query));
+  }
+
+  public static int getRowCount(Query<?> query)
+  {
+    return query.getContextInt(ROWNUM, -1);
+  }
+
+  public static float getSelectivity(Query<?> query)
+  {
+    return query.getContextFloat(SELECTIVITY, 1f);
+  }
+
   long estimated;
   float selectivity;
 
@@ -50,6 +69,11 @@ public class Estimation
   public Estimation duplicate()
   {
     return new Estimation(estimated, selectivity);
+  }
+
+  public float origin()
+  {
+    return estimated / Math.max(0.0001f, selectivity);
   }
 
   public Estimation update(long update)
@@ -88,11 +112,6 @@ public class Estimation
     return Math.abs(estimated - estimation.estimated) < epsilon;
   }
 
-  public boolean gtt(Estimation estimation)
-  {
-    return estimated / Math.max(0.001f, selectivity) > estimation.estimated / Math.max(0.001f, estimation.selectivity);
-  }
-
   public boolean gt(Estimation estimation)
   {
     return estimated > estimation.estimated;
@@ -118,9 +137,11 @@ public class Estimation
     return threshold >= 0 && estimated >= threshold;
   }
 
-  public long multiply(float selectivity)
+  public Estimation multiply(Estimation estimation)
   {
-    return Math.max(1, (long) (estimated * selectivity));
+    estimated = Math.max(1, (long) (estimated * estimation.selectivity));
+    selectivity = Math.min(selectivity, estimation.selectivity);
+    return this;
   }
 
   public static long delta(Estimation left, Estimation right)
@@ -146,14 +167,9 @@ public class Estimation
     return this;
   }
 
-  public float sqrt()
+  public float degrade()
   {
-    return (float) Math.sqrt(selectivity);  // pessimistic
-  }
-
-  public static float degrade(float selectivity)
-  {
-    return Math.min(1f, selectivity * 1.1f);
+    return (float) Math.pow(selectivity, 0.7);  // do pessimistic, I'm not sure on this
   }
 
   private static float normalize(float selectivity)
@@ -164,6 +180,6 @@ public class Estimation
   @Override
   public String toString()
   {
-    return String.format("%d:%.3f", estimated, selectivity);
+    return String.format("%d:%.4f", estimated, selectivity);
   }
 }

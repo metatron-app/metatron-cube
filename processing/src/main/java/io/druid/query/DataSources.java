@@ -35,6 +35,7 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.select.StreamQuery;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.filter.Filters;
 
 import java.util.Arrays;
@@ -198,6 +199,9 @@ public class DataSources
     if (source instanceof ViewDataSource || source instanceof TableDataSource) {
       return 1;
     }
+    if (source instanceof UnionDataSource) {
+      return 0;   // just marker
+    }
     return 100; // ??
   }
 
@@ -207,10 +211,12 @@ public class DataSources
       return 0;
     }
     double base = roughCost(query.getDataSource()) + PostProcessingOperators.roughCost(query);
-    if (query instanceof BaseAggregationQuery) {
-      return base + Math.pow(1.5, BaseQuery.getDimensions(query).size());
+    if (query instanceof TimeseriesQuery) {
+      return base / 4f;
+    } else if (query instanceof BaseAggregationQuery) {
+      return base + 0.3 + (Math.pow(1.2, BaseQuery.getDimensions(query).size()) - 1);
     } else if (query instanceof StreamQuery) {
-      return base + (((StreamQuery) query).getOrderingSpecs().isEmpty() ? 0 : 2);
+      return base + (((StreamQuery) query).getOrderingSpecs().isEmpty() ? 0 : 1);
     } else if (query instanceof UnionAllQuery) {
       return base + ((UnionAllQuery<?>) query).getQueries().stream().mapToDouble(q -> roughCost(q)).sum();
     }

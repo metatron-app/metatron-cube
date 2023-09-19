@@ -34,13 +34,18 @@ public class MaterializedQuery extends DummyQuery<Object[]>
 {
   public static MaterializedQuery of(Query<?> source, List<String> columns, List<Object[]> values)
   {
+    Map<String, Object> context = source.getContext();
+    Estimation estimation = Estimation.from(source);
+    if (estimation != null) {
+      context = Estimations.propagate(context, estimation.update(values.size()));
+    }
     return new MaterializedQuery(
         source.getDataSource(),
         null,
         false,
         Sequences.from(columns, values),
         null,
-        source.getContext()
+        context
     );
   }
 

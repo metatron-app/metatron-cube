@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.query.DataSource;
 import io.druid.query.Estimations;
 import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.planner.DruidMetadataProvider;
 import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -176,11 +177,11 @@ public class DruidQueryRel extends DruidRel
 
   public DruidQueryRel propagateEstimates(RelMetadataQuery mq)
   {
-    Double rc = mq.getRowCount(getLeafRel());
-    Double rs = mq.getSelectivity(getLeafRel(), null);
+    Double rc = mq.getRowCount(this);
+    Double rs = mq.getSelectivity(this, null);
     if (rc != null && rs != null) {
-      LOG.debug("--- %s = %.2f + %.2f", partialQuery, rc, rs);
-      return withContextOverride(Estimations.propagate(rc.longValue(), rs.floatValue()));
+      DruidMetadataProvider.LOG.debug("--> %s = %.2f + %.2f", partialQuery, rc, rs);
+      return withContextOverride(Estimations.context(rc.longValue(), rs.floatValue()));
     }
     return this;
   }

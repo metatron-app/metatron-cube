@@ -97,6 +97,11 @@ public class DimFilters
     return new IsNullDimFilter(dimension);
   }
 
+  public static DimFilter isNotNull(String dimension)
+  {
+    return not(new IsNullDimFilter(dimension));
+  }
+
   private static List<DimFilter> merge(List<DimFilter> fields, DimFilter.OP op)
   {
     final IntList indices = new IntList();
@@ -152,6 +157,9 @@ next:
 
   public static DimFilter and(List<DimFilter> filters)
   {
+    if (filters.isEmpty()) {
+      return null;
+    }
     if (filters.contains(NONE)) {
       return NONE;
     }
@@ -190,6 +198,9 @@ next:
 
   public static DimFilter or(List<DimFilter> filters)
   {
+    if (filters.isEmpty()) {
+      return null;
+    }
     if (filters.contains(ALL)) {
       return ALL;
     }
