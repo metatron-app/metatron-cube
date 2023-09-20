@@ -35,6 +35,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.SemiJoinFactory;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -164,7 +165,6 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         List<String> leftJoinColumns = element.getLeftJoinColumns();
         List<String> rightJoinColumns = element.getRightJoinColumns();
 
-        List<List<String>> names;
         LOG.info("Preparing broadcast join %s + %s", leftAlias, rightAlias);
 
         boolean stringAsRaw = config.useUTF8(query);
@@ -190,16 +190,29 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         List<String> hashColumns = hashing.columns();
         List<String> queryColumns = queried.columns();
 
+        List<List<String>> names = hashLeft ? Arrays.asList(hashColumns, queryColumns) : Arrays.asList(queryColumns, hashColumns);
+
+        Iterator<Object[]> iterator = Sequences.toIterator(queried);
+        if (!iterator.hasNext()) {
+          LOG.info("-- driving alias %s (%s) is empty", hashLeft ? rightAlias : leftAlias, hashLeft ? "R" : "L");
+          if (outputColumns != null) {
+            return Sequences.empty(outputColumns);
+          }
+          List<String> outputAlias = getOutputAlias();
+          if (outputAlias == null) {
+            outputAlias = concatColumnNames(names, prefixAlias ? element.getAliases() : null);
+          }
+          return Sequences.empty(outputAlias);
+        }
+
         JoinAlias left;
         JoinAlias right;
         if (hashLeft) {
           left = toHashAlias(leftAlias, hashColumns, leftJoinColumns, hashing);
-          right = toAlias(rightAlias, queryColumns, rightJoinColumns, query, queried);
-          names = Arrays.asList(hashColumns, queryColumns);
+          right = toAlias(rightAlias, queryColumns, rightJoinColumns, query, iterator);
         } else {
-          left = toAlias(leftAlias, queryColumns, leftJoinColumns, query, queried);
+          left = toAlias(leftAlias, queryColumns, leftJoinColumns, query, iterator);
           right = toHashAlias(rightAlias, hashColumns, rightJoinColumns, hashing);
-          names = Arrays.asList(queryColumns, hashColumns);
         }
         JoinResult join = join(element.getJoinType(), left, right);
 
@@ -231,7 +244,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
           List<String> columns,
           List<String> joinColumns,
           Query<?> query,
-          Sequence<Object[]> queried
+          Iterator<Object[]> queried
       )
       {
         return new JoinAlias(
@@ -240,7 +253,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
             joinColumns,
             getCollations(query),
             GuavaUtils.indexOf(columns, joinColumns, true),
-            Sequences.toIterator(queried),
+            queried,
             -1
         );
       }

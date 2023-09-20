@@ -758,9 +758,6 @@ public class GuavaUtils
 
   public static <F, T> Iterator<T> map(final Iterator<F> iterator, final Function<F, T> function)
   {
-    if (!iterator.hasNext()) {
-      return Iterators.emptyIterator();
-    }
     Iterator<T> mapped = Iterators.transform(iterator, function);
     if (iterator instanceof Closeable) {
       return withResource(mapped, (Closeable) iterator);
