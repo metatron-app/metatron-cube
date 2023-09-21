@@ -125,24 +125,36 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
 
   public void update(DataSegment segment, boolean added)
   {
-    if (!added) {
-      return;   // sure?
-    }
     Supplier<Holder> update = Suppliers.memoize(
         () -> build(segment.getDataSource(), new SpecificSegmentSpec(segment.toDescriptor()), segmentWalker)
     );
-    if (signature != null) {
+    if (signature != null && added) {
       signature = RowSignature.from(signature.merge(update.get().signature));
     }
+
     if (numSegments >= 0) {
-      numSegments += 1;
+      numSegments += added ? 1 : -1;
     }
-    if (descriptors != null && !Objects.equals(update.get().descriptors, descriptors)) {
-      descriptors = null;
+
+    if (descriptors != null) {
+      Map<String, Map<String, String>> updated = update.get().descriptors;
+      for (Map.Entry<String, Map<String, String>> entry : descriptors.entrySet()) {
+        Map<String, String> value = updated.remove(entry.getKey());
+        if (value != null && !value.equals(entry.getValue())) {
+          if (value.size() > entry.getValue().size()) {
+            entry.setValue(value);
+          } else {
+            LOG.info("conflicts on %s (%s vs %s)", entry.getKey(), entry.getValue(), value);
+          }
+        }
+      }
+      descriptors.putAll(updated);
     }
+
     if (statistic != null) {
       final long rowCount = update.get().rowCount;
-      statistic = Statistics.of(statistic.getRowCount() + (added ? rowCount : -rowCount), ImmutableList.of());
+      final long delta = added ? rowCount : -rowCount;
+      statistic = Statistics.of(statistic.getRowCount() + delta, ImmutableList.of());
     }
     if (tenantColumn != null) {
       final List<String> newcomers = getTenants(QuerySegmentSpecs.create(segment.toDescriptor()), tenantColumn);
