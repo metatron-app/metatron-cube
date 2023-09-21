@@ -89,7 +89,7 @@ public interface Column
     ColumnCapabilities capabilities = getCapabilities();
     ValueType valueType = capabilities.getType();
     if (capabilities.isDictionaryEncoded()) {
-      return ValueDesc.ofDimension(valueType);
+      return ValueDesc.ofDimension(valueType, capabilities.hasMultipleValues());
     } else if (!valueType.isPrimitive()) {
       return getCapabilities().getTypeDesc();
     }

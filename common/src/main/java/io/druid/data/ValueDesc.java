@@ -65,11 +65,11 @@ public class ValueDesc implements Serializable, Cacheable
   private static final String INDEXED_ID_PREFIX = "indexed.";
   // this is return type of object selector which can return element type or array of element type,
   // which is trait of dimension
-  private static final String MULTIVALUED_PREFIX = "multivalued.";
+  private static final String MV_TYPE = "mv";
+  private static final String MV_PREFIX = MV_TYPE + ".";
 
-  // prefix of dimension
-  private static final String DIMENSION_TYPE = "dimension";
-  private static final String DIMENSION_PREFIX = DIMENSION_TYPE + ".";
+  public static final String DIMENSION_TYPE = "dimension";
+  public static final String DIMENSION_PREFIX = DIMENSION_TYPE + ".";
 
   // descriptive type
   public static final String MAP_TYPE = "map";
@@ -88,8 +88,10 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static final String TAG_TYPE = "tag";
 
+  public static final String STRING_MV_TYPE = MV_PREFIX + STRING_TYPE;
+
   public static final String STRING_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_TYPE;
-  public static final String STRING_MULTIVALUED_TYPE = MULTIVALUED_PREFIX + STRING_TYPE;
+  public static final String STRING_MV_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_MV_TYPE;
 
   static {
     INTERNER.intern(STRING_TYPE);
@@ -117,7 +119,11 @@ public class ValueDesc implements Serializable, Cacheable
 
   // dimension
   public static final ValueDesc DIM_STRING = new ValueDesc(STRING_DIMENSION_TYPE);
-  public static final ValueDesc MV_STRING = new ValueDesc(STRING_MULTIVALUED_TYPE);
+  public static final ValueDesc DIM_MV_STRING = new ValueDesc(STRING_MV_DIMENSION_TYPE);
+
+  // mv
+  public static final ValueDesc MV = new ValueDesc(MV_TYPE);
+  public static final ValueDesc MV_STRING = new ValueDesc(STRING_MV_TYPE);
 
   // internal types
   public static final ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);
@@ -202,25 +208,33 @@ public class ValueDesc implements Serializable, Cacheable
     return of(builder.toString(), List.class);
   }
 
-  public static ValueDesc ofDimension(ValueDesc valueDesc)
+  public static ValueDesc ofDimension(ValueDesc valueDesc, boolean mv)
   {
-    return valueDesc.isDimension() ? valueDesc : ofDimension(valueDesc.type);
+    if (valueDesc.isString()) {
+      return mv ? DIM_MV_STRING : DIM_STRING;
+    }
+    String prefix = mv ? DIMENSION_PREFIX + MV_PREFIX : DIMENSION_PREFIX;
+    return ValueDesc.of(prefix + valueDesc.typeName());
   }
 
-  public static ValueDesc ofDimension(ValueType valueType)
+  public static ValueDesc ofDimension(ValueType valueType, boolean mv)
   {
     Preconditions.checkArgument(valueType.isPrimitive(), "complex type dimension is not allowed");
-    return valueType == ValueType.STRING ? DIM_STRING : of(DIMENSION_PREFIX + valueType.getName());
+    if (valueType == ValueType.STRING) {
+      return mv ? DIM_MV_STRING : DIM_STRING;
+    }
+    String prefix = mv ? DIMENSION_PREFIX + MV_PREFIX : DIMENSION_PREFIX;
+    return ValueDesc.of(prefix + valueType.getName());
   }
 
   public static ValueDesc ofMultiValued(ValueType valueType)
   {
-    return valueType == ValueType.STRING ? MV_STRING : ValueDesc.of(MULTIVALUED_PREFIX + valueType.getName());
+    return valueType == ValueType.STRING ? MV_STRING : ValueDesc.of(MV_PREFIX + valueType.getName());
   }
 
   public static ValueDesc ofMultiValued(ValueDesc valueType)
   {
-    return valueType.isString() ? MV_STRING : ValueDesc.of(MULTIVALUED_PREFIX + valueType.typeName());
+    return valueType.isString() ? MV_STRING : ValueDesc.of(MV_PREFIX + valueType.typeName());
   }
 
   public static ValueDesc ofIndexedId(ValueType valueType)
@@ -245,15 +259,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static boolean isDimension(ValueDesc valueType)
   {
-    return valueType != null && isDimension(valueType.typeName);
-  }
-
-  public static boolean isDimension(String typeName)
-  {
-    if (typeName != null && typeName.length() > DIMENSION_PREFIX.length()) {
-      return isPrefixed(typeName, DIMENSION_PREFIX);
-    }
-    return false;
+    return valueType != null && valueType.isDimension();
   }
 
   public static boolean isIndexedId(ValueDesc valueType)
@@ -287,6 +293,26 @@ public class ValueDesc implements Serializable, Cacheable
   {
     Preconditions.checkArgument(valueDesc.isPrimitive(), "should be primitive type but %s", valueDesc);
     return valueDesc;
+  }
+
+  public static String merge(String typeName0, String typeName1)
+  {
+    if (isDimension(typeName0) && isDimension(typeName1)) {
+      ValueDesc type0 = ValueDesc.of(typeName0).unwrapDimension();
+      ValueDesc type1 = ValueDesc.of(typeName1).unwrapDimension();
+      boolean mv0 = type0.isMultiValued();
+      boolean mv1 = type1.isMultiValued();
+      if (!mv0 && !mv1) {
+        return type0.equals(type1) ? typeName0.length() > typeName1.length() ? typeName0 : typeName1 : null;
+      } else if (mv0 && !mv1) {
+        return type0.subElement(ValueDesc.STRING).equals(type1) ? typeName0 : null;
+      } else if (!mv0 && mv1) {
+        return type0.equals(type1.subElement(ValueDesc.STRING)) ? typeName1 : null;
+      } else {
+        return type0.subElement(ValueDesc.STRING).equals(type1.subElement(ValueDesc.STRING)) ? typeName0 : null;
+      }
+    }
+    return typeName0.equals(typeName1) ? typeName0 : null;
   }
 
   public static ValueDesc toCommonType(Iterable<ValueDesc> valueDescs, ValueDesc notFound)
@@ -497,6 +523,8 @@ public class ValueDesc implements Serializable, Cacheable
   {
     if (this == DIM_STRING || this == MV_STRING || this == STRING_ARRAY) {
       return ValueDesc.STRING;
+    } else if (this == DIM_MV_STRING) {
+      return ValueDesc.MV_STRING;
     } else if (this == FLOAT_ARRAY) {
       return ValueDesc.FLOAT;
     } else if (this == DOUBLE_ARRAY) {
@@ -537,7 +565,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public ValueDesc unwrapDimension()
   {
-    return isDimension() ? subElement(ValueDesc.STRING) : this;
+    return DIMENSION_TYPE.equals(typeName) ? ValueDesc.STRING : typeName.startsWith(DIMENSION_PREFIX) ? subElement() : this;
   }
 
   @Override
@@ -667,7 +695,12 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isDimension()
   {
-    return DIMENSION_TYPE.equals(typeName) || STRING_DIMENSION_TYPE.equals(typeName) || isDimension(typeName);
+    return isDimension(typeName);
+  }
+
+  private static boolean isDimension(String typeName)
+  {
+    return DIMENSION_TYPE.equals(typeName) || typeName.startsWith(DIMENSION_PREFIX);
   }
 
   public boolean isStringOrDimension()
@@ -727,7 +760,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isMultiValued()
   {
-    return this == MV_STRING || typeName.startsWith(MULTIVALUED_PREFIX);
+    return MV.equals(this) || typeName.startsWith(MV_PREFIX);
   }
 
   public boolean isUnknown()

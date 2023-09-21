@@ -90,7 +90,7 @@ public class InputRowParsers
       }
     }
     for (DimensionSchema dimension : parser.getDimensionsSpec().getDimensions()) {
-      mapping.put(dimension.getName(), ValueDesc.ofDimension(dimension.getValueType()));
+      mapping.put(dimension.getName(), ValueDesc.ofDimension(dimension.getValueType(), false)); // don't know
     }
     final TypeResolver.Updatable resolver = new TypeResolver.Updatable(mapping);
     for (Evaluation evaluation : evaluations) {

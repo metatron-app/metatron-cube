@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.common.BooleanFunction;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
@@ -32,9 +31,11 @@ import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class SegmentAnalysis implements Comparable<SegmentAnalysis>
@@ -42,7 +43,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   public static final SegmentAnalysis EMPTY = new SegmentAnalysis(Intervals.ONLY_ETERNITY, 0)
   {
     @Override
-    public RowSignature asSignature(BooleanFunction<ValueDesc> converter) {return RowSignature.EMPTY;}
+    public RowSignature convert(Function<ColumnAnalysis, ValueDesc> function) {return RowSignature.EMPTY;}
   };
 
   private final String id;
@@ -108,7 +109,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
 
   public SegmentAnalysis(List<Interval> interval, int numSegments)
   {
-    this("merged", interval, null, null, -1, -1, null, null, numSegments);
+    this("merged", interval, Arrays.asList(), Arrays.asList(), -1, -1, null, null, numSegments);
   }
 
   @JsonProperty
@@ -220,15 +221,17 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
 
   public RowSignature asSignature()
   {
-    return asSignature(null);
+    return convert(ColumnAnalysis::toValueDesc);
   }
 
-  public RowSignature asSignature(BooleanFunction<ValueDesc> converter)
+  public RowSignature asSourceSignature()
   {
-    return RowSignature.of(
-        columnNames,
-        columnAnalyses.stream().map(c -> c.toValueDesc(converter)).collect(Collectors.toList())
-    );
+    return convert(c -> c.toValueDesc().unwrapDimension());
+  }
+
+  public RowSignature convert(Function<ColumnAnalysis, ValueDesc> function)
+  {
+    return RowSignature.of(columnNames, columnAnalyses.stream().map(function).collect(Collectors.toList()));
   }
 
   @Override

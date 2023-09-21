@@ -391,10 +391,8 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
       descriptors.put(column, analysis.getDescriptor());
       cardinalities.put(column, analysis.getCardinality());
     }
-    int numSegments = segment.getNumSegments();
     RowSignature signature = RowSignature.builderFrom(segment.asSignature().explodeNested()).sort().build();
-
-    return new Holder(signature, numSegments, cardinalities, descriptors, segment.getNumRows());
+    return new Holder(signature, segment.getNumSegments(), cardinalities, descriptors, segment.getNumRows());
   }
 
   @SuppressWarnings("unchecked")

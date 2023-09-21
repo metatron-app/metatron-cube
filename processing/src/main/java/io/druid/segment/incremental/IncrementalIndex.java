@@ -749,7 +749,7 @@ public abstract class IncrementalIndex implements Closeable
     for (String dimension : getDimensionNames()) {
       ColumnCapabilities capability = getCapabilities(dimension);
       columnNames.add(dimension);
-      columnTypes.add(ValueDesc.ofDimension(capability.getType()));
+      columnTypes.add(ValueDesc.ofDimension(capability.getType(), capability.hasMultipleValues()));
       capabilities.put(dimension, capability);
     }
     for (MetricDesc metric : getMetricDescs()) {
@@ -773,7 +773,7 @@ public abstract class IncrementalIndex implements Closeable
     for (String dimension : getDimensionNames()) {
       ColumnCapabilities capability = getCapabilities(dimension);
       columnNames.add(dimension);
-      columnTypes.add(ValueDesc.ofDimension(capability.getType()));
+      columnTypes.add(ValueDesc.ofDimension(capability.getType(), capability.hasMultipleValues()));
     }
     for (MetricDesc metric : getMetricDescs()) {
       columnNames.add(metric.name);

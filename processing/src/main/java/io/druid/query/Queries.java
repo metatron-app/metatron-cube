@@ -62,7 +62,6 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
-import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
@@ -188,11 +187,7 @@ public class Queries
 
   public static RowSignature sourceSchema(Query<?> query, QuerySegmentWalker segmentWalker)
   {
-    SegmentAnalysis analysis = QueryUtils.analyzeSegments(query, segmentWalker);
-    if (query instanceof Query.AggregationsSupport) {
-      return analysis.asSignature(mv -> ValueDesc.STRING);
-    }
-    return analysis.asSignature(mv -> mv ? ValueDesc.MV_STRING : ValueDesc.STRING);
+    return QueryUtils.analyzeSegments(query, segmentWalker).asSourceSignature();
   }
 
   // todo : remove this

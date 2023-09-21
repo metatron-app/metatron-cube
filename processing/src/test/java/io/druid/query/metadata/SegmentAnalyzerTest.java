@@ -42,6 +42,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.druid.data.ValueDesc.STRING_DIMENSION_TYPE;
+import static io.druid.data.ValueDesc.STRING_MV_DIMENSION_TYPE;
+
 /**
  */
 public class SegmentAnalyzerTest
@@ -78,7 +81,8 @@ public class SegmentAnalyzerTest
     for (String dimension : TestIndex.DIMENSIONS) {
       final ColumnAnalysis columnAnalysis = columns.get(dimension);
 
-      Assert.assertEquals(dimension, ValueDesc.DIM_STRING.typeName(), columnAnalysis.getType());
+      final String expected = dimension.equals("placementish") ? STRING_MV_DIMENSION_TYPE : STRING_DIMENSION_TYPE;
+      Assert.assertEquals(dimension, expected, columnAnalysis.getType());
       if (analyses == null) {
         Assert.assertNotNull(dimension, columnAnalysis.getCardinality());
       } else {
@@ -134,7 +138,8 @@ public class SegmentAnalyzerTest
       if (dimension.equals("null_column")) {
         Assert.assertNull(columnAnalysis);
       } else {
-        Assert.assertEquals(dimension, ValueDesc.DIM_STRING.typeName(), columnAnalysis.getType());
+        final String expected = dimension.equals("placementish") ? STRING_MV_DIMENSION_TYPE : STRING_DIMENSION_TYPE;
+        Assert.assertEquals(dimension, expected, columnAnalysis.getType());
         if (analyses == null) {
           Assert.assertTrue(dimension, columnAnalysis.getSerializedSize() >= 0);
           Assert.assertNotNull(dimension, columnAnalysis.getCardinality());

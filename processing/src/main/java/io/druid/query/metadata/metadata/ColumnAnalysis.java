@@ -26,7 +26,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.annotations.VisibleForTesting;
-import io.druid.common.BooleanFunction;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 
@@ -214,8 +213,12 @@ public class ColumnAnalysis
       return rhs;
     }
 
+    String mergedType = type;
     if (!schema && !Objects.equals(type, rhs.getType())) {
-      return ColumnAnalysis.error("cannot_merge_diff_types");
+      mergedType = ValueDesc.merge(type, rhs.getType());
+      if (mergedType == null) {
+        return ColumnAnalysis.error("cannot_merge_diff_types");
+      }
     }
     Map<String, String> mergedDescriptor = null;
     if (descriptor == null) {
@@ -227,7 +230,7 @@ public class ColumnAnalysis
     }
 
     return new ColumnAnalysis(
-        type,
+        mergedType,
         mergedDescriptor,
         hasMultipleValues || rhs.hasMultipleValues,
         serializedSize < 0 || rhs.serializedSize < 0 ? -1 : serializedSize + rhs.serializedSize,
@@ -272,13 +275,9 @@ public class ColumnAnalysis
   }
 
   @JsonIgnore
-  public ValueDesc toValueDesc(BooleanFunction<ValueDesc> converter)
+  public ValueDesc toValueDesc()
   {
-    ValueDesc desc = ValueDesc.of(type);
-    if (converter != null && desc.isDimension()) {
-      desc = converter.apply(hasMultipleValues);
-    }
-    return desc;
+    return ValueDesc.of(type);
   }
 
   @Override

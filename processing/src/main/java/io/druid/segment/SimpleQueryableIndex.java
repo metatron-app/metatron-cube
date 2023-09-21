@@ -282,7 +282,7 @@ public class SimpleQueryableIndex implements QueryableIndex
     for (String dimension : getAvailableDimensions()) {
       ColumnMeta meta = Preconditions.checkNotNull(getColumnMeta(dimension), "cannot find column %s", dimension);
       columnNames.add(dimension);
-      columnTypes.add(ValueDesc.ofDimension(meta.getValueType()));
+      columnTypes.add(ValueDesc.ofDimension(meta.getValueType(), meta.isHasMultipleValues()));
     }
     for (String metric : getAvailableMetrics()) {
       ColumnMeta meta = Preconditions.checkNotNull(getColumnMeta(metric), "cannot find column %s", metric);

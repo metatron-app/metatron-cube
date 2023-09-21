@@ -336,7 +336,7 @@ public class SegmentMetadataQueryTest
         Arrays.asList("placement", "placementish"),
         Arrays.asList(
             new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, false, -1, null, null, null, null),
-            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, true, -1, null, null, null, null)
+            new ColumnAnalysis(ValueDesc.STRING_MV_DIMENSION_TYPE, true, -1, null, null, null, null)
         ),
         (mmap1 ? 63874 : 0) + (mmap2 ? 63874 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
@@ -395,7 +395,7 @@ public class SegmentMetadataQueryTest
         Arrays.asList("placement", "placementish"),
         Arrays.asList(
             new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, false, -1, new long[]{1, 2}, null, null, null),
-            new ColumnAnalysis(ValueDesc.STRING_DIMENSION_TYPE, true, -1, new long[]{9, 18}, null, null, null)
+            new ColumnAnalysis(ValueDesc.STRING_MV_DIMENSION_TYPE, true, -1, new long[]{9, 18}, null, null, null)
         ),
         (mmap1 ? 63874 : 0) + (mmap2 ? 63874 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
