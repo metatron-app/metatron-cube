@@ -242,11 +242,6 @@ public class ValueDesc implements Serializable, Cacheable
     return ValueDesc.of(INDEXED_ID_PREFIX + valueType.getName());
   }
 
-  public static boolean isString(ValueDesc valueDesc)
-  {
-    return valueDesc != null && valueDesc.isString();
-  }
-
   public static boolean isGeometry(ValueDesc valueType)
   {
     return isPrefixed(valueType.typeName, GEOMETRY.typeName);
@@ -532,6 +527,9 @@ public class ValueDesc implements Serializable, Cacheable
     } else if (this == LONG_ARRAY) {
       return ValueDesc.LONG;
     }
+    if (DIMENSION_TYPE.equals(typeName)) {
+      return defaultType;
+    }
     int index = typeName.indexOf('.');
     if (index > 0) {
       return ValueDesc.of(typeName.substring(index + 1));
@@ -638,7 +636,9 @@ public class ValueDesc implements Serializable, Cacheable
       case STRUCT_TYPE: return STRUCT;
       case MAP_TYPE: return MAP;
       case ARRAY_TYPE: return ARRAY;
+      case STRING_MV_TYPE: return MV_STRING;
       case STRING_DIMENSION_TYPE: return DIM_STRING;
+      case STRING_MV_DIMENSION_TYPE: return DIM_MV_STRING;
     }
     return new ValueDesc(typeName, clazz);
   }

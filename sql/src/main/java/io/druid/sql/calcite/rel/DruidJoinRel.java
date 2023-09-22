@@ -141,8 +141,11 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
     if (leftQuery == null || rightQuery == null) {
       return null;
     }
-    final List<String> leftOrder = leftQuery.getOutputRowSignature().getColumnNames();
-    final List<String> rightOrder = rightQuery.getOutputRowSignature().getColumnNames();
+    final RowSignature leftSchema = leftQuery.getOutputRowSignature();
+    final RowSignature rightSchema = rightQuery.getOutputRowSignature();
+
+    final List<String> leftOrder = leftSchema.getColumnNames();
+    final List<String> rightOrder = rightSchema.getColumnNames();
 
     final List<String> outputAlias = Utils.uniqueNames(leftOrder, rightOrder);
     final List<String> outputProjection;
@@ -153,10 +156,10 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
         extracted.add(Preconditions.checkNotNull(outputAlias.get(outputColumns.get(i))));
       }
       outputProjection = extracted;
-      finalSignature = RowSignature.from(outputProjection, rowType);
+      finalSignature = RowSignature.from(outputProjection, rowType).unwrapDimensions();
     } else {
       outputProjection = null;
-      finalSignature = RowSignature.from(outputAlias, rowType);
+      finalSignature = RowSignature.from(outputAlias, rowType).unwrapDimensions();
     }
 
     final List<String> leftKeys = Lists.newArrayList();
@@ -178,8 +181,8 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
     }
 
     final JoinQuery query = new Druids.JoinQueryBuilder()
-        .dataSource(leftAlias, QueryDataSource.of(leftDruid))
-        .dataSource(rightAlias, QueryDataSource.of(rightDruid))
+        .dataSource(leftAlias, QueryDataSource.of(leftDruid, leftSchema))
+        .dataSource(rightAlias, QueryDataSource.of(rightDruid, rightSchema))
         .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
         .outputAlias(outputAlias)
         .outputColumns(outputProjection)

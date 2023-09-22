@@ -112,7 +112,7 @@ public class DruidValuesRel extends DruidRel
   @Override
   public DruidQuery makeDruidQuery(boolean finalizeAggregations)
   {
-    final RowSignature signature = RowSignature.from(leaf.getRowType());
+    final RowSignature signature = RowSignature.from(leaf.getRowType()).unwrapDimensions();
     final TypedDummyQuery query = TypedDummyQuery.of(tableName, signature, values)
                                                  .withOverriddenContext(getPlannerContext().copyQueryContext());
     return new DruidQuery()

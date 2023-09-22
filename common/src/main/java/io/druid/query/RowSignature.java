@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -41,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -133,7 +133,7 @@ public class RowSignature implements TypeResolver
     List<ValueDesc> columnTypes = getColumnTypes();
     List<Pair<String, ValueDesc>> columnAndTypes = Lists.newArrayList();
     for (int i = 0; i < columnTypes.size(); i++) {
-      if (predicate.apply(columnTypes.get(i))) {
+      if (predicate.test(columnTypes.get(i))) {
         columnAndTypes.add(Pair.of(columnNames.get(i), columnTypes.get(i)));
       }
     }
@@ -170,7 +170,7 @@ public class RowSignature implements TypeResolver
     List<ValueDesc> columnTypes = getColumnTypes();
     List<String> predicated = Lists.newArrayList();
     for (int i = 0; i < columnTypes.size(); i++) {
-      if (predicate.apply(columnTypes.get(i))) {
+      if (predicate.test(columnTypes.get(i))) {
         predicated.add(columnNames.get(i));
       }
     }
@@ -198,15 +198,10 @@ public class RowSignature implements TypeResolver
     return map;
   }
 
-  public boolean anyType(Predicate<ValueDesc> predicate)
-  {
-    return Iterables.any(getColumnTypes(), predicate);
-  }
-
   public IntStream indexOf(Predicate<ValueDesc> predicate)
   {
     List<ValueDesc> types = getColumnTypes();
-    return IntStream.range(0, size()).filter(x -> predicate.apply(types.get(x)));
+    return IntStream.range(0, size()).filter(x -> predicate.test(types.get(x)));
   }
 
   public int indexOf(String column)
@@ -424,16 +419,21 @@ public class RowSignature implements TypeResolver
     return candidates;
   }
 
-  // for streaming sub query.. we don't have any index
-  public RowSignature replaceDimensionToMV()
+  public RowSignature unwrapDimensions()
   {
-    List<ValueDesc> replaced = Lists.newArrayList(getColumnTypes());
-    for (int i = 0; i < replaced.size(); i++) {
-      if (ValueDesc.isDimension(replaced.get(i))) {
-        replaced.set(i, ValueDesc.MV_STRING);
-      }
+    List<ValueDesc> unwrapped = unwrapDimensionTypes();
+    return unwrapped == null ? this : RowSignature.of(getColumnNames(), unwrapped);
+  }
+
+  protected List<ValueDesc> unwrapDimensionTypes()
+  {
+    int[] dimensions = IntStream.range(0, size()).filter(x -> columnType(x).isDimension()).toArray();
+    if (dimensions.length == 0) {
+      return null;
     }
-    return RowSignature.of(getColumnNames(), replaced);
+    List<ValueDesc> unwrapped = Lists.newArrayList(getColumnTypes());
+    Arrays.stream(dimensions).forEach(x -> unwrapped.set(x, unwrapped.get(x).subElement(ValueDesc.STRING)));
+    return unwrapped;
   }
 
   public RowSignature retain(List<String> columns)

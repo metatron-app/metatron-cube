@@ -73,9 +73,15 @@ public class DataSources
     return Iterables.getOnlyElement(dataSource.getNames());
   }
 
-  public static Query getNestedQuery(DataSource dataSource)
+  public static Query nestedQuery(DataSource dataSource)
   {
     return dataSource instanceof QueryDataSource ? ((QueryDataSource) dataSource).getQuery() : null;
+  }
+
+  public static RowSignature schema(DataSource dataSource, Query query, QuerySegmentWalker segmentWalker)
+  {
+    RowSignature schema = dataSource instanceof QueryDataSource ? ((QueryDataSource) dataSource).getSchema() : null;
+    return schema != null ? schema : Queries.relaySchema(query, segmentWalker);
   }
 
   public static boolean isFilterSupport(DataSource dataSource)
@@ -160,7 +166,7 @@ public class DataSources
 
   public static boolean isBroadcasting(DataSource ds)
   {
-    return isBroadcasting(getNestedQuery(ds));
+    return isBroadcasting(nestedQuery(ds));
   }
 
   public static boolean isBroadcasting(Query<?> query)
@@ -293,7 +299,7 @@ public class DataSources
   )
   {
     if (query.getDataSource() instanceof QueryDataSource) {
-      Query<?> nested = getNestedQuery(query.getDataSource());
+      Query<?> nested = nestedQuery(query.getDataSource());
       Query applied = applyFilter(nested, filter, selectivity, dependents, segmentWalker);
       if (applied != null) {
         return query.withDataSource(QueryDataSource.of(applied));

@@ -171,7 +171,7 @@ public class DruidBaseQuery implements DruidQuery
       }
     }
 
-    this.outputRowSignature = inputRowSignature;
+    this.outputRowSignature = inputRowSignature.unwrapDimensions();
     this.query = computeQuery();
   }
 

@@ -439,7 +439,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           Query.ArrayOutputSupport query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context0);
           Query query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context1);
           LOG.debug("-- %s:%s (L) will be broadcasted to %s (R)", leftAlias, leftEstimated, rightAlias);
-          RowSignature signature = Queries.relaySchema(query0, segmentWalker);
+          RowSignature signature = DataSources.schema(left, query0, segmentWalker);
           Sequence<Object[]> sequence = QueryRunners.resolveAndRun(query0, segmentWalker);
           List<Object[]> values = Sequences.toList(sequence);
           if (!(query0 instanceof MaterializedQuery)) {
@@ -477,7 +477,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           Query query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context0);
           Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context1);
           LOG.debug("-- %s:%s (R) will be broadcasted to %s (L)", rightAlias, rightEstimated, leftAlias);
-          RowSignature signature = Queries.relaySchema(query1, segmentWalker);
+          RowSignature signature = DataSources.schema(right, query1, segmentWalker);
           Sequence<Object[]> sequence = QueryRunners.resolveAndRun(query1, segmentWalker);
           List<Object[]> values = Sequences.toList(sequence);
           if (!(query1 instanceof MaterializedQuery)) {

@@ -208,6 +208,13 @@ public class RowSignature extends io.druid.query.RowSignature
     return new RowSignature(newColumnNames, columnTypes);
   }
 
+  @Override
+  public RowSignature unwrapDimensions()
+  {
+    List<ValueDesc> unwrapped = unwrapDimensionTypes();
+    return unwrapped == null ? this : new RowSignature(getColumnNames(), unwrapped);
+  }
+
   public static class Builder
   {
     private final List<Pair<String, ValueDesc>> columnTypeList;

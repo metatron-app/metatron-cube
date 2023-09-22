@@ -180,7 +180,7 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
     List<String> outputColumns = flip
                                  ? GuavaUtils.concat(boundaryOrder, queryOrder)
                                  : GuavaUtils.concat(queryOrder, boundaryOrder);
-    final RowSignature signature = RowSignature.from(outputColumns, getRowType());
+    final RowSignature signature = RowSignature.from(outputColumns, getRowType()).unwrapDimensions();
 
     return new DruidQuery()
     {

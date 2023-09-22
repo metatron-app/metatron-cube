@@ -6018,35 +6018,13 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[3, 1])\n"
         + "    DruidQueryRel(table=[druid.foo], scanProject=[$0, $4])\n"
         + "    DruidQueryRel(table=[druid.foo2], scanProject=[$0, $3])\n",
-        new TopNQueryBuilder()
-            .dataSource(
-                newJoin()
-                    .dataSource("foo", newScan()
-                        .dataSource("foo")
-                        .columns("__time", "m1")
-                        .streaming())
-                    .dataSource("foo2", newScan()
-                        .dataSource("foo2")
-                        .columns("__time", "dim2")
-                        .streaming()
-                    )
-                    .element(JoinElement.inner("foo.__time = foo2.__time"))
-                    .outputColumns("dim2", "m1")
-                    .build()
-            )
-            .dimension("dim2", "d0")
-            .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-            .metric(new DimensionTopNMetricSpec(null, null))
-            .outputColumns("a0", "d0")
-            .threshold(3)
-            .build(),
+        new Object[]{1.0, "ru"},
         new Object[]{1.0, "en"},
-        new Object[]{1.0, "he"},
-        new Object[]{1.0, "ru"}
+        new Object[]{1.0, "he"}
     );
     hook.verifyHooked(
-        "JaDdXGLCfaCemK06RKStXw==",
-        "TopNQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[__time, m1]}, StreamQuery{dataSource='foo2', columns=[__time, dim2], $hash=true}], timeColumnName=__time}', dimensionSpec=DefaultDimensionSpec{dimension='dim2', outputName='d0'}, virtualColumns=[], topNMetricSpec=DimensionTopNMetricSpec{previousStop='null', ordering=lexicographic}, threshold=3, querySegmentSpec=null, filter=null, granularity='AllGranularity', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='m1', inputType='double'}], postAggregatorSpecs=[], outputColumns=[a0, d0]}",
+        "4jiDiawB1L7rtm4gggadfg==",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[__time, m1]}, StreamQuery{dataSource='foo2', columns=[__time, dim2], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='m1', inputType='double'}], limitSpec=LimitSpec{columns=[], limit=3}, outputColumns=[a0, d0]}",
         "StreamQuery{dataSource='foo', columns=[__time, m1]}",
         "StreamQuery{dataSource='foo2', columns=[__time, dim2], $hash=true}"
     );

@@ -180,7 +180,7 @@ public class DruidQueryRel extends DruidRel
     Double rc = mq.getRowCount(this);
     Double rs = mq.getSelectivity(this, null);
     if (rc != null && rs != null) {
-      DruidMetadataProvider.LOG.debug("--> %s = %.2f + %.2f", partialQuery, rc, rs);
+      DruidMetadataProvider.LOG.debug("--> %s = %.1f + %.3f", partialQuery, rc, rs);
       return withContextOverride(Estimations.context(rc.longValue(), rs.floatValue()));
     }
     return this;

@@ -129,7 +129,7 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
       }
     }
     final RelDataType dataType = typeFactory.createStructType(converted, rowType.getFieldNames());
-    final RowSignature signature = signature0;
+    final RowSignature signature = signature0.unwrapDimensions();
     final Query query = UnionAllQuery.union(queries, limit, getPlannerContext().copyQueryContext())
                                      .withSchema(Suppliers.ofInstance(signature));
     return new DruidQuery()

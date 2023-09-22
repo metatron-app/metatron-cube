@@ -725,7 +725,7 @@ public class ColumnSelectorFactories
   )
   {
     // todo: this is semantically not consistent with others
-    final RowResolver resolver = RowResolver.of(schema.replaceDimensionToMV(), BaseQuery.getVirtualColumns(query));
+    final RowResolver resolver = RowResolver.of(schema.unwrapDimensions(), BaseQuery.getVirtualColumns(query));
     final ColumnSelectorFactory factory = supplier.makeColumnSelectorFactory(resolver);
 
     final ValueMatcher matcher;
