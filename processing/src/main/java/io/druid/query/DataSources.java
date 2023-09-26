@@ -275,8 +275,13 @@ public class DataSources
       }
     } else if (query instanceof JoinHolder) {
       JoinHolder holder = (JoinHolder) query;
-      for (Query<?> nested : holder.getQueries()) {
-        List<DimensionSpec> filterable = findFilterableOn(nested, columns, predicate);
+      List<Query<Object[]>> queries = holder.getQueries();
+      for (int i = 0; i < queries.size(); i++) {
+        JoinType type = holder.elementFor(i).getJoinType();
+        if (i == 0 && !type.isLeftDrivable() || i > 0 && !type.isRightDrivable()) {
+          continue;
+        }
+        List<DimensionSpec> filterable = findFilterableOn(queries.get(i), columns, predicate);
         if (filterable != null) {
           return filterable;
         }
@@ -321,11 +326,16 @@ public class DataSources
       JoinHolder holder = (JoinHolder) query;
       List<Query<Object[]>> queries = holder.getQueries();
       for (int i = 0; i < queries.size(); i++) {
+        JoinElement element = holder.elementFor(i);
+        JoinType type = element.getJoinType();
+        if (i == 0 && !type.isLeftDrivable() || i > 0 && !type.isRightDrivable()) {
+          continue;
+        }
         Query applied = applyFilter(queries.get(i), filter, selectivity, dependents, segmentWalker);
         if (applied != null) {
           List<Query> rewritten = Lists.newArrayList(holder.getQueries());
           rewritten.set(i, applied);
-          JoinQuery.filterMerged(holder.getElement(i), rewritten, i, i == 0 ? 1 : i - 1, segmentWalker);
+          JoinQuery.filterMerged(element, rewritten, i, i == 0 ? 1 : i - 1, segmentWalker);
           return rewritten.size() == 1 ? rewritten.get(0) : holder.withQueries(rewritten);
         }
       }

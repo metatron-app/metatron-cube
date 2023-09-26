@@ -1012,7 +1012,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       return elements;
     }
 
-    public JoinElement getElement(int alias)
+    public JoinElement elementFor(int alias)
     {
       return alias == 0 ? elements.get(0) : elements.get(alias - 1);
     }
