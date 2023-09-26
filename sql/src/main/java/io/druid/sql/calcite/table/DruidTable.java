@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
@@ -34,13 +35,21 @@ import io.druid.data.input.Row;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.CardinalityMeta;
 import io.druid.query.CardinalityMetaQuery;
+import io.druid.query.DimensionSamplingQuery;
+import io.druid.query.Estimation;
+import io.druid.query.Estimations;
 import io.druid.query.Query;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryUtils;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.SetAggregatorFactory;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.SemiJoinFactory;
+import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -52,11 +61,17 @@ import io.druid.query.timeseries.TimeseriesQuery.Builder;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.filtration.Filtration;
+import io.druid.sql.calcite.rel.DruidQueryRel;
+import io.druid.sql.calcite.rel.DruidRel;
+import io.druid.sql.calcite.rel.PartialDruidQuery;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.timeline.DataSegment;
+import it.unimi.dsi.fastutil.objects.Object2IntSortedMap;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Filter;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
@@ -102,6 +117,7 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
   private final Map<List<String>, double[]> cardinalityCoeffs = Maps.newHashMap();
   private final Map<String, Double> selectivity = Maps.newHashMap();
   private final Map<List<String>, Double> cardinalities = Maps.newHashMap();
+  private final Map<List<String>, Double> havingSelectivities = Maps.newHashMap();
 
   private Set<String> tenants;
 
@@ -166,6 +182,7 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     }
     selectivity.clear();
     cardinalities.clear();
+    havingSelectivities.clear();
   }
 
   public String getName()
@@ -245,10 +262,50 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
       }
     }
     if (!Double.isFinite(estimate)) {
-      List<String> key = concat(groupKey, predicate);
+      List<String> key = concat(predicate, groupKey);
       estimate = cardinalities.computeIfAbsent(key, k -> cardinality(scan, groupKey, predicate, context));
     }
     return estimate;
+  }
+
+  public Double estimateHavingSelectivity(DruidRel queryRel, RelMetadataQuery mq, QueryMaker context)
+  {
+    Preconditions.checkArgument(queryRel instanceof DruidQueryRel);
+    PartialDruidQuery partial = queryRel.getPartialDruidQuery();
+    Project project = partial.getScanProject();
+    if (project != null && !Utils.isAllInputRefs(project)) {
+      return null;
+    }
+    Filter scanFilter = partial.getScanFilter();
+    List<String> key = concat(scanFilter, partial.aggregateAsKey(getRowSignature()), partial.getAggregateFilter());
+    return havingSelectivities.computeIfAbsent(key, k -> {
+      RelNode source = scanFilter == null ? partial.getScan() : scanFilter;
+      Query<?> query = queryRel.makeDruidQuery(true).getQuery();
+      if (query instanceof TimeseriesQuery) {
+        Double rc = mq.getRowCount(source);
+        return rc != null && rc > 0 ? 1 / rc : Estimation.EPSILON;
+      }
+      if (query instanceof GroupByQuery && context != null) {
+        Double rc = mq.getRowCount(source);
+        float sampleRatio = rc == null ? 0.05f : Math.min(0.05f, Estimations.MIN_SAMPLING / rc.floatValue());
+        GroupByQuery groupBy = (GroupByQuery) query;
+        List<DimensionSpec> dimensions = groupBy.getDimensions();
+        QuerySegmentWalker segmentWalker = context.getSegmentWalker();
+        DimensionSamplingQuery sampling = groupBy.toSampling(sampleRatio);
+        IntTagged<Object2IntSortedMap<?>> mapping = SemiJoinFactory.toMap(
+            dimensions.size(), Sequences.toIterator(sampling.run(segmentWalker, null))
+        );
+        DimFilter filter = SemiJoinFactory.toFilter(DimensionSpecs.toInputNames(dimensions), mapping.value());
+        Query<Row> sampler = groupBy.prepend(filter)
+                                    .withOverriddenContext(Query.GBY_LOCAL_SPLIT_CARDINALITY, -1)
+                                    .withOverriddenContext("$skip", true);   // for test hook
+        int size = SemiJoinFactory.sizeOf(filter);
+        int passed = Sequences.size(QueryUtils.resolve(sampler, segmentWalker).run(segmentWalker, null));
+
+        return Math.max(Estimation.EPSILON, (double) passed / size);
+      }
+      return null;
+    });
   }
 
   private double[] coeff(List<String> groupKey)
@@ -286,9 +343,16 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     return filter == null ? null : Filtration.create(filter).optimize(signature);
   }
 
-  private static List<String> concat(List<String> groupKey, RexNode predicate)
+  private static List<String> concat(RexNode predicate, List<String> groupKey)
   {
     return predicate == null ? groupKey : GuavaUtils.concat(groupKey, predicate.toString());
+  }
+
+  private static List<String> concat(Filter predicate, List<String> groupKey, Filter having)
+  {
+    return predicate == null
+           ? GuavaUtils.concat(groupKey, having.getCondition().toString())
+           : GuavaUtils.concat(predicate.getCondition().toString(), groupKey, predicate.getCondition().toString());
   }
 
   public Double estimateSelectivity(TableScan scan, RexNode predicate, QueryMaker context)

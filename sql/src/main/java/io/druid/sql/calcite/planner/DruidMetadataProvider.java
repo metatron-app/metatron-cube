@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import io.druid.common.utils.Logs;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
 import io.druid.sql.calcite.rel.QueryMaker;
@@ -160,7 +161,15 @@ public class DruidMetadataProvider
 
     public Double getSelectivity(DruidRel druidRel, RelMetadataQuery mq, RexNode predicate)
     {
-      return mq.getSelectivity(druidRel.getLeafRel(), predicate);
+      PartialDruidQuery partialQuery = druidRel.getPartialDruidQuery();
+      if (druidRel instanceof DruidQueryRel && partialQuery.getAggregateFilter() != null) {
+        DruidTable table = Utils.unwrapTable(partialQuery.getScan(), DruidTable.class);
+        Double selectivity = table == null ? null : table.estimateHavingSelectivity(druidRel, mq, CONTEXT.get());
+        if (selectivity != null) {
+          return selectivity;
+        }
+      }
+      return mq.getSelectivity(druidRel.getLeafRel(), null);
     }
 
     public Double getSelectivity(RelSubset rel, RelMetadataQuery mq, RexNode predicate)
@@ -250,6 +259,13 @@ public class DruidMetadataProvider
 
     public Double getRowCount(DruidRel druidRel, RelMetadataQuery mq)
     {
+      PartialDruidQuery partialQuery = druidRel.getPartialDruidQuery();
+      if (druidRel instanceof DruidQueryRel && partialQuery.getAggregateFilter() != null) {
+        Double rc = mq.getRowCount(partialQuery.getAggregate());
+        if (rc != null) {
+          return rc * mq.getSelectivity(druidRel, null);
+        }
+      }
       return mq.getRowCount(druidRel.getLeafRel());
     }
 

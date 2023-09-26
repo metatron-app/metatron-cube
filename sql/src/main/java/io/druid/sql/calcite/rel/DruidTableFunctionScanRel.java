@@ -102,7 +102,7 @@ public class DruidTableFunctionScanRel extends DruidRel
 
   @Nullable
   @Override
-  protected DruidQuery makeDruidQuery(boolean finalizeAggregations)
+  public DruidQuery makeDruidQuery(boolean finalizeAggregations)
   {
     throw new UnsupportedOperationException();
   }

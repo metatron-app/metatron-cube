@@ -22,6 +22,7 @@ package io.druid.sql.calcite.rel;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.druid.query.DataSource;
+import io.druid.query.Estimation;
 import io.druid.query.Estimations;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.DruidMetadataProvider;
@@ -175,6 +176,11 @@ public class DruidQueryRel extends DruidRel
     return partialQuery.getRowType();
   }
 
+  public boolean containsEstimates()
+  {
+    return contextOverride.containsKey(Estimation.ROWNUM);
+  }
+
   public DruidQueryRel propagateEstimates(RelMetadataQuery mq)
   {
     Double rc = mq.getRowCount(this);
@@ -183,12 +189,7 @@ public class DruidQueryRel extends DruidRel
       DruidMetadataProvider.LOG.debug("--> %s = %.1f + %.3f", partialQuery, rc, rs);
       return withContextOverride(Estimations.context(rc.longValue(), rs.floatValue()));
     }
-    return this;
-  }
-
-  public static boolean appendEstimates(DruidQueryRel query)
-  {
-    return query.contextOverride.isEmpty() && !query.partialQuery.hasHaving();    // todo
+    return null;
   }
 
   @Override

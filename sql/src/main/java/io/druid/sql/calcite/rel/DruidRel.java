@@ -149,7 +149,7 @@ public abstract class DruidRel extends AbstractRelNode
    * @throws CannotBuildQueryException
    */
   @Nullable
-  protected abstract DruidQuery makeDruidQuery(boolean finalizeAggregations);
+  public abstract DruidQuery makeDruidQuery(boolean finalizeAggregations);
 
   final Supplier<DruidQuery> withFinalize = Suppliers.memoize(() -> makeDruidQuery(true));
   final Supplier<DruidQuery> withoutFinalize = Suppliers.memoize(() -> makeDruidQuery(false));

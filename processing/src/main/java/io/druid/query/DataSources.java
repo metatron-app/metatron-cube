@@ -94,7 +94,7 @@ public class DataSources
     return dataSource instanceof QueryDataSource && predicate.apply(((QueryDataSource) dataSource).getQuery());
   }
 
-  public static DataSource applyFilter(DataSource dataSource, DimFilter filter, float selectivity, QuerySegmentWalker segmentWalker)
+  public static DataSource applyFilter(DataSource dataSource, DimFilter filter, double selectivity, QuerySegmentWalker segmentWalker)
   {
     if (dataSource instanceof ViewDataSource) {
       final ViewDataSource view = (ViewDataSource) dataSource;
@@ -285,7 +285,7 @@ public class DataSources
     return null;
   }
 
-  public static Query applyFilter(Query<?> query, DimFilter filter, float selectivity, QuerySegmentWalker segmentWalker)
+  public static Query applyFilter(Query<?> query, DimFilter filter, double selectivity, QuerySegmentWalker segmentWalker)
   {
     return applyFilter(query, filter, selectivity, Filters.getDependents(filter), segmentWalker);
   }
@@ -293,7 +293,7 @@ public class DataSources
   public static Query applyFilter(
       Query<?> query,
       DimFilter filter,
-      float selectivity,
+      double selectivity,
       Collection<String> dependents,
       QuerySegmentWalker segmentWalker
   )

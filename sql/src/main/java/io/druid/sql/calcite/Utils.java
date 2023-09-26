@@ -39,7 +39,6 @@ import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidTypeSystem;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.rel.DruidJoinRel;
-import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.RowSignature;
@@ -821,11 +820,8 @@ public class Utils
     return counter.intValue();
   }
 
-  public static boolean hasHaving(RelNode relNode)
+  public static <C> C unwrapTable(RelNode relNode, Class<C> clazz)
   {
-    if (relNode instanceof DruidQueryRel) {
-      return ((DruidQueryRel) relNode).getPartialDruidQuery().hasHaving();
-    }
-    return relNode.getInputs().stream().anyMatch(Utils::hasHaving);
+    return relNode.getTable() == null ? null : relNode.getTable().unwrap(clazz);
   }
 }

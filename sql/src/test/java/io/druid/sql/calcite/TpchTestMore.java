@@ -222,7 +222,7 @@ public class TpchTestMore extends CalciteQueryTestHelper
     JoinQueryConfig join = walker.getQueryConfig().getJoin();
     join.setSemiJoinThreshold(100000);
     join.setBroadcastJoinThreshold(51);
-    join.setForcedFilterHugeThreshold(5000);
+    join.setForcedFilterHugeThreshold(10000);
     join.setForcedFilterTinyThreshold(100);
 
     testQuery(
@@ -238,6 +238,32 @@ public class TpchTestMore extends CalciteQueryTestHelper
         "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[MaterializedQuery{dataSource=[lineitem]}, StreamQuery{dataSource='partsupp', filter=InDimsFilter{dimensions=[PS_SUPPKEY, PS_PARTKEY], values=[[1, 722], [1, 773], [1, 800], [10, 194], [10, 209], [10, 275], [10, 467], [10, 659], [10, 733], [10, 966], [..176 more]]}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='orders', columns=[O_ORDERKEY, v0], virtualColumns=[ExprVirtualColumn{expression='YEAR(O_ORDERDATE)', outputName='v0'}]}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='N_NAME', outputName='d0'}, DefaultDimensionSpec{dimension='v0', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='((L_EXTENDEDPRICE * (1 - L_DISCOUNT)) - (PS_SUPPLYCOST * L_QUANTITY))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=descending}], limit=-1}, outputColumns=[d0, d1, a0]}",
         "StreamQuery{dataSource='partsupp', filter=InDimsFilter{dimensions=[PS_SUPPKEY, PS_PARTKEY], values=[[1, 722], [1, 773], [1, 800], [10, 194], [10, 209], [10, 275], [10, 467], [10, 659], [10, 733], [10, 966], [..176 more]]}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
         "StreamQuery{dataSource='orders', columns=[O_ORDERKEY, v0], virtualColumns=[ExprVirtualColumn{expression='YEAR(O_ORDERDATE)', outputName='v0'}]}",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}"
+    );
+  }
+
+  @Test
+  public void test4312() throws Exception
+  {
+    JoinQueryConfig join = walker.getQueryConfig().getJoin();
+    join.setSemiJoinThreshold(100000);
+    join.setBroadcastJoinThreshold(51);
+    join.setForcedFilterHugeThreshold(5000);    // applies forced filter from hashing alias
+    join.setForcedFilterTinyThreshold(100);
+
+    testQuery(
+        TpchTest.TPCH9,
+        TpchTest.TPCH9_EXPLAIN,
+        TpchTest.TPCH9_RESULT
+    );
+    hook.verifyHooked(
+        "WBAN0sIcjLbOwmMV+ZDp7g==",
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}",
+        "StreamQuery{dataSource='part', filter=P_NAME LIKE '%plum%', columns=[P_PARTKEY]}",
+        "StreamQuery{dataSource='lineitem', filter=InDimFilter{dimension='L_PARTKEY', values=[104, 118, 181, 186, 194, 209, 219, 263, 264, 275, ..39 more]}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=lineitem, leftJoinColumns=[L_SUPPKEY], rightAlias=supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_NATIONKEY:string, S_SUPPKEY:string}}, $hash=true}",
+        "StreamQuery{dataSource='partsupp', filter=InDimsFilter{dimensions=[PS_SUPPKEY, PS_PARTKEY], values=[[1, 722], [1, 773], [1, 800], [10, 194], [10, 209], [10, 275], [10, 467], [10, 659], [10, 733], [10, 966], [..176 more]]}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[MaterializedQuery{dataSource=[lineitem, partsupp]}, StreamQuery{dataSource='orders', filter=ForcedFilter{fieldNames=[O_ORDERKEY], valuesLen=1664}, columns=[O_ORDERKEY, v0], virtualColumns=[ExprVirtualColumn{expression='YEAR(O_ORDERDATE)', outputName='v0'}]}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='N_NAME', outputName='d0'}, DefaultDimensionSpec{dimension='v0', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='((L_EXTENDEDPRICE * (1 - L_DISCOUNT)) - (PS_SUPPLYCOST * L_QUANTITY))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=descending}], limit=-1}, outputColumns=[d0, d1, a0]}",
+        "StreamQuery{dataSource='orders', filter=InDimFilter{dimension='O_ORDERKEY', values=[10052, 10080, 10084, 10114, 10116, 10150, 10208, 10242, 10245, 1027, ..1325 more]}, columns=[O_ORDERKEY, v0], virtualColumns=[ExprVirtualColumn{expression='YEAR(O_ORDERDATE)', outputName='v0'}]}",
         "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}"
     );
   }

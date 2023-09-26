@@ -188,7 +188,7 @@ public class DruidCorrelateRel extends DruidRel
 
   @Nullable
   @Override
-  protected DruidQuery makeDruidQuery(boolean finalizeAggregations)
+  public DruidQuery makeDruidQuery(boolean finalizeAggregations)
   {
     DruidRel[] rels = new DruidRel[]{Utils.getDruidRel(left), Utils.getDruidRel(right)};
     if (rels[0] == null || rels[1] == null ||

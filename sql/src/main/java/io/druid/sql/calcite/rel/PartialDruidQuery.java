@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.DataSource;
@@ -46,6 +47,7 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
@@ -54,6 +56,7 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Util;
 import org.apache.commons.lang.StringUtils;
 
@@ -154,9 +157,19 @@ public class PartialDruidQuery
     return relWriter;
   }
 
-  public boolean hasHaving()
+  public List<String> aggregateAsKey(RowSignature signature)
   {
-    return aggregate != null && aggregateFilter != null;
+    Preconditions.checkArgument(aggregate != null);
+    List<String> aggregateKey = Lists.newArrayList();
+    ImmutableBitSet groupSet = aggregate.getGroupSet();
+    if (scanProject == null) {
+      groupSet.forEachInt(x -> aggregateKey.add(signature.columnName(x)));
+    } else {
+      List<RexNode> projects = scanProject.getProjects();
+      groupSet.forEachInt(x -> aggregateKey.add(signature.columnName(((RexInputRef) projects.get(x)).getIndex())));
+    }
+    aggregate.getAggCallList().forEach(call -> aggregateKey.add(call.toString()));
+    return aggregateKey;
   }
 
   public enum Operator

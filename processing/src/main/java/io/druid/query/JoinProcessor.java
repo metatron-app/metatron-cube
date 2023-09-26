@@ -502,6 +502,7 @@ public class JoinProcessor
     final int[] indices;
     final PeekingIterator<Object[]> rows;
     final Map<JoinKey, Object> hashed;
+    final int hashSize;
     final MutableInt counter = new MutableInt();
 
     Iterator<Map.Entry<JoinKey, Object>> iterator;  // hash iterator
@@ -523,6 +524,7 @@ public class JoinProcessor
       this.indices = indices;
       this.rows = peek(rows.iterator(), counter);
       this.hashed = null;
+      this.hashSize = 0;
       this.estimatedNumRows = rows.size();
       LOG.debug("-- %s = sorted (%s:%s)(numRows=%d)", alias, joinColumns, columns, rows.size());
     }
@@ -544,6 +546,7 @@ public class JoinProcessor
       this.indices = indices;
       this.rows = peek(rows, counter);
       this.hashed = null;
+      this.hashSize = 0;
       this.estimatedNumRows = estimatedNumRows;
       LOG.debug("-- %s = stream (%s:%s)(estimated=%d)", alias, joinColumns, columns, estimatedNumRows);
     }
@@ -563,8 +566,9 @@ public class JoinProcessor
       this.indices = indices;
       this.rows = Iterators.peekingIterator(Collections.emptyIterator());
       this.hashed = hash(peek(iterator, counter), indices);
+      this.hashSize = hashed.size();
       this.estimatedNumRows = counter.intValue();
-      LOG.debug("-- %s = hashed (%s:%s)(group=%d)", alias, joinColumns, columns, hashed.size());
+      LOG.debug("-- %s = hashed (%s:%s)(group=%d)", alias, joinColumns, columns, hashSize);
     }
 
     private List<OrderByColumnSpec> asCollation()
@@ -685,7 +689,7 @@ public class JoinProcessor
     public String toString()
     {
       if (isHashed()) {
-        return String.format("%s.%s(hashed:%d/%d)", alias, joinColumns, hashed.size(), counter.intValue());
+        return String.format("%s.%s(hashed:%d/%d)", alias, joinColumns, hashSize, counter.intValue());
       }
       String prefix = isSorted() ? "sorted-stream" : "stream";
       String row = counter.intValue() > 0 ? String.valueOf(counter) : estimatedNumRows > 0 ? estimatedNumRows + "?" : "?";

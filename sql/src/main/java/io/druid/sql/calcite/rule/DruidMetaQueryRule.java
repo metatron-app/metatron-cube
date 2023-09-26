@@ -30,13 +30,16 @@ public class DruidMetaQueryRule extends RelOptRule
 
   private DruidMetaQueryRule()
   {
-    super(DruidRel.operand(DruidQueryRel.class, DruidQueryRel::appendEstimates));
+    super(DruidRel.operand(DruidQueryRel.class, q -> !q.containsEstimates()));
   }
 
   @Override
   public void onMatch(RelOptRuleCall call)
   {
     DruidQueryRel query = call.rel(0);
-    call.transformTo(query.propagateEstimates(call.getMetadataQuery()));
+    DruidQueryRel propagated = query.propagateEstimates(call.getMetadataQuery());
+    if (propagated != null) {
+      call.transformTo(propagated);
+    }
   }
 }

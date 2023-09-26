@@ -54,7 +54,7 @@ public class Estimations
     return estimated;
   }
 
-  private static final float MIN_SAMPLING = 6000;
+  public static final float MIN_SAMPLING = 6000;
 
   public static Estimation estimate(
       DataSource dataSource,
@@ -118,7 +118,7 @@ public class Estimations
     }
     if (query instanceof TimeseriesQuery) {
       TimeseriesQuery timeseries = (TimeseriesQuery) query;
-      return Estimation.of(Queries.estimateCardinality(timeseries, segmentWalker));
+      return Estimation.of(Queries.estimateCardinality(timeseries, segmentWalker));   // ignoring having
     } else if (query instanceof GroupByQuery) {
       GroupByQuery groupBy = (GroupByQuery) query;
       long[] selectivity = Queries.filterSelectivity(groupBy, segmentWalker);
@@ -145,13 +145,13 @@ public class Estimations
                                       .withOverriddenContext("$skip", true);   // for test hook
           int size = SemiJoinFactory.sizeOf(filter);
           int passed = Sequences.size(QueryUtils.resolve(sampler, segmentWalker).run(segmentWalker, null));
-          float ratio = Math.max(0.00001f, (float) passed / size);
+          double ratio = Math.max(Estimation.EPSILON, (double) passed / size);
           estimated.estimated = Math.max(1, (long) (cardinality * ratio));
-          estimated.selectivity = ratio;
+          estimated.selectivity = Math.min(estimated.selectivity, ratio);
           LOG.debug("--- 'having' selectivity by sampling: %f", ratio);
         } else {
           estimated.estimated = Math.max(1, cardinality >> 1);
-          estimated.selectivity = 0.5f;
+          estimated.selectivity = Math.min(estimated.selectivity, 0.5f);
         }
       }
       LOG.debug(
@@ -217,18 +217,18 @@ public class Estimations
     );
   }
 
-  public static Map<String, Object> context(long estimation, float selectivity)
+  public static Map<String, Object> context(long estimation, double selectivity)
   {
     return ImmutableMap.of(Estimation.ROWNUM, estimation, Estimation.SELECTIVITY, selectivity);
   }
 
   public static Estimation join(JoinElement element, Estimation leftEstimated, Estimation rightEstimated)
   {
-    float selectivity = Math.min(leftEstimated.selectivity, rightEstimated.selectivity);
+    double selectivity = Math.min(leftEstimated.selectivity, rightEstimated.selectivity);
     if (element.isCrossJoin()) {
       return Estimation.of(leftEstimated.estimated * rightEstimated.estimated, selectivity);
     }
-    float estimation = 0;
+    double estimation = 0;
     switch (element.getJoinType()) {
       case INNER:
         estimation = Math.max(leftEstimated.origin(), rightEstimated.origin()) * selectivity;
@@ -246,7 +246,7 @@ public class Estimations
     return Estimation.of(Math.max(1, (long) estimation), selectivity);
   }
 
-  public static Query mergeSelectivity(Query<?> query, float selectivity)
+  public static Query mergeSelectivity(Query<?> query, double selectivity)
   {
     if (selectivity < 0) {
       return query;
@@ -254,7 +254,7 @@ public class Estimations
     Estimation estimation = Estimation.from(query);
     if (estimation != null && selectivity < estimation.selectivity) {
       Estimation updated = estimation.duplicate().update(selectivity);
-      LOG.debug("--- selectivity %.4f merged into %s(%s to %s)", selectivity, query.getDataSource(), estimation, updated);
+      LOG.debug("--- selectivity %.5f merged into %s(%s to %s)", selectivity, query.getDataSource(), estimation, updated);
       return propagate(query, updated);
     }
     return query;
