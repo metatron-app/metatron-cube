@@ -26,7 +26,7 @@ public class Estimation
   public static final String ROWNUM = "$rownum";
   public static final String SELECTIVITY = "$selectivity";
 
-  public static final double EPSILON = 0.000001d;
+  public static final double EPSILON = 0.00001d;
 
   public static Estimation unknown()
   {

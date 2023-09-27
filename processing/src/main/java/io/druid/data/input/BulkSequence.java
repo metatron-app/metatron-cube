@@ -259,7 +259,7 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
 
       // unnecessary copy ?
       for (int i = offset; i < category.length; i++) {
-        if (ccopy[i] == 0 || (nulls[i] != null && nulls[i].size() == size)) {
+        if (ccopy[i] == 0 || (nulls[i] != null && nulls[i].cardinality() == size)) {
           ccopy[i] = 0;
           continue;
         }

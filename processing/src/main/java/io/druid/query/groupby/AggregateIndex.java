@@ -25,9 +25,11 @@ import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.Cursor;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.commons.lang.mutable.MutableLong;
 
 import java.util.Arrays;
@@ -40,6 +42,8 @@ import java.util.function.Consumer;
 
 public final class AggregateIndex
 {
+  private static final Logger LOG = new Logger(AggregateIndex.class);
+
   public static AggregateIndex of(int[] indices, int[] mvs)
   {
     return new AggregateIndex(indices, Arrays.stream(indices).filter(x -> x >= 0).toArray(), mvs);
@@ -81,10 +85,15 @@ public final class AggregateIndex
           }
         };
       }
+      long p = System.currentTimeMillis();
+      final MutableInt counter = new MutableInt();
       final Supplier<Object[]> supplier = (Supplier<Object[]>) cursor;
       for (; !cursor.isDone(); cursor.advance()) {
         consumer.accept(supplier.get());
+        counter.increment();
       }
+      long elapsed = System.currentTimeMillis() - p;
+      LOG.info(".. accumulated %,d rows into %,d groups in %,d msec", counter.intValue(), mapping.size(), elapsed);
       final MutableLong timestamp = new MutableLong(cursor.getStartTime());
       final int length = 1 + dimensions.length + metrics.length;
       return Sequences.simple(Iterables.transform(mapping.entrySet(), e -> {

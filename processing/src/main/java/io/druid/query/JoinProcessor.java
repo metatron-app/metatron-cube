@@ -505,6 +505,9 @@ public class JoinProcessor
     final int hashSize;
     final MutableInt counter = new MutableInt();
 
+    final MutableInt matched = new MutableInt();
+    final MutableInt missed = new MutableInt();
+
     Iterator<Map.Entry<JoinKey, Object>> iterator;  // hash iterator
     List<Object[]> partition;
 
@@ -671,7 +674,9 @@ public class JoinProcessor
 
     private List<Object[]> getHashed(JoinKey joinKey)
     {
-      return asValues(hashed.get(joinKey));
+      List<Object[]> match = asValues(hashed.get(joinKey));
+      (match != null ? matched : missed).increment();
+      return match;
     }
 
     @Override
@@ -689,7 +694,15 @@ public class JoinProcessor
     public String toString()
     {
       if (isHashed()) {
-        return String.format("%s.%s(hashed:%d/%d)", alias, joinColumns, hashSize, counter.intValue());
+        return String.format(
+            "%s.%s(hashed:%d/%d) = (matched=%d, missed=%d)",
+            alias,
+            joinColumns,
+            hashSize,
+            counter.intValue(),
+            matched.intValue(),
+            missed.intValue()
+        );
       }
       String prefix = isSorted() ? "sorted-stream" : "stream";
       String row = counter.intValue() > 0 ? String.valueOf(counter) : estimatedNumRows > 0 ? estimatedNumRows + "?" : "?";
@@ -735,7 +748,7 @@ public class JoinProcessor
     if (value == null || value instanceof List) {
       return ((List<Object[]>) value);
     } else {
-      return GuavaUtils.wrap((Object[]) value);
+      return ImmutableList.<Object[]>of((Object[]) value);
     }
   }
 

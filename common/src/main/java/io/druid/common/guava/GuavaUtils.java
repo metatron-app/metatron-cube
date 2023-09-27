@@ -1149,12 +1149,6 @@ public class GuavaUtils
     x[b] = t;
   }
 
-  // currently, only works for iterator
-  public static <T> List<T> wrap(T value)
-  {
-    return new ListWrap<>(value);
-  }
-
   public static class DelegatedPeekingIterator<T> implements PeekingIterator<T>, Closeable
   {
     protected final PeekingIterator<T> delegated;

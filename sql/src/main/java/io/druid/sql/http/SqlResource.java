@@ -100,10 +100,17 @@ public class SqlResource
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.TEXT_PLAIN)
   @Path("/explain")
-  public Response explain(
-      String sqlQuery,
-      @Context HttpServletRequest req
-  ) throws SQLException, IOException
+  public Response explain(String sqlQuery, @Context HttpServletRequest req) throws SQLException, IOException
+  {
+    final String explain = String.format("EXPLAIN PLAN WITH TYPE FOR %s", sqlQuery);
+    return execute(new SqlQuery(explain, null, false, QueryResource.contextFromParam(req)), req);
+  }
+
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.TEXT_PLAIN)
+  @Path("/explain/implementation")
+  public Response explainImpl(String sqlQuery, @Context HttpServletRequest req) throws SQLException, IOException
   {
     final String explain = String.format("EXPLAIN PLAN WITH IMPLEMENTATION FOR %s", sqlQuery);
     return execute(new SqlQuery(explain, null, false, QueryResource.contextFromParam(req)), req);
