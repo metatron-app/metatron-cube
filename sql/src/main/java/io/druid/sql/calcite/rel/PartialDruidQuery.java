@@ -295,17 +295,17 @@ public class PartialDruidQuery
 
   public boolean isScanOnly()
   {
-    return scanFilter == null && scanProject == null && stage() == Stage.SELECT;
+    return scanFilter == null && tableFunction == null && scanProject == null && stage() == Stage.SELECT;
   }
 
-  public boolean isFilterScan()
+  public boolean isFilterScanOnly()
   {
-    return scanProject == null && stage() == Stage.SELECT;
+    return scanProject == null && tableFunction == null && stage() == Stage.SELECT;
   }
 
-  public boolean isProjectScan()
+  public boolean isFilteredScan()
   {
-    return scanFilter == null && stage() == Stage.SELECT;
+    return scanFilter != null && tableFunction == null && stage() == Stage.SELECT;
   }
 
   private RexBuilder rexBuilder()

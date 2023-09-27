@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.collections.IntList;
 import io.druid.query.CombinedDataSource;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
@@ -52,6 +53,7 @@ import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang.StringUtils;
 
+import java.util.BitSet;
 import java.util.List;
 import java.util.Set;
 
@@ -119,6 +121,16 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
   public ImmutableIntList getOutputColumns()
   {
     return outputColumns;
+  }
+
+  public ImmutableIntList getLeftExpressions()
+  {
+    return leftExpressions;
+  }
+
+  public ImmutableIntList getRightExpressions()
+  {
+    return rightExpressions;
   }
 
   @Override
@@ -313,6 +325,52 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
                 .itemIf("leftKeys", StringUtils.join(leftExpressions, ", "), !leftExpressions.isEmpty())
                 .itemIf("rightKeys", StringUtils.join(rightExpressions, ", "), !rightExpressions.isEmpty())
                 .itemIf("outputColumns", StringUtils.join(outputColumns, ", "), outputColumns != null);
+  }
+
+  public DruidJoinRel rewrite(DruidJoinRel input, boolean toLeft)
+  {
+    BitSet b0 = new BitSet();
+    int leftLength = left.getRowType().getFieldList().size();
+    int rightLength = right.getRowType().getFieldList().size();
+    if (toLeft) {
+      leftExpressions.forEachInt(b0::set);
+      outputColumns.forEachInt(x -> {if (x < leftLength) b0.set(x);});
+    } else {
+      rightExpressions.forEachInt(b0::set);
+      outputColumns.forEachInt(x -> {if (x >= leftLength) b0.set(x - leftLength);});
+    }
+    if (b0.cardinality() == (toLeft ? leftLength : rightLength)) {
+      return this;
+    }
+
+    ImmutableIntList inputs = ImmutableIntList.of(b0.stream().toArray());
+
+    IntList expressions = IntList.of();
+    if (toLeft) {
+      getLeftExpressions().forEachInt(x -> expressions.add(inputs.indexOf(x)));
+    } else {
+      getRightExpressions().forEachInt(x -> expressions.add(inputs.indexOf(x)));
+    }
+
+    IntList outputs = IntList.sizeOf(outputColumns.size());
+    if (toLeft) {
+      int delta = leftLength - inputs.size();
+      outputColumns.forEachInt(x -> outputs.add(x < leftLength ? inputs.indexOf(x) : x - delta));
+    } else {
+      outputColumns.forEachInt(x -> outputs.add(x < leftLength ? x : inputs.indexOf(x - leftLength) + leftLength));
+    }
+
+    return new DruidJoinRel(
+        getCluster(),
+        getTraitSet(),
+        joinType,
+        toLeft ? input.withOutputColumns(inputs) : left,
+        toLeft ? right : input.withOutputColumns(inputs),
+        toLeft ? ImmutableIntList.of(expressions.array()) : leftExpressions,
+        toLeft ? rightExpressions : ImmutableIntList.of(expressions.array()),
+        ImmutableIntList.of(outputs.array()),
+        queryMaker
+    );
   }
 
   private static final double BLOOM_FILTER_REDUCTION = 0.7;

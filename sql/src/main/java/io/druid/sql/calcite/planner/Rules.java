@@ -27,7 +27,7 @@ import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.DruidFilterableTableScanRule;
-import io.druid.sql.calcite.rule.DruidJoinProjectRule;
+import io.druid.sql.calcite.rule.DruidProjectPushdownRule;
 import io.druid.sql.calcite.rule.DruidMetaQueryRule;
 import io.druid.sql.calcite.rule.DruidProjectableTableScanRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
@@ -275,7 +275,9 @@ public class Rules
 
     programs.add(druidProgram(queryMaker));
 
-    programs.add(hepProgram(DruidJoinProjectRule.INSTANCE));
+    programs.add(hepProgram(DruidProjectPushdownRule.PROJECT_TO_JOIN));
+
+    programs.add(hepProgram(DruidProjectPushdownRule.JOIN_TO_JOIN_LEFT, DruidProjectPushdownRule.JOIN_TO_JOIN_RIGHT));
 
     if (config.isUseJoinReordering() && config.isUseEstimationQuery()) {
       // propagate estimations

@@ -198,7 +198,8 @@ public class DruidCorrelateRel extends DruidRel
     PartialDruidQuery[] partials = new PartialDruidQuery[]{
         rels[0].getPartialDruidQuery(), rels[1].getPartialDruidQuery()
     };
-    if (partials[0] == null || !partials[0].isFilterScan() || partials[1] == null || !partials[1].isFilterScan()) {
+    if (partials[0] == null || !partials[0].isFilterScanOnly() ||
+        partials[1] == null || !partials[1].isFilterScanOnly()) {
       return null;
     }
     if (rels[0] instanceof DruidTableFunctionScanRel) {
