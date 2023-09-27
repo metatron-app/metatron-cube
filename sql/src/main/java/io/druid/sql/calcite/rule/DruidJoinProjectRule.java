@@ -82,9 +82,6 @@ public class DruidJoinProjectRule extends RelOptRule
         }
       }
     }
-    if (indices.size() == join.getRowType().getFieldList().size()) {
-      return;
-    }
     final int[] mapping = indices.array();
     final RexBuilder builder = join.getCluster().getRexBuilder();
     final DruidRel newJoin = join.withOutputColumns(ImmutableIntList.of(mapping));
