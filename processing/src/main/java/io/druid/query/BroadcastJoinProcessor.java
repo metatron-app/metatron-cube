@@ -47,7 +47,6 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
 {
   private final ObjectMapper mapper;
   private final QueryConfig config;
-  private final JoinElement element;
   private final boolean hashLeft;
   private final RowSignature hashSignature;
   private final byte[] values;
@@ -69,10 +68,9 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
       @JsonProperty("applyFilter") boolean applyFilter
   )
   {
-    super(config.getJoin(), prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow);
+    super(config.getJoin(), element, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow);
     this.mapper = mapper;
     this.config = config;
-    this.element = element;
     this.hashLeft = hashLeft;
     this.hashSignature = hashSignature;
     this.values = values;
@@ -121,12 +119,6 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
   public boolean isHashLeft()
   {
     return hashLeft;
-  }
-
-  @JsonProperty
-  public JoinElement getElement()
-  {
-    return element;
   }
 
   @JsonProperty
@@ -223,7 +215,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         List<String> projectedNames = outputColumns != null ? outputColumns : GuavaUtils.map(outputAlias, projection);
 
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Running join processing %s resulting %s", toAliases(element), projectedNames);
+          LOG.debug("Running join processing %s resulting %s", element.getAliases(), projectedNames);
         }
 
         JoinResult join = join(element.getJoinType(), left, right, projection);

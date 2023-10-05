@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
@@ -52,12 +51,10 @@ import java.util.concurrent.Future;
 @JsonTypeName("join")
 public class JoinPostProcessor extends CommonJoinProcessor implements PostProcessingOperator.UnionSupport, Local
 {
-  private final JoinElement[] elements;
-
   @JsonCreator
   public JoinPostProcessor(
       @JacksonInject JoinQueryConfig config,
-      @JsonProperty("elements") List<JoinElement> elements,
+      @JsonProperty("element") JoinElement element,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("asArray") boolean asArray,
       @JsonProperty("outputAlias") List<String> outputAlias,
@@ -65,13 +62,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
       @JsonProperty("maxOutputRow") int maxOutputRow
   )
   {
-    super(config, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow);
-    this.elements = elements.toArray(new JoinElement[0]);
-  }
-
-  public JoinElement[] getElements()
-  {
-    return elements;
+    super(config, element, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow);
   }
 
   @Override
@@ -79,7 +70,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
   {
     return new JoinPostProcessor(
         config,
-        Arrays.asList(elements),
+        element,
         prefixAlias,
         asMap,
         outputAlias,
@@ -93,7 +84,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
   {
     return new JoinPostProcessor(
         config,
-        Arrays.asList(elements),
+        element,
         prefixAlias,
         asMap,
         outputAlias,
@@ -118,11 +109,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
       public Sequence run(Query holder, Map responseContext)
       {
         final JoinHolder joinQuery = (JoinHolder) holder;
-        final int joinAliases = elements.length + 1;
-        final List<String> aliases = Lists.newArrayList();
-        for (int i = 0; i < joinAliases; i++) {
-          aliases.add(toAlias(i));
-        }
+        final List<String> aliases = element.getAliases();
 
         final List<Pair<Query, Sequence>> pairs = Sequences.toList(baseRunner.run(holder, responseContext));
         final List<IntTagged<Callable<JoinAlias>>> nested = Lists.newArrayList();
@@ -138,7 +125,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
           }
         }
         // nested first
-        final Future[] joining = new Future[joinAliases];
+        final Future[] joining = new Future[2];
         for (IntTagged<Callable<JoinAlias>> callable : nested) {
           joining[callable.tag] = Execs.excuteDirect(callable.value);
         }
@@ -156,7 +143,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         List<String> projectedNames = outputColumns != null ? outputColumns : GuavaUtils.map(outputAlias, projection);
 
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Running join processing %s resulting %s", toAliases(elements), projectedNames);
+          LOG.debug("Running join processing %s resulting %s", element.getAliases(), projectedNames);
         }
         try {
           JoinResult join = join(joining, Estimation.getRowCount(holder), projection);
@@ -197,19 +184,19 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     );
   }
 
-  private JoinType toJoinType(int index)
+  private JoinType toJoinType()
   {
-    return elements[index == 0 ? 0 : index - 1].getJoinType();
+    return element.getJoinType();
   }
 
   private String toAlias(int index)
   {
-    return index == 0 ? elements[0].getLeftAlias() : elements[index - 1].getRightAlias();
+    return index == 0 ? element.getLeftAlias() : element.getRightAlias();
   }
 
   private List<String> toJoinColumns(int index)
   {
-    return index == 0 ? elements[0].getLeftJoinColumns() : elements[index - 1].getRightJoinColumns();
+    return index == 0 ? element.getLeftJoinColumns() : element.getRightJoinColumns();
   }
 
   @VisibleForTesting
@@ -220,37 +207,17 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
 
   private JoinResult join(final Future<JoinAlias>[] futures, int estimatedNumRows, int[] projection) throws Exception
   {
-    JoinAlias left = futures[0].get();
-    JoinAlias right = futures[1].get();
-    if (futures.length == 2) {
-      return join(left, right, 0, projection);
-    }
-    JoinResult result = join(left, right, 0);
-    List<String> alias = GuavaUtils.concat(left.alias, right.alias);
-    List<String> columns = GuavaUtils.concat(left.columns, right.columns);
-    List<String> joinColumns = elements[0].getLeftJoinColumns();
-    for (int i = 2; i < futures.length; i++) {
-      left = new JoinAlias(
-          alias, columns, joinColumns, Suppliers.ofInstance(result.collations),
-          GuavaUtils.indexOf(columns, joinColumns), result.iterator, estimatedNumRows
-      );
-      right = futures[i].get();
-      result = join(left, right, i - 1, i == futures.length - 1 ? projection : null);
-      alias = GuavaUtils.concat(alias, right.alias);
-      columns = GuavaUtils.concat(columns, right.columns);
-      joinColumns = elements[i - 1].getLeftJoinColumns();
-    }
-    return result;
+    return join(element.getJoinType(), futures[0].get(), futures[1].get(), projection);
   }
 
   @VisibleForTesting
-  final JoinResult join(JoinAlias left, JoinAlias right, int index)
+  final JoinResult join(JoinAlias left, JoinAlias right)
   {
-    return join(left, right, index, null);
+    return join(left, right, null);
   }
 
-  private JoinResult join(JoinAlias left, JoinAlias right, int index, int[] projection)
+  private JoinResult join(JoinAlias left, JoinAlias right, int[] projection)
   {
-    return join(elements[index].getJoinType(), left, right, projection);
+    return join(element.getJoinType(), left, right, projection);
   }
 }

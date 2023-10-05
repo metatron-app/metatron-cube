@@ -57,16 +57,6 @@ public class JoinElement
     return new JoinElement(type, expression);
   }
 
-  public static List<String> getAliases(List<JoinElement> elements)
-  {
-    List<String> aliases = Lists.newArrayList();
-    aliases.add(elements.get(0).getLeftAlias());
-    for (JoinElement element : elements) {
-      aliases.add(element.getRightAlias());
-    }
-    return aliases;
-  }
-
   private final JoinType joinType;
 
   private final String leftAlias;

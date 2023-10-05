@@ -1057,7 +1057,7 @@ public class Druids
   {
     private Map<String, DataSource> dataSources = Maps.newHashMap();
     private QuerySegmentSpec querySegmentSpec;
-    private List<JoinElement> elements = Lists.newArrayList();
+    private JoinElement element;
     private boolean prefixAlias;
     private boolean asMap;
     private String timeColumnName;
@@ -1071,7 +1071,7 @@ public class Druids
     public JoinQuery build()
     {
       final Map<String, DataSource> normalize = JoinQuery.normalize(dataSources);
-      final List<JoinElement> validated = JoinQuery.validateElements(normalize, elements);
+      final JoinElement validated = JoinQuery.validateElement(normalize, element);
       return new JoinQuery(
           normalize,
           querySegmentSpec,
@@ -1133,15 +1133,9 @@ public class Druids
       return this;
     }
 
-    public JoinQueryBuilder elements(List<JoinElement> elements)
-    {
-      this.elements = elements;
-      return this;
-    }
-
     public JoinQueryBuilder element(JoinElement element)
     {
-      elements.add(element);
+      this.element = element;
       return this;
     }
 

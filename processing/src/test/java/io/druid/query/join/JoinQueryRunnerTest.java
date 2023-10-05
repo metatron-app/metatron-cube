@@ -297,51 +297,6 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
   }
 
   @Test
-  public void testJoin3way()
-  {
-    JoinQuery joinQuery = Druids
-        .newJoinQueryBuilder()
-        .dataSources(
-            ImmutableMap.<String, DataSource>of(
-                "X", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "__time", "market", "index"),
-                "Y", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMin"),
-                "Z", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMaxPlusTen")
-            )
-        )
-        .intervals(firstToThird)
-        .element(JoinElement.inner("X.market = Y.market"))
-        .element(JoinElement.inner("Y.market = Z.market"))
-        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
-        .asMap(true)
-        .build();
-
-    String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
-    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-        columns,
-        array("2011-04-01", "spot", 158.74722290039062D, 158.74722F, 168.74722290039062D),
-        array("2011-04-01", "spot", 158.74722290039062D, 158.74722F, 176.01605224609375D),
-        array("2011-04-01", "spot", 158.74722290039062D, 166.01605F, 168.74722290039062D),
-        array("2011-04-01", "spot", 158.74722290039062D, 166.01605F, 176.01605224609375D),
-        array("2011-04-02", "spot", 166.01605224609375D, 158.74722F, 168.74722290039062D),
-        array("2011-04-02", "spot", 166.01605224609375D, 158.74722F, 176.01605224609375D),
-        array("2011-04-02", "spot", 166.01605224609375D, 166.01605F, 168.74722290039062D),
-        array("2011-04-02", "spot", 166.01605224609375D, 166.01605F, 176.01605224609375D),
-        array("2011-04-02", "total_market", 1193.5562744140625D, 1193.5563F, 1203.5562744140625D),
-        array("2011-04-02", "upfront", 1144.3424072265625D, 1144.3424F, 1154.3424072265625D),
-        array("2011-04-02", "upfront", 1144.3424072265625D, 1144.3424F, 1059.738525390625D),
-        array("2011-04-02", "upfront", 1144.3424072265625D, 1049.7385F, 1154.3424072265625D),
-        array("2011-04-02", "upfront", 1144.3424072265625D, 1049.7385F, 1059.738525390625D),
-        array("2011-04-02", "upfront", 1049.738525390625D, 1144.3424F, 1154.3424072265625D),
-        array("2011-04-02", "upfront", 1049.738525390625D, 1144.3424F, 1059.738525390625D),
-        array("2011-04-02", "upfront", 1049.738525390625D, 1049.7385F, 1154.3424072265625D),
-        array("2011-04-02", "upfront", 1049.738525390625D, 1049.7385F, 1059.738525390625D)
-    );
-
-    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
-    TestHelper.assertExpectedObjects(expectedRows, rows, "");
-  }
-
-  @Test
   public void testJoinOnJoin()
   {
     JoinQuery joinQuery1 = Druids

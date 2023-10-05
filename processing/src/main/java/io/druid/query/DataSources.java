@@ -275,9 +275,10 @@ public class DataSources
       }
     } else if (query instanceof JoinHolder) {
       JoinHolder holder = (JoinHolder) query;
+      JoinElement element = holder.getElement();
       List<Query<Object[]>> queries = holder.getQueries();
       for (int i = 0; i < queries.size(); i++) {
-        JoinType type = holder.elementFor(i).getJoinType();
+        JoinType type = element.getJoinType();
         if (i == 0 && !type.isLeftDrivable() || i > 0 && !type.isRightDrivable()) {
           continue;
         }
@@ -324,9 +325,9 @@ public class DataSources
       }
     } else if (query instanceof JoinHolder) {
       JoinHolder holder = (JoinHolder) query;
+      JoinElement element = holder.getElement();
       List<Query<Object[]>> queries = holder.getQueries();
       for (int i = 0; i < queries.size(); i++) {
-        JoinElement element = holder.elementFor(i);
         JoinType type = element.getJoinType();
         if (i == 0 && !type.isLeftDrivable() || i > 0 && !type.isRightDrivable()) {
           continue;

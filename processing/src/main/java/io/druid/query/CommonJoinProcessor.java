@@ -30,6 +30,7 @@ import java.util.Map;
 public abstract class CommonJoinProcessor extends JoinProcessor
     implements PostProcessingOperator, PostProcessingOperator.ReturnRowAs
 {
+  protected final JoinElement element;
   protected final boolean prefixAlias;
   protected final boolean asMap;
   protected final List<String> outputAlias;
@@ -37,6 +38,7 @@ public abstract class CommonJoinProcessor extends JoinProcessor
 
   public CommonJoinProcessor(
       JoinQueryConfig config,
+      JoinElement element,
       boolean prefixAlias,
       boolean asMap,
       List<String> outputAlias,
@@ -45,6 +47,7 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   )
   {
     super(config, maxOutputRow);
+    this.element = element;
     this.prefixAlias = prefixAlias;
     this.asMap = asMap;
     this.outputAlias = outputAlias;
@@ -54,6 +57,12 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   public abstract CommonJoinProcessor withAsMap(boolean asMap);
 
   public abstract CommonJoinProcessor withOutputColumns(List<String> outputColumns);
+
+  @JsonProperty
+  public JoinElement getElement()
+  {
+    return element;
+  }
 
   @JsonProperty
   public boolean isPrefixAlias()
@@ -113,15 +122,5 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   protected int[] projection(List<String> outputAlias)
   {
     return outputColumns == null ? null : GuavaUtils.indexOf(outputAlias, outputColumns);
-  }
-
-  protected List<String> toAliases(JoinElement... elements)
-  {
-    List<String> aliases = Lists.newArrayList();
-    aliases.add(elements[0].getLeftAlias());
-    for (JoinElement element : elements) {
-      aliases.add(element.getRightAlias());
-    }
-    return aliases;
   }
 }
