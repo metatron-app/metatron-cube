@@ -214,13 +214,20 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
           left = toAlias(leftAlias, queryColumns, leftJoinColumns, query, iterator);
           right = toHashAlias(rightAlias, hashColumns, rightJoinColumns, hashing);
         }
-        JoinResult join = join(element.getJoinType(), left, right);
 
         List<String> outputAlias = getOutputAlias();
         if (outputAlias == null) {
           outputAlias = concatColumnNames(names, prefixAlias ? element.getAliases() : null);
         }
-        return projection(join.iterator, outputAlias, query instanceof BaseAggregationQuery);
+        int[] projection = projection(outputAlias);
+        List<String> projectedNames = outputColumns != null ? outputColumns : GuavaUtils.map(outputAlias, projection);
+
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Running join processing %s resulting %s", toAliases(element), projectedNames);
+        }
+
+        JoinResult join = join(element.getJoinType(), left, right, projection);
+        return JoinProcessor.format(join.iterator, projectedNames, asMap, query instanceof BaseAggregationQuery);
       }
 
       private JoinAlias toHashAlias(

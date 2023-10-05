@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import io.druid.common.IntTagged;
@@ -36,6 +37,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.query.JoinQuery.JoinHolder;
 import io.druid.query.PostProcessingOperator.Local;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 
 import java.util.Arrays;
 import java.util.List;
@@ -143,19 +145,23 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         for (IntTagged<Callable<JoinAlias>> callable : nonNested) {
           joining[callable.tag] = exec.submit(callable.value);
         }
-        final int rowCount = Estimation.getRowCount(holder);
 
-        LOG.debug("Running %d-way join processing %s", joinAliases, toAliases());
+        List<String> outputAlias = getOutputAlias();
+        if (outputAlias == null) {
+          List<List<String>> names = GuavaUtils.transform(pairs, pair -> pair.rhs.columns());
+          outputAlias = concatColumnNames(names, prefixAlias ? aliases : null);
+        }
+
+        int[] projection = projection(outputAlias);
+        List<String> projectedNames = outputColumns != null ? outputColumns : GuavaUtils.map(outputAlias, projection);
+
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Running join processing %s resulting %s", toAliases(elements), projectedNames);
+        }
         try {
-          JoinResult join = join(joining, rowCount);
+          JoinResult join = join(joining, Estimation.getRowCount(holder), projection);
           joinQuery.setCollation(join.collations);
-
-          List<String> outputAlias = getOutputAlias();
-          if (outputAlias == null) {
-            List<List<String>> names = GuavaUtils.transform(pairs, pair -> pair.rhs.columns());
-            outputAlias = concatColumnNames(names, prefixAlias ? aliases : null);
-          }
-          return projection(join.iterator, outputAlias, false);
+          return JoinProcessor.format(join.iterator, projectedNames, asMap, false);
         }
         catch (Throwable t) {
           if (t instanceof ExecutionException && t.getCause() != null) {
@@ -184,10 +190,10 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     if (JoinQuery.isHashing(source)) {
       return () -> new JoinAlias(aliases, columnNames, joinColumns, indices, Sequences.toIterator(sequence));
     }
-    final boolean sorting = JoinQuery.isSorting(source);
     final int rowCount = Estimation.getRowCount(source);
+    final Supplier<List<List<OrderByColumnSpec>>> collations = JoinQuery.isSorting(source) ? getCollations(source) : null;
     return () -> new JoinAlias(
-        aliases, columnNames, joinColumns, sorting ? getCollations(source) : null, indices, Sequences.toIterator(sequence), rowCount
+        aliases, columnNames, joinColumns, collations, indices, Sequences.toIterator(sequence), rowCount
     );
   }
 
@@ -206,21 +212,19 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     return index == 0 ? elements[0].getLeftJoinColumns() : elements[index - 1].getRightJoinColumns();
   }
 
-  private List<String> toAliases()
+  @VisibleForTesting
+  JoinResult join(final Future<JoinAlias>[] futures, int estimatedNumRows) throws Exception
   {
-    List<String> aliases = Lists.newArrayList();
-    aliases.add(elements[0].getLeftAlias());
-    for (JoinElement element : elements) {
-      aliases.add(element.getRightAlias());
-    }
-    return aliases;
+    return join(futures, estimatedNumRows, null);
   }
 
-  @VisibleForTesting
-  final JoinResult join(final Future<JoinAlias>[] futures, int estimatedNumRows) throws Exception
+  private JoinResult join(final Future<JoinAlias>[] futures, int estimatedNumRows, int[] projection) throws Exception
   {
     JoinAlias left = futures[0].get();
     JoinAlias right = futures[1].get();
+    if (futures.length == 2) {
+      return join(left, right, 0, projection);
+    }
     JoinResult result = join(left, right, 0);
     List<String> alias = GuavaUtils.concat(left.alias, right.alias);
     List<String> columns = GuavaUtils.concat(left.columns, right.columns);
@@ -231,7 +235,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
           GuavaUtils.indexOf(columns, joinColumns), result.iterator, estimatedNumRows
       );
       right = futures[i].get();
-      result = join(left, right, i - 1);
+      result = join(left, right, i - 1, i == futures.length - 1 ? projection : null);
       alias = GuavaUtils.concat(alias, right.alias);
       columns = GuavaUtils.concat(columns, right.columns);
       joinColumns = elements[i - 1].getLeftJoinColumns();
@@ -242,6 +246,11 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
   @VisibleForTesting
   final JoinResult join(JoinAlias left, JoinAlias right, int index)
   {
-    return join(elements[index].getJoinType(), left, right);
+    return join(left, right, index, null);
+  }
+
+  private JoinResult join(JoinAlias left, JoinAlias right, int index, int[] projection)
+  {
+    return join(elements[index].getJoinType(), left, right, projection);
   }
 }

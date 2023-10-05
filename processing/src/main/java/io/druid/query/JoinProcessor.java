@@ -30,11 +30,16 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.Rows;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.Query.OrderingSupport;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.segment.column.Column;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -65,39 +70,39 @@ public class JoinProcessor
   }
 
   @VisibleForTesting
-  final JoinResult join(JoinType type, JoinAlias left, JoinAlias right)
+  final JoinResult join(JoinType type, JoinAlias left, JoinAlias right, int[] projection)
   {
     Preconditions.checkArgument(left.joinColumns.size() == right.joinColumns.size());
     if (left.joinColumns.size() == 0) {
-      return product(left, right, false);
+      return product(left, right, projection);
     }
     if (left.isHashed() && right.isHashed()) {
       switch (type) {
         case INNER:
           boolean leftDriving = left.hashed.size() < right.hashed.size();
-          return joinHashed(left, right, type, leftDriving);
+          return joinHashed(left, right, type, leftDriving, projection);
         case LO:
-          return joinHashed(left, right, type, true);
+          return joinHashed(left, right, type, true, projection);
         case RO:
-          return joinHashed(left, right, type, false);
+          return joinHashed(left, right, type, false, projection);
         default:
           throw new ISE("Cannot %s join with hash", type);
       }
     } else if (type.isLeftDrivable() && right.isHashed()) {
-      return joinHashed(left, right, type, true);
+      return joinHashed(left, right, type, true, projection);
     } else if (type.isRightDrivable() && left.isHashed()) {
-      return joinHashed(left, right, type, false);
+      return joinHashed(left, right, type, false, projection);
     }
     if (type.isLeftDrivable() && !right.isSorted() && right.estimatedNumRows > 0) {
       JoinAlias hashed = right.tryHashOnEstimation(config.getHashJoinThreshold());
       if (hashed != null) {
-        return joinHashed(left, hashed, type, true);
+        return joinHashed(left, hashed, type, true, projection);
       }
     }
     if (type.isRightDrivable() && !left.isSorted() && left.estimatedNumRows > 0) {
       JoinAlias hashed = left.tryHashOnEstimation(config.getHashJoinThreshold());
       if (hashed != null) {
-        return joinHashed(hashed, right, type, false);
+        return joinHashed(hashed, right, type, false, projection);
       }
     }
     if (left.estimatedNumRows > 0 && right.estimatedNumRows > 0) {
@@ -116,21 +121,21 @@ public class JoinProcessor
     if (!left.isSorted()) {
       left = left.hashOrSort(type.isRightDrivable() ? config.getHashJoinThreshold() : -1);
       if (left.isHashed()) {
-        return joinHashed(left, right, type, false);
+        return joinHashed(left, right, type, false, projection);
       }
       Preconditions.checkArgument(left.isSorted());
     }
     if (!right.isSorted()) {
       right = right.hashOrSort(type.isLeftDrivable() ? config.getHashJoinThreshold() : -1);
       if (right.isHashed()) {
-        return joinHashed(left, right, type, true);
+        return joinHashed(left, right, type, true, projection);
       }
       Preconditions.checkArgument(right.isSorted());
     }
-    return joinSorted(left, right, type);
+    return joinSorted(left, right, type, projection);
   }
 
-  private JoinResult joinSorted(JoinAlias left, JoinAlias right, JoinType type)
+  private JoinResult joinSorted(JoinAlias left, JoinAlias right, JoinType type, int[] projection)
   {
     LOG.debug(">> %s (%s --> %s) (SortedMerge)", type, left, right);
     return JoinResult.sortMerge(new JoinIterator(type, left, right, maxOutputRow)
@@ -138,7 +143,7 @@ public class JoinProcessor
       @Override
       protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
       {
-        return mergeJoin(type, leftAlias, rightAlias);
+        return mergeJoin(type, leftAlias, rightAlias, projection);
       }
     });
   }
@@ -147,7 +152,8 @@ public class JoinProcessor
       final JoinAlias left,
       final JoinAlias right,
       final JoinType type,
-      final boolean leftDriving
+      final boolean leftDriving,
+      final int[] projection
   )
   {
     LOG.debug(">> %s (%s %s %s) (%s + %s)", type, left, leftDriving ? "-->" : "<--", right, left.columns, right.columns);
@@ -158,7 +164,7 @@ public class JoinProcessor
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
-            return hashToHashJoin(type, leftAlias, rightAlias, false);
+            return hashToHashJoin(type, leftAlias, rightAlias, false, projection);
           }
         });
       }
@@ -168,7 +174,7 @@ public class JoinProcessor
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
-            return sortedToHashJoin(type, leftAlias, rightAlias, false);
+            return sortedToHashJoin(type, leftAlias, rightAlias, false, projection);
           }
         });
       }
@@ -177,17 +183,18 @@ public class JoinProcessor
         @Override
         protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
         {
-          return hashJoin(type, leftAlias, rightAlias, false);
+          return hashJoin(type, leftAlias, rightAlias, false, projection);
         }
       });
     } else {
+      int[] reverted = inverse(projection, left.columns.size(), right.columns.size());
       if (right.isHashed()) {
         return JoinResult.none(new JoinIterator(type, left, right.prepareHashIterator(), maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
-            return hashToHashJoin(type.revert(), rightAlias, leftAlias, true);
+            return hashToHashJoin(type, rightAlias, leftAlias, true, reverted);
           }
         });
       }
@@ -197,7 +204,7 @@ public class JoinProcessor
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
-            return sortedToHashJoin(type.revert(), rightAlias, leftAlias, true);
+            return sortedToHashJoin(type, rightAlias, leftAlias, true, reverted);
           }
         });
       }
@@ -206,10 +213,19 @@ public class JoinProcessor
         @Override
         protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
         {
-          return hashJoin(type.revert(), rightAlias, leftAlias, true);
+          return hashJoin(type, rightAlias, leftAlias, true, reverted);
         }
       });
     }
+  }
+
+  private static int[] inverse(int[] projection, int left, int right)
+  {
+    int[] reverted = projection != null ? Arrays.copyOf(projection, projection.length) : GuavaUtils.intsFromTo(0, left + right);
+    for (int i = 0; i < reverted.length; i++) {
+      reverted[i] += reverted[i] < left ? right : -left;
+    }
+    return reverted;
   }
 
   private abstract class JoinIterator implements CloseableIterator<Object[]>
@@ -283,7 +299,12 @@ public class JoinProcessor
     }
   }
 
-  private Iterator<Object[]> mergeJoin(final JoinType type, final JoinAlias left, final JoinAlias right)
+  private Iterator<Object[]> mergeJoin(
+      final JoinType type,
+      final JoinAlias left,
+      final JoinAlias right,
+      final int[] projection
+  )
   {
     if (left.partition == null) {
       left.partition = left.next();
@@ -294,7 +315,7 @@ public class JoinProcessor
     while (left.partition != null && right.partition != null) {
       final int compare = compareNF(left.partition.get(0), left.indices, right.partition.get(0), right.indices);
       if (compare == 0) {
-        Iterator<Object[]> product = product(left.partition, right.partition, false);
+        Iterator<Object[]> product = product(left.partition, right.partition, projection);
         left.partition = left.next();
         right.partition = right.next();
         return product;
@@ -309,7 +330,7 @@ public class JoinProcessor
           continue;
         case LO:
           if (compare < 0) {
-            Iterator<Object[]> lo = lo(left.partition.iterator(), right.columns.size());
+            Iterator<Object[]> lo = lo(left.partition.iterator(), right.columns.size(), projection);
             left.partition = left.next();
             return lo;
           } else {
@@ -320,18 +341,18 @@ public class JoinProcessor
           if (compare < 0) {
             left.partition = left.skip(right.partition.get(0), right.indices);
           } else {
-            Iterator<Object[]> ro = ro(left.columns.size(), right.partition.iterator());
+            Iterator<Object[]> ro = ro(left.columns.size(), right.partition.iterator(), projection);
             right.partition = right.next();
             return ro;
           }
           continue;
         case FULL:
           if (compare < 0) {
-            Iterator<Object[]> lo = lo(left.partition.iterator(), right.columns.size());
+            Iterator<Object[]> lo = lo(left.partition.iterator(), right.columns.size(), projection);
             left.partition = left.next();
             return lo;
           } else {
-            Iterator<Object[]> ro = ro(left.columns.size(), right.partition.iterator());
+            Iterator<Object[]> ro = ro(left.columns.size(), right.partition.iterator(), projection);
             right.partition = right.next();
             return ro;
           }
@@ -340,11 +361,11 @@ public class JoinProcessor
       }
     }
     if (left.partition != null && (type == JoinType.LO || type == JoinType.FULL)) {
-      Iterator<Object[]> lo = lo(Iterators.concat(left.partition.iterator(), left.rows), right.columns.size());
+      Iterator<Object[]> lo = lo(Iterators.concat(left.partition.iterator(), left.rows), right.columns.size(), projection);
       left.partition = null;
       return lo;
     } else if (right.partition != null && (type == JoinType.RO || type == JoinType.FULL)) {
-      Iterator<Object[]> ro = ro(left.columns.size(), Iterators.concat(right.partition.iterator(), right.rows));
+      Iterator<Object[]> ro = ro(left.columns.size(), Iterators.concat(right.partition.iterator(), right.rows), projection);
       right.partition = null;
       return ro;
     }
@@ -373,19 +394,20 @@ public class JoinProcessor
 
   private Iterator<Object[]> sortedToHashJoin(
       final JoinType type,
-      final JoinAlias left,
-      final JoinAlias right,
-      final boolean revert
+      final JoinAlias driver,
+      final JoinAlias target,
+      final boolean inverse,
+      final int[] projection
   )
   {
-    for (left.partition = left.next(); left.partition != null; left.partition = left.next()) {
-      final List<Object[]> rightRows = right.getHashed(JoinKey.hashKey(left.partition.get(0), left.indices));
-      if (rightRows != null) {
-        return product(left.partition, rightRows, revert);
+    for (driver.partition = driver.next(); driver.partition != null; driver.partition = driver.next()) {
+      final List<Object[]> targetRows = target.getHashed(JoinKey.hashKey(driver.partition.get(0), driver.indices));
+      if (targetRows != null) {
+        return product(driver.partition, targetRows, projection);
       }
-      if (type == JoinType.LO) {
-        return revert ? ro(right.columns.size(), left.partition.iterator())
-                      : lo(left.partition.iterator(), right.columns.size());
+      if (type != JoinType.INNER) {
+        return inverse ? ro(target.columns.size(), driver.partition.iterator(), projection)
+                      : lo(driver.partition.iterator(), target.columns.size(), projection);
       }
     }
     return null;
@@ -393,21 +415,23 @@ public class JoinProcessor
 
   private Iterator<Object[]> hashToHashJoin(
       final JoinType type,
-      final JoinAlias driving,
+      final JoinAlias driver,
       final JoinAlias target,
-      final boolean revert
+      final boolean inverse,
+      final int[] projection
   )
   {
-    while (driving.iterator.hasNext()) {
-      final Map.Entry<JoinKey, Object> entry = driving.iterator.next();
-      final List<Object[]> leftRows = asValues(entry.getValue());
-      final List<Object[]> rightRows = target.getHashed(entry.getKey());
-      if (rightRows != null) {
-        return product(leftRows, rightRows, revert);
+    while (driver.iterator.hasNext()) {
+      final Map.Entry<JoinKey, Object> entry = driver.iterator.next();
+      final List<Object[]> targetRows = target.getHashed(entry.getKey());
+      if (targetRows != null) {
+        final List<Object[]> driveRows = asValues(entry.getValue());
+        return product(driveRows, targetRows, projection);
       }
-      if (type == JoinType.LO) {
-        return revert ? ro(driving.columns.size() + target.columns.size(), leftRows.iterator())
-                      : lo(leftRows.iterator(), driving.columns.size() + target.columns.size());
+      if (type != JoinType.INNER) {
+        final List<Object[]> driveRows = asValues(entry.getValue());
+        return inverse ? ro(target.columns.size(), driveRows.iterator(), projection)
+                      : lo(driveRows.iterator(), target.columns.size(), projection);
       }
     }
     return null;
@@ -415,25 +439,22 @@ public class JoinProcessor
 
   private Iterator<Object[]> hashJoin(
       final JoinType type,
-      final JoinAlias driving,
+      final JoinAlias driver,
       final JoinAlias target,
-      final boolean revert
+      final boolean inverse,
+      final int[] projection
   )
   {
-    while (driving.rows.hasNext()) {
-      final Object[] drivingRow = driving.rows.next();
-      final List<Object[]> otherRows = target.getHashed(JoinKey.hashKey(drivingRow, driving.indices));
+    while (driver.rows.hasNext()) {
+      final Object[] drivingRow = driver.rows.next();
+      final List<Object[]> otherRows = target.getHashed(JoinKey.hashKey(drivingRow, driver.indices));
       if (otherRows != null) {
-        return product(drivingRow, otherRows, revert);
+        return product(drivingRow, otherRows, projection);
       }
-      if (type == JoinType.LO) {
-        final Object[] join = new Object[drivingRow.length + target.columns.size()];
-        if (revert) {
-          System.arraycopy(drivingRow, 0, join, target.columns.size(), drivingRow.length);
-        } else {
-          System.arraycopy(drivingRow, 0, join, 0, drivingRow.length);
-        }
-        return Iterators.singletonIterator(join);
+      if (type != JoinType.INNER) {
+        return Iterators.singletonIterator(
+            inverse ? ro(target.columns.size(), drivingRow, projection)
+                    : lo(drivingRow, target.columns.size(), projection));
       }
     }
     return null;
@@ -752,24 +773,27 @@ public class JoinProcessor
     }
   }
 
-  private JoinResult product(final JoinAlias left, final JoinAlias right, final boolean revert)
+  private JoinResult product(final JoinAlias left, final JoinAlias right, final int[] projection)
   {
     LOG.debug(">> CROSS (%s x %s)", left, right);
     List<Object[]> leftRows = left.materialize();
     List<Object[]> rightRows = right.materialize();
-    return JoinResult.none(GuavaUtils.withResource(product(leftRows, rightRows, false), () ->
+    return JoinResult.none(GuavaUtils.withResource(product(leftRows, rightRows, projection), () ->
         LOG.debug("<< CROSS (%s + %s), resulting %d rows (%s+%s)",
                   left, right, leftRows.size() * rightRows.size(), left.columns, right.columns
         )));
   }
 
-  private Iterator<Object[]> product(final List<Object[]> left, final List<Object[]> right, final boolean revert)
+  private static Iterator<Object[]> product(List<Object[]> driver, List<Object[]> target, int[] projection)
   {
-    if (left.isEmpty() || right.isEmpty()) {
+    if (driver.isEmpty() || target.isEmpty()) {
       return Collections.emptyIterator();
     }
-    if (left.size() == 1) {
-      return product(left.get(0), right, revert);
+    if (driver.size() == 1) {
+      return product(driver.get(0), target, projection);
+    }
+    if (target.size() == 1) {
+      return product(driver, target.get(0), projection);
     }
     return new Iterator<Object[]>()
     {
@@ -779,68 +803,99 @@ public class JoinProcessor
       @Override
       public boolean hasNext()
       {
-        return r < right.size() || l + 1 < left.size();
+        return r < target.size() || l + 1 < driver.size();
       }
 
       @Override
       public Object[] next()
       {
-        if (r < right.size()) {
-          return concat(left.get(l), right.get(r++), revert);
+        if (r < target.size()) {
+          return concat(driver.get(l), target.get(r++), projection);
         }
-        if (l + 1 < left.size()) {
+        if (l + 1 < driver.size()) {
           r = 0;
-          return concat(left.get(++l), right.get(r++), revert);
+          return concat(driver.get(++l), target.get(r++), projection);
         }
         throw new NoSuchElementException();
       }
     };
   }
 
-  private Iterator<Object[]> product(final Object[] left, final List<Object[]> right, final boolean revert)
+  private static Iterator<Object[]> product(List<Object[]> left, Object[] right, int[] projection)
+  {
+    if (left.size() == 1) {
+      return Iterators.singletonIterator(concat(left.get(0), right, projection));
+    }
+    return Iterators.transform(left.iterator(), row -> concat(row, right, projection));
+  }
+
+  private static Iterator<Object[]> product(Object[] left, List<Object[]> right, int[] projection)
   {
     if (right.size() == 1) {
-      return Iterators.singletonIterator(concat(left, right.get(0), revert));
+      return Iterators.singletonIterator(concat(left, right.get(0), projection));
     }
-    return Iterators.transform(right.iterator(), row -> concat(left, row, revert));
+    return Iterators.transform(right.iterator(), row -> concat(left, row, projection));
   }
 
-  private Iterator<Object[]> lo(final Iterator<Object[]> left, final int right)
+  private static Object[] lo(Object[] row, int right, int[] projection)
   {
-    return Iterators.transform(left, row -> Arrays.copyOf(row, row.length + right));
+    if (projection == null) {
+      return Arrays.copyOf(row, row.length + right);
+    }
+    final Object[] join = new Object[projection.length];
+    for (int i = 0; i < join.length; i++) {
+      join[i] = projection[i] < row.length ? row[projection[i]] : null;
+    }
+    return join;
   }
 
-  private Iterator<Object[]> ro(final int left, final Iterator<Object[]> right)
+  private static Iterator<Object[]> lo(Iterator<Object[]> rows, int right, int[] projection)
   {
-    return Iterators.transform(right, row -> {
+    return Iterators.transform(rows, row -> lo(row, right, projection));
+  }
+
+  private static Object[] ro(int left, Object[] row, int[] projection)
+  {
+    if (projection == null) {
       Object[] concat = new Object[left + row.length];
       System.arraycopy(row, 0, concat, left, row.length);
       return concat;
-    });
+    }
+    final Object[] join = new Object[projection.length];
+    for (int i = 0; i < join.length; i++) {
+      join[i] = projection[i] < row.length ? row[projection[i]] : null;
+    }
+    return join;
   }
 
-  private static Object[] concat(final Object[] left, final Object[] right, final boolean revert)
+  private static Iterator<Object[]> ro(int rows, Iterator<Object[]> right, int[] projection)
   {
-    if (revert) {
-      final Object[] concat = Arrays.copyOf(right, left.length + right.length);
-      System.arraycopy(left, 0, concat, right.length, left.length);
-      return concat;
-    } else {
-      final Object[] concat = Arrays.copyOf(left, left.length + right.length);
+    return Iterators.transform(right, row -> ro(rows, row, projection));
+  }
+
+  private static Object[] concat(Object[] left, Object[] right, int[] projection)
+  {
+    if (projection == null) {
+      Object[] concat = Arrays.copyOf(left, left.length + right.length);
       System.arraycopy(right, 0, concat, left.length, right.length);
       return concat;
     }
+    Object[] concat = new Object[projection.length];
+    for (int i = 0; i < concat.length; i++) {
+      concat[i] = projection[i] < left.length ? left[projection[i]] : right[projection[i] - left.length];
+    }
+    return concat;
   }
 
   // from source.. need prefix for value
   private static List<Object[]> sort(List<String> alias, List<Object[]> rows, int[] indices)
   {
-    final Object[][] array = rows.toArray(new Object[0][]);
+    Object[][] array = rows.toArray(new Object[0][]);
     Arrays.parallelSort(array, Comparators.toArrayComparator(indices));
     return Arrays.asList(array);
   }
 
-  static Map<JoinKey, Object> hash(final Iterator<Object[]> sequence, final int[] indices)
+  private static Map<JoinKey, Object> hash(Iterator<Object[]> sequence, int[] indices)
   {
     try {
       final Map<JoinKey, Object> hashed = Maps.newHashMap();
@@ -857,24 +912,20 @@ public class JoinProcessor
     }
   }
 
-  static final BiFunction<JoinKey, Object, Object> HASH_POPULATOR = new BiFunction<JoinKey, Object, Object>()
+  @SuppressWarnings("unchecked")
+  private static final BiFunction<JoinKey, Object, Object> HASH_POPULATOR = (key, prev) ->
   {
-    @Override
-    @SuppressWarnings("unchecked")
-    public Object apply(JoinKey key, Object prev)
-    {
-      if (prev == null) {
-        return key.row;
-      }
-      if (prev instanceof List) {
-        ((List) prev).add(key.row);
-        return prev;
-      }
-      return Lists.newArrayList(prev, key.row);
+    if (prev == null) {
+      return key.row;
     }
+    if (prev instanceof List) {
+      ((List) prev).add(key.row);
+      return prev;
+    }
+    return Lists.newArrayList(prev, key.row);
   };
 
-  protected Supplier<List<List<OrderByColumnSpec>>> getCollations(Query<?> query)
+  protected static Supplier<List<List<OrderByColumnSpec>>> getCollations(Query<?> query)
   {
     if (query instanceof OrderingSupport) {
       List<OrderByColumnSpec> ordering = ((OrderingSupport<?>) query).getResultOrdering();
@@ -888,7 +939,7 @@ public class JoinProcessor
     return NO_COLLATION;
   }
 
-  public static <T> PeekingIterator<T> peek(Iterator<? extends T> iterator, MutableInt counter)
+  private static <T> PeekingIterator<T> peek(Iterator<? extends T> iterator, MutableInt counter)
   {
     return new GuavaUtils.DelegatedPeekingIterator<T>(Iterators.peekingIterator(iterator))
     {
@@ -899,5 +950,17 @@ public class JoinProcessor
         return delegated.next();
       }
     };
+  }
+
+  @SuppressWarnings("unchecked")
+  protected static Sequence format(Iterator projected, List<String> projectedNames, boolean asMap, boolean asRow)
+  {
+    if (asMap) {
+      Iterator iterator = GuavaUtils.map(projected, Rows.arrayToMap(projectedNames));
+      return Sequences.once(
+          projectedNames, asRow ? GuavaUtils.map(iterator, Rows.mapToRow(Column.TIME_COLUMN_NAME)) : iterator
+      );
+    }
+    return Sequences.once(projectedNames, asRow ? GuavaUtils.map(projected, CompactRow.WRAP) : projected);
   }
 }

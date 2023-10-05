@@ -21,17 +21,9 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.Sequence;
-import io.druid.common.utils.Sequences;
-import io.druid.data.input.CompactRow;
-import io.druid.data.input.Rows;
-import io.druid.segment.column.Column;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -118,50 +110,18 @@ public abstract class CommonJoinProcessor extends JoinProcessor
     return outputColumns;
   }
 
-  @SuppressWarnings("unchecked")
-  protected Sequence projection(Iterator<Object[]> outputRows, List<String> outputAlias, boolean asRow)
+  protected int[] projection(List<String> outputAlias)
   {
-    final List<String> projectedNames = outputColumns == null ? outputAlias : outputColumns;
-    if (asMap) {
-      Iterator iterator = GuavaUtils.map(outputRows, toMap(outputAlias, projectedNames));
-      return Sequences.once(
-          projectedNames, asRow ? GuavaUtils.map(iterator, Rows.mapToRow(Column.TIME_COLUMN_NAME)) : iterator
-      );
-    }
-    Iterator iterator = GuavaUtils.map(outputRows, GuavaUtils.mapper(outputAlias, projectedNames));
-    return Sequences.once(projectedNames, asRow ? GuavaUtils.map(iterator, CompactRow.WRAP) : iterator);
+    return outputColumns == null ? null : GuavaUtils.indexOf(outputAlias, outputColumns);
   }
 
-  private static Function<Object[], Map<String, Object>> toMap(List<String> inputColumns, List<String> outputColumns)
+  protected List<String> toAliases(JoinElement... elements)
   {
-    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-      final int[] indices = GuavaUtils.indexOf(inputColumns, outputColumns);
-      return new Function<Object[], Map<String, Object>>()
-      {
-        @Override
-        public Map<String, Object> apply(final Object[] input)
-        {
-          final Map<String, Object> event = Maps.newLinkedHashMap();
-          for (int i = 0; i < indices.length; i++) {
-            if (indices[i] >= 0) {
-              event.put(outputColumns.get(i), input[indices[i]]);
-            }
-          }
-          return event;
-        }
-      };
+    List<String> aliases = Lists.newArrayList();
+    aliases.add(elements[0].getLeftAlias());
+    for (JoinElement element : elements) {
+      aliases.add(element.getRightAlias());
     }
-    return new Function<Object[], Map<String, Object>>()
-    {
-      @Override
-      public Map<String, Object> apply(Object[] input)
-      {
-        final Map<String, Object> event = Maps.newLinkedHashMap();
-        for (int i = 0; i < input.length; i++) {
-          event.put(inputColumns.get(i), input[i]);
-        }
-        return event;
-      }
-    };
+    return aliases;
   }
 }

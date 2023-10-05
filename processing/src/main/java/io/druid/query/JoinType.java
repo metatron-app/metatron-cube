@@ -27,8 +27,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum JoinType
 {
   INNER { public boolean isLeftDrivable()  { return true;} public boolean isRightDrivable() { return true;}},
-  LO    { public boolean isLeftDrivable()  { return true;} public JoinType revert() { return RO; }},
-  RO    { public boolean isRightDrivable() { return true;} public JoinType revert() { return LO; }},
+  LO    { public boolean isLeftDrivable()  { return true;} },
+  RO    { public boolean isRightDrivable() { return true;} },
   FULL  { public JoinType revert() { throw new UnsupportedOperationException("revert"); }};
 
   public boolean isLeftDrivable()
@@ -65,10 +65,5 @@ public enum JoinType
       }
       throw e;
     }
-  }
-
-  public JoinType revert()
-  {
-    return this;
   }
 }
