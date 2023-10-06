@@ -22,18 +22,31 @@ package io.druid.query;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.primitives.Ints;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.JoinQuery.JoinHolder;
 import io.druid.query.Query.FilterSupport;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.filter.AndDimFilter;
+import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.filter.SemiJoinFactory;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.filter.Filters;
@@ -41,6 +54,7 @@ import io.druid.segment.filter.Filters;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -94,7 +108,7 @@ public class DataSources
     return dataSource instanceof QueryDataSource && predicate.apply(((QueryDataSource) dataSource).getQuery());
   }
 
-  public static DataSource applyFilter(DataSource dataSource, DimFilter filter, double selectivity, QuerySegmentWalker segmentWalker)
+  public static DataSource applyFilter(DataSource dataSource, DimFilter filter, Estimation estimation, QuerySegmentWalker segmentWalker)
   {
     if (dataSource instanceof ViewDataSource) {
       final ViewDataSource view = (ViewDataSource) dataSource;
@@ -103,7 +117,7 @@ public class DataSources
     if (dataSource instanceof QueryDataSource) {
       final Query query = ((QueryDataSource) dataSource).getQuery();
       final RowSignature schema = ((QueryDataSource) dataSource).getSchema();
-      final Query applied = applyFilter(query, filter, selectivity, segmentWalker);
+      final Query applied = applyFilter(query, filter, estimation.selectivity, segmentWalker);
       if (applied != null) {
         return QueryDataSource.of(applied, schema);
       }
@@ -336,12 +350,47 @@ public class DataSources
         if (applied != null) {
           List<Query> rewritten = Lists.newArrayList(holder.getQueries());
           rewritten.set(i, applied);
-          JoinQuery.filterMerged(element, rewritten, i, i == 0 ? 1 : i - 1, segmentWalker);
+          DataSources.filterMerged(element, rewritten, i, i == 0 ? 1 : i - 1, segmentWalker);
           return rewritten.size() == 1 ? rewritten.get(0) : holder.withQueries(rewritten);
         }
       }
     }
     return null;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Query<Object[]> disableSort(Query<Object[]> query, List<String> joinKey)
+  {
+    if (query instanceof StreamQuery) {
+      StreamQuery stream = (StreamQuery) query;
+      if (OrderByColumnSpec.ascending(joinKey).equals(stream.getOrderingSpecs())) {
+        query = stream.withOrderingSpec(null);
+      }
+    } else if (query instanceof Query.OrderingSupport) {
+      Query.OrderingSupport ordering = (Query.OrderingSupport) query;
+      if (OrderByColumnSpec.ascending(joinKey).equals(ordering.getResultOrdering())) {
+        query = ordering.withResultOrdering(null);    // todo: seemed not working
+      }
+    }
+    return query.withOverriddenContext(JoinQuery.SORTING, null);
+  }
+
+  public static final Supplier<List<List<OrderByColumnSpec>>> NO_COLLATION = Suppliers.ofInstance(ImmutableList.of());
+
+  public static Supplier<List<List<OrderByColumnSpec>>> getCollations(Query<?> query)
+  {
+    if (query instanceof JoinQuery.JoinHolder) {
+      return () -> ((JoinQuery.JoinHolder) query).getCollations();
+    }
+    List<OrderByColumnSpec> ordering;
+    if (query instanceof StreamQuery) {
+      ordering = ((StreamQuery) query).getOrderingSpecs();
+    } else if (query instanceof Query.OrderingSupport) {
+      ordering = ((Query.OrderingSupport<?>) query).getResultOrdering();
+    } else {
+      ordering = null;
+    }
+    return ordering == null ? NO_COLLATION : () -> Arrays.asList(ordering);
   }
 
   public static List<String> getOutputColumns(DataSource dataSource)
@@ -383,5 +432,110 @@ public class DataSources
       }
     }
     return null;
+  }
+
+  private static final Logger LOG = new Logger(JoinQuery.class);
+
+  @SuppressWarnings("unchecked")
+  static List<Query> filterMerged(JoinElement element, List<Query> queries, int ix, int iy, QuerySegmentWalker walker)
+  {
+    // todo convert back to JoinQuery and rewrite
+    if (!element.isInnerJoin()) {
+      return queries;   // todo
+    }
+    Query<Object[]> query0 = queries.get(ix);
+    Query<Object[]> query1 = queries.get(iy);
+    if (JoinQuery.isHashing(query0)) {
+      return queries;
+    }
+
+    int rc0 = Estimation.getRowCount(query0);
+    int rc1 = Estimation.getRowCount(query1);
+    if (rc0 < 0 || rc1 < 0 || rc0 >= rc1) {
+      return queries;
+    }
+
+    QueryConfig config = walker.getConfig();
+    if (rc0 > config.getHashJoinThreshold(query0)) {
+      return queries;
+    }
+
+    if (JoinQuery.isHashing(query1)) {
+      LOG.debug("--- reassigning 'hashing' to %s:%d (was %s:%d)", query0.alias(), rc0, query1.alias(), rc1);
+    } else {
+      LOG.debug("--- assigning 'hashing' to %s:%d.. overriding sort-merge join", query0.alias(), rc0);
+    }
+    List<String> joinColumn0 = ix < iy ? element.getLeftJoinColumns() : element.getRightJoinColumns();
+    List<String> joinColumn1 = ix < iy ? element.getRightJoinColumns() : element.getLeftJoinColumns();
+
+    query0 = DataSources.disableSort(query0, joinColumn0);
+    query1 = DataSources.disableSort(query1, joinColumn1);
+
+    int semiJoinThrehold = config.getSemiJoinThreshold(query0);
+    if (semiJoinThrehold > 0 && rc0 <= semiJoinThrehold &&
+        DataSources.isDataNodeSourced(query0) && DataSources.isFilterableOn(query1, joinColumn1)) {
+      DimFilter filter = removeTrivials(BaseQuery.getDimFilter(query0), joinColumn0);
+      List<String> outputColumns = query0.estimatedOutputColumns();
+      if (filter != null && outputColumns != null) {
+        Sequence<Object[]> sequence = QueryRunners.resolveAndRun(query0, walker);
+        List<Object[]> values = Sequences.toList(sequence);
+        query0 = MaterializedQuery.of(query0, sequence.columns(), values);
+        Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, joinColumn0));
+        query1 = DataSources.applyFilter(query1, SemiJoinFactory.from(joinColumn1, keys.iterator()), -1, walker);
+        LOG.debug("--- %s:%d (hash) is applied as filter to %s", query0.alias(), values.size(), query1.alias());
+      }
+    }
+    queries.set(ix, query0.withOverriddenContext(JoinQuery.HASHING, true));
+    queries.set(iy, query1.withOverriddenContext(JoinQuery.HASHING, null));
+    return queries;
+  }
+
+  static BloomDimFilter.Factory bloom(
+      Query source, List<String> sourceJoinOn, Estimation sourceEstimation,
+      Query target, List<String> targetJoinOn
+  )
+  {
+    DimFilter filter = removeTrivials(removeFactory(BaseQuery.getDimFilter(source)), sourceJoinOn);
+    if (filter == null || !DataSources.isDataNodeSourced(source)) {
+      return null;
+    }
+    if (source.getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+      Query<?> view = source.withOverriddenContext(Query.LOCAL_POST_PROCESSING, null);
+      List<String> outputColumns = view.estimatedOutputColumns();
+      if (outputColumns == null || !outputColumns.containsAll(sourceJoinOn)) {
+        return null;
+      }
+    }
+    List<DimensionSpec> extracted = DataSources.findFilterableOn(target, targetJoinOn, q -> !Queries.isNestedQuery(q));
+    if (extracted != null) {
+      // bloom factory will be evaluated in UnionQueryRunner
+      ViewDataSource view = BaseQuery.asView(source, filter, sourceJoinOn);
+      return BloomDimFilter.Factory.fields(extracted, view, Ints.checkedCast(sourceEstimation.estimated));
+    }
+    return null;
+  }
+
+  private static DimFilter removeFactory(DimFilter filter)
+  {
+    return filter == null ? null : DimFilters.rewrite(filter, f -> f instanceof DimFilter.FilterFactory ? null : f);
+  }
+
+  private static DimFilter removeTrivials(DimFilter filter, List<String> joinColumns)
+  {
+    if (filter == null) {
+      return null;
+    }
+    if (joinColumns.size() == 1 && DimFilters.not(SelectorDimFilter.of(joinColumns.get(0), null)).equals(filter)) {
+      return null;
+    }
+    if (filter instanceof AndDimFilter) {
+      boolean changed = false;
+      Set<DimFilter> filters = Sets.newLinkedHashSet(((AndDimFilter) filter).getFields());
+      for (String joinColumn : joinColumns) {
+        changed |= filters.remove(DimFilters.not(SelectorDimFilter.of(joinColumn, null)));
+      }
+      return changed ? DimFilters.and(Lists.newArrayList(filters)) : filter;
+    }
+    return filter;
   }
 }

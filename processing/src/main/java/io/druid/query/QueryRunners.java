@@ -188,7 +188,7 @@ public class QueryRunners
   }
 
   // this is for firing queries in rewrite stage (resolve is done after that)
-  public static Sequence<Object[]> resolveAndRun(Query.ArrayOutputSupport<?> query, QuerySegmentWalker segmentWalker)
+  public static Sequence<Object[]> resolveAndRun(Query<?> query, QuerySegmentWalker segmentWalker)
   {
     Query<?> resolved = QueryUtils.resolveRecursively(query, segmentWalker);
     Query<?> rewritten = QueryUtils.rewriteRecursively(resolved, segmentWalker);

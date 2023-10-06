@@ -205,11 +205,6 @@ public class Estimations
     }
   }
 
-  public static Query propagate(Query<?> query, Estimation estimation)
-  {
-    return query.withOverriddenContext(propagate(query.getContext(), estimation));
-  }
-
   public static Map<String, Object> propagate(Map<String, Object> context, Estimation estimation)
   {
     return BaseQuery.copyContextForMeta(
@@ -255,7 +250,7 @@ public class Estimations
     if (estimation != null && selectivity < estimation.selectivity) {
       Estimation updated = estimation.duplicate().update(selectivity);
       LOG.debug("--- selectivity %.5f merged into %s(%s to %s)", selectivity, query.getDataSource(), estimation, updated);
-      return propagate(query, updated);
+      return updated.propagate(query);
     }
     return query;
   }

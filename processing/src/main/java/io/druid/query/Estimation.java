@@ -21,6 +21,8 @@ package io.druid.query;
 
 import it.unimi.dsi.fastutil.longs.Long2LongFunction;
 
+import java.util.Map;
+
 public class Estimation
 {
   public static final String ROWNUM = "$rownum";
@@ -100,6 +102,15 @@ public class Estimation
     update(update.applyAsLong(estimated));
   }
 
+  public void updateFrom(Query<?> query)
+  {
+    Estimation estimation = Estimation.from(query);
+    if (estimation != null) {
+      this.estimated = estimation.estimated;
+      this.selectivity = estimation.selectivity;
+    }
+  }
+
   public boolean lt(Estimation estimation)
   {
     return estimated < estimation.estimated;
@@ -168,6 +179,16 @@ public class Estimation
       estimated = limit;
     }
     return this;
+  }
+
+  public Query<?> propagate(Query<?> query)
+  {
+    return query.withOverriddenContext(propagate(query.getContext()));
+  }
+
+  public Map<String, Object> propagate(Map<String, Object> context)
+  {
+    return Estimations.propagate(context, this);
   }
 
   public double degrade()

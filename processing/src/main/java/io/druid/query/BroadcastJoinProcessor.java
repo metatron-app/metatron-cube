@@ -215,7 +215,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         List<String> projectedNames = outputColumns != null ? outputColumns : GuavaUtils.map(outputAlias, projection);
 
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Running join processing %s resulting %s", element.getAliases(), projectedNames);
+          LOG.debug("Running broadcast join on %s resulting %s", element.getAliases(), projectedNames);
         }
 
         JoinResult join = join(element.getJoinType(), left, right, projection);
@@ -250,7 +250,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
             alias,
             columns,
             joinColumns,
-            getCollations(query),
+            DataSources.getCollations(query),
             GuavaUtils.indexOf(columns, joinColumns, true),
             queried,
             -1

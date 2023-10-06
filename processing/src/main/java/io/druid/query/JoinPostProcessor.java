@@ -143,7 +143,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         List<String> projectedNames = outputColumns != null ? outputColumns : GuavaUtils.map(outputAlias, projection);
 
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Running join processing %s resulting %s", element.getAliases(), projectedNames);
+          LOG.debug("Running join on %s resulting %s", element.getAliases(), projectedNames);
         }
         try {
           JoinResult join = join(joining, Estimation.getRowCount(holder), projection);
@@ -178,7 +178,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
       return () -> new JoinAlias(aliases, columnNames, joinColumns, indices, Sequences.toIterator(sequence));
     }
     final int rowCount = Estimation.getRowCount(source);
-    final Supplier<List<List<OrderByColumnSpec>>> collations = JoinQuery.isSorting(source) ? getCollations(source) : null;
+    final Supplier<List<List<OrderByColumnSpec>>> collations = DataSources.getCollations(source);
     return () -> new JoinAlias(
         aliases, columnNames, joinColumns, collations, indices, Sequences.toIterator(sequence), rowCount
     );

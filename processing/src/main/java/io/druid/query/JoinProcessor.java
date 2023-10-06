@@ -37,7 +37,6 @@ import io.druid.data.input.Rows;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
-import io.druid.query.Query.OrderingSupport;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.segment.column.Column;
 import org.apache.commons.io.IOUtils;
@@ -56,8 +55,6 @@ import java.util.function.BiFunction;
 
 public class JoinProcessor
 {
-  public static final Supplier<List<List<OrderByColumnSpec>>> NO_COLLATION = Suppliers.ofInstance(ImmutableList.of());
-
   protected final Logger LOG = new Logger(getClass());
 
   protected final JoinQueryConfig config;
@@ -566,7 +563,7 @@ public class JoinProcessor
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
-      this.collations = collations == null ? NO_COLLATION : collations;
+      this.collations = collations == null ? DataSources.NO_COLLATION : collations;
       this.indices = indices;
       this.rows = peek(rows, counter);
       this.hashed = null;
@@ -586,7 +583,7 @@ public class JoinProcessor
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
-      this.collations = NO_COLLATION;
+      this.collations = DataSources.NO_COLLATION;
       this.indices = indices;
       this.rows = Iterators.peekingIterator(Collections.emptyIterator());
       this.hashed = hash(peek(iterator, counter), indices);
@@ -924,20 +921,6 @@ public class JoinProcessor
     }
     return Lists.newArrayList(prev, key.row);
   };
-
-  protected static Supplier<List<List<OrderByColumnSpec>>> getCollations(Query<?> query)
-  {
-    if (query instanceof OrderingSupport) {
-      List<OrderByColumnSpec> ordering = ((OrderingSupport<?>) query).getResultOrdering();
-      if (ordering != null) {
-        return Suppliers.ofInstance(Arrays.asList(ordering));
-      }
-    }
-    if (query instanceof JoinQuery.JoinHolder) {
-      return () -> ((JoinQuery.JoinHolder) query).getCollations();
-    }
-    return NO_COLLATION;
-  }
 
   private static <T> PeekingIterator<T> peek(Iterator<? extends T> iterator, MutableInt counter)
   {

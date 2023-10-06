@@ -62,6 +62,7 @@ import org.joda.time.Interval;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -161,6 +162,9 @@ public interface Query<T> extends QueryContextKeys
 
   default Query<T> withOverriddenContext(String contextKey, Object contextValue)
   {
+    if (Objects.equals(getContextValue(contextKey, null), contextValue)) {
+      return this;
+    }
     return withOverriddenContext(
         contextValue == null ? GuavaUtils.mutableMap(contextKey, contextValue) :
         ImmutableMap.of(contextKey, contextValue)

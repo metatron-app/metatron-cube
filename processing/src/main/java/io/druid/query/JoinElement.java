@@ -293,7 +293,7 @@ public class JoinElement
     return false;
   }
 
-  public static ArrayOutputSupport toQuery(
+  public static Query toQuery(
       QuerySegmentWalker segmentWalker,
       DataSource dataSource,
       QuerySegmentSpec segmentSpec,
@@ -304,18 +304,17 @@ public class JoinElement
   }
 
   @SuppressWarnings("unchecked")
-  public static ArrayOutputSupport toQuery(
+  public static Query toQuery(
       QuerySegmentWalker segmentWalker,
       DataSource dataSource,
       List<String> sortColumns,
       QuerySegmentSpec segmentSpec,
       Map<String, Object> context
   ) {
-    ArrayOutputSupport query = toQuery(segmentWalker, dataSource, sortColumns, segmentSpec);
-    return (ArrayOutputSupport) query.withOverriddenContext(context);
+    return toQuery(segmentWalker, dataSource, sortColumns, segmentSpec).withOverriddenContext(context);
   }
 
-  private static ArrayOutputSupport toQuery(
+  private static Query toQuery(
       QuerySegmentWalker segmentWalker,
       DataSource dataSource,
       List<String> sortColumns,
@@ -345,7 +344,7 @@ public class JoinElement
                                                     .withOverriddenContext(SORTING, true);
         }
       }
-      return (ArrayOutputSupport) query;
+      return query;
     }
     if (dataSource instanceof TableDataSource) {
       dataSource = ViewDataSource.of(((TableDataSource) dataSource).getName());
