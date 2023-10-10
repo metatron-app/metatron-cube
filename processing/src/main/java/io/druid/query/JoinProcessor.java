@@ -134,7 +134,7 @@ public class JoinProcessor
 
   private JoinResult joinSorted(JoinAlias left, JoinAlias right, JoinType type, int[] projection)
   {
-    LOG.debug(">> %s (%s --> %s) (SortedMerge)", type, left, right);
+    LOG.debug(">> %s (%s --> %s) (SortedMerge)", type, left.start(), right.start());
     return JoinResult.sortMerge(new JoinIterator(type, left, right, maxOutputRow)
     {
       @Override
@@ -153,7 +153,7 @@ public class JoinProcessor
       final int[] projection
   )
   {
-    LOG.debug(">> %s (%s %s %s) (%s + %s)", type, left, leftDriving ? "-->" : "<--", right, left.columns, right.columns);
+    LOG.debug(">> %s (%s %s %s) (%s + %s)", type, left.start(), leftDriving ? "->" : "<-", right.start(), left.columns, right.columns);
     if (leftDriving) {
       if (left.isHashed()) {
         return JoinResult.none(new JoinIterator(type, left.prepareHashIterator(), right, maxOutputRow)
@@ -261,8 +261,8 @@ public class JoinProcessor
       LOG.debug(
           "<< %s (%s + %s), resulting %d rows (%s+%s) : (%,d msec)",
           type,
-          leftAlias,
-          rightAlias,
+          leftAlias.end(),
+          rightAlias.end(),
           count,
           leftAlias.columns,
           rightAlias.columns,
@@ -708,18 +708,25 @@ public class JoinProcessor
       }
     }
 
-    @Override
-    public String toString()
+    public String start()
+    {
+      return describe(true);
+    }
+
+    public String end()
+    {
+      return describe(false);
+    }
+
+    private String describe(boolean start)
     {
       if (isHashed()) {
+        if (start) {
+          return String.format("%s.%s(hashed:%d/%d)", alias, joinColumns, hashSize, counter.intValue());
+        }
         return String.format(
-            "%s.%s(hashed:%d/%d) = (matched=%d, missed=%d)",
-            alias,
-            joinColumns,
-            hashSize,
-            counter.intValue(),
-            matched.intValue(),
-            missed.intValue()
+            "%s.%s(hashed:%d/%d)(matched=%d, missed=%d)",
+            alias, joinColumns, hashSize, counter.intValue(), matched.intValue(), missed.intValue()
         );
       }
       String prefix = isSorted() ? "sorted-stream" : "stream";
@@ -772,12 +779,12 @@ public class JoinProcessor
 
   private JoinResult product(final JoinAlias left, final JoinAlias right, final int[] projection)
   {
-    LOG.debug(">> CROSS (%s x %s)", left, right);
+    LOG.debug(">> CROSS (%s x %s)", left.start(), right.start());
     List<Object[]> leftRows = left.materialize();
     List<Object[]> rightRows = right.materialize();
     return JoinResult.none(GuavaUtils.withResource(product(leftRows, rightRows, projection), () ->
         LOG.debug("<< CROSS (%s + %s), resulting %d rows (%s+%s)",
-                  left, right, leftRows.size() * rightRows.size(), left.columns, right.columns
+                  left.end(), right.end(), leftRows.size() * rightRows.size(), left.columns, right.columns
         )));
   }
 

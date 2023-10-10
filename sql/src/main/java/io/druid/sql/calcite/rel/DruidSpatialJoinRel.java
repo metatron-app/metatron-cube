@@ -49,7 +49,6 @@ import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
 {
@@ -222,7 +221,7 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
   @Override
   public DataSource getDataSource()
   {
-    return CombinedDataSource.of(Utils.getDruidRel(query).getDataSource(), Utils.getDruidRel(boundary).getDataSource());
+    return CombinedDataSource.of(Utils.findDruidRel(query).getDataSource(), Utils.findDruidRel(boundary).getDataSource());
   }
 
   @Override
@@ -287,7 +286,7 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
   {
     final RelOptCostFactory costFactory = planner.getCostFactory();
     final double lc = mq.getRowCount(query);

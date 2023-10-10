@@ -46,7 +46,6 @@ import org.apache.calcite.util.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
@@ -97,7 +96,7 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
     RowSignature signature0 = null;
     List<Query> queries = Lists.newArrayList();
     for (RelNode relNode : rels) {
-      DruidRel druidRel = Utils.getDruidRel(relNode);
+      DruidRel druidRel = Utils.findDruidRel(relNode);
       if (druidRel == null) {
         return null;
       }
@@ -177,7 +176,7 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
   public DataSource getDataSource()
   {
     return new CombinedDataSource(
-        rels.stream().map(rel -> Utils.getDruidRel(rel).getDataSource()).collect(Collectors.toList())
+        rels.stream().map(rel -> Utils.findDruidRel(rel).getDataSource()).collect(Collectors.toList())
     );
   }
 
@@ -225,15 +224,12 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
   {
-    if (!visited.add(this)) {
-      return planner.getCostFactory().makeInfiniteCost();
-    }
     double rowCount = 0;
     double cpu = 0;
     for (RelNode sourceRel : rels) {
-      final Pair<DruidRel, RelOptCost> m = Utils.getMinimumCost(sourceRel, planner, mq, visited);
+      final Pair<DruidRel, RelOptCost> m = Utils.getMinimumCost(sourceRel, planner, mq);
       if (m.right == null || m.right.isInfinite()) {
         return planner.getCostFactory().makeInfiniteCost();
       }

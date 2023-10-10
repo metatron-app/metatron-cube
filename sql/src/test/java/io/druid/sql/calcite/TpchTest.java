@@ -1571,7 +1571,14 @@ public class TpchTest extends TpchTestHelper
   {
     testQuery(TPCH12, TPCH12_EXPLAIN, TPCH12_RESULT);
 
-    if (semiJoin) {
+    if (broadcastJoin) {
+      hook.verifyHooked(
+          "O+vtXDsE1oa4LOKMtiAfKw==",
+          "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[MAIL, REG AIR]} && MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && MathExprFilter{expression='(L_SHIPDATE < L_COMMITDATE)'} && BoundDimFilter{1995-01-01 <= L_RECEIPTDATE < 1996-01-01}), columns=[L_ORDERKEY, L_SHIPMODE]}",
+          "GroupByQuery{dataSource='StreamQuery{dataSource='orders', columns=[O_ORDERKEY, O_ORDERPRIORITY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=orders, leftJoinColumns=[O_ORDERKEY], rightAlias=lineitem, rightJoinColumns=[L_ORDERKEY]}, hashLeft=false, hashSignature={L_ORDERKEY:string, L_SHIPMODE:string}, applyFilter=true}}', dimensions=[DefaultDimensionSpec{dimension='L_SHIPMODE', outputName='d0'}], aggregatorSpecs=[FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a0'}, filter=InDimFilter{dimension='O_ORDERPRIORITY', values=[1-URGENT, 2-HIGH]}}, FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a1'}, filter=(!(O_ORDERPRIORITY=='1-URGENT') && !(O_ORDERPRIORITY=='2-HIGH'))}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0, a1]}",
+          "StreamQuery{dataSource='orders', columns=[O_ORDERKEY, O_ORDERPRIORITY], localPostProcessing=BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=orders, leftJoinColumns=[O_ORDERKEY], rightAlias=lineitem, rightJoinColumns=[L_ORDERKEY]}, hashLeft=false, hashSignature={L_ORDERKEY:string, L_SHIPMODE:string}, applyFilter=true}}"
+      );
+    } else if (semiJoin) {
       hook.verifyHooked(
           "Dm0SJuLpt8LHpEHcVIhxCQ==",
           "StreamQuery{dataSource='lineitem', filter=(InDimFilter{dimension='L_SHIPMODE', values=[MAIL, REG AIR]} && MathExprFilter{expression='(L_COMMITDATE < L_RECEIPTDATE)'} && MathExprFilter{expression='(L_SHIPDATE < L_COMMITDATE)'} && BoundDimFilter{1995-01-01 <= L_RECEIPTDATE < 1996-01-01}), columns=[L_ORDERKEY, L_SHIPMODE], $hash=true}",

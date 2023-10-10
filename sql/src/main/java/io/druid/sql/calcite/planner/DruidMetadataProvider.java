@@ -190,7 +190,7 @@ public class DruidMetadataProvider
       Double selectivity = table.estimateSelectivity(scan, predicate, CONTEXT.get());
       if (selectivity != null) {
         long elapsed = System.currentTimeMillis() - p;
-        LOG.debug("--- selectivity [%s] : %s = %.3f (%d msec)", table.getName(), predicate, selectivity, elapsed);
+        LOG.debug("-- selectivity [%s] : %s = %.3f (%d msec)", table.getName(), predicate, selectivity, elapsed);
         return selectivity;
       }
       return Utils.selectivity(scan, predicate);
@@ -233,7 +233,7 @@ public class DruidMetadataProvider
       Double estimation = table.estimateCardinality(scan, mq, keys, predicate, CONTEXT.get());
       long elapsed = System.currentTimeMillis() - p;
       if (estimation != null && Double.isFinite(estimation)) {
-        LOG.debug("--- cardinality [%s]%s%s = %.1f, %,d msec", table.getName(), keys, lazy(predicate), estimation, elapsed);
+        LOG.debug("-- cardinality [%s]%s%s = %.1f, %,d msec", table.getName(), keys, lazy(predicate), estimation, elapsed);
         return estimation;
       }
       return null;

@@ -33,7 +33,6 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -41,7 +40,6 @@ import org.apache.calcite.rel.type.RelDataType;
 
 import javax.annotation.Nonnull;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * DruidRel that uses a "table" dataSource.
@@ -208,9 +206,8 @@ public class DruidQueryRel extends DruidRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
   {
-    double row = druidTable.getStatistic().getRowCount();
     RelOptCost cost = partialQuery.cost(druidTable, planner.getCostFactory());
 //    if (visited.isEmpty()) {
 //      System.out.printf("--> %s (%.2f) => %.2f (%.2f) : (%s)%n", druidTable.getDataSource(), row, cost.getCpu(), cost.getRows(), partialQuery);

@@ -333,7 +333,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     final Estimation rightEstimated = Estimations.estimate(right, segmentSpec, context, walker);
 
     final String typeString = element.getJoinTypeString();
-    LOG.debug("-> %s (%s:%s + %s:%s)", typeString, leftAlias, leftEstimated, rightAlias, rightEstimated);
+    LOG.debug("> %s (%s:%s + %s:%s)", typeString, leftAlias, leftEstimated, rightAlias, rightEstimated);
 
     if (!getContextBoolean(Query.OUTERMOST_JOIN, false)) {
       element.earlyCheckMaxJoin(leftEstimated.estimated, rightEstimated.estimated, maxResult);
@@ -404,11 +404,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     // try broadcast join
     if (!element.isCrossJoin() && broadcastThreshold > 0) {
       boolean leftBroadcast = joinType.isRightDrivable() && DataSources.isDataNodeSourced(right) &&
-                              leftEstimated.lte(rightEstimated.estimated << 2) &&
-                              leftEstimated.lte(adjust(broadcastThreshold, left, right));
+                              leftEstimated.lte(adjust(broadcastThreshold, left, leftEstimated, right, rightEstimated));
       boolean rightBroadcast = joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left) &&
-                               rightEstimated.lte(leftEstimated.estimated << 2) &&
-                               rightEstimated.lte(adjust(broadcastThreshold, right, left));
+                               rightEstimated.lte(adjust(broadcastThreshold, right, rightEstimated, left, leftEstimated));
       if (leftBroadcast && rightBroadcast) {
         if (leftExpensive(left, leftEstimated, right, rightEstimated)) {
           leftBroadcast = false;
@@ -675,7 +673,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
   )
   {
     LOG.debug(
-        "<- %s (%s:%s + %s:%s) : (%s+%s:%s)",
+        "< %s (%s:%s + %s:%s) : (%s+%s:%s)",
         typeString,
         leftAlias,
         leftEstimated,
@@ -687,17 +685,17 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     );
   }
 
-  private static long adjust(long threshold, DataSource materializing, DataSource current)
+  private static long adjust(long threshold, DataSource ds0, Estimation es0, DataSource ds1, Estimation es1)
   {
-    return (long) (threshold * DataSources.roughCost(current) / DataSources.roughCost(materializing));
+    return (long) (threshold * DataSources.roughCost(ds1, es1) / DataSources.roughCost(ds0, es0));
   }
 
-  private static boolean leftExpensive(DataSource ds0, Estimation estimation0, DataSource ds1, Estimation estimation1)
+  private static boolean leftExpensive(DataSource left, Estimation les, DataSource right, Estimation res)
   {
-    if (Estimation.delta(estimation0, estimation1) < Estimation.max(estimation0, estimation1) * 0.1f) {
-      return DataSources.roughCost(ds0) >= DataSources.roughCost(ds1);
+    if (Estimation.delta(les, res) < Estimation.max(les, res) * 0.1f) {
+      return DataSources.roughCost(left, les) >= DataSources.roughCost(right, res);
     }
-    return estimation0.gt(estimation1);
+    return les.gt(res);
   }
 
   public JoinQuery withPrefixAlias(boolean prefixAlias)

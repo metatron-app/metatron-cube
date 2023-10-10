@@ -210,37 +210,57 @@ public class DataSources
     return false;
   }
 
-  // just for ordering
   public static double roughCost(DataSource source)
   {
-    if (source instanceof QueryDataSource) {
-      return roughCost(((QueryDataSource) source).getQuery());
-    }
-    if (source instanceof ViewDataSource || source instanceof TableDataSource) {
-      return 1;
-    }
-    if (source instanceof UnionDataSource) {
-      return 0;   // just marker
-    }
-    return 100; // ??
+    return roughCost(source, null);
   }
 
-  private static double roughCost(Query<?> query)
+  // just for ordering
+  public static double roughCost(DataSource source, Estimation estimation)
+  {
+    if (source instanceof QueryDataSource) {
+      return roughCost(((QueryDataSource) source).getQuery(), estimation);
+    }
+    if (source instanceof ViewDataSource || source instanceof TableDataSource) {
+      return rc(estimation);
+    }
+    if (source instanceof UnionDataSource) {
+      return Estimation.EPSILON;   // just marker
+    }
+    return rc(estimation) * 10; // ??
+  }
+
+  public static double roughCost(Query<?> query)
+  {
+    return roughCost(query, null);
+  }
+
+  public static double roughCost(Query<?> query, Estimation estimation)
   {
     if (query instanceof MaterializedQuery) {
-      return 0;
+      return Estimation.EPSILON;
     }
-    double base = roughCost(query.getDataSource()) + PostProcessingOperators.roughCost(query);
+    double rc = rc(estimation == null ? Estimation.from(query) : estimation);
+    double cost = rc * (1 + roughCost(query.getDataSource()) + PostProcessingOperators.roughCost(query));
     if (query instanceof TimeseriesQuery) {
-      return base / 4f;
+      return cost;
     } else if (query instanceof BaseAggregationQuery) {
-      return base + 0.3 + (Math.pow(1.2, BaseQuery.getDimensions(query).size()) - 1);
+      return cost + rc * (0.3 + (Math.pow(1.2, BaseQuery.getDimensions(query).size()) - 1));
     } else if (query instanceof StreamQuery) {
-      return base + (((StreamQuery) query).getOrderingSpecs().isEmpty() ? 0 : 1);
+      return cost + (((StreamQuery) query).getOrderingSpecs().isEmpty() ? 0 : rc);
     } else if (query instanceof UnionAllQuery) {
-      return base + ((UnionAllQuery<?>) query).getQueries().stream().mapToDouble(q -> roughCost(q)).sum();
+      return cost + ((UnionAllQuery<?>) query).getQueries().stream().mapToDouble(DataSources::roughCost).sum();
     }
-    return 100;
+    return 10;
+  }
+
+  // todo: should be number of input rows
+  private static double rc(Estimation estimation)
+  {
+    if (estimation == null) {
+      return 4d;
+    }
+    return Math.max(Estimation.EPSILON, Math.min(4d, Math.pow(2, Math.log10(estimation.estimated)) / 40));
   }
 
   public static boolean isFilterableOn(DataSource dataSource, List<String> columns)
@@ -461,9 +481,9 @@ public class DataSources
     }
 
     if (JoinQuery.isHashing(query1)) {
-      LOG.debug("--- reassigning 'hashing' to %s:%d (was %s:%d)", query0.alias(), rc0, query1.alias(), rc1);
+      LOG.debug("-- reassigning 'hashing' to %s:%d (was %s:%d)", query0.alias(), rc0, query1.alias(), rc1);
     } else {
-      LOG.debug("--- assigning 'hashing' to %s:%d.. overriding sort-merge join", query0.alias(), rc0);
+      LOG.debug("-- assigning 'hashing' to %s:%d.. overriding sort-merge join", query0.alias(), rc0);
     }
     List<String> joinColumn0 = ix < iy ? element.getLeftJoinColumns() : element.getRightJoinColumns();
     List<String> joinColumn1 = ix < iy ? element.getRightJoinColumns() : element.getLeftJoinColumns();
@@ -482,7 +502,7 @@ public class DataSources
         query0 = MaterializedQuery.of(query0, sequence.columns(), values);
         Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, joinColumn0));
         query1 = DataSources.applyFilter(query1, SemiJoinFactory.from(joinColumn1, keys.iterator()), -1, walker);
-        LOG.debug("--- %s:%d (hash) is applied as filter to %s", query0.alias(), values.size(), query1.alias());
+        LOG.debug("-- %s:%d (hash) is applied as filter to %s", query0.alias(), values.size(), query1.alias());
       }
     }
     queries.set(ix, query0.withOverriddenContext(JoinQuery.HASHING, true));

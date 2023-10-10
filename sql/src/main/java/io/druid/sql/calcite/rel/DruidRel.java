@@ -22,7 +22,6 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Sets;
 import io.druid.common.guava.Sequence;
 import io.druid.query.DataSource;
 import io.druid.sql.calcite.planner.PlannerContext;
@@ -37,7 +36,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import javax.annotation.Nullable;
-import java.util.Set;
 import java.util.function.Predicate;
 
 public abstract class DruidRel extends AbstractRelNode
@@ -124,14 +122,6 @@ public abstract class DruidRel extends AbstractRelNode
     // is the outermost query and it will actually get run as a native query. Druid's native query layer will
     // finalize aggregations for the outermost query even if we don't explicitly ask it to.
     return queryMaker.prepareAndRun(toDruidQuery(false));
-  }
-
-  public abstract RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited);
-
-  @Override
-  public final RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
-  {
-    return computeSelfCost(planner, mq, Sets.newHashSet());
   }
 
   /**

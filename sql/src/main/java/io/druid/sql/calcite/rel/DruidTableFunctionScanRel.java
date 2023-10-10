@@ -32,7 +32,6 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
 import javax.annotation.Nullable;
-import java.util.Set;
 
 public class DruidTableFunctionScanRel extends DruidRel
 {
@@ -89,7 +88,7 @@ public class DruidTableFunctionScanRel extends DruidRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
   {
     return partialQuery.cost(1, planner.getCostFactory());
   }

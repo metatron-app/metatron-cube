@@ -35,8 +35,6 @@ import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import java.util.Set;
-
 public class DruidValuesRel extends DruidRel
 {
   private final RelNode source;
@@ -93,7 +91,7 @@ public class DruidValuesRel extends DruidRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
   {
     if (source != leaf) {
       // filterable or projectable

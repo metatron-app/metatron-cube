@@ -42,7 +42,6 @@ import org.apache.calcite.util.Pair;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Set;
 
 /**
  * DruidRel that uses a "query" dataSource.
@@ -116,7 +115,7 @@ public class DruidOuterQueryRel extends DruidRel
   {
     // Must finalize aggregations on subqueries.
 
-    final DruidRel druidRel = Utils.getDruidRel(sourceRel);
+    final DruidRel druidRel = Utils.findDruidRel(sourceRel);
     if (druidRel == null) {
       return null;
     }
@@ -164,7 +163,7 @@ public class DruidOuterQueryRel extends DruidRel
   @Override
   public DataSource getDataSource()
   {
-    return Utils.getDruidRel(sourceRel).getDataSource();
+    return Utils.findDruidRel(sourceRel).getDataSource();
   }
 
   @Override
@@ -207,12 +206,9 @@ public class DruidOuterQueryRel extends DruidRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
   {
-    if (!visited.add(this)) {
-      return planner.getCostFactory().makeInfiniteCost();
-    }
-    final Pair<DruidRel, RelOptCost> m = Utils.getMinimumCost(sourceRel, planner, mq, visited);
+    final Pair<DruidRel, RelOptCost> m = Utils.getMinimumCost(sourceRel, planner, mq);
     if (m.right.isInfinite()) {
       return m.right;
     }

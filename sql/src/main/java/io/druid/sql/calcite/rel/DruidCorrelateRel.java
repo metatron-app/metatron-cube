@@ -39,7 +39,6 @@ import org.apache.calcite.util.Pair;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Set;
 
 public class DruidCorrelateRel extends DruidRel
 {
@@ -115,7 +114,7 @@ public class DruidCorrelateRel extends DruidRel
   @Override
   public DataSource getDataSource()
   {
-    return CombinedDataSource.of(Utils.getDruidRel(left).getDataSource(), Utils.getDruidRel(right).getDataSource());
+    return CombinedDataSource.of(Utils.findDruidRel(left).getDataSource(), Utils.findDruidRel(right).getDataSource());
   }
 
   @Override
@@ -173,12 +172,9 @@ public class DruidCorrelateRel extends DruidRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
   {
-    if (!visited.add(this)) {
-      return planner.getCostFactory().makeInfiniteCost();
-    }
-    final Pair<DruidRel, RelOptCost> m = Utils.getMinimumCost(left, planner, mq, visited);
+    final Pair<DruidRel, RelOptCost> m = Utils.getMinimumCost(left, planner, mq);
     if (m.right.isInfinite()) {
       return m.right;
     }
@@ -190,7 +186,7 @@ public class DruidCorrelateRel extends DruidRel
   @Override
   public DruidQuery makeDruidQuery(boolean finalizeAggregations)
   {
-    DruidRel[] rels = new DruidRel[]{Utils.getDruidRel(left), Utils.getDruidRel(right)};
+    DruidRel[] rels = new DruidRel[]{Utils.findDruidRel(left), Utils.findDruidRel(right)};
     if (rels[0] == null || rels[1] == null ||
         rels[0] instanceof DruidTableFunctionScanRel == rels[1] instanceof DruidTableFunctionScanRel) {
       return null;

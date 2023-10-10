@@ -22,7 +22,6 @@ package io.druid.sql.calcite.rel;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import io.druid.collections.IntList;
 import io.druid.query.CombinedDataSource;
 import io.druid.query.DataSource;
@@ -55,7 +54,6 @@ import org.apache.commons.lang.StringUtils;
 
 import java.util.BitSet;
 import java.util.List;
-import java.util.Set;
 
 public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
 {
@@ -143,8 +141,8 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
   public DruidQuery makeDruidQuery(boolean finalizeAggregations)
   {
     final RelDataType rowType = getRowType();
-    final DruidRel leftRel = Utils.getDruidRel(left);
-    final DruidRel rightRel = Utils.getDruidRel(right);
+    final DruidRel leftRel = Utils.findDruidRel(left);
+    final DruidRel rightRel = Utils.findDruidRel(right);
     if (leftRel == null || rightRel == null) {
       return null;
     }
@@ -248,7 +246,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
   @Override
   public DataSource getDataSource()
   {
-    return CombinedDataSource.of(Utils.getDruidRel(left).getDataSource(), Utils.getDruidRel(right).getDataSource());
+    return CombinedDataSource.of(Utils.findDruidRel(left).getDataSource(), Utils.findDruidRel(right).getDataSource());
   }
 
   @Override
@@ -377,16 +375,13 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
   private static final double HASH_JOIN_REDUCTION = 0.2;
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
   {
-    if (!visited.add(this)) {
-      return planner.getCostFactory().makeInfiniteCost();
-    }
-    final Pair<DruidRel, RelOptCost> lm = Utils.getMinimumCost(left, planner, mq, Sets.newHashSet(visited));
+    final Pair<DruidRel, RelOptCost> lm = Utils.getMinimumCost(left, planner, mq);
     if (lm.right.isInfinite()) {
       return lm.right;
     }
-    final Pair<DruidRel, RelOptCost> rm = Utils.getMinimumCost(right, planner, mq, visited);
+    final Pair<DruidRel, RelOptCost> rm = Utils.getMinimumCost(right, planner, mq);
     if (rm.right.isInfinite()) {
       return rm.right;
     }

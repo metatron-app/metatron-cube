@@ -44,14 +44,12 @@ import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepRelVertex;
-import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
@@ -317,69 +315,25 @@ public class Utils
     return Utils.isOr(condition) ? RexUtil.pullFactors(builder, condition) : condition;
   }
 
-  public static DruidRel getDruidRel(RelNode sourceRel)
+  public static DruidRel findDruidRel(RelNode sourceRel)
   {
     return findRel(sourceRel, DruidRel.class);
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> T findRel(RelNode sourceRel, Class<T> clazz)
+  public static <T extends RelNode> T findRel(RelNode sourceRel, Class<T> clazz)
   {
-    RelNode rel = sourceRel;
-    if (sourceRel instanceof RelSubset) {
-      rel = ((RelSubset) sourceRel).getBest();
-      if (rel == null) {
-        if (sourceRel.getConvention() != Convention.NONE) {
-          sourceRel = sourceRel.copy(sourceRel.getTraitSet().replace(Convention.NONE), ImmutableList.of());
-        }
-        for (RelNode candidate : ((RelSubset) sourceRel).getRelList()) {
-          if (clazz.isInstance(candidate)) {
-            return (T) candidate;
-          }
-        }
-      }
-    } else if (sourceRel instanceof HepRelVertex) {
-      rel = ((HepRelVertex) sourceRel).getCurrentRel();
-    }
+    RelNode rel = sourceRel.stripped();
     return clazz.isInstance(rel) ? (T) rel : null;
   }
 
-  public static Pair<DruidRel, RelOptCost> getMinimumCost(
-      RelNode inputRel,
-      RelOptPlanner planner,
-      RelMetadataQuery mq,
-      Set<RelNode> visited
-  )
+  public static Pair<DruidRel, RelOptCost> getMinimumCost(RelNode sourceRel, RelOptPlanner planner, RelMetadataQuery mq)
   {
-    RelNode rel = inputRel;
-    if (inputRel instanceof RelSubset) {
-      rel = ((RelSubset) inputRel).getBest();
-      if (rel == null) {
-        if (inputRel.getConvention() != Convention.NONE) {
-          inputRel = inputRel.copy(inputRel.getTraitSet().replace(Convention.NONE), ImmutableList.of());
-        }
-        DruidRel source = null;
-        RelOptCost minimum = null;
-        for (RelNode candidate : ((RelSubset) inputRel).getRelList()) {
-          if (candidate instanceof DruidRel) {
-            RelOptCost current = ((DruidRel) candidate).computeSelfCost(planner, mq, visited);
-            if (minimum == null || current.isLe(minimum)) {
-              source = (DruidRel) candidate;
-              minimum = current;
-            }
-          }
-        }
-        return Pair.of(source, minimum);
-      }
-    } else if (inputRel instanceof HepRelVertex) {
-      rel = ((HepRelVertex) inputRel).getCurrentRel();
-    }
+    RelNode rel = sourceRel.stripped();
     if (rel instanceof DruidRel) {
-      final DruidRel source = (DruidRel) rel;
-      return Pair.of(source, source.computeSelfCost(planner, mq, visited));
-    } else {
-      return Pair.of(null, planner.getCostFactory().makeInfiniteCost());
+      return Pair.of((DruidRel) rel, rel.computeSelfCost(planner, mq));
     }
+    return Pair.of(null, planner.getCostFactory().makeInfiniteCost());
   }
 
   // keep the same convention with calcite (see SqlValidatorUtil.addFields)
