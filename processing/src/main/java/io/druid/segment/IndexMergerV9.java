@@ -880,7 +880,7 @@ public class IndexMergerV9 extends IndexMerger
         return ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, secondary, compression);
       case COMPLEX:
         if (type.isStruct()) {
-          return StructColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec));
+          return StructColumnSerializer.create(metric, type, secondary, (n, t) -> setupMetricsWriter(n, t, indexSpec));
         }
         if (type.isGenericArray()) {
           return ArrayColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec));

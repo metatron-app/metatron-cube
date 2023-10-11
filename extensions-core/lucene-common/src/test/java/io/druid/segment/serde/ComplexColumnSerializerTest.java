@@ -50,6 +50,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.text.DecimalFormat;
+import java.util.Arrays;
 
 public class ComplexColumnSerializerTest
 {
@@ -157,11 +158,11 @@ public class ComplexColumnSerializerTest
     );
     serializer.open(ioPeon);
 
-    serializer.serialize(0, new Object[] {"home", 37.492929d, 127.020784d});
-    serializer.serialize(1, new Object[] {"school", 37.491055d, 127.026020d});
-    serializer.serialize(2, new Object[] {"cathedral", 37.492899d, 127.021772d});
-    serializer.serialize(3, new Object[] {"college", 37.489955d, 127.016485d});
-    serializer.serialize(4, new Object[] {"subway", 37.493021d, 127.013834d});
+    serializer.serialize(0, Arrays.asList("home", 37.492929d, 127.020784d));
+    serializer.serialize(1, Arrays.asList("school", 37.491055d, 127.026020d));
+    serializer.serialize(2, Arrays.asList("cathedral", 37.492899d, 127.021772d));
+    serializer.serialize(3, Arrays.asList("college", 37.489955d, 127.016485d));
+    serializer.serialize(4, Arrays.asList("subway", 37.493021d, 127.013834d));
 
     serializer.close();
 

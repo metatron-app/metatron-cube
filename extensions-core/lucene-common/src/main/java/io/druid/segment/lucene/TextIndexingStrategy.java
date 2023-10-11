@@ -33,6 +33,7 @@ import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 import org.apache.lucene.document.Field;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -81,7 +82,7 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
       final int index = ((StructMetricSerde) serde).indexOf(fieldName);
       Preconditions.checkArgument(index >= 0, "invalid field name %s", fieldName);
       return Functions.compose(
-          Lucenes.makeTextFieldGenerator(fieldName), input -> ((Object[]) input)[index]
+          Lucenes.makeTextFieldGenerator(fieldName), input -> ((List) input).get(index)
       );
     }
     throw new IAE("cannot index %s as text", type);

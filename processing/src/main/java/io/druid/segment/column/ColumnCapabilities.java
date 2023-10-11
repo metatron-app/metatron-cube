@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Iterables;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.ISE;
@@ -213,7 +214,7 @@ public class ColumnCapabilities
   @JsonIgnore
   public boolean hasLuceneIndex()
   {
-    return !externalIndices.isEmpty() && Iterables.any(externalIndices, name -> LUCENE.matcher(name).matches());
+    return !GuavaUtils.isNullOrEmpty(externalIndices) && Iterables.any(externalIndices, name -> LUCENE.matcher(name).matches());
   }
 
   @JsonProperty

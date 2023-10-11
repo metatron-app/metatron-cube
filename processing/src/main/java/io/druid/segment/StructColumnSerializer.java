@@ -36,7 +36,12 @@ import java.util.Map;
 
 public class StructColumnSerializer implements MetricColumnSerializer
 {
-  public static StructColumnSerializer create(String metric, ValueDesc type, Factory factory) throws IOException
+  public static StructColumnSerializer create(
+      String metric,
+      ValueDesc type,
+      SecondaryIndexingSpec indexingSpec,
+      Factory factory
+  ) throws IOException
   {
     String prefix = metric + ".";
     List<String> fieldNames = Lists.newArrayList();
@@ -45,16 +50,24 @@ public class StructColumnSerializer implements MetricColumnSerializer
       fieldNames.add(pair.lhs);
       serializers.add(factory.create(prefix + pair.lhs, pair.rhs));
     }
-    return new StructColumnSerializer(fieldNames, serializers);
+    MetricColumnSerializer secondary = indexingSpec == null ? MetricColumnSerializer.DUMMY :
+                                       indexingSpec.serializer(metric, type);
+    return new StructColumnSerializer(fieldNames, serializers, secondary);
   }
 
   private final String[] fieldNames;
   private final MetricColumnSerializer[] serializers;
+  private final MetricColumnSerializer secondary;
 
-  public StructColumnSerializer(List<String> fieldNames, List<MetricColumnSerializer> serializers)
+  public StructColumnSerializer(
+      List<String> fieldNames,
+      List<MetricColumnSerializer> serializers,
+      MetricColumnSerializer secondary
+  )
   {
     this.fieldNames = fieldNames.toArray(new String[0]);
     this.serializers = serializers.toArray(new MetricColumnSerializer[0]);
+    this.secondary = secondary;
   }
 
   @Override
@@ -63,6 +76,7 @@ public class StructColumnSerializer implements MetricColumnSerializer
     for (MetricColumnSerializer serializer : serializers) {
       serializer.open(ioPeon);
     }
+    secondary.open(ioPeon);
   }
 
   @Override
@@ -90,6 +104,7 @@ public class StructColumnSerializer implements MetricColumnSerializer
         serializers[i].serialize(rowNum, i < size ? Array.get(aggs, i) : null);
       }
     }
+    secondary.serialize(rowNum, aggs);
   }
 
   @SuppressWarnings("unchecked")
@@ -119,6 +134,7 @@ public class StructColumnSerializer implements MetricColumnSerializer
         throw e;
       }
     }
+    secondary.close();
   }
 
   @Override
@@ -127,12 +143,13 @@ public class StructColumnSerializer implements MetricColumnSerializer
     ValueDesc[] fieldType = new ValueDesc[serializers.length];
     List<ColumnDescriptor> descriptors = Lists.newArrayList();
     for (int i = 0; i < serializers.length; i++) {
-      ColumnDescriptor descriptor = serializers[i].buildDescriptor(ioPeon, new ColumnDescriptor.Builder()).build();
+      ColumnDescriptor descriptor = serializers[i].buildDescriptor(ioPeon, ColumnDescriptor.builder()).build();
       fieldType[i] = descriptor.getValueType();
       descriptors.add(descriptor);
     }
     builder.setValueType(ValueDesc.ofStruct(fieldNames, fieldType));
     builder.addSerde(new StructColumnPartSerde(Arrays.asList(fieldNames), descriptors));
-    return builder;
+
+    return secondary.buildDescriptor(ioPeon, builder);
   }
 }

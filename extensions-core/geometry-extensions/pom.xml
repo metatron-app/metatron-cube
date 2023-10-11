@@ -61,13 +61,7 @@
             <!-- Eclipse Public License 2.0 -->
             <groupId>org.locationtech.jts</groupId>
             <artifactId>jts-core</artifactId>
-            <version>1.19.0</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.locationtech.jts.io</groupId>
-            <artifactId>jts-io-common</artifactId>
-            <version>1.19.0</version>
+            <version>1.16.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

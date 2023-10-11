@@ -171,16 +171,16 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
   @Override
   public ObjectStrategy getObjectStrategy()
   {
-    return new ObjectStrategy<Object[]>()
+    return new ObjectStrategy<List>()
     {
       @Override
-      public Class<Object[]> getClazz()
+      public Class<List> getClazz()
       {
-        return Object[].class;
+        return List.class;
       }
 
       @Override
-      public Object[] fromByteBuffer(ByteBuffer buffer, int numBytes)
+      public List fromByteBuffer(ByteBuffer buffer, int numBytes)
       {
         Object[] struct = new Object[fieldNames.length];
         for (int i = 0; i < struct.length; i++) {
@@ -201,26 +201,26 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
               throw new UnsupportedOperationException("only primitives are allowed in struct");
           }
         }
-        return struct;
+        return Arrays.asList(struct);
       }
 
       @Override
-      public byte[] toBytes(Object[] struct)
+      public byte[] toBytes(List struct)
       {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        for (int i = 0; i < struct.length; i++) {
+        for (int i = 0; i < struct.size(); i++) {
           switch (fieldTypes[i].type()) {
             case FLOAT:
-              out.writeFloat((Float) struct[i]);
+              out.writeFloat((Float) struct.get(i));
               break;
             case DOUBLE:
-              out.writeDouble((Double) struct[i]);
+              out.writeDouble((Double) struct.get(i));
               break;
             case LONG:
-              out.writeLong((Long) struct[i]);
+              out.writeLong((Long) struct.get(i));
               break;
             case STRING:
-              writeString(Objects.toString(struct[i], ""), out);
+              writeString(Objects.toString(struct.get(i), ""), out);
               break;
             default:
               throw new UnsupportedOperationException("only primitives are allowed in struct");
