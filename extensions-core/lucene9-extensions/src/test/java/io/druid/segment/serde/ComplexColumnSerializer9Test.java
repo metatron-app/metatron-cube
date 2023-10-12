@@ -17,28 +17,8 @@
  * under the License.
  */
 
-package org.apache.lucene.store;
+package io.druid.segment.serde;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
-public class LuceneIndexInput extends ByteBufferIndexInput
+public class ComplexColumnSerializer9Test extends ComplexColumnSerializerTest
 {
-  public static ByteBufferIndexInput newInstance(String resourceDescription, ByteBuffer buffer, long length)
-  {
-    return new SingleBufferImpl(
-        resourceDescription, buffer.order(ByteOrder.LITTLE_ENDIAN), length, 30, new ByteBufferGuard(resourceDescription, null)
-    );
-  }
-
-  private LuceneIndexInput(
-      String resourceDescription,
-      ByteBuffer[] buffers,
-      long length,
-      int chunkSizePower,
-      ByteBufferGuard guard
-  )
-  {
-    super(resourceDescription, buffers, length, chunkSizePower, guard);
-  }
 }

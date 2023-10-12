@@ -313,6 +313,7 @@ public class Initialization
       .put("druid-geotools-extensions", "druid-lucene-common")
       .put("druid-lucene-extensions", "druid-lucene-common")
       .put("druid-lucene8-extensions", "druid-lucene-common")
+      .put("druid-lucene9-extensions", "druid-lucene-common")
       .put("druid-orc-extensions", "druid-hive-extensions")
       .put("druid-hive-udf-extensions", "druid-hive-extensions")
       .put("druid-hdfs-storage", "druid-indexing-hadoop")

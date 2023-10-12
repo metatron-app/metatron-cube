@@ -31,7 +31,7 @@
     "bitmap": { "type": "roaring" },
     "secondaryIndexing": {
       "WKT" : {
-        "type" : "lucene8",
+        "type" : "lucene9",
         "strategies" : [ {
           "type" : "shape",
           "fieldName" : "shape",

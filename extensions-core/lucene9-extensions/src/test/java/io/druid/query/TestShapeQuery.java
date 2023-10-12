@@ -17,28 +17,25 @@
  * under the License.
  */
 
-package org.apache.lucene.store;
+package io.druid.query;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import io.druid.segment.Lucene9TestHelper;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 
-public class LuceneIndexInput extends ByteBufferIndexInput
+public class TestShapeQuery extends ShapeQueries
 {
-  public static ByteBufferIndexInput newInstance(String resourceDescription, ByteBuffer buffer, long length)
-  {
-    return new SingleBufferImpl(
-        resourceDescription, buffer.order(ByteOrder.LITTLE_ENDIAN), length, 30, new ByteBufferGuard(resourceDescription, null)
-    );
+  private static final TestQuerySegmentWalker segmentWalker;
+
+  static {
+    segmentWalker = Lucene9TestHelper.segmentWalker.duplicate();
+    segmentWalker.addIndex("seoul_roads", "seoul_roads9_schema.json", "seoul_roads.tsv", true);
+    segmentWalker.addIndex("seoul_roads_incremental", "seoul_roads9_schema.json", "seoul_roads.tsv", false);
+    segmentWalker.addIndex("world_border", "world9_schema.json", "world.csv", true);
   }
 
-  private LuceneIndexInput(
-      String resourceDescription,
-      ByteBuffer[] buffers,
-      long length,
-      int chunkSizePower,
-      ByteBufferGuard guard
-  )
+  @Override
+  protected TestQuerySegmentWalker segmentWalker()
   {
-    super(resourceDescription, buffers, length, chunkSizePower, guard);
+    return segmentWalker;
   }
 }

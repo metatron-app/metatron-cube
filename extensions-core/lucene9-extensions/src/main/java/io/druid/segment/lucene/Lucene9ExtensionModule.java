@@ -17,28 +17,32 @@
  * under the License.
  */
 
-package org.apache.lucene.store;
+package io.druid.segment.lucene;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Binder;
+import io.druid.initialization.DruidModule;
 
-public class LuceneIndexInput extends ByteBufferIndexInput
+import java.util.List;
+
+public class Lucene9ExtensionModule implements DruidModule
 {
-  public static ByteBufferIndexInput newInstance(String resourceDescription, ByteBuffer buffer, long length)
+  @Override
+  public List<? extends com.fasterxml.jackson.databind.Module> getJacksonModules()
   {
-    return new SingleBufferImpl(
-        resourceDescription, buffer.order(ByteOrder.LITTLE_ENDIAN), length, 30, new ByteBufferGuard(resourceDescription, null)
+    return ImmutableList.of(
+        new LuceneCommonExtensionModule().getModule(false),
+        new SimpleModule("lucene9-extension")
+            .registerSubtypes(Lucene9IndexingSpec.class)
+            .registerSubtypes(Lucene9IndexingSpec.SerDe.class)
+            .registerSubtypes(Lucene9FSTSerDe.class)
     );
   }
 
-  private LuceneIndexInput(
-      String resourceDescription,
-      ByteBuffer[] buffers,
-      long length,
-      int chunkSizePower,
-      ByteBufferGuard guard
-  )
+  @Override
+  public void configure(Binder binder)
   {
-    super(resourceDescription, buffers, length, chunkSizePower, guard);
+    new LuceneCommonExtensionModule().configure(binder);
   }
 }

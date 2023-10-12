@@ -625,7 +625,6 @@ public class Lucenes
       case "romanian": return new RomanianAnalyzer();
       case "italian": return new ItalianAnalyzer();
       case "finnish": return new FinnishAnalyzer();
-      case "uax29_url_email": return new UAX29URLEmailAnalyzer();
       // etc..
     }
     try {

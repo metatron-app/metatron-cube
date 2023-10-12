@@ -125,6 +125,8 @@
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-lucene8-extensions</argument>
                                 <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-lucene9-extensions</argument>
+                                <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-median</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-jdbc-firehose</argument>

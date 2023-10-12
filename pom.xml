@@ -149,6 +149,7 @@
         <module>extensions-core/lucene-common</module>
         <module>extensions-core/lucene-extensions</module>
         <module>extensions-core/lucene8-extensions</module>
+        <module>extensions-core/lucene9-extensions</module>
         <module>extensions-core/esri-extensions</module>
         <module>extensions-core/geotools-extensions</module>
         <module>extensions-core/kerberos</module>

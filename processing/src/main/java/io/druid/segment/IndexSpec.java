@@ -192,7 +192,7 @@ public class IndexSpec
   {
     Float fstReduction = expectedFSTReductions == null ? null : expectedFSTReductions.get(column);
     if (fstReduction != null && fstReduction > 0) {
-      for (String type : new String[]{"lucene8.fst", "lucene7.fst"}) {
+      for (String type : new String[]{"lucene9.fst", "lucene8.fst", "lucene7.fst"}) {
         DictionaryPartBuilder builder = _makeBuilder(mapper, fstReduction.floatValue(), type);
         if (builder != null) {
           return builder;

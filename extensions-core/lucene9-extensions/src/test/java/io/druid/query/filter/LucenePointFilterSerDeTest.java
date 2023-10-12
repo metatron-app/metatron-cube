@@ -20,7 +20,7 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.druid.segment.LuceneTestHelper;
+import io.druid.segment.Lucene9TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,7 +29,7 @@ public class LucenePointFilterSerDeTest
   @Test
   public void test() throws Exception
   {
-    ObjectMapper mapper = LuceneTestHelper.segmentWalker.getMapper();
+    ObjectMapper mapper = Lucene9TestHelper.segmentWalker.getMapper();
     LucenePointFilter filter = LucenePointFilter.distance("field", 37, 120, 10000);
     String serialized = mapper.writeValueAsString(filter);
     Assert.assertEquals(

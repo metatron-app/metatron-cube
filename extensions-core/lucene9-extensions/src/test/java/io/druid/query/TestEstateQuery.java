@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,28 +17,16 @@
  * under the License.
  */
 
-package org.apache.lucene.store;
+package io.druid.query;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import io.druid.segment.Lucene9TestHelper;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 
-public class LuceneIndexInput extends ByteBufferIndexInput
+public class TestEstateQuery extends EstateQueries
 {
-  public static ByteBufferIndexInput newInstance(String resourceDescription, ByteBuffer buffer, long length)
+  @Override
+  protected TestQuerySegmentWalker segmentWalker()
   {
-    return new SingleBufferImpl(
-        resourceDescription, buffer.order(ByteOrder.LITTLE_ENDIAN), length, 30, new ByteBufferGuard(resourceDescription, null)
-    );
-  }
-
-  private LuceneIndexInput(
-      String resourceDescription,
-      ByteBuffer[] buffers,
-      long length,
-      int chunkSizePower,
-      ByteBufferGuard guard
-  )
-  {
-    super(resourceDescription, buffers, length, chunkSizePower, guard);
+    return Lucene9TestHelper.segmentWalker;
   }
 }
