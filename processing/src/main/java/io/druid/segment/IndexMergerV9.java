@@ -133,7 +133,7 @@ public class IndexMergerV9 extends IndexMerger
     Metadata segmentMetadata = Metadata.merge(metadataList, combiningMetricAggs);
 
     final Closer closer = Closer.create();
-    final IOPeon ioPeon = closer.register(new TmpFileIOPeon(false));
+    final IOPeon ioPeon = closer.register(IOPeon.tmp("index9-"));
     final FileSmoosher v9Smoosher = closer.register(new FileSmoosher(outDir));
 
     final File v9TmpDir = new File(outDir, "v9-tmp");

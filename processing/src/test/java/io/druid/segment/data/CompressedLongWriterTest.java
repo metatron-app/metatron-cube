@@ -46,7 +46,7 @@ public class CompressedLongWriterTest extends CompressionStrategyTest
     CompressedLongWriter serializer = new CompressedLongWriter(
         sizePer,
         GenericIndexedWriter.v2(
-            new IOPeonForTesting(),
+            IOPeon.forTest(),
             "test",
             CompressedLongBufferObjectStrategy.getBufferForOrder(order, compressionStrategy, sizePer)
         ),
@@ -57,7 +57,7 @@ public class CompressedLongWriterTest extends CompressionStrategyTest
     final int numElements = 10000;
 
     for (int i = 0; i < numElements; ++i) {
-      serializer.add((long) i);
+      serializer.add(i);
     }
 
     serializer.close();
@@ -87,7 +87,7 @@ public class CompressedLongWriterTest extends CompressionStrategyTest
     CompressedLongWriter serializer = new CompressedLongWriter(
         sizePer,
         GenericIndexedWriter.v2(
-            new IOPeonForTesting(),
+            IOPeon.forTest(),
             "test",
             CompressedLongBufferObjectStrategy.getBufferForOrder(order, compressionStrategy, sizePer)
         ),

@@ -114,8 +114,8 @@ import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.LuceneIndexInput;
+import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.OutputStreamDataOutput;
-import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SingleInstanceLockFactory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils.IOConsumer;
@@ -127,6 +127,7 @@ import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.shape.Shape;
 
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -152,7 +153,7 @@ public class Lucenes
   private static final Logger LOGGER = new Logger(Lucenes.class);
   private static final int IO_BUFFER = 65536;
 
-  public static IndexWriter buildRamWriter(String analyzer)
+  public static IndexWriter buildRamWriter(File file, String analyzer)
   {
     IndexWriterConfig writerConfig = new IndexWriterConfig(Lucenes.createAnalyzer(analyzer));
     writerConfig.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
@@ -163,7 +164,7 @@ public class Lucenes
     writerConfig.setMergePolicy(NoMergePolicy.INSTANCE);
     writerConfig.setMergeScheduler(NoMergeScheduler.INSTANCE);
     try {
-      return new IndexWriter(new RAMDirectory(), writerConfig);
+      return new IndexWriter(new MMapDirectory(file.toPath()), writerConfig);
     }
     catch (IOException e) {
       throw Throwables.propagate(e);
@@ -483,38 +484,6 @@ public class Lucenes
     return bout.toByteArray();
   }
 
-  public static DirectoryReader deserializeWithRuntimeException(ByteBuffer bufferToUse)
-  {
-    try {
-      return deserialize(bufferToUse);
-    }
-    catch (Throwable e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  public static DirectoryReader deserialize(ByteBuffer bufferToUse) throws IOException
-  {
-    byte[] temp = new byte[IO_BUFFER];
-    Directory directory = new RAMDirectory();
-    int fileNum = bufferToUse.getInt();
-    for (int i = 0; i < fileNum; i++) {
-      final String fileName = StringUtils.fromUtf8(bufferToUse, bufferToUse.getInt());
-      final int length = bufferToUse.getInt();
-      LOGGER.debug("-----------------> %s, %,d", fileName, length);
-      IndexOutput output = directory.createOutput(fileName, null);
-      int offset = 0;
-      while (offset < length) {
-        int toRead = Math.min((length - offset), temp.length);
-        bufferToUse.get(temp, 0, toRead);
-        output.writeBytes(temp, toRead);
-        offset += toRead;
-      }
-      output.close();
-    }
-    return DirectoryReader.open(directory);
-  }
-
   public static ImmutableBitmap toBitmap(TopDocs searched, FilterContext context, String scoreField)
   {
     final BitmapFactory factory = context.bitmapFactory();
@@ -660,7 +629,7 @@ public class Lucenes
       // etc..
     }
     try {
-      return (Analyzer) Class.forName(analyzer).newInstance();
+      return (Analyzer) Class.forName(analyzer).getDeclaredConstructor().newInstance();
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

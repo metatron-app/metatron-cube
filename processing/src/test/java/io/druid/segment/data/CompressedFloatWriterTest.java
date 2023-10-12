@@ -46,7 +46,7 @@ public class CompressedFloatWriterTest extends CompressionStrategyTest
     CompressedFloatWriter serializer = new CompressedFloatWriter(
         sizePer,
         GenericIndexedWriter.v2(
-            new IOPeonForTesting(),
+            IOPeon.forTest(),
             "test",
             CompressedFloatBufferObjectStrategy.getBufferForOrder(
                 order,
@@ -92,7 +92,7 @@ public class CompressedFloatWriterTest extends CompressionStrategyTest
     CompressedFloatWriter serializer = new CompressedFloatWriter(
         sizePer,
         GenericIndexedWriter.v2(
-            new IOPeonForTesting(),
+            IOPeon.forTest(),
             "test",
             CompressedFloatBufferObjectStrategy.getBufferForOrder(
                 order,

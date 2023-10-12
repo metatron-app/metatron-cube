@@ -540,7 +540,7 @@ public class IndexMerger
       }
     });
 
-    final IOPeon ioPeon = closer.register(new TmpFileIOPeon(false));
+    final IOPeon ioPeon = closer.register(IOPeon.tmp("index8-"));
     try {
       /*************  Main index.drd file **************/
       progress.progress();
@@ -813,7 +813,7 @@ public class IndexMerger
         boolean isSpatialDim = columnCapabilities.get(dimension).hasSpatialIndexes();
         ByteBufferWriter<ImmutableRTree> spatialWriter = null;
         RTree tree = null;
-        IOPeon spatialIoPeon = new TmpFileIOPeon();
+        IOPeon spatialIoPeon = IOPeon.tmp("index8.spatial-");
         final BitmapFactory bitmapFactory = bitmapSerdeFactory.getBitmapFactory();
         if (isSpatialDim) {
           spatialWriter = new ByteBufferWriter<ImmutableRTree>(

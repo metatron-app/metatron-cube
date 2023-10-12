@@ -33,7 +33,7 @@ public class GenericIndexedWriterTest
   @Test
   public void test() throws IOException
   {
-    IOPeon ioPeon = new TmpFileIOPeon();
+    IOPeon ioPeon = IOPeon.forTest();
     test(GenericIndexedWriter.forDictionaryV2(ioPeon, "test"));
     test(GenericIndexedWriter.forDictionaryV2(ioPeon, "test"));
   }

@@ -37,7 +37,7 @@ public class VIntWriterTest
 {
   private static final int[] MAX_VALUES = new int[]{0xFF, 0xFFFF, 0xFFFFFF, 0x0FFFFFFF};
 
-  private final IOPeon ioPeon = new TmpFileIOPeon();
+  private final IOPeon ioPeon = IOPeon.forTest();
   private final Random rand = new Random(0);
   private int[] vals;
 

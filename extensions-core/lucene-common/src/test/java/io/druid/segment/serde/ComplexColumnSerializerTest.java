@@ -29,7 +29,6 @@ import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
-import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.JsonIndexingStrategy;
 import io.druid.segment.lucene.LatLonPointIndexingStrategy;
@@ -63,7 +62,7 @@ public class ComplexColumnSerializerTest
     }
   }
 
-  private final IOPeon ioPeon = new TmpFileIOPeon();
+  private final IOPeon ioPeon = IOPeon.forTest();
   private final RoaringBitmapSerdeFactory factory = new RoaringBitmapSerdeFactory();
   private final FilterContext context = new FilterContext(new BitmapIndexSelector.Abstract()
   {

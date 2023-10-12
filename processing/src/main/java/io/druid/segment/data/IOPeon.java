@@ -34,7 +34,27 @@ import java.nio.channels.WritableByteChannel;
  */
 public interface IOPeon extends Closeable
 {
+  static IOPeon forTest()
+  {
+    try {
+      return new TmpFileIOPeon("test-", true);
+    }
+    catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  static IOPeon tmp(String prefix) throws IOException
+  {
+    return new TmpFileIOPeon(prefix, false);
+  }
+
   File getFile(String filename);
+
+  default File makeOutputFile(String filename)
+  {
+    return getFile(filename);
+  }
 
   OutputStream makeOutputStream(String filename) throws IOException;
 

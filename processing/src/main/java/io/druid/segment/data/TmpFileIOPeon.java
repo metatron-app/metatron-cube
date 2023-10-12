@@ -20,6 +20,8 @@
 package io.druid.segment.data;
 
 import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
+import org.apache.commons.io.FileUtils;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -36,16 +38,14 @@ import java.util.Map;
  */
 public class TmpFileIOPeon implements IOPeon
 {
+  private final File base;
   private final boolean allowOverwrite;
-  Map<String, File> createdFiles = Maps.newLinkedHashMap();
 
-  public TmpFileIOPeon()
-  {
-    this(true);
-  }
+  private final Map<String, File> createdFiles = Maps.newHashMap();
 
-  public TmpFileIOPeon(boolean allowOverwrite)
+  public TmpFileIOPeon(String prefix, boolean allowOverwrite) throws IOException
   {
+    this.base = GuavaUtils.createTemporaryDirectory(prefix, "filePeon");
     this.allowOverwrite = allowOverwrite;
   }
 
@@ -53,6 +53,17 @@ public class TmpFileIOPeon implements IOPeon
   public File getFile(String filename)
   {
     return createdFiles.get(filename);
+  }
+
+  @Override
+  public File makeOutputFile(String filename)
+  {
+    File file = createdFiles.get(filename);
+    if (file == null) {
+      createdFiles.put(filename, file = new File(base, filename));
+      file.deleteOnExit();
+    }
+    return file;
   }
 
   @Override
@@ -69,43 +80,29 @@ public class TmpFileIOPeon implements IOPeon
 
   private FileOutputStream _makeOutputStream(String filename) throws IOException
   {
-    File retFile = createdFiles.get(filename);
-    if (retFile == null) {
-      retFile = File.createTempFile("filePeon", filename);
-      retFile.deleteOnExit();
-      createdFiles.put(filename, retFile);
-      return new FileOutputStream(retFile);
-    } else if (allowOverwrite) {
-      return new FileOutputStream(retFile);
-    } else {
+    File file = createdFiles.get(filename);
+    if (file == null) {
+      createdFiles.put(filename, file = new File(base, filename));
+      file.deleteOnExit();
+    } else if (!allowOverwrite) {
       throw new IOException("tmp file conflicts, file[" + filename + "] already exist!");
     }
+    return new FileOutputStream(file);
   }
 
   @Override
   public InputStream makeInputStream(String filename) throws IOException
   {
-    final File retFile = createdFiles.get(filename);
-
-    return retFile == null ? null : new FileInputStream(retFile);
+    final File file = createdFiles.get(filename);
+    return file == null ? null : new FileInputStream(file);
   }
 
   @Override
   public void close() throws IOException
   {
     for (File file : createdFiles.values()) {
-      try {
-        file.delete();
-      }
-      catch (Exception e) {
-        // ignore
-      }
+      FileUtils.deleteQuietly(file);
     }
     createdFiles.clear();
-  }
-
-  public boolean isOverwriteAllowed()
-  {
-    return allowOverwrite;
   }
 }

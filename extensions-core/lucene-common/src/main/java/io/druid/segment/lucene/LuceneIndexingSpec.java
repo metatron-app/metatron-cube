@@ -137,12 +137,16 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
     final List<Function<Object, Field[]>> generators = GuavaUtils.transform(
         replaced, strategy -> strategy.createIndexableField(type)
     );
-    final IndexWriter writer = Lucenes.buildRamWriter(textAnalyzer);
 
     return new MetricColumnSerializer()
     {
+      private IndexWriter writer;
+
       @Override
-      public void open(IOPeon ioPeon) throws IOException {}
+      public void open(IOPeon ioPeon) throws IOException
+      {
+        writer = Lucenes.buildRamWriter(ioPeon.makeOutputFile(columnName + ".lucene"), textAnalyzer);
+      }
 
       @Override
       public void serialize(int rowNum, Object obj) throws IOException
