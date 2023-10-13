@@ -44,6 +44,7 @@ import io.druid.collections.BufferPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.SerializerUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.GranularityType;
@@ -75,7 +76,6 @@ import io.druid.segment.data.IntWriter;
 import io.druid.segment.data.IntsWriter;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
@@ -501,10 +501,13 @@ public class IndexMergerV9 extends IndexMerger
         builder.addSerde(fst);
       }
 
-      makeColumn(v9Smoosher, dim, builder.build(includeStats));
-      log.info("Completed dimension column[%s] in %,d millis.", dim, System.currentTimeMillis() - dimStartTime);
+      long length = makeColumn(v9Smoosher, dim, builder.build(includeStats));
+      log.info(
+          "Completed dimension [%s] in %,d millis (%s).",
+          dim, System.currentTimeMillis() - dimStartTime, StringUtils.toKMGT(length)
+      );
     }
-    log.info("Completed dimension columns in %,d millis.", System.currentTimeMillis() - startTime);
+    log.info("Completed all dimension(s) in %,d millis.", System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
 
@@ -531,10 +534,13 @@ public class IndexMergerV9 extends IndexMerger
       ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
       writer.buildDescriptor(ioPeon, builder);
 
-      makeColumn(v9Smoosher, metric, builder.build(includeStats));
-      log.info("Completed metric column[%s] in %,d millis.", metric, System.currentTimeMillis() - metricStartTime);
+      long length = makeColumn(v9Smoosher, metric, builder.build(includeStats));
+      log.info(
+          "Completed metric [%s] in %,d millis (%s).",
+          metric, System.currentTimeMillis() - metricStartTime, StringUtils.toKMGT(length)
+      );
     }
-    log.info("Completed metric columns in %,d millis.", System.currentTimeMillis() - startTime);
+    log.info("Completed all metric(s) in %,d millis.", System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
 
@@ -557,12 +563,14 @@ public class IndexMergerV9 extends IndexMerger
     ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
     timeWriter.buildDescriptor(ioPeon, builder);
 
-    makeColumn(v9Smoosher, columnName, builder.build(includeStats));
-    log.info("Completed time column in %,d millis.", System.currentTimeMillis() - startTime);
+    long length = makeColumn(v9Smoosher, columnName, builder.build(includeStats));
+    log.info(
+        "Completed time column in %,d millis (%s).", System.currentTimeMillis() - startTime, StringUtils.toKMGT(length)
+    );
     progress.stopSection(section);
   }
 
-  private void makeColumn(
+  private long makeColumn(
       final FileSmoosher v9Smoosher,
       final String columnName,
       final ColumnDescriptor serdeficator
@@ -584,6 +592,7 @@ public class IndexMergerV9 extends IndexMerger
     finally {
       channel.close();
     }
+    return channel.length();
   }
 
   private void makeInvertedIndexes(
@@ -882,7 +891,7 @@ public class IndexMergerV9 extends IndexMerger
         if (type.isStruct()) {
           return StructColumnSerializer.create(metric, type, secondary, (n, t) -> setupMetricsWriter(n, t, indexSpec));
         }
-        if (type.isGenericArray()) {
+        if (type.isNestedArray()) {
           return ArrayColumnSerializer.create(metric, type, (n, t) -> setupMetricsWriter(n, t, indexSpec));
         }
         if (type.isMap()) {

@@ -19,6 +19,7 @@
 
 package io.druid.segment.lucene;
 
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
@@ -29,7 +30,7 @@ import java.util.List;
 public class Lucene9ExtensionModule implements DruidModule
 {
   @Override
-  public List<? extends com.fasterxml.jackson.databind.Module> getJacksonModules()
+  public List<? extends Module> getJacksonModules()
   {
     return ImmutableList.of(
         new LuceneCommonExtensionModule().getModule(false),
@@ -37,6 +38,8 @@ public class Lucene9ExtensionModule implements DruidModule
             .registerSubtypes(Lucene9IndexingSpec.class)
             .registerSubtypes(Lucene9IndexingSpec.SerDe.class)
             .registerSubtypes(Lucene9FSTSerDe.class)
+            .registerSubtypes(KnnVectorStrategy.class)
+            .registerSubtypes(KnnVectorFilter.class)
     );
   }
 

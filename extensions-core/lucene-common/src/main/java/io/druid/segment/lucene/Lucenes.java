@@ -81,7 +81,6 @@ import org.apache.lucene.analysis.pt.PortugueseAnalyzer;
 import org.apache.lucene.analysis.ro.RomanianAnalyzer;
 import org.apache.lucene.analysis.ru.RussianAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.analysis.standard.UAX29URLEmailAnalyzer;
 import org.apache.lucene.analysis.sv.SwedishAnalyzer;
 import org.apache.lucene.analysis.th.ThaiAnalyzer;
 import org.apache.lucene.analysis.tr.TurkishAnalyzer;
@@ -153,18 +152,21 @@ public class Lucenes
   private static final Logger LOGGER = new Logger(Lucenes.class);
   private static final int IO_BUFFER = 65536;
 
-  public static IndexWriter buildRamWriter(File file, String analyzer)
+  public static IndexWriter buildRamWriter(File file, String analyzer, List<LuceneIndexingStrategy> strategies)
   {
-    IndexWriterConfig writerConfig = new IndexWriterConfig(Lucenes.createAnalyzer(analyzer));
-    writerConfig.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
-    writerConfig.setRAMBufferSizeMB(256);
-    writerConfig.setUseCompoundFile(false);
-    writerConfig.setCommitOnClose(true);
-    writerConfig.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
-    writerConfig.setMergePolicy(NoMergePolicy.INSTANCE);
-    writerConfig.setMergeScheduler(NoMergeScheduler.INSTANCE);
+    IndexWriterConfig config = new IndexWriterConfig(Lucenes.createAnalyzer(analyzer));
+    config.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
+    config.setRAMBufferSizeMB(256);
+    config.setUseCompoundFile(false);
+    config.setCommitOnClose(true);
+    config.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+    config.setMergePolicy(NoMergePolicy.INSTANCE);
+    config.setMergeScheduler(NoMergeScheduler.INSTANCE);
+    for (LuceneIndexingStrategy strategy : strategies) {
+      config = strategy.configure(config);
+    }
     try {
-      return new IndexWriter(new MMapDirectory(file.toPath()), writerConfig);
+      return new IndexWriter(new MMapDirectory(file.toPath()), config);
     }
     catch (IOException e) {
       throw Throwables.propagate(e);

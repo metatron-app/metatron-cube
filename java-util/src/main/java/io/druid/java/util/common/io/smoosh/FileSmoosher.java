@@ -184,6 +184,12 @@ public class FileSmoosher implements Closeable
           );
         }
       }
+
+      @Override
+      public long length()
+      {
+        return bytesWritten;
+      }
     };
   }
 
@@ -295,6 +301,12 @@ public class FileSmoosher implements Closeable
     public void close() throws IOException
     {
       channel.close();
+    }
+
+    @Override
+    public long length()
+    {
+      return currOffset;
     }
 
     public void sync() throws IOException

@@ -34,11 +34,6 @@ import java.util.List;
 @JsonTypeName("lucene8")
 public class Lucene8IndexingSpec extends LuceneIndexingSpec
 {
-  public static LuceneIndexingSpec ofAnalyzer(String textAnalyzer)
-  {
-    return new Lucene8IndexingSpec(textAnalyzer, null);
-  }
-
   public static LuceneIndexingSpec of(String textAnalyzer, LuceneIndexingStrategy... strategies)
   {
     return new Lucene8IndexingSpec(textAnalyzer, Arrays.asList(strategies));

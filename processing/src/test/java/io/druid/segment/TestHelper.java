@@ -881,7 +881,7 @@ public class TestHelper
       List evl = (List) ev;
       List rvl = (List) rv;
       for (int i = 0; i < Math.min(evl.size(), rvl.size()); i++) {
-        validate(String.format("%s[%d]", message, i), evl.get(i), evl.get(i));
+        validate(String.format("%s[%d]", message, i), evl.get(i), rvl.get(i));
       }
       if (evl.size() > rvl.size()) {
         Assert.fail(message + " need more");

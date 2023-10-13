@@ -21,19 +21,34 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.segment.Lucene9TestHelper;
+import io.druid.segment.lucene.KnnVectorFilter;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class LucenePointFilterSerDeTest
+public class FilterSerDeTest
 {
+  private static final ObjectMapper mapper = Lucene9TestHelper.segmentWalker.getMapper();
+
   @Test
-  public void test() throws Exception
+  public void testPointFilter() throws Exception
   {
     ObjectMapper mapper = Lucene9TestHelper.segmentWalker.getMapper();
     LucenePointFilter filter = LucenePointFilter.distance("field", 37, 120, 10000);
     String serialized = mapper.writeValueAsString(filter);
     Assert.assertEquals(
         "{\"type\":\"lucene.point\",\"field\":\"field\",\"query\":\"distance\",\"latitudes\":[37.0],\"longitudes\":[120.0],\"radiusMeters\":10000.0}",
+        serialized
+    );
+    Assert.assertEquals(filter, mapper.readValue(serialized, DimFilter.class));
+  }
+
+  @Test
+  public void testKnnVectorFilter() throws Exception
+  {
+    KnnVectorFilter filter = new KnnVectorFilter("field", new float[]{0.1f, 0.2f, 0.3f}, 10, "score");
+    String serialized = mapper.writeValueAsString(filter);
+    Assert.assertEquals(
+        "{\"type\":\"lucene.knn.vector\",\"field\":\"field\",\"vector\":[0.1,0.2,0.3],\"count\":10,\"scoreField\":\"score\"}",
         serialized
     );
     Assert.assertEquals(filter, mapper.readValue(serialized, DimFilter.class));

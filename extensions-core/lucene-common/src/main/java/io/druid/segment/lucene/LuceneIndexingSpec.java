@@ -27,7 +27,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.guava.GuavaUtils;
@@ -131,7 +130,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
     if (GuavaUtils.isNullOrEmpty(strategies)) {
       return MetricColumnSerializer.DUMMY;
     }
-    final Iterable<LuceneIndexingStrategy> replaced = Iterables.transform(
+    final List<LuceneIndexingStrategy> replaced = GuavaUtils.transform(
         strategies, s -> s.getFieldName() == null ? s.withFieldName(columnName) : s
     );
     final List<Function<Object, Field[]>> generators = GuavaUtils.transform(
@@ -145,7 +144,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       @Override
       public void open(IOPeon ioPeon) throws IOException
       {
-        writer = Lucenes.buildRamWriter(ioPeon.makeOutputFile(columnName + ".lucene"), textAnalyzer);
+        writer = Lucenes.buildRamWriter(ioPeon.makeOutputFile(columnName + ".lucene"), textAnalyzer, replaced);
       }
 
       @Override

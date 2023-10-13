@@ -75,7 +75,7 @@ public class ValueDesc implements Serializable, Cacheable
   public static final String MAP_TYPE = "map";
   public static final String ARRAY_TYPE = "array";
   private static final String LEGACY_ARRAY_PREFIX = "array.";
-  private static final String GENERIC_ARRAY_PREFIX = "array(";
+  private static final String NESTED_ARRAY_PREFIX = "array(";
 
   public static final String DECIMAL_TYPE = "decimal";
   public static final String DECIMAL_TYPE_PREFIX = DECIMAL_TYPE + "(";
@@ -544,7 +544,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public ValueDesc unwrapArray(ValueDesc unknown)
   {
-    if (isLegacyArray()) {
+    if (isValueArray()) {
       return subElement(unknown);
     }
     String[] description = TypeUtils.splitDescriptiveType(typeName);
@@ -740,17 +740,17 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isArray()
   {
-    return isLegacyArray() || isGenericArray();
+    return isValueArray() || isNestedArray();
   }
 
-  public boolean isLegacyArray()
+  public boolean isValueArray()
   {
     return this == ARRAY || ARRAY_TYPE.equals(typeName) || typeName.startsWith(LEGACY_ARRAY_PREFIX);
   }
 
-  public boolean isGenericArray()
+  public boolean isNestedArray()
   {
-    return typeName.startsWith(GENERIC_ARRAY_PREFIX);
+    return typeName.startsWith(NESTED_ARRAY_PREFIX);
   }
 
   public boolean isBitSet()

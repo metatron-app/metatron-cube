@@ -1,0 +1,33 @@
+{
+  "parser" : {
+    "format" : "csv"
+  },
+  "columns": [
+    "NUMBER", "x", "y"
+  ],
+  "timestampSpec": {
+    "column":"inspection_date", "format":"MM/dd/yyyy", "missingValue": "2018-07-16"
+  },
+  "dimensionsSpec": {
+    "dimensions": ["NUMBER"]
+  },
+  "evaluations":[
+    { "outputName": "vector", "expressions": [ "array(x, y)" ] }
+  ],
+  "metricsSpec": [
+    {"name": "vector", "typeName": "array.float"}
+  ],
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "secondaryIndexing": {
+      "vector": {
+        "type": "lucene9",
+        "strategies": [
+          {"type": "knn.vector", "fieldName": "knn", "dimension": 2}
+        ]
+      }
+    }
+  }
+}

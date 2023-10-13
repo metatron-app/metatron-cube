@@ -256,7 +256,7 @@ public class Rows
       handover.setValue(((Number) value).floatValue());
       return true;
     }
-    Float fv = Rows.parseFloat(value);
+    Float fv = Rows.parseFloat(value, null);
     if (fv != null) {
       handover.setValue(fv.floatValue());
       return true;

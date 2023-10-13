@@ -24,4 +24,6 @@ import java.nio.channels.WritableByteChannel;
 public interface SmooshedWriter extends Closeable, WritableByteChannel
 {
   long transferFrom(FileChannel src) throws IOException;
+
+  long length();
 }

@@ -49,6 +49,7 @@ public interface DimFilterCacheKey
   byte LUCENE_GEOJSON_CACHE_ID = 0xF;
   byte LUCENE_SPATIAL_CACHE_ID = 0x10;
   byte LUCENE_WITHIN_CACHE_ID = 0x13;
+  byte LUCENE_KNN_CACHE_ID = 0x14;
 
   byte BOUND_ROWID_CACHE_ID = 0x15;
   byte H3_DISTANCE_CACHE_ID = 0x17;

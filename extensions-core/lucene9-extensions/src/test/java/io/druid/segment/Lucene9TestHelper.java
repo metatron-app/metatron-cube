@@ -54,6 +54,7 @@ public class Lucene9TestHelper extends TestHelper
 
     segmentWalker.addIndex("estate", "estate9_schema.json", "estate.csv", true);
     segmentWalker.addIndex("estate_incremental", "estate9_schema.json", "estate.csv", false);
+    segmentWalker.addIndex("chameleon", "chameleon_schema.json", "chameleon.ds.txt", true);
 
     mapper.setInjectableValues(
         new InjectableValues.Std()

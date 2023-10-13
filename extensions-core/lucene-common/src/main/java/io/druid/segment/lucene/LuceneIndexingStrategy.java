@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import io.druid.data.ValueDesc;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.index.IndexWriterConfig;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 public interface LuceneIndexingStrategy
@@ -34,4 +35,9 @@ public interface LuceneIndexingStrategy
   LuceneIndexingStrategy withFieldName(String fieldName);
 
   Function<Object, Field[]> createIndexableField(ValueDesc type);
+
+  default IndexWriterConfig configure(IndexWriterConfig config)
+  {
+    return config;
+  }
 }
