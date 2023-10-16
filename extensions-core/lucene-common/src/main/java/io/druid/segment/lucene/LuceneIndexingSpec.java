@@ -281,7 +281,6 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                 public LuceneIndex get()
                 {
                   final DirectoryReader reader = Lucenes.readFrom(bufferToUse.asReadOnlyBuffer());
-                  final IndexSearcher searcher = new IndexSearcher(reader);
                   return new LuceneIndex()
                   {
                     @Override
@@ -300,7 +299,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                     public TopDocs query(Query query)
                     {
                       try {
-                        return searcher.search(query, numRows);
+                        return createIndexSearcher(reader).search(query, numRows);
                       }
                       catch (IOException e) {
                         throw Throwables.propagate(e);
@@ -310,7 +309,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                     @Override
                     public IndexSearcher searcher()
                     {
-                      return searcher;
+                      return createIndexSearcher(reader);
                     }
                   };
                 }
@@ -318,6 +317,11 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
           );
         }
       };
+    }
+
+    protected IndexSearcher createIndexSearcher(DirectoryReader reader)
+    {
+      return new IndexSearcher(reader);
     }
   }
 }

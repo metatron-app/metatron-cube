@@ -32,6 +32,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 
 public class ChameleonQueries extends LuceneTestRunner
 {
@@ -88,5 +89,32 @@ public class ChameleonQueries extends LuceneTestRunner
     };
     builder.filters(new KnnVectorFilter("vector.knn", new float[]{0.7F, 0.7F}, 10, "score"));
     TestHelper.validate(Arrays.asList(expected), runQuery(builder.streaming()));
+  }
+
+  @Test
+  public void testCombinedFilter()
+  {
+    Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
+        .dataSource("chameleon")
+        .columns("NUMBER", "vector", "score")
+        .filters(DimFilters.and(
+            new LikeDimFilter("NUMBER", "%1", null, null),
+            new KnnVectorFilter("vector.knn", new float[]{0.5F, 0.5F}, 10, "score")
+        ));
+
+    Object[][] expected = new Object[][]{
+        {"10741", list(0.5281539D, 0.41882014D), 0.99267125F},
+        {"11161", list(0.5633602D, 0.4436847D), 0.9928653F},
+        {"11281", list(0.5232792D, 0.4414288D), 0.9960432F},
+        {"13321", list(0.43399575D, 0.5105342D), 0.99555236F},
+        {"1341", list(0.533308D, 0.44191334D), 0.99553657F},
+        {"1351", list(0.5328579D, 0.44170472D), 0.995542F},
+        {"1661", list(0.52456915D, 0.4240269D), 0.99366486F},
+        {"17631", list(0.5021096D, 0.43554822D), 0.9958587F},
+        {"17641", list(0.50252676D, 0.4358472D), 0.9958949F},
+        {"19401", list(0.43876216D, 0.46694124D), 0.99518037F}
+    };
+    List<Object[]> results = runQuery(builder.streaming());
+    TestHelper.validate(Arrays.asList(expected), results);
   }
 }

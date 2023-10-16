@@ -22,10 +22,26 @@ package io.druid.segment.lucene;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.java.util.common.UOE;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.serde.ColumnPartSerde;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.Explanation;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreMode;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.Weight;
+import org.apache.lucene.util.BitSetIterator;
+import org.apache.lucene.util.FixedBitSet;
 
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 
 /**
@@ -63,6 +79,75 @@ public class Lucene9IndexingSpec extends LuceneIndexingSpec
     public SerDe(IndexWriter writer)
     {
       super(writer);
+    }
+
+    @Override
+    protected IndexSearcher createIndexSearcher(DirectoryReader reader)
+    {
+      return new IndexSearcher(reader)
+      {
+        @Override
+        public Query rewrite(Query original) throws IOException
+        {
+          return BitmapRelay.isRelay(original) ? original : super.rewrite(original);
+        }
+
+        @Override
+        public Weight createWeight(Query query, ScoreMode scoreMode, float boost) throws IOException
+        {
+          ImmutableBitmap bitmap = BitmapRelay.unwrap(query);
+          if (bitmap == null) {
+            return super.createWeight(query, scoreMode, boost);
+          }
+          return new Weight(query)
+          {
+            @Override
+            public boolean isCacheable(LeafReaderContext ctx)
+            {
+              return false;
+            }
+
+            @Override
+            public Explanation explain(LeafReaderContext context, int doc) throws IOException
+            {
+              return Explanation.noMatch("From external bitmap");
+            }
+
+            @Override
+            public Scorer scorer(LeafReaderContext context) throws IOException
+            {
+              return new Scorer(this)
+              {
+                private final BitSet bitset = RoaringBitmapFactory.toBitset(bitmap);
+
+                @Override
+                public DocIdSetIterator iterator()
+                {
+                  return new BitSetIterator(new FixedBitSet(bitset.toLongArray(), bitset.length()), 0);
+                }
+
+                @Override
+                public float getMaxScore(int upTo) throws IOException
+                {
+                  throw new UOE("getMaxScore");
+                }
+
+                @Override
+                public float score() throws IOException
+                {
+                  throw new UOE("score");
+                }
+
+                @Override
+                public int docID()
+                {
+                  throw new UOE("docID");
+                }
+              };
+            }
+          };
+        }
+      };
     }
   }
 }

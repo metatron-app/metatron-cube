@@ -34,6 +34,7 @@ import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import org.apache.lucene.search.KnnFloatVectorQuery;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
 
 import java.util.Arrays;
@@ -113,7 +114,8 @@ public class KnnVectorFilter extends LuceneSelector
             Lucenes.findLuceneField(field, column, TextIndexingStrategy.TYPE_NAME, JsonIndexingStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
-        KnnFloatVectorQuery query = new KnnFloatVectorQuery(luceneField, vector, count);
+        Query filter = BitmapRelay.queryFor(context.baseBitmap());
+        KnnFloatVectorQuery query = new KnnFloatVectorQuery(luceneField, vector, count, filter);
         LuceneIndex lucene = column.getExternalIndex(LuceneIndex.class).get();
         try {
           TopDocs searched = lucene.searcher().search(query, count);
