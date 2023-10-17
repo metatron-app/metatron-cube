@@ -59,6 +59,7 @@ import org.rosuda.JRI.RVector;
 import org.rosuda.JRI.Rengine;
 
 import java.io.File;
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Arrays;
@@ -193,199 +194,195 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  @Function.Named("array.string")
-  class StringArray extends NamedFactory implements Function.FixedTyped
+  abstract class ArrayOfPrimitive extends NamedFactory implements Function.FixedTyped
   {
+    private final ValueDesc type;
+
+    protected ArrayOfPrimitive(ValueDesc type) {this.type = type;}
+
     @Override
     public ValueDesc returns()
     {
-      return ValueDesc.STRING_ARRAY;
+      return type;
     }
 
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
-        return new Function()
+        return new Function.WithType(type)
         {
-          @Override
-          public ValueDesc returns()
-          {
-            return ValueDesc.STRING_ARRAY;
-          }
-
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
             ExprEval eval = Evals.eval(args.get(0), bindings);
             if (eval.isNull()) {
-              return ExprEval.of(null, ValueDesc.STRING_ARRAY);
+              return ExprEval.of(null, type);
             }
-            List<String> strings = Lists.newArrayList();
-            for (Object value : (List) eval.value()) {
-              strings.add(Objects.toString(value, null));
+            List source = (List) eval.value();
+            Object[] array = new Object[source.size()];
+            for (int i = 0; i < array.length; i++) {
+              array[i] = extract(source.get(i));
             }
-            return ExprEval.of(strings, ValueDesc.STRING_ARRAY);
+            return ExprEval.of(Arrays.asList(array), type);
           }
         };
       }
-      return new Function()
+      return new Function.WithType(type)
       {
-        @Override
-        public ValueDesc returns()
-        {
-          return ValueDesc.STRING_ARRAY;
-        }
-
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
-          List<String> strings = Lists.newArrayList();
-          for (Expr arg : args) {
-            strings.add(Evals.evalString(arg, bindings));
+          Object[] array = new Object[args.size()];
+          for (int i = 0; i < array.length; i++) {
+            array[i] = extract(Evals.eval(args.get(i), bindings));
           }
-          return ExprEval.of(strings, ValueDesc.STRING_ARRAY);
+          return ExprEval.of(Arrays.asList(array), type);
         }
       };
+    }
+
+    protected abstract Object extract(Object value);
+
+    protected abstract Object extract(ExprEval value);
+  }
+
+  @Function.Named("array_string")
+  final class StringArray extends ArrayOfPrimitive
+  {
+    public StringArray() {super(ValueDesc.STRING_ARRAY);}
+
+    @Override
+    protected Object extract(Object value)
+    {
+      return Objects.toString(value, null);
+    }
+
+    @Override
+    protected Object extract(ExprEval value)
+    {
+      return value.asString();
     }
   }
 
-  @Function.Named("array.long")
-  final class LongArray extends NamedFactory implements Function.FixedTyped
+  @Function.Named("array_long")
+  final class LongArray extends ArrayOfPrimitive
   {
+    public LongArray() {super(ValueDesc.LONG_ARRAY);}
+
     @Override
-    public ValueDesc returns()
+    protected Object extract(Object value)
     {
-      return ValueDesc.LONG_ARRAY;
+      return Rows.parseLong(value, null);
     }
 
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    protected Object extract(ExprEval value)
     {
-      if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
-        return new Function()
-        {
-          @Override
-          public ValueDesc returns()
-          {
-            return ValueDesc.LONG_ARRAY;
-          }
-
-          @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
-          {
-            ExprEval eval = Evals.eval(args.get(0), bindings);
-            if (eval.isNull()) {
-              return ExprEval.of(null, ValueDesc.LONG_ARRAY);
-            }
-            List<Long> longs = Lists.newArrayList();
-            for (Object value : (List) eval.value()) {
-              longs.add(Rows.parseLong(value, null));
-            }
-            return ExprEval.of(longs, ValueDesc.LONG_ARRAY);
-          }
-        };
-      }
-      return new Function()
-      {
-        @Override
-        public ValueDesc returns()
-        {
-          return ValueDesc.LONG_ARRAY;
-        }
-
-        @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
-        {
-          List<Long> longs = Lists.newArrayList();
-          for (Expr arg : args) {
-            longs.add(Evals.evalLong(arg, bindings));
-          }
-          return ExprEval.of(longs, ValueDesc.LONG_ARRAY);
-        }
-      };
+      return value.asLong();
     }
   }
 
-  @Function.Named("array.double")
-  class DoubleArray extends NamedFactory.DoubleArrayType
+  @Function.Named("array_float")
+  final class FloatArray extends ArrayOfPrimitive
   {
+    public FloatArray() {super(ValueDesc.DOUBLE_ARRAY);}
+
     @Override
-    public DoubleArrayFunc create(List<Expr> args, TypeResolver resolver)
+    protected Object extract(Object value)
     {
-      if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
-        return new DoubleArrayFunc()
-        {
-          @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
-          {
-            ExprEval eval = Evals.eval(args.get(0), bindings);
-            if (eval.isNull()) {
-              return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
-            }
-            List<Double> doubles = Lists.newArrayList();
-            for (Object value : (List) eval.value()) {
-              doubles.add(Rows.parseDouble(value, null));
-            }
-            return ExprEval.of(doubles, ValueDesc.DOUBLE_ARRAY);
-          }
-        };
-      }
-      return new DoubleArrayFunc()
-      {
-        @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
-        {
-          List<Double> doubles = Lists.newArrayList();
-          for (Expr arg : args) {
-            doubles.add(Evals.evalDouble(arg, bindings));
-          }
-          return ExprEval.of(doubles, ValueDesc.DOUBLE_ARRAY);
-        }
-      };
+      return Rows.parseFloat(value, null);
+    }
+
+    @Override
+    protected Object extract(ExprEval value)
+    {
+      return value.asFloat();
+    }
+  }
+
+  @Function.Named("array_double")
+  final class DoubleArray extends ArrayOfPrimitive
+  {
+    public DoubleArray() {super(ValueDesc.DOUBLE_ARRAY);}
+
+    @Override
+    protected Object extract(Object value)
+    {
+      return Rows.parseDouble(value, null);
+    }
+
+    @Override
+    protected Object extract(ExprEval value)
+    {
+      return value.asDouble();
     }
   }
 
   @Function.Named("array")
-  final class Array extends NamedFactory
+  final class ToArray extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
-        ValueDesc type = args.get(0).returns();
-        return new Function()
+        return new Function.WithType(args.get(0).returns())
         {
-          public ValueDesc returns()
-          {
-            return type;
-          }
-
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
-            return args.get(0).eval(bindings);
+            return Evals.eval(args.get(0), bindings);
           }
         };
       }
       ValueDesc element = ValueDesc.toCommonType(Iterables.transform(args, arg -> arg.returns()), ValueDesc.UNKNOWN);
       ValueDesc type = element.isUnknown() ? ValueDesc.ARRAY : ValueDesc.ofArray(element);
-      return new Function()
+      return new Function.WithType(type)
       {
-        public ValueDesc returns()
-        {
-          return type;
-        }
-
         @Override
-        @SuppressWarnings("unchecked")
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
-          List values = Lists.newArrayList();
-          for (Expr arg : args) {
-            values.add(element.cast(Evals.evalValue(arg, bindings)));
+          Object[] array = new Object[args.size()];
+          for (int i = 0; i < array.length; i++) {
+            array[i] = element.cast(Evals.evalValue(args.get(i), bindings));
           }
-          return ExprEval.of(values, type);
+          return ExprEval.of(Arrays.asList(array), type);
+        }
+      };
+    }
+  }
+
+  @Function.Named("sublist")
+  final class SubList extends NamedFactory
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      twoOrThree(args);
+      int sx = Evals.getConstantInt(args.get(1));
+      int ex = args.size() == 2 ? -1 : Evals.getConstantInt(args.get(2));
+      return new Function.WithType(args.get(0).returns())
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          ExprEval eval = Evals.eval(args.get(0), bindings);
+          if (eval.isNull()) {
+            return eval;
+          }
+          if (eval.value() instanceof List) {
+            List list = (List) eval.value();
+            return ExprEval.of(list.subList(sx, ex < 0 ? list.size() : ex), eval.type());
+          }
+          Class<?> clazz = eval.value().getClass();
+          if (clazz.isArray()) {
+            Object array = eval.value();
+            int length = ex < 0 ? Array.getLength(array) : ex - sx;
+            Object sub = Array.newInstance(clazz.getComponentType(), length);
+            System.arraycopy(array, sx, sub, 0, length);
+            return ExprEval.of(sub, eval.type());
+          }
+          return eval;
         }
       };
     }

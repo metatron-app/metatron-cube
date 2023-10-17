@@ -21,6 +21,7 @@ package io.druid.cli;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
@@ -64,7 +65,7 @@ public class PullDependencies implements Runnable
 {
   private static final Logger log = new Logger(PullDependencies.class);
 
-  private static final Set<String> exclusions = Sets.newHashSet(
+  private static final Set<String> groups = Sets.newHashSet(
       /*
 
       // It is possible that extensions will pull down a lot of jars that are either
@@ -398,7 +399,7 @@ public class PullDependencies implements Runnable
 
               private boolean accept(final Artifact artifact)
               {
-                return exclusions.contains(artifact.getGroupId());
+                return groups.contains(artifact.getGroupId());
               }
             }
         )
@@ -410,12 +411,12 @@ public class PullDependencies implements Runnable
       final List<Artifact> artifacts = aether.resolveArtifacts(dependencyRequest);
 
       for (Artifact artifact : artifacts) {
-        if (!exclusions.contains(artifact.getGroupId())) {
+        if (classifiers.contains(artifact.getClassifier()) || groups.contains(artifact.getGroupId())) {
+          log.debug("Skipped Artifact[%s]", artifact);
+        } else {
           log.debug("Adding file [%s] at [%s]", artifact.getFile().getName(), toLocation.getAbsolutePath());
           FileUtils.copyFileToDirectory(artifact.getFile(), toLocation);
           counter++;
-        } else {
-          log.debug("Skipped Artifact[%s]", artifact);
         }
       }
     }
@@ -426,6 +427,10 @@ public class PullDependencies implements Runnable
     log.debug("Finish downloading extension [%s]", versionedArtifact);
     return counter;
   }
+
+  private static final Set<String> classifiers = ImmutableSet.of(
+      "android-arm", "android-arm64", "android-x86", "android-x86_64", "windows-x86_64"
+  );
 
   private DefaultTeslaAether getAetherClient()
   {

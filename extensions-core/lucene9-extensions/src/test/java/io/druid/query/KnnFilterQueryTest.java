@@ -27,7 +27,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-public class SqlTest extends CalciteQueryTestHelper
+public class KnnFilterQueryTest extends CalciteQueryTestHelper
 {
   static final MiscQueryHook hook = new MiscQueryHook();
   static TestQuerySegmentWalker walker;
@@ -60,7 +60,7 @@ public class SqlTest extends CalciteQueryTestHelper
         {"11284", Arrays.asList(0.5232767D, 0.44144332D)}
     };
     testQuery(
-        "SELECT NUMBER, vector FROM chameleon WHERE lucene_knn_vector('vector', \"array\"(0.5, 0.5), 10)",
+        "SELECT NUMBER, vector FROM chameleon WHERE lucene_knn_vector('vector', array_float(0.5, 0.5), 10)",
         expected
     );
     hook.verifyHooked(
@@ -81,7 +81,7 @@ public class SqlTest extends CalciteQueryTestHelper
         {"19401", Arrays.asList(0.43876216D, 0.46694124D)}
     };
     testQuery(
-        "SELECT NUMBER, vector FROM chameleon WHERE NUMBER LIKE '%1' AND lucene_knn_vector(vector, \"array\"(0.5, 0.5), 10)",
+        "SELECT NUMBER, vector FROM chameleon WHERE NUMBER LIKE '%1' AND lucene_knn_vector(vector, array_float(0.5, 0.5), 10)",
         expected
     );
     hook.verifyHooked(

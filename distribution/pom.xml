@@ -156,6 +156,8 @@
                                 <argument>app.metatron.extensions.contrib:kafka-emitter</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-jfreechart-extensions</argument>
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-deeplearning-extensions</argument>
                             </arguments>
                         </configuration>
                     </execution>

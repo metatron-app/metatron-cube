@@ -67,7 +67,7 @@ public class BitSetUnwrapConversion implements SqlOperatorConversion
     List<RexNode> operands = Utils.operands(rexNode);
     if (operands.size() == 1 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
       String column = signature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
-      return DruidExpression.fromExpression(String.format("bitset.unwrap(%s)", DruidExpression.identifier(column)));
+      return DruidExpression.fromExpression(String.format("bitset_unwrap(%s)", DruidExpression.identifier(column)));
     }
     return null;
   }

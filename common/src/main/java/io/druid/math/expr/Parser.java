@@ -85,16 +85,26 @@ public class Parser
     log.info("registering functions in %s library [%s]", builtInLibrary ? "built-in" : "user", parent.getName());
 
     for (Function.Factory factory : getFunctions(parent)) {
-      String name = Preconditions.checkNotNull(factory.name(), "name for [%s] is null", factory).toLowerCase();
-      Function.Factory prev = functions.get(name);
-      if (prev != null) {
-        throw new IAE("function '%s' cannot not be overridden", name);
-      }
-      functions.put(name, factory);
+      register(factory, builtInLibrary);
+    }
+  }
 
-      if (!builtInLibrary) {
-        log.info("> '%s' is registered with class %s", name, factory.getClass().getSimpleName());
-      }
+  public static void register(Function.Factory factory)
+  {
+    register(factory, false);
+  }
+
+  private static void register(Function.Factory factory, boolean builtInLibrary)
+  {
+    String name = Preconditions.checkNotNull(factory.name(), "name for [%s] is null", factory).toLowerCase();
+    Function.Factory prev = functions.get(name);
+    if (prev != null) {
+      throw new IAE("function '%s' cannot not be overridden", name);
+    }
+    functions.put(name, factory);
+
+    if (!builtInLibrary) {
+      log.info("> '%s' is registered with class %s", name, factory.getClass().getSimpleName());
     }
   }
 
@@ -114,20 +124,20 @@ public class Parser
            parent == JsonFunctions.class;
   }
 
-  private static Iterable<Function.Factory> getFunctions(Class parent)
+  private static Iterable<Function.Factory> getFunctions(Class<?> parent)
   {
     try {
       if (Function.Provider.class.isAssignableFrom(parent)) {
-        return ((Function.Provider) parent.newInstance()).getFunctions();
+        return ((Function.Provider) parent.getDeclaredConstructor().newInstance()).getFunctions();
       }
       final List<Function.Factory> functions = Lists.newArrayList();
-      for (Class clazz : parent.getClasses()) {
+      for (Class<?> clazz : parent.getClasses()) {
         if (Modifier.isAbstract(clazz.getModifiers())) {
           continue;
         }
         try {
           if (Function.Factory.class.isAssignableFrom(clazz)) {
-            functions.add((Function.Factory) clazz.newInstance());
+            functions.add((Function.Factory) clazz.getDeclaredConstructor().newInstance());
           }
         }
         catch (Throwable t) {

@@ -48,7 +48,7 @@ import java.util.Map;
 public class GeoToolsFunctions implements Function.Library
 {
   @Deprecated
-  @Function.Named("lonlat.to4326")
+  @Function.Named("lonlat_to4326")
   public static class LonLatTo4326 extends NamedFactory.DoubleArrayType
   {
     @Override

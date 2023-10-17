@@ -55,11 +55,60 @@ public interface Function
   {
   }
 
+  abstract class WithType implements Function, FixedTyped
+  {
+    private final ValueDesc type;
+
+    public WithType(ValueDesc type) {this.type = type;}
+
+    @Override
+    public final ValueDesc returns() {return type;}
+  }
+
   interface Factory
   {
     String name();
 
     Function create(List<Expr> args, TypeResolver resolver);
+
+    abstract class WithType implements Factory, Function.FixedTyped
+    {
+      private final String name;
+      private final ValueDesc type;
+
+      public WithType(String name, ValueDesc type)
+      {
+        this.name = name;
+        this.type = type;
+      }
+
+      @Override
+      public final String name() {return name;}
+
+      @Override
+      public final ValueDesc returns() {return type;}
+
+      @Override
+      public final Function create(List<Expr> args, TypeResolver resolver)
+      {
+        return new Function()
+        {
+          @Override
+          public ValueDesc returns()
+          {
+            return type;
+          }
+
+          @Override
+          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          {
+            return ExprEval.of(_evaluate(args, bindings), type);
+          }
+        };
+      }
+
+      protected abstract Object _evaluate(List<Expr> args, NumericBinding bindings);
+    }
   }
 
   // dummy functions. just type mapping for SQL table functions

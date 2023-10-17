@@ -141,7 +141,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
     }
     final double[] lonlat = new double[2];
     final Expr.NumericBinding binding = Parser.withMap(ImmutableMap.<String, Object>of("lonlat", lonlat));
-    final Expr expr = Parser.parse(String.format("lonlat.to4326('%s',lonlat)", crs));
+    final Expr expr = Parser.parse(String.format("lonlat_to4326('%s',lonlat)", crs));
     return new Function<Object, Field[]>()
     {
       @Override

@@ -1,0 +1,23 @@
+{
+  "parser": {
+    "type": "csv.stream",
+    "delimiter": ",",
+    "recordSeparator": "\n"
+  },
+  "columns": ["word"],
+  "timestampSpec": {
+    "column": "current_datetime",
+    "missingValue": "2019-05-14T04:56:25.901Z",
+    "invalidValue": "2019-05-14T04:56:25.901Z",
+    "replaceWrongColumn": true
+  },
+  "metricsSpec": [
+    {
+      "type": "relay", "name": "word", "typeName": "string"
+    }
+  ],
+  "queryGran": "MONTH",
+  "segmentGran": "MONTH",
+  "fixedSchema": true,
+  "rollup": false
+}

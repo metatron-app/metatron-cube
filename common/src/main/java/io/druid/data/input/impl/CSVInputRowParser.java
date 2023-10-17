@@ -87,7 +87,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
       @JsonProperty("charset") String charset
   ) {
     this.timestampSpec = timestampSpec;
-    this.dimensionsSpec = dimensionsSpec;
+    this.dimensionsSpec = dimensionsSpec == null ? DimensionsSpec.empty() : dimensionsSpec;
     this.columns = columns == null ? Collections.<String>emptyList() : columns;
     this.delimiter = delimiter;
     this.quoteCharacter = quoteCharacter;

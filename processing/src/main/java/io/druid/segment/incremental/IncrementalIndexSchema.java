@@ -112,7 +112,7 @@ public class IncrementalIndexSchema
     this.minTimestamp = minTimestamp;
     this.gran = gran == null ? Granularities.NONE : gran;
     this.segmentGran = segmentGran;
-    this.dimensionsSpec = dimensionsSpec;
+    this.dimensionsSpec = dimensionsSpec == null ? DimensionsSpec.empty() : dimensionsSpec;
     this.metrics = metrics == null ? new AggregatorFactory[0] : metrics;
     this.rollup = rollup;
     this.dimensionFixed = dimensionFixed;
