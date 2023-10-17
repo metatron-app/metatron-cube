@@ -84,6 +84,7 @@ import io.druid.server.security.Escalator;
 import io.druid.server.security.NoopEscalator;
 import io.druid.server.security.ResourceType;
 import io.druid.sql.SqlLifecycleFactory;
+import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -384,6 +385,13 @@ public class CalciteTests
                     .add(ds.withDataSource(FORBIDDEN_DATASOURCE).withInterval(forbiddenIndex.getInterval()), forbiddenIndex);
   }
 
+  private static final Set<DimFilterConversion> userDimFilterConversions = Sets.newHashSet();
+
+  public static void register(DimFilterConversion conversion)
+  {
+    userDimFilterConversions.add(conversion);
+  }
+
   public static DruidOperatorTable createOperatorTable()
   {
     Set<AggregatorFactory.SQLBundle> bundles = Sets.newHashSet(
@@ -395,7 +403,7 @@ public class CalciteTests
     Set<SqlOperatorConversion> extractionOperators = new HashSet<>();
 
     try {
-      return new DruidOperatorTable(ImmutableSet.of(), bundles, extractionOperators, ImmutableSet.of());
+      return new DruidOperatorTable(ImmutableSet.of(), bundles, extractionOperators, userDimFilterConversions);
     }
     catch (Throwable e) {
       throw Throwables.propagate(e);

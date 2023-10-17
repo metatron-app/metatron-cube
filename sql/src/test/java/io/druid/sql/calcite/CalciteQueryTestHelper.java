@@ -738,7 +738,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       Arrays.asList(Query.JOIN, Query.SEGMENT_METADATA, Query.SELECT_META, Query.FILTER_META, Query.SCHEMA, Query.CARDINALITY_META)
   );
 
-  protected static class MiscQueryHook implements TestHook
+  public static class MiscQueryHook implements TestHook
   {
     private final List<Query> hooked = Lists.newArrayList();
 

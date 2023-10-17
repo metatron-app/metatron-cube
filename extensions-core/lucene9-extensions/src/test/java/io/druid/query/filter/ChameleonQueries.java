@@ -26,7 +26,7 @@ import io.druid.query.SchemaQuery;
 import io.druid.segment.Lucene9TestHelper;
 import io.druid.segment.LuceneTestRunner;
 import io.druid.segment.TestHelper;
-import io.druid.segment.lucene.KnnVectorFilter;
+import io.druid.segment.lucene.LuceneKnnVectorFilter;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Assert;
 import org.junit.Test;
@@ -72,7 +72,7 @@ public class ChameleonQueries extends LuceneTestRunner
         {"11283", Arrays.asList(0.5233347, 0.4416579), 0.9960672},
         {"11284", Arrays.asList(0.5232767, 0.44144332), 0.99604493}
     };
-    builder.filters(new KnnVectorFilter("vector.knn", new float[]{0.5F, 0.5F}, 10, "score"));
+    builder.filters(new LuceneKnnVectorFilter("vector.knn", new float[]{0.5F, 0.5F}, 10, "score"));
     TestHelper.validate(Arrays.asList(expected), runQuery(builder.streaming()));
 
     expected = new Object[][]{
@@ -87,7 +87,7 @@ public class ChameleonQueries extends LuceneTestRunner
         {"17120", Arrays.asList(0.6990927, 0.7379153), 0.9985637},
         {"17121", Arrays.asList(0.6988718, 0.737996), 0.99855715}
     };
-    builder.filters(new KnnVectorFilter("vector.knn", new float[]{0.7F, 0.7F}, 10, "score"));
+    builder.filters(new LuceneKnnVectorFilter("vector.knn", new float[]{0.7F, 0.7F}, 10, "score"));
     TestHelper.validate(Arrays.asList(expected), runQuery(builder.streaming()));
   }
 
@@ -99,7 +99,7 @@ public class ChameleonQueries extends LuceneTestRunner
         .columns("NUMBER", "vector", "score")
         .filters(DimFilters.and(
             new LikeDimFilter("NUMBER", "%1", null, null),
-            new KnnVectorFilter("vector.knn", new float[]{0.5F, 0.5F}, 10, "score")
+            new LuceneKnnVectorFilter("vector.knn", new float[]{0.5F, 0.5F}, 10, "score")
         ));
 
     Object[][] expected = new Object[][]{

@@ -21,7 +21,7 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.segment.Lucene9TestHelper;
-import io.druid.segment.lucene.KnnVectorFilter;
+import io.druid.segment.lucene.LuceneKnnVectorFilter;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -45,10 +45,10 @@ public class FilterSerDeTest
   @Test
   public void testKnnVectorFilter() throws Exception
   {
-    KnnVectorFilter filter = new KnnVectorFilter("field", new float[]{0.1f, 0.2f, 0.3f}, 10, "score");
+    LuceneKnnVectorFilter filter = new LuceneKnnVectorFilter("field", new float[]{0.1f, 0.2f, 0.3f}, 10, "score");
     String serialized = mapper.writeValueAsString(filter);
     Assert.assertEquals(
-        "{\"type\":\"lucene.knn.vector\",\"field\":\"field\",\"vector\":[0.1,0.2,0.3],\"count\":10,\"scoreField\":\"score\"}",
+        "{\"type\":\"lucene_knn_vector\",\"field\":\"field\",\"vector\":[0.1,0.2,0.3],\"count\":10,\"scoreField\":\"score\"}",
         serialized
     );
     Assert.assertEquals(filter, mapper.readValue(serialized, DimFilter.class));

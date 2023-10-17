@@ -582,6 +582,17 @@ public class Utils
     return -1;
   }
 
+  public static float[] extractFoatArray(RexNode rexNode)
+  {
+    Preconditions.checkArgument(rexNode.isA(SqlKind.ARRAY_VALUE_CONSTRUCTOR));
+    RexCall call = (RexCall) rexNode;
+    float[] array = new float[call.operands.size()];
+    for (int i = 0; i < array.length; i++) {
+      array[i] = ((Number) RexLiteral.value(call.operands.get(i))).floatValue();
+    }
+    return array;
+  }
+
   public static Predicate extractFilter(int ref, List<RexNode> filters)
   {
     final Iterator<RexNode> iterator = filters.iterator();
