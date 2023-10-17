@@ -225,7 +225,12 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected void testQuery(String sql, Object[]... expectedResults) throws Exception
   {
-    testQuery(sql, NO_PARAM, null, Arrays.asList(expectedResults));
+    testQuery(sql, Arrays.asList(expectedResults));
+  }
+
+  protected void testQuery(String sql, List<Object[]> expectedResults) throws Exception
+  {
+    testQuery(sql, NO_PARAM, null, expectedResults);
   }
 
   protected void testQueries(String[] sqls, Object[] params, Object[][] expectedResults, String... hooks)

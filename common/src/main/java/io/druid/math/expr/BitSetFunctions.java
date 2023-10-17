@@ -46,7 +46,7 @@ public interface BitSetFunctions extends Function.Library
     }
   }
 
-  @Function.Named("bitset.cardinality")
+  @Function.Named("bitset_cardinality")
   final class Cardinality extends Function.NamedFactory.IntType
   {
     @Override
@@ -65,7 +65,7 @@ public interface BitSetFunctions extends Function.Library
     }
   }
 
-  @Function.Named("bitset.unwrap")
+  @Function.Named("bitset_unwrap")
   final class Unwrap extends Function.NamedFactory implements Function.FixedTyped
   {
     @Override
@@ -103,7 +103,7 @@ public interface BitSetFunctions extends Function.Library
     }
   }
 
-  @Function.Named("bitset.get")
+  @Function.Named("bitset_get")
   final class Get extends Function.NamedFactory.BooleanType
   {
     @Override
@@ -245,7 +245,7 @@ public interface BitSetFunctions extends Function.Library
     protected abstract BitSet operate(BitSet bs0, BitSet bs1);
   }
 
-  @Function.Named("bitset.or")
+  @Function.Named("bitset_or")
   final class BitSetOr extends BitSetBinaryOP
   {
     @Override
@@ -257,7 +257,7 @@ public interface BitSetFunctions extends Function.Library
     }
   }
 
-  @Function.Named("bitset.and")
+  @Function.Named("bitset_and")
   final class BitSetAnd extends BitSetBinaryOP
   {
     @Override
@@ -269,7 +269,7 @@ public interface BitSetFunctions extends Function.Library
     }
   }
 
-  @Function.Named("bitset.xor")
+  @Function.Named("bitset_xor")
   final class BitSetXor extends BitSetBinaryOP
   {
     @Override
@@ -281,7 +281,7 @@ public interface BitSetFunctions extends Function.Library
     }
   }
 
-  @Function.Named("bitset.andNot")
+  @Function.Named("bitset_andNot")
   final class BitSetAndNot extends BitSetBinaryOP
   {
     @Override

@@ -53,7 +53,7 @@ public class TestProfileQuery extends TestHelper
   {
     StreamQuery stream = Druids.newSelectQueryBuilder()
                                .dataSource("profile")
-                               .virtualColumns(new ExprVirtualColumn("bitset.unwrap(st11_cat)", "unwrap"))
+                               .virtualColumns(new ExprVirtualColumn("bitset_unwrap(st11_cat)", "unwrap"))
                                .columns("unwrap")
                                .streaming();
 

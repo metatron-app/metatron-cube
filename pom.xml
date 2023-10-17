@@ -154,6 +154,7 @@
         <module>extensions-core/geotools-extensions</module>
         <module>extensions-core/kerberos</module>
         <module>extensions-core/jfreechart-extensions</module>
+        <module>extensions-core/deeplearning-extensions</module>
         <!-- Community extensions -->
         <module>extensions-contrib/azure-extensions</module>
         <module>extensions-contrib/cassandra-storage</module>
