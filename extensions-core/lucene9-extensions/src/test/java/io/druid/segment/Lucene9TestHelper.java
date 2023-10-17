@@ -28,6 +28,8 @@ import io.druid.query.GeomFunctions;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.segment.lucene.Lucene9ExtensionModule;
 import io.druid.segment.lucene.LuceneCommonExtensionModule;
+import io.druid.segment.lucene.LuceneKnnVectorConversion;
+import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 
 import java.util.concurrent.Executors;
@@ -63,5 +65,7 @@ public class Lucene9TestHelper extends TestHelper
             .addValue(ObjectMapper.class, mapper)
             .addValue(QueryToolChestWarehouse.class, segmentWalker)
     );
+
+    CalciteTests.register(new LuceneKnnVectorConversion());
   }
 }

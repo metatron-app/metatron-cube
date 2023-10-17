@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import io.druid.initialization.DruidModule;
+import io.druid.sql.calcite.planner.LuceneNearestFilterConversion;
+import io.druid.sql.guice.SqlBindings;
 
 import java.util.List;
 
@@ -39,7 +41,7 @@ public class Lucene9ExtensionModule implements DruidModule
             .registerSubtypes(Lucene9IndexingSpec.SerDe.class)
             .registerSubtypes(Lucene9FSTSerDe.class)
             .registerSubtypes(KnnVectorStrategy.class)
-            .registerSubtypes(KnnVectorFilter.class)
+            .registerSubtypes(LuceneKnnVectorFilter.class)
     );
   }
 
@@ -47,5 +49,6 @@ public class Lucene9ExtensionModule implements DruidModule
   public void configure(Binder binder)
   {
     new LuceneCommonExtensionModule().configure(binder);
+    SqlBindings.addFilterConversion(binder, LuceneKnnVectorConversion.class);
   }
 }

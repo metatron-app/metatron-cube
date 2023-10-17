@@ -41,14 +41,14 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 
-@JsonTypeName("lucene.knn.vector")
-public class KnnVectorFilter extends LuceneSelector
+@JsonTypeName("lucene_knn_vector")
+public class LuceneKnnVectorFilter extends LuceneSelector
 {
   private final float[] vector;
   private final int count;
 
   @JsonCreator
-  public KnnVectorFilter(
+  public LuceneKnnVectorFilter(
       @JsonProperty("field") String field,
       @JsonProperty("vector") float[] vector,
       @JsonProperty("count") int count,
@@ -96,7 +96,7 @@ public class KnnVectorFilter extends LuceneSelector
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new KnnVectorFilter(replaced, vector, count, scoreField);
+    return new LuceneKnnVectorFilter(replaced, vector, count, scoreField);
   }
 
   @Override
@@ -111,7 +111,7 @@ public class KnnVectorFilter extends LuceneSelector
             Lucenes.findColumnWithLuceneIndex(field, context.internal()), "no lucene index on [%s]", field
         );
         String luceneField = Preconditions.checkNotNull(
-            Lucenes.findLuceneField(field, column, TextIndexingStrategy.TYPE_NAME, JsonIndexingStrategy.TYPE_NAME),
+            Lucenes.findLuceneField(field, column, KnnVectorStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
         Query filter = BitmapRelay.queryFor(context.baseBitmap());
@@ -129,7 +129,7 @@ public class KnnVectorFilter extends LuceneSelector
       @Override
       public String toString()
       {
-        return KnnVectorFilter.this.toString();
+        return LuceneKnnVectorFilter.this.toString();
       }
     };
   }
@@ -161,7 +161,7 @@ public class KnnVectorFilter extends LuceneSelector
       return false;
     }
 
-    KnnVectorFilter that = (KnnVectorFilter) o;
+    LuceneKnnVectorFilter that = (LuceneKnnVectorFilter) o;
 
     if (!field.equals(that.field)) {
       return false;
