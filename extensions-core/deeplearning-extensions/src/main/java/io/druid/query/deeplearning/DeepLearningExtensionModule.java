@@ -42,14 +42,16 @@ public class DeepLearningExtensionModule implements DruidModule
   {
     return ImmutableList.of(
         new SimpleModule("deeplearning-extension")
-            .registerSubtypes(DeepLearningFunctions.class)
+            .registerSubtypes(DL4JFunctions.class)
+            .registerSubtypes(Word2VecBuild.class)
+            .registerSubtypes(Word2VecLoad.class)
     );
   }
 
   @Override
   public void configure(Binder binder)
   {
-    binder.requestStaticInjection(DeepLearningFunctions.class);
+    binder.requestStaticInjection(DL4JFunctions.class);
     ClassLoader loader = DeepLearningExtensionModule.class.getClassLoader();
 
     // ReflectionUtils uses context loader
@@ -72,15 +74,15 @@ public class DeepLearningExtensionModule implements DruidModule
           continue;
         }
         try {
-          Word2VecConf config = mapper.readValue(property, Word2VecConf.class);
+          ModelConf config = mapper.readValue(property, ModelConf.class);
           if (config != null) {
-            config.build(name, property, loader);
+            config.build(name, loader);
           } else {
             LOG.info("> Not found function [%s] with config %s.. skip", name, property);
           }
         }
         catch (Exception e) {
-          LOG.info("> Failed to register function [%s] with class %s by %s.. skip", name, property, e);
+          LOG.info("> Failed to build function [%s] with config %s by %s.. skip", name, property, e);
         }
       }
     }

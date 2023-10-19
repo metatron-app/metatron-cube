@@ -19,41 +19,32 @@
 
 package io.druid.query.deeplearning;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Inject;
+import com.google.inject.Injector;
 import io.druid.data.ValueDesc;
+import io.druid.guice.annotations.Json;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
-import org.deeplearning4j.models.embeddings.loader.VectorsConfiguration;
 import org.deeplearning4j.models.word2vec.Word2Vec;
-import org.deeplearning4j.text.sentenceiterator.BasicLineIterator;
-import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
-import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
-import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
-import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 
-import java.io.IOException;
 import java.util.List;
 
-public class Word2VecConf extends VectorsConfiguration
+public class DL4JFunctions implements Function.Library
 {
-  @JsonProperty
-  public String source;
+  @Inject
+  public static Injector injector;
 
-  void build(String name, String property, ClassLoader loader) throws IOException
+  @Inject
+  public static @Json
+  ObjectMapper jsonMapper;
+
+
+  static void register(String name, Word2Vec word2Vec)
   {
-    Preconditions.checkNotNull(source, "source?");
-    SentenceIterator sequences = new BasicLineIterator(loader.getResource(source).getFile());
-    TokenizerFactory tokenizer = new DefaultTokenizerFactory();
-    tokenizer.setTokenPreProcessor(new CommonPreprocessor());
-    Word2Vec word2Vec = new Word2Vec.Builder(this).iterate(sequences).tokenizerFactory(tokenizer).build();
-
-    // seemed to be done in async
-    word2Vec.fit();
-
     Parser.register(new VectorFunc(name, word2Vec));
     Parser.register(new SimilarityFunc(name, word2Vec));
     Parser.register(new NerestFunc(name, word2Vec));

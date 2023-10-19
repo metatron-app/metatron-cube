@@ -19,17 +19,24 @@
 
 package io.druid.query.deeplearning;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
-import com.google.inject.Injector;
-import io.druid.guice.annotations.Json;
-import io.druid.math.expr.Function;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
+import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
+import org.nd4j.common.io.ClassPathResource;
 
-public class DeepLearningFunctions implements Function.Library
+import java.io.IOException;
+
+@JsonTypeName("w2v_load")
+public class Word2VecLoad implements ModelConf
 {
-  @Inject
-  public static Injector injector;
+  @JsonProperty
+  public String source;
 
-  @Inject
-  public static @Json ObjectMapper jsonMapper;
+  @Override
+  public void build(String name, ClassLoader loader) throws IOException
+  {
+    Preconditions.checkNotNull(source, "source?");
+    DL4JFunctions.register(name, WordVectorSerializer.readWord2VecModel(new ClassPathResource(source).getFile()));
+  }
 }
