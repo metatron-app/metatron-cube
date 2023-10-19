@@ -84,7 +84,7 @@ public class Word2VecTest
      * at this moment we're supposed to have model built, and it can be saved for future use.
      */
     WordVectorSerializer.writeWord2VecModel(word2Vec1, file);
-    System.out.println("length = " + file.length());
+    System.out.println(file + ".length = " + file.length());
 
     /**
      * Let's assume that some time passed, and now we have new corpus to be used to weights update.

@@ -26,11 +26,15 @@ import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
+@RunWith(Parameterized.class)
 public class Word2VecQueryTest extends CalciteQueryTestHelper
 {
   private static final MiscQueryHook hook = new MiscQueryHook();
@@ -48,12 +52,30 @@ public class Word2VecQueryTest extends CalciteQueryTestHelper
     return walker;
   }
 
+  @Parameterized.Parameters(name = "{0}")
+  public static Iterable<Object[]> constructorFeeder() throws IOException
+  {
+    return Arrays.asList(new Object[] {"test"}, new Object[] {"test_load"});
+  }
+
+  private final String model;
+
+  public Word2VecQueryTest(String model)
+  {
+    this.model = model;
+  }
+
+  private String func(String func)
+  {
+    return String.format("w2v_%s_%s", model, func);
+  }
+
   @Test
   public void testVector() throws Exception
   {
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
         .dataSource("words")
-        .virtualColumns(EXPR_VC("vector", "sublist(w2v_test_vector(word), 0, 2)"))
+        .virtualColumns(EXPR_VC("vector", "sublist(" + func("vector") + "(word), 0, 2)"))
         .columns("word", "vector");
 
     Object[][] expected = new Object[][]{
@@ -71,7 +93,7 @@ public class Word2VecQueryTest extends CalciteQueryTestHelper
       Assert.assertTrue(result.get(x)[1] instanceof List);
     });
 
-    testQuery("SELECT word, sublist(w2v_test_vector(word), 0, 2) FROM words", result);
+    testQuery("SELECT word, sublist(" + func("vector") + "(word), 0, 2) FROM words", result);
   }
 
   @Test
@@ -79,7 +101,7 @@ public class Word2VecQueryTest extends CalciteQueryTestHelper
   {
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
         .dataSource("words")
-        .virtualColumns(EXPR_VC("nearest", "w2v_test_nearest(word, 2)"))
+        .virtualColumns(EXPR_VC("nearest", func("nearest") + "(word, 2)"))
         .columns("word", "nearest");
 
     Object[][] expected = new Object[][]{
@@ -100,7 +122,7 @@ public class Word2VecQueryTest extends CalciteQueryTestHelper
   {
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
         .dataSource("words")
-        .virtualColumns(EXPR_VC("similarity", "w2v_test_similarity(word, 'best')"))
+        .virtualColumns(EXPR_VC("similarity", func("similarity") + "(word, 'best')"))
         .columns("word", "similarity");
 
     Object[][] expected = new Object[][]{
@@ -117,6 +139,6 @@ public class Word2VecQueryTest extends CalciteQueryTestHelper
       Assert.assertEquals(expected[x][0], result.get(x)[0]);
       Assert.assertTrue(result.get(x)[1] instanceof Double);
     });
-    testQuery("SELECT word, w2v_test_similarity(word, 'best') FROM words", result);
+    testQuery("SELECT word, " + func("similarity") + "(word, 'best') FROM words", result);
   }
 }

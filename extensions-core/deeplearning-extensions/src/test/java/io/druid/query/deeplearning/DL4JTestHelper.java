@@ -38,7 +38,7 @@ public class DL4JTestHelper extends TestHelper
   public static final TestQuerySegmentWalker segmentWalker;
 
   static {
-    Parser.register(DeepLearningFunctions.class);
+    Parser.register(DL4JFunctions.class);
 
     ObjectMapper mapper = new DefaultObjectMapper();
     for (Module module : new DeepLearningExtensionModule().getJacksonModules()) {
