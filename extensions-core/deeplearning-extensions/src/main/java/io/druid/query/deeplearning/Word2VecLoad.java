@@ -37,6 +37,6 @@ public class Word2VecLoad implements ModelConf
   public void build(String name, ClassLoader loader) throws IOException
   {
     Preconditions.checkNotNull(source, "source?");
-    DL4JFunctions.register(name, WordVectorSerializer.readWord2VecModel(new ClassPathResource(source).getFile()));
+    Word2VecFunctions.register(name, WordVectorSerializer.readWord2VecModel(new ClassPathResource(source).getFile()));
   }
 }

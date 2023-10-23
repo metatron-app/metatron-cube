@@ -34,6 +34,7 @@
 
     <properties>
         <dl4j.version>1.0.0-M2.1</dl4j.version>
+        <dl4j.tsne.version>1.0.0-beta7</dl4j.tsne.version>
     </properties>
 
     <dependencies>
@@ -89,6 +90,11 @@
             <groupId>org.deeplearning4j</groupId>
             <artifactId>deeplearning4j-nlp</artifactId>
             <version>${dl4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.deeplearning4j</groupId>
+            <artifactId>deeplearning4j-tsne</artifactId>
+            <version>${dl4j.tsne.version}</version>
         </dependency>
         <dependency>
             <groupId>org.nd4j</groupId>
