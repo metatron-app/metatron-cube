@@ -19,11 +19,11 @@
 
 package io.druid.query.deeplearning;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import org.deeplearning4j.models.embeddings.loader.VectorsConfiguration;
-import org.deeplearning4j.models.word2vec.Word2Vec;
+import org.deeplearning4j.models.paragraphvectors.ParagraphVectors;
+import org.deeplearning4j.models.word2vec.wordstore.inmemory.AbstractCache;
+import org.deeplearning4j.text.documentiterator.LabelsSource;
 import org.deeplearning4j.text.sentenceiterator.BasicLineIterator;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
@@ -32,12 +32,9 @@ import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 
 import java.io.IOException;
 
-@JsonTypeName("w2v_build")
-public class Word2VecBuild extends VectorsConfiguration implements ModelConf
+@JsonTypeName("p2v_build")
+public class Paragraph2VecBuild extends Word2VecBuild implements ModelConf
 {
-  @JsonProperty
-  public String source;
-
   public void build(String name, ClassLoader loader) throws IOException
   {
     Preconditions.checkNotNull(source, "source?");
@@ -45,8 +42,15 @@ public class Word2VecBuild extends VectorsConfiguration implements ModelConf
     TokenizerFactory tokenizer = new DefaultTokenizerFactory();
     tokenizer.setTokenPreProcessor(new CommonPreprocessor());
 
-    Word2Vec word2Vec = new Word2Vec.Builder(this).iterate(sequences).tokenizerFactory(tokenizer).build();
-    word2Vec.fit();   // seemed to be done in async
-    Word2VecFunctions.register(name, word2Vec);
+    ParagraphVectors p2vec = new ParagraphVectors.Builder(this)
+        .labelsSource(new LabelsSource(""))
+        .iterate(sequences)
+        .tokenizerFactory(tokenizer)
+        .vocabCache(new AbstractCache<>())
+        .trainWordVectors(false)
+        .build();
+
+    p2vec.fit();   // seemed to be done in async
+    Paragraph2VecFunctions.register(name, p2vec);
   }
 }

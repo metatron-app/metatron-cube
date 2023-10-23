@@ -27,7 +27,8 @@ import java.io.IOException;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "w2v_build", value = Word2VecBuild.class),
-    @JsonSubTypes.Type(name = "w2v_load", value = Word2VecLoad.class)
+    @JsonSubTypes.Type(name = "w2v_load", value = Word2VecLoad.class),
+    @JsonSubTypes.Type(name = "p2v_build", value = Paragraph2VecBuild.class)
 })
 public interface ModelConf
 {
