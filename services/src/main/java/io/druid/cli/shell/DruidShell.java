@@ -1259,22 +1259,8 @@ public class DruidShell extends CommonShell.WithUtils
             b.append(located.getInterval()).append('[').append(located.getPartitionNumber()).append(']').append(' ');
             b.append('(').append(located.getVersion()).append(')');
             b.append(" = ");
-            b.append(
-                String.join(
-                    ", ",
-                    Lists.transform(
-                        located.getLocations(), new Function<DruidServerMetadata, String>()
-                        {
-                          @Override
-                          public String apply(DruidServerMetadata input)
-                          {
-                            return input.getName();
-                          }
-                        }
-                    )
-                )
-            );
-            writer.println(PREFIX[0] + b.toString());
+            b.append(String.join(", ", Lists.transform(located.getLocations(), DruidServerMetadata::getName)));
+            writer.println(PREFIX[0] + b);
           }
         }
         break;
@@ -1455,7 +1441,7 @@ public class DruidShell extends CommonShell.WithUtils
       }
       if (plan) {
         builder.append("  ");
-        builder.append(row.values().toString());
+        builder.append(row.values());
       } else {
         builder.append("  [");
         List<Object> values = Lists.newArrayList(row.values());
@@ -1464,13 +1450,13 @@ public class DruidShell extends CommonShell.WithUtils
           if (i > 0) {
             builder.append(", ");
           }
-          int limit = i == values.size() - 1 ? 140 - builder.length() : 0;
+          int limit = i == values.size() - 1 ? 180 - builder.length() : 0;
           String print = StringUtils.limit(Objects.toString(value, ""), Math.max(32, limit));
           builder.append(print);
         }
         builder.append(']');
       }
-      writer.println(builder.toString());
+      writer.println(builder);
       numRow++;
     }
     return numRow;
