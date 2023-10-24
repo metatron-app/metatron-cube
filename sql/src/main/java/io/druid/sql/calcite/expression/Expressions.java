@@ -168,14 +168,9 @@ public class Expressions
       return DruidExpression.fromColumn(columnName);
     } else if (rexNode instanceof RexCall) {
       final SqlOperator operator = ((RexCall) rexNode).getOperator();
-
       final SqlOperatorConversion conversion = plannerContext.getOperatorTable()
                                                              .lookupOperatorConversion(operator);
-      if (conversion == null) {
-        return null;
-      } else {
-        return conversion.toDruidExpression(plannerContext, rowSignature, rexNode);
-      }
+      return conversion.toDruidExpression(plannerContext, rowSignature, rexNode);
     } else if (kind == SqlKind.LITERAL) {
       // Translate literal.
       if (RexLiteral.isNullLiteral(rexNode)) {
