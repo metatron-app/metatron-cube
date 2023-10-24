@@ -61,6 +61,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static io.druid.query.filter.DimFilterCacheKey.OTHER_PREFIX;
@@ -227,6 +228,17 @@ next:
   public static List<DimFilter> filterNulls(List<DimFilter> optimized)
   {
     return Lists.newArrayList(Iterables.filter(optimized, Predicates.notNull()));
+  }
+
+  // regards CNF
+  public static void iterate(DimFilter current, Consumer<DimFilter> consumer)
+  {
+    if (current instanceof AndDimFilter) {
+      for (DimFilter child : ((AndDimFilter) current).getChildren()) {
+        iterate(child, consumer);
+      }
+    }
+    consumer.accept(current);
   }
 
   public static DimFilter convertToCNF(DimFilter current)

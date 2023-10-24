@@ -43,7 +43,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.nearest")
-public class LuceneNearestFilter extends LuceneSelector
+public class LuceneNearestFilter extends LuceneSelector implements DimFilter.OutputEstimable
 {
   private final double latitude;
   private final double longitude;
@@ -142,6 +142,12 @@ public class LuceneNearestFilter extends LuceneSelector
         return LuceneNearestFilter.this.toString();
       }
     };
+  }
+
+  @Override
+  public int estimate()
+  {
+    return count;
   }
 
   @Override
