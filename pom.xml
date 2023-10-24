@@ -114,6 +114,8 @@
         <drill-fmpp-maven-plugin.version>1.14.0</drill-fmpp-maven-plugin.version>
         <javacc-maven-plugin.version>2.4</javacc-maven-plugin.version>
         <fastutil.version>8.1.0</fastutil.version>
+
+        <jaxb-api.version>2.3.1</jaxb-api.version>
     </properties>
 
     <modules>
@@ -881,10 +883,21 @@
                 <version>1.0.4</version>
                 <scope>test</scope>
             </dependency>
+
             <dependency>
                 <groupId>javax.xml.bind</groupId>
                 <artifactId>jaxb-api</artifactId>
-                <version>2.3.1</version>
+                <version>${jaxb-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jaxb</groupId>
+                <artifactId>jaxb-runtime</artifactId>
+                <version>${jaxb-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>javax.activation</groupId>
+                <artifactId>javax.activation-api</artifactId>
+                <version>1.2.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
