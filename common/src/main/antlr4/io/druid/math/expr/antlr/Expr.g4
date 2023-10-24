@@ -46,8 +46,8 @@ fragment FALSE : [Ff] [Aa] [Ll] [Ss] [Ee];
 
 IDENTIFIER : [_$#a-zA-Z\uAC00-\uD7AF][._$#a-zA-Z0-9\[\]\uAC00-\uD7AF]* | '"' ~["]+ '"';
 DECIMAL : [0-9]+ ('.' [0-9]*)? [bB] ;
-FLOAT : [0-9]+ ('.' [0-9]*)? [fF] ;
-DOUBLE : [0-9]+ ('.' [0-9]* [dD]? | [dD]) ;
+FLOAT : [0-9]+ ('.' [0-9]*('E'[-+][1-9][0-9]*)?)? [fF] ;
+DOUBLE : [0-9]+ ('.' [0-9]*('E'[-+][1-9][0-9]*)? [dD]? | [dD]) ;
 LONG : [0-9]+ ;
 WS : [ \t\r\n ]+ -> skip ;
 
