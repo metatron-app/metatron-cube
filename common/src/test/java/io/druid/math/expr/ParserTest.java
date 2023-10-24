@@ -49,6 +49,21 @@ public class ParserTest
     Assert.assertTrue(Parser.parse("1B") instanceof DecimalConst);
     Assert.assertTrue(Parser.parse("1.00000000000001") instanceof DoubleConst);
     Assert.assertTrue(Parser.parse("1.00000000000001f") instanceof FloatConst);
+
+    Assert.assertTrue(Parser.parse("1.23E+3F") instanceof FloatConst);
+    Assert.assertTrue(Parser.parse("1.23E-8F") instanceof FloatConst);
+    Assert.assertTrue(Parser.parse("-1.23E-10F") instanceof FloatConst);
+    Assert.assertTrue(Parser.parse("3.881417214870453E-8F") instanceof FloatConst);
+
+    Assert.assertTrue(Parser.parse("1.23E+3") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("1.23E-8") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("-1.23E-10") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("3.881417214870453E-8") instanceof DoubleConst);
+
+    Assert.assertTrue(Parser.parse("1.23E+3D") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("1.23E-8D") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("-1.23E-10D") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("3.881417214870453E-8D") instanceof DoubleConst);
   }
 
   @Test
