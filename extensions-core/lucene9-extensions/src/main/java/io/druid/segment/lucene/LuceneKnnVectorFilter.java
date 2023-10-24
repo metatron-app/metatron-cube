@@ -42,7 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 
 @JsonTypeName("lucene_knn_vector")
-public class LuceneKnnVectorFilter extends LuceneSelector
+public class LuceneKnnVectorFilter extends LuceneSelector implements DimFilter.OutputEstimable
 {
   private final float[] vector;
   private final int count;
@@ -132,6 +132,12 @@ public class LuceneKnnVectorFilter extends LuceneSelector
         return LuceneKnnVectorFilter.this.toString();
       }
     };
+  }
+
+  @Override
+  public int estimate()
+  {
+    return count;
   }
 
   @Override
