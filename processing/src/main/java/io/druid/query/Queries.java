@@ -60,6 +60,8 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilter.OutputEstimable;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.ordering.OrderingSpec;
@@ -548,7 +550,16 @@ public class Queries
         return numRows;
       }
     }
-    final MutableInt counter = new MutableInt();
+    final MutableInt counter = new MutableInt(Integer.MAX_VALUE);
+    DimFilters.iterate(filter, f -> {
+      if (f instanceof OutputEstimable) {
+        counter.setValue(Math.min(counter.intValue(), ((OutputEstimable) f).estimate()));
+      }
+    });
+    if (counter.intValue() <= minNumRows) {
+      return counter.intValue();
+    }
+    counter.setValue(0);
     final FilterMetaQuery base = FilterMetaQuery.of(query);
     for (Segment segment : segments) {
       FilterMetaQuery metaQuery = base;

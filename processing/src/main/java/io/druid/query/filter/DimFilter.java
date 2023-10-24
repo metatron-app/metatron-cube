@@ -428,4 +428,9 @@ public interface DimFilter extends Expression, Cacheable
   {
     return filter instanceof WithExtraction && ((WithExtraction) filter).getExtractionFn() != null;
   }
+
+  interface OutputEstimable extends DimFilter
+  {
+    int estimate();
+  }
 }
