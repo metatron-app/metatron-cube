@@ -29,6 +29,7 @@ import io.druid.math.expr.Parser;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
+import io.druid.sql.calcite.rel.QueryMaker;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -96,6 +97,9 @@ public class DruidRexExecutor implements RexExecutor
 
   private RexNode constantToLiteral(RexBuilder rexBuilder, RexNode rexNode, ExprEval eval)
   {
+    if (eval.isNull()) {
+      return rexBuilder.makeLiteral(null, rexNode.getType(), false);
+    }
     if (ValueDesc.isGeometry(eval.type()) || ValueDesc.isOGCGeometry(eval.type())) {
       // hack.. skip geometries
       return rexNode;
@@ -118,7 +122,11 @@ public class DruidRexExecutor implements RexExecutor
           Calcites.jodaToCalciteTimestampString(timestamp, timeZone), RelDataType.PRECISION_NOT_SPECIFIED
       );
     }
-    return rexBuilder.makeLiteral(eval.value(), rexNode.getType(), false);
+    Object value = eval.value();
+    if (sqlTypeName == SqlTypeName.ARRAY) {
+      value = QueryMaker.coerceArray(value);
+    }
+    return rexBuilder.makeLiteral(value, rexNode.getType(), false);
   }
 
   private BigDecimal toDecimal(ExprEval eval)

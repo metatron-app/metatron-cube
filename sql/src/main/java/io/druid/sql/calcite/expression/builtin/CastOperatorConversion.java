@@ -79,13 +79,16 @@ public class CastOperatorConversion implements SqlOperatorConversion
   {
     final RexNode operand = Utils.operands(rexNode).get(0);
     final DruidExpression operandExpression = Expressions.toDruidExpression(context, signature, operand);
-
     if (operandExpression == null) {
       return null;
     }
 
     final SqlTypeName fromType = Calcites.getTypeName(operand.getType());
     final SqlTypeName toType = Calcites.getTypeName(rexNode.getType());
+
+    if (fromType == toType) {
+      return operandExpression;
+    }
 
     if (SqlTypeName.CHAR_TYPES.contains(fromType) && SqlTypeName.DATETIME_TYPES.contains(toType)) {
       return castCharToDateTime(context, operandExpression, toType, signature);

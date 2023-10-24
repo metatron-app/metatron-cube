@@ -21,6 +21,8 @@ package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Floats;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -58,7 +60,9 @@ import org.apache.logging.log4j.util.Strings;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.List;
@@ -321,6 +325,8 @@ public class QueryMaker
             throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
           }
         };
+      case ARRAY:
+        return QueryMaker::coerceArray;
     }
     // for test.. I'm lazy (todo)
     return v -> v instanceof HyperLogLogCollector ? v.getClass().getName() : v;
@@ -367,6 +373,26 @@ public class QueryMaker
       return BigDecimal.valueOf((Double) value);
     } else {
       throw new ISE("Cannot coerce[%s] to decimal", value.getClass().getName());
+    }
+  }
+
+  public static Object coerceArray(Object value)
+  {
+    if (value == null || !value.getClass().isArray()) {
+      return value;
+    }
+    if (value instanceof float[]) {
+      return Floats.asList((float[]) value);
+    } else if (value instanceof double[]) {
+      return Doubles.asList((double[]) value);
+    } else if (value instanceof Object[]) {
+      return Arrays.asList((Object[]) value);
+    } else {
+      Object[] array = new Object[Array.getLength(value)];
+      for (int i = 0; i < array.length; i++) {
+        array[i] = Array.get(array, i);
+      }
+      return Arrays.asList(array);
     }
   }
 

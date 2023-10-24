@@ -64,7 +64,6 @@ import io.druid.sql.calcite.expression.NominalBitSetToStringConversion;
 import io.druid.sql.calcite.expression.SearchOperatorConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
-import io.druid.sql.calcite.expression.builtin.ArrayConstructorOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CastOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CeilOperatorConversion;
@@ -230,7 +229,6 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new LTrimOperatorConversion())
           .add(new RTrimOperatorConversion())
           .add(new AliasedOperatorConversion(new TruncateOperatorConversion(), "TRUNC"))
-          .add(new ArrayConstructorOperatorConversion())
           .add(new LeftOperatorConversion())
           .add(new DirectOperatorConversion(SqlStdOperatorTable.LIKE, "LIKE"))
           .add(new DirectOperatorConversion(SqlStdOperatorTable.ROW, "ARRAY"))
@@ -408,7 +406,11 @@ public class DruidOperatorTable implements SqlOperatorTable
 
   public SqlOperatorConversion lookupOperatorConversion(SqlOperator operator)
   {
-    return operatorConversions.get(OperatorKey.of(operator));
+    SqlOperatorConversion conversion = operatorConversions.get(OperatorKey.of(operator));
+    if (conversion == null) {
+      conversion = new DirectOperatorConversion(operator, operator.getName());
+    }
+    return conversion;
   }
 
   public DimFilterConversion lookupDimFilterConversion(SqlOperator operator)
