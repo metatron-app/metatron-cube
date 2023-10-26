@@ -7,8 +7,6 @@ import org.deeplearning4j.models.word2vec.wordstore.inmemory.AbstractCache;
 import org.deeplearning4j.text.documentiterator.LabelsSource;
 import org.deeplearning4j.text.sentenceiterator.BasicLineIterator;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
-import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
-import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 import org.junit.Test;
 import org.nd4j.common.io.ClassPathResource;
@@ -35,8 +33,7 @@ public class ParagraphVectorsTest
 
     AbstractCache<VocabWord> cache = new AbstractCache<>();
 
-    TokenizerFactory t = new DefaultTokenizerFactory();
-    t.setTokenPreProcessor(new CommonPreprocessor());
+    TokenizerFactory t = ModelConf.tokenizer();
 
     /**
      * if you don't have LabelAwareIterator handy, you can use synchronized labels generator
@@ -102,7 +99,7 @@ public class ParagraphVectorsTest
 
     long p = System.currentTimeMillis();
     System.out.printf("v2 = %d%n", SequenceVectorsUtil.w2v_write(vec, file2).length());
-    System.out.printf("saved v2.. %d bytes, (%d msec)%n", file2.length(), System.currentTimeMillis() - p);
+    System.out.printf("saved v2.. %s, %d bytes, (%d msec)%n", file2, file2.length(), System.currentTimeMillis() - p);
 
     p = System.currentTimeMillis();
     ParagraphVectors loaded = SequenceVectorsUtil.p2v_load(file2);

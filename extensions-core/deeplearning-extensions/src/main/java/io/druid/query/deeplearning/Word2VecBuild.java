@@ -26,9 +26,6 @@ import org.deeplearning4j.models.embeddings.loader.VectorsConfiguration;
 import org.deeplearning4j.models.word2vec.Word2Vec;
 import org.deeplearning4j.text.sentenceiterator.BasicLineIterator;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
-import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
-import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
-import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 
 import java.io.IOException;
 
@@ -38,14 +35,13 @@ public class Word2VecBuild extends VectorsConfiguration implements ModelConf
   @JsonProperty
   public String source;
 
+  @Override
   public void build(String name, ClassLoader loader) throws IOException
   {
     Preconditions.checkNotNull(source, "source?");
     SentenceIterator sequences = new BasicLineIterator(loader.getResource(source).getFile());
-    TokenizerFactory tokenizer = new DefaultTokenizerFactory();
-    tokenizer.setTokenPreProcessor(new CommonPreprocessor());
 
-    Word2Vec word2Vec = new Word2Vec.Builder(this).iterate(sequences).tokenizerFactory(tokenizer).build();
+    Word2Vec word2Vec = new Word2Vec.Builder(this).iterate(sequences).tokenizerFactory(ModelConf.tokenizer()).build();
     word2Vec.fit();   // seemed to be done in async
     Word2VecFunctions.register(name, word2Vec);
   }

@@ -21,6 +21,9 @@ package io.druid.query.deeplearning;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
+import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
+import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 
 import java.io.IOException;
 
@@ -28,9 +31,17 @@ import java.io.IOException;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "w2v_build", value = Word2VecBuild.class),
     @JsonSubTypes.Type(name = "w2v_load", value = Word2VecLoad.class),
-    @JsonSubTypes.Type(name = "p2v_build", value = Paragraph2VecBuild.class)
+    @JsonSubTypes.Type(name = "p2v_build", value = Paragraph2VecBuild.class),
+    @JsonSubTypes.Type(name = "p2v_load", value = Paragraph2VecLoad.class)
 })
 public interface ModelConf
 {
   void build(String name, ClassLoader loader) throws IOException;
+
+  static TokenizerFactory tokenizer()
+  {
+    TokenizerFactory tokenizer = new DefaultTokenizerFactory();
+    tokenizer.setTokenPreProcessor(new CommonPreprocessor());
+    return tokenizer;
+  }
 }
