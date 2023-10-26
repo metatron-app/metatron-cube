@@ -60,19 +60,36 @@ public class Word2VecTest
     System.out.println("Closest words to 'day' on 1st run: " + lst);
 
     File file = File.createTempFile("word2vec_", ".model");
+    File file2 = File.createTempFile("word2vec_v2_", ".model");
+
+    long p = System.currentTimeMillis();
+    SequenceVectorsUtil.w2v_write(word2Vec1, file2);
+    System.out.printf("saved v2.. %d bytes, (%d msec)%n", file2.length(), System.currentTimeMillis() - p);
+
+    p = System.currentTimeMillis();
+    Word2Vec loaded = SequenceVectorsUtil.w2v_load(file2);
+    System.out.printf("loaded v2.. (%d msec)%n", System.currentTimeMillis() - p);
+
+    double[] x = loaded.getWordVector("day");
+    System.out.println("day = " + Arrays.toString(Arrays.copyOf(x, 3)));
+    lst = loaded.wordsNearest("day", 10);
+    System.out.println("Closest words to 'day' on 2nd run: " + lst);
 
     /**
      * at this moment we're supposed to have model built, and it can be saved for future use.
      */
+    p = System.currentTimeMillis();
     WordVectorSerializer.writeWord2VecModel(word2Vec1, file);
-    System.out.println(file + ".length = " + file.length());
+    System.out.printf("%s.length = %d(%d msec)%n", file, file.length(), System.currentTimeMillis() - p);
 
     /**
      * Let's assume that some time passed, and now we have new corpus to be used to weights update.
      * Instead of building new model over joint corpus, we can use weights update mode.
      */
+    p = System.currentTimeMillis();
     System.out.println("Word2vec reading...");
     Word2Vec word2Vec2 = WordVectorSerializer.readWord2VecModel(file);
+    System.out.printf("loaded.. (%d msec)%n", System.currentTimeMillis() - p);
 
     double[] vector2 = word2Vec2.getWordVector("day");
     System.out.println("day = " + Arrays.toString(Arrays.copyOf(vector2, 3)));

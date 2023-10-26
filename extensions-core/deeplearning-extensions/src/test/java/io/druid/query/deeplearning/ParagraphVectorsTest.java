@@ -97,10 +97,21 @@ public class ParagraphVectorsTest
     // DOC_77660: We had it made
     System.out.println("[ParagraphVectorsTest/test] " + vec.nearestLabels("We made it", 3));
 
-    System.out.println("p2vec writing...");
     File file = File.createTempFile("p2vec_", ".model");
+    File file2 = File.createTempFile("p2vec_v2_", ".model");
 
     long p = System.currentTimeMillis();
+    System.out.printf("v2 = %d%n", SequenceVectorsUtil.w2v_write(vec, file2).length());
+    System.out.printf("saved v2.. %d bytes, (%d msec)%n", file2.length(), System.currentTimeMillis() - p);
+
+    p = System.currentTimeMillis();
+    ParagraphVectors loaded = SequenceVectorsUtil.p2v_load(file2);
+    loaded.setTokenizerFactory(t);
+    System.out.printf("loaded v2.. (%d msec)%n", System.currentTimeMillis() - p);
+    System.out.println("We made it = " + loaded.nearestLabels("We made it", 3));
+
+    System.out.println("p2vec writing...");
+    p = System.currentTimeMillis();
     WordVectorSerializer.writeParagraphVectors(vec, file);
     System.out.printf("%s.length = %d (%d msec)%n", file, file.length(), System.currentTimeMillis() - p);
 
