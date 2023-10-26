@@ -26,26 +26,22 @@ import org.deeplearning4j.models.word2vec.wordstore.inmemory.AbstractCache;
 import org.deeplearning4j.text.documentiterator.LabelsSource;
 import org.deeplearning4j.text.sentenceiterator.BasicLineIterator;
 import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
-import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
-import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
-import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 
 import java.io.IOException;
 
 @JsonTypeName("p2v_build")
 public class Paragraph2VecBuild extends Word2VecBuild implements ModelConf
 {
+  @Override
   public void build(String name, ClassLoader loader) throws IOException
   {
     Preconditions.checkNotNull(source, "source?");
     SentenceIterator sequences = new BasicLineIterator(loader.getResource(source).getFile());
-    TokenizerFactory tokenizer = new DefaultTokenizerFactory();
-    tokenizer.setTokenPreProcessor(new CommonPreprocessor());
 
     ParagraphVectors p2vec = new ParagraphVectors.Builder(this)
         .labelsSource(new LabelsSource(""))
         .iterate(sequences)
-        .tokenizerFactory(tokenizer)
+        .tokenizerFactory(ModelConf.tokenizer())
         .vocabCache(new AbstractCache<>())
         .trainWordVectors(false)
         .build();

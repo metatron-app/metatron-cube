@@ -35,8 +35,6 @@ public class Word2VecTest
     // Strip white space before and after for each line
     SentenceIterator iter = new BasicLineIterator(filePath);
     // Split on white spaces in the line to get words
-    TokenizerFactory t = new DefaultTokenizerFactory();
-    t.setTokenPreProcessor(new CommonPreprocessor());
 
     System.out.println("Building model....");
     Word2Vec word2Vec1 = new Word2Vec.Builder()
@@ -47,7 +45,7 @@ public class Word2VecTest
         .seed(42)
         .windowSize(5)
         .iterate(iter)
-        .tokenizerFactory(t)
+        .tokenizerFactory(ModelConf.tokenizer())
         .build();
 
     System.out.println("Fitting Word2Vec model....");
