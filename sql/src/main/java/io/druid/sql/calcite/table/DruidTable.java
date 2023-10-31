@@ -152,7 +152,7 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
       numSegments += added ? 1 : -1;
     }
 
-    if (descriptors != null) {
+    if (descriptors != null && added) {
       Map<String, Map<String, String>> updated = update.get().descriptors;
       for (Map.Entry<String, Map<String, String>> entry : descriptors.entrySet()) {
         Map<String, String> value = updated.remove(entry.getKey());
@@ -168,11 +168,10 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     }
 
     if (statistic != null) {
-      final long rowCount = update.get().rowCount;
-      final long delta = added ? rowCount : -rowCount;
+      long delta = added ? update.get().rowCount : -segment.getNumRows();
       statistic = Statistics.of(statistic.getRowCount() + delta, ImmutableList.of());
     }
-    if (tenantColumn != null) {
+    if (tenantColumn != null && added) {
       final List<String> newcomers = getTenants(QuerySegmentSpecs.create(segment.toDescriptor()), tenantColumn);
       if (tenants == null) {
         tenants = Sets.newHashSet(newcomers);
@@ -593,10 +592,5 @@ public class DruidTable implements TranslatableTable, BuiltInMetadata.MaxRowCoun
     {
       return Schema.TableType.VIEW;
     }
-  }
-
-  private static class CardinalityEntry
-  {
-
   }
 }
