@@ -167,6 +167,7 @@ public class HadoopInputUtils
       public void close() throws IOException
       {
         IOUtils.closeQuietly(reader);
+        IOUtils.closeQuietly(parser);
       }
     };
   }

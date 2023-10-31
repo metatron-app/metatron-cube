@@ -17,13 +17,22 @@ package io.druid.java.util.common.guava;
 import io.druid.java.util.common.logger.Logger;
 
 import java.io.Closeable;
-import java.io.IOException;
 
 /**
+ *
  */
 public class CloseQuietly
 {
   private static final Logger log = new Logger(CloseQuietly.class);
+
+  public static void close(Object object)
+  {
+    if (object instanceof Closeable) {
+      close((Closeable) object);
+    } else if (object instanceof AutoCloseable) {
+      close((AutoCloseable) object);
+    }
+  }
 
   public static void close(Closeable closeable)
   {
@@ -33,8 +42,21 @@ public class CloseQuietly
     try {
       closeable.close();
     }
-    catch (IOException e) {
-      log.error(e, "IOException thrown while closing Closeable.");
+    catch (Exception e) {
+      log.error(e, "Exception thrown while closing %s", closeable);
+    }
+  }
+
+  public static void close(AutoCloseable closeable)
+  {
+    if (closeable == null) {
+      return;
+    }
+    try {
+      closeable.close();
+    }
+    catch (Exception e) {
+      log.error(e, "Exception thrown while closing %s", closeable);
     }
   }
 }

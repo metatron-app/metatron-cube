@@ -21,7 +21,7 @@ package io.druid.indexer;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
-import io.druid.java.util.common.logger.Logger;
+import io.druid.common.utils.IOUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
@@ -29,6 +29,7 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.indexer.hadoop.HadoopAwareParser;
 import io.druid.indexer.hadoop.HadoopInputContext.MapperContext;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -85,6 +86,11 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     if (parser instanceof InputRowParser.Delegated) {
       setupHadoopAwareParser(((InputRowParser.Delegated) parser).getDelegate(), context);
     }
+  }
+
+  protected void cleanup(Context context) throws IOException, InterruptedException
+  {
+    IOUtils.closeQuietly(parser);
   }
 
   public HadoopDruidIndexerConfig getConfig()

@@ -82,6 +82,12 @@ public class Validation
     return new RowEvaluator<Boolean>()
     {
       @Override
+      public void close()
+      {
+        expressions.forEach(expr -> Parser.closeQuietly(expr));
+      }
+
+      @Override
       public Boolean evaluate(InputRow inputRow)
       {
         bindings.reset(inputRow);

@@ -22,12 +22,12 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Charsets;
-import io.druid.java.util.common.parsers.ParseException;
-import io.druid.java.util.common.parsers.Parser;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
 import io.druid.data.input.TimestampSpec;
+import io.druid.java.util.common.parsers.ParseException;
+import io.druid.java.util.common.parsers.Parser;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -171,5 +171,11 @@ public class StringInputRowParser implements InputRowParser
     catch (Exception e) {
       throw ParsingFail.propagate(theMap, e);
     }
+  }
+
+  @Override
+  public void close()
+  {
+    mapParser.close();
   }
 }

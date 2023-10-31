@@ -37,6 +37,7 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.antlr.ExprLexer;
 import io.druid.math.expr.antlr.ExprParser;
@@ -496,38 +497,25 @@ public class Parser
     }
   }
 
-  public static interface Visitor<T>
+  public static interface Visitor
   {
-    T visit(Constant expr);
+    default Expr visit(Constant expr) {return expr;}
 
-    T visit(IdentifierExpr expr);
+    default Expr visit(IdentifierExpr expr) {return expr;}
 
-    T visit(AssignExpr expr, T assignee, T assigned);
+    default Expr visit(AssignExpr expr, Expr assignee, Expr assigned) {return expr;}
 
-    T visit(UnaryOp expr, T child);
+    default Expr visit(UnaryOp expr, Expr child) {return expr;}
 
-    T visit(BinaryOp expr, T left, T right);
+    default Expr visit(BinaryOp expr, Expr left, Expr right) {return expr;}
 
-    T visit(FunctionExpr expr, List<T> children);
+    Expr visit(FunctionExpr expr, List<Expr> children);
 
-    T visit(Expr other);
-
+    default Expr visit(Expr other) {return other;}
   }
 
-  public static class ExprVisitor implements Visitor<Expr>
+  public static class ExprVisitor implements Visitor
   {
-    @Override
-    public Expr visit(Constant expr)
-    {
-      return expr;
-    }
-
-    @Override
-    public Expr visit(IdentifierExpr expr)
-    {
-      return expr;
-    }
-
     @Override
     public Expr visit(AssignExpr expr, Expr assignee, Expr assigned)
     {
@@ -551,15 +539,17 @@ public class Parser
     {
       return Evals.isIdentical(expr.args, children) ? expr : expr.with(children);
     }
-
-    @Override
-    public Expr visit(Expr other)
-    {
-      return other;
-    }
   }
 
-  public static <T> T traverse(Expr expr, Visitor<T> visitor)
+  public static void closeQuietly(Expr expr)
+  {
+    traverse(expr, (func, params) ->  {
+      CloseQuietly.close(func.getFunction());
+      return func;
+    });
+  }
+
+  public static Expr traverse(Expr expr, Visitor visitor)
   {
     if (expr instanceof Constant) {
       return visitor.visit((Constant) expr);
@@ -567,21 +557,21 @@ public class Parser
       return visitor.visit((IdentifierExpr) expr);
     } else if (expr instanceof AssignExpr) {
       AssignExpr assign = (AssignExpr) expr;
-      T assignee = traverse(assign.assignee, visitor);
-      T assigned = traverse(assign.assigned, visitor);
+      Expr assignee = traverse(assign.assignee, visitor);
+      Expr assigned = traverse(assign.assigned, visitor);
       return visitor.visit(assign, assignee, assigned);
     } else if (expr instanceof UnaryOp) {
       UnaryOp unary = (UnaryOp) expr;
-      T child = traverse(unary.expr(), visitor);
+      Expr child = traverse(unary.expr(), visitor);
       return visitor.visit(unary, child);
     } else if (expr instanceof BinaryOp) {
       BinaryOp binary = (BinaryOp) expr;
-      T left = traverse(binary.left(), visitor);
-      T right = traverse(binary.right(), visitor);
+      Expr left = traverse(binary.left(), visitor);
+      Expr right = traverse(binary.right(), visitor);
       return visitor.visit(binary, left, right);
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr function = (FunctionExpr) expr;
-      List<T> params = Lists.newArrayList();
+      List<Expr> params = Lists.newArrayList();
       for (Expr child : function.args) {
         params.add(traverse(child, visitor));
       }

@@ -294,12 +294,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException
     {
-      try {
-        super.cleanup(context);
-      }
-      finally {
-        FileUtils.deleteDirectory(baseFlushFile);
-      }
+      super.cleanup(context);
+      FileUtils.deleteDirectory(baseFlushFile);
     }
 
     private IncrementalIndex makeIncrementalIndex(Interval interval)

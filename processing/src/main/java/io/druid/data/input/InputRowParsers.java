@@ -100,6 +100,12 @@ public class InputRowParsers
 
     return new InputRowParser.Delegated<T>()
     {
+      @Override
+      public void close()
+      {
+        evaluators.forEach(RowEvaluator::close);
+      }
+
       private boolean warned;
 
       @Override

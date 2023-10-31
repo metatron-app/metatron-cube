@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import java.io.Closeable;
+
 /**
  * This is an interface that holds onto the stream of incoming data.  Realtime data ingestion is built around this
  * abstraction.  In order to add a new type of source for realtime data ingestion, all you need to do is implement

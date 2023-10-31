@@ -87,22 +87,24 @@ public interface Function
 
       @Override
       public final ValueDesc returns() {return type;}
+    }
+
+    abstract class Simple extends WithType
+    {
+      public Simple(String name, ValueDesc type)
+      {
+        super(name, type);
+      }
 
       @Override
-      public final Function create(List<Expr> args, TypeResolver resolver)
+      public Function create(List<Expr> args, TypeResolver resolver)
       {
-        return new Function()
+        return new Function.WithType(returns())
         {
-          @Override
-          public ValueDesc returns()
-          {
-            return type;
-          }
-
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
-            return ExprEval.of(_evaluate(args, bindings), type);
+            return ExprEval.of(_evaluate(args, bindings), returns());
           }
         };
       }

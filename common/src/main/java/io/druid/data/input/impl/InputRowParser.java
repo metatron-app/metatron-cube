@@ -29,6 +29,7 @@ import io.druid.java.util.common.collect.Utils;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -43,7 +44,7 @@ import java.util.Set;
     @JsonSubTypes.Type(name = "csv.stream", value = CSVInputRowParser.class),
 })
 // not for serialization
-public interface InputRowParser<T>
+public interface InputRowParser<T> extends Closeable
 {
   /**
    * Parse an input into list of {@link InputRow}. List can contain null for rows that should be thrown away,
@@ -79,6 +80,8 @@ public interface InputRowParser<T>
   DimensionsSpec getDimensionsSpec();
 
   InputRowParser withDimensionExclusions(Set<String> exclusions);
+
+  default void close() {}
 
   interface Streaming<T> extends InputRowParser<T>
   {

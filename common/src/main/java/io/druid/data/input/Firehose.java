@@ -19,7 +19,10 @@
 
 package io.druid.data.input;
 
+import io.druid.data.input.impl.InputRowParser;
+
 import java.io.Closeable;
+import java.io.IOException;
 
 /**
  * This is an interface that holds onto the stream of incoming data.  Realtime data ingestion is built around this
@@ -75,4 +78,35 @@ public interface Firehose extends Closeable
    * </p>
    */
   public Runnable commit();
+
+  public static Firehose wrap(Firehose delegate, InputRowParser parser)
+  {
+    return new Firehose()
+    {
+      @Override
+      public boolean hasMore()
+      {
+        return delegate.hasMore();
+      }
+
+      @Override
+      public InputRow nextRow()
+      {
+        return delegate.nextRow();
+      }
+
+      @Override
+      public Runnable commit()
+      {
+        return delegate.commit();
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        delegate.close();
+        parser.close();
+      }
+    };
+  }
 }

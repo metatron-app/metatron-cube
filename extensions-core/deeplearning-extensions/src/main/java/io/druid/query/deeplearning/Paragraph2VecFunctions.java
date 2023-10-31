@@ -20,43 +20,94 @@
 package io.druid.query.deeplearning;
 
 import com.google.common.collect.ImmutableList;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import org.deeplearning4j.models.paragraphvectors.ParagraphVectors;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 
 public class Paragraph2VecFunctions
 {
+  private static final Logger LOG = new Logger(Paragraph2VecFunctions.class);
+
   static void register(String name, ParagraphVectors p2Vec)
   {
     Parser.register(new VectorFunc(name, p2Vec));
+    Parser.register(new VectorBatchFunc(name, p2Vec));
     Parser.register(new SimilarityFunc(name, p2Vec));
     Parser.register(new NerestFunc(name, p2Vec));
   }
 
-  private static class VectorFunc extends Function.Factory.WithType
+  private static class VectorFunc extends Function.Factory.Simple
   {
     private final ParagraphVectors model;
 
     private VectorFunc(String name, ParagraphVectors model)
     {
-      super("p2v_" + name + "_vector", ValueDesc.DOUBLE_ARRAY);
+      super("p2v_" + name + "_vector", ValueDesc.FLOAT_ARRAY);
       this.model = model;
     }
 
     @Override
-    protected double[] _evaluate(List<Expr> args, Expr.NumericBinding bindings)
+    protected float[] _evaluate(List<Expr> args, Expr.NumericBinding bindings)
     {
       String text = Evals.evalString(args.get(0), bindings);
-      return model.inferVector(text).toDoubleVector();
+      return model.inferVector(text).data().asFloat();
     }
   }
 
-  private static class SimilarityFunc extends Function.Factory.WithType
+  private static abstract class BatchFunction extends Function.WithType implements Closeable
+  {
+    BatchFunction(ValueDesc type) {super(type);}
+  }
+
+  // this is for ingestion, not for query
+  private static class VectorBatchFunc extends Function.Factory.WithType
+  {
+    private final ParagraphVectors model;
+
+    private VectorBatchFunc(String name, ParagraphVectors model)
+    {
+      super("p2v_" + name + "_batch", ValueDesc.FLOAT_ARRAY);
+      this.model = model;
+    }
+
+    @Override
+    public BatchFunction create(List<Expr> args, TypeResolver resolver)
+    {
+      String identity = Long.toHexString(System.identityHashCode(this));
+      BatchFunction fn = new BatchFunction(ValueDesc.FLOAT_ARRAY)
+      {
+        private final BatchInferer inferer = new BatchInferer(model);
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String text = Evals.evalString(args.get(0), bindings);
+          return ExprEval.of(inferer.inferVector(text).data().asFloat(), ValueDesc.FLOAT_ARRAY);
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+          inferer.close();
+          LOG.info("batch function %s[%s] closed", name(), identity);
+        }
+      };
+      LOG.info("batch function %s[%s] created", name(), identity);
+      return fn;
+    }
+  }
+
+  private static class SimilarityFunc extends Function.Factory.Simple
   {
     private final ParagraphVectors model;
 
@@ -75,7 +126,7 @@ public class Paragraph2VecFunctions
     }
   }
 
-  private static class NerestFunc extends Function.Factory.WithType
+  private static class NerestFunc extends Function.Factory.WithType.Simple
   {
     private final ParagraphVectors model;
 

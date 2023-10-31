@@ -20,6 +20,7 @@
 package io.druid.indexer.hadoop;
 
 import com.google.common.base.Preconditions;
+import io.druid.common.utils.IOUtils;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.impl.InputRowParser;
@@ -104,6 +105,7 @@ public class StreamInputFormat extends FileInputFormat
         if (inputStream != null) {
           inputStream.close();
         }
+        IOUtils.closeQuietly(streaming);
       }
     };
   }

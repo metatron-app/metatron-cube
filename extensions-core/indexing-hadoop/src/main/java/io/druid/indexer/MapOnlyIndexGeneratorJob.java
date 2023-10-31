@@ -266,10 +266,9 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
     }
 
     @Override
-    protected void cleanup(
-        Context context
-    ) throws IOException, InterruptedException
+    protected void cleanup(Context context) throws IOException, InterruptedException
     {
+      super.cleanup(context);
       for (File file : toMerge) {
         FileUtils.deleteDirectory(file);
       }
