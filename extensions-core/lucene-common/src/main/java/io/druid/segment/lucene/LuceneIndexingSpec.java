@@ -31,6 +31,7 @@ import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.MetricColumnSerializer;
 import io.druid.segment.SecondaryIndexingSpec;
@@ -166,13 +167,13 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       public void close() throws IOException
       {
         writer.commit();
+        for (Function<Object, Field[]> generator : generators) {
+          CloseQuietly.close(generator);
+        }
       }
 
       @Override
-      public ColumnDescriptor.Builder buildDescriptor(
-          IOPeon ioPeon,
-          ColumnDescriptor.Builder builder
-      )
+      public ColumnDescriptor.Builder buildDescriptor(IOPeon ioPeon, ColumnDescriptor.Builder builder)
       {
         if (writer.getDocStats().numDocs > 0) {
           builder.addSerde(getSerde(writer))

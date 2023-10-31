@@ -1,5 +1,7 @@
 package io.druid.query.deeplearning;
 
+import com.google.common.collect.Lists;
+import org.deeplearning4j.models.embeddings.WeightLookupTable;
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
 import org.deeplearning4j.models.paragraphvectors.ParagraphVectors;
 import org.deeplearning4j.models.word2vec.VocabWord;
@@ -10,8 +12,12 @@ import org.deeplearning4j.text.sentenceiterator.SentenceIterator;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 import org.junit.Test;
 import org.nd4j.common.io.ClassPathResource;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.ops.transforms.Transforms;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * This is example code for dl4j ParagraphVectors implementation. In this example we build distributed representation of all sentences present in training corpus.
@@ -25,6 +31,72 @@ import java.io.File;
  */
 public class ParagraphVectorsTest
 {
+  @Test
+  public void load() throws Exception
+  {
+    ParagraphVectors p2Vec = SequenceVectorsUtil.p2v_load(new ClassPathResource("/p2v_model.bin").getFile());
+    p2Vec.setTokenizerFactory(ModelConf.tokenizer());
+
+    INDArray syn0 = p2Vec.lookupTable().getWeights();
+    long p = System.currentTimeMillis();
+    INDArray r0 = syn0.getRow(0, false);
+    for (int i = 1; i < 1000; i++) {
+      Transforms.cosineSim(r0, syn0.getRow(i, false));
+    }
+    System.out.printf("took %,d msec%n", System.currentTimeMillis() - p);
+
+    SentenceIterator find = new BasicLineIterator(new ClassPathResource("/raw_sentences.txt").getFile());
+    List<String> batch = Lists.newArrayList();
+    for (int i = 0; i < 10000; i++) {
+      batch.add(find.nextSentence());
+    }
+
+    String text = "We made it";
+    String text10000 = "But I was home now .";
+    // I was on time, But she does now, But where was home?,  Now I know more, She 's home now
+    // I could go home now, I own my own home now,  Now I know more, I was on time, But now I do
+
+    BatchInferer inferer = new BatchInferer(p2Vec);
+
+    nearestLabels(p2Vec, inferer, text, 5);
+    nearestLabels(p2Vec, inferer, text10000, 5);
+
+    WeightLookupTable lookupTable = p2Vec.lookupTable();
+    INDArray v1 = lookupTable.vector("DOC_9835");
+    System.out.println(Arrays.toString(v1.shape()));
+    INDArray v2 = p2Vec.inferVector("This is my house .");
+    System.out.println(Arrays.toString(v2.shape()));
+
+    System.out.println(p2Vec.nearestLabels(v1.reshape(1, v1.length()), 3));
+    System.out.println(p2Vec.nearestLabels(v2, 3));
+    long s = System.currentTimeMillis();
+    for (String x : batch) {
+      inferer.inferVector(x).data().asFloat();
+//      System.out.println( x + " = " + Arrays.toString(Arrays.copyOf(inferer.inferVector(x).data().asFloat(), 5)));
+    }
+//    List<INDArray> vectors = SequenceVectorsUtil.inferVectors(batch, p2Vec);
+    System.out.printf("took %,d msec%n", System.currentTimeMillis() - s);
+
+    s = System.currentTimeMillis();
+    for (String x : batch) {
+      p2Vec.inferVector(x).data().asFloat();
+//      System.out.println( x + " = " + Arrays.toString(Arrays.copyOf(p2Vec.inferVector(x).data().asFloat(), 5)));
+    }
+    System.out.printf("took %,d msec%n", System.currentTimeMillis() - s);
+
+    nearestLabels(p2Vec, inferer, text, 5);
+    nearestLabels(p2Vec, inferer, text10000, 5);
+  }
+
+  private void nearestLabels(ParagraphVectors p2Vec, BatchInferer inferer, String text, int k)
+  {
+    INDArray v1 = p2Vec.inferVector(text);
+    System.out.printf("%s (v1) = %s%n", text, p2Vec.nearestLabels(v1, k));
+
+    INDArray v2 = inferer.inferVector(text);
+    System.out.printf("%s (v2) = %s%n", text, p2Vec.nearestLabels(v2, k));
+  }
+
   @Test
   public void test() throws Exception
   {

@@ -64,7 +64,7 @@ public class ClippedFirehoseFactory implements FirehoseFactory
   public Firehose connect(InputRowParser parser) throws IOException
   {
     return new PredicateFirehose(
-        delegate.connect(parser),
+        Firehose.wrap(delegate.connect(parser), parser),
         new Predicate<InputRow>()
         {
           @Override

@@ -44,6 +44,7 @@ import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularity;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
@@ -291,7 +292,8 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     int unparsed = 0;
     SortedSet<Interval> retVal = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
-    try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getParser(jsonMapper))) {
+    InputRowParser parser = ingestionSchema.getParser(jsonMapper);
+    try (Firehose firehose = Firehose.wrap(firehoseFactory.connect(parser), parser)) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
         if (inputRow == null) {
@@ -331,7 +333,8 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     // Load data
     int totalRows = 0;
-    try (Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser(jsonMapper))) {
+    InputRowParser parser = ingestionSpec.getParser(jsonMapper);
+    try (Firehose firehose = Firehose.wrap(firehoseFactory.connect(parser), parser)) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
         if (inputRow == null) {
@@ -451,7 +454,8 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     // Create firehose + plumber
     final FireDepartmentMetrics metrics = new FireDepartmentMetrics();
-    final Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser(jsonMapper));
+    final InputRowParser parser = ingestionSpec.getParser(jsonMapper);
+    final Firehose firehose = Firehose.wrap(firehoseFactory.connect(parser), parser);
     final Supplier<Committer> committerSupplier = Committers.supplierFromFirehose(firehose);
     final Plumber plumber = new YeOldePlumberSchool(
         interval,

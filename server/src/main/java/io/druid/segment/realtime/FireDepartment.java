@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseV2;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.IngestionSpec;
 import io.druid.segment.indexing.RealtimeIOConfig;
@@ -108,7 +109,8 @@ public class FireDepartment extends IngestionSpec<RealtimeIOConfig, RealtimeTuni
 
   public Firehose connect(ObjectMapper mapper) throws IOException
   {
-    return ioConfig.getFirehoseFactory().connect(getParser(mapper));
+    InputRowParser parser = getParser(mapper);
+    return Firehose.wrap(ioConfig.getFirehoseFactory().connect(parser), parser);
   }
 
   public FirehoseV2 connect(ObjectMapper mapper, Object metaData) throws IOException

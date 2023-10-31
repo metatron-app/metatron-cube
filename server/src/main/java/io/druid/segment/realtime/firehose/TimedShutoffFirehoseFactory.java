@@ -67,7 +67,7 @@ public class TimedShutoffFirehoseFactory implements FirehoseFactory
 
     public TimedShutoffFirehose(InputRowParser parser) throws IOException
     {
-      firehose = delegateFactory.connect(parser);
+      firehose = Firehose.wrap(delegateFactory.connect(parser), parser);
 
       exec = Execs.scheduledSingleThreaded("timed-shutoff-firehose-%d");
 

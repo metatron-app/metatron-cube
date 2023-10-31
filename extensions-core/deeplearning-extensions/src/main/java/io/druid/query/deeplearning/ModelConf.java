@@ -21,11 +21,12 @@ package io.druid.query.deeplearning;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.deeplearning4j.text.tokenization.tokenizer.preprocessor.CommonPreprocessor;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.DefaultTokenizerFactory;
 import org.deeplearning4j.text.tokenization.tokenizerfactory.TokenizerFactory;
 
 import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
@@ -38,10 +39,15 @@ public interface ModelConf
 {
   void build(String name, ClassLoader loader) throws IOException;
 
+  static final Matcher MATCHER = Pattern.compile("[\\d.:,\"'()\\[\\]|/?!;]+").matcher("");
+
   static TokenizerFactory tokenizer()
   {
     TokenizerFactory tokenizer = new DefaultTokenizerFactory();
-    tokenizer.setTokenPreProcessor(new CommonPreprocessor());
+    tokenizer.setTokenPreProcessor(t -> {
+      Matcher reset = MATCHER.reset(t);
+      return reset.matches() ? reset.replaceAll("").toLowerCase() : t.toLowerCase();
+    });
     return tokenizer;
   }
 }

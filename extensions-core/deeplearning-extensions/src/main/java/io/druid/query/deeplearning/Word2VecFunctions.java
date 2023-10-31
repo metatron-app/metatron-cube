@@ -38,7 +38,7 @@ public class Word2VecFunctions
     Parser.register(new NerestFunc(name, w2vec));
   }
 
-  private static class VectorFunc extends Function.Factory.WithType
+  private static class VectorFunc extends Function.Factory.Simple
   {
     private final Word2Vec model;
 
@@ -56,7 +56,7 @@ public class Word2VecFunctions
     }
   }
 
-  private static class SimilarityFunc extends Function.Factory.WithType
+  private static class SimilarityFunc extends Function.Factory.Simple
   {
     private final Word2Vec model;
 
@@ -75,7 +75,7 @@ public class Word2VecFunctions
     }
   }
 
-  private static class NerestFunc extends Function.Factory.WithType
+  private static class NerestFunc extends Function.Factory.Simple
   {
     private final Word2Vec model;
 

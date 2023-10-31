@@ -21,11 +21,16 @@ package io.druid.data.input;
 
 import io.druid.data.ValueDesc;
 
+import java.io.Closeable;
+
 /**
+ *
  */
-public interface RowEvaluator<T>
+public interface RowEvaluator<T> extends Closeable
 {
   T evaluate(InputRow inputRow);
 
   ValueDesc type();
+
+  default void close() {}
 }

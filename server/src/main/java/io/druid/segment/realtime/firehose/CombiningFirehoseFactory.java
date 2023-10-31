@@ -84,7 +84,7 @@ public class CombiningFirehoseFactory implements FirehoseFactory
             currentFirehose.close();
           }
 
-          currentFirehose = firehoseFactoryIterator.next().connect(parser);
+          currentFirehose = Firehose.wrap(firehoseFactoryIterator.next().connect(parser), parser);
         }
         catch (IOException e) {
           if (currentFirehose != null) {

@@ -22,8 +22,6 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -39,18 +37,6 @@ import java.util.Objects;
  */
 public class Evaluation
 {
-  public static List<RowEvaluator<InputRow>> toEvaluators(List<Evaluation> evaluations, TypeResolver.Updatable resolver)
-  {
-    if (GuavaUtils.isNullOrEmpty(evaluations)) {
-      return ImmutableList.of();
-    }
-    List<RowEvaluator<InputRow>> evaluators = Lists.newArrayList();
-    for (Evaluation evaluation : evaluations) {
-      evaluators.add(evaluation.toEvaluator(resolver));
-    }
-    return evaluators;
-  }
-
   private final String outputName;
   private final List<String> expressions;
 
@@ -93,6 +79,12 @@ public class Evaluation
 
     return new RowEvaluator<InputRow>()
     {
+      @Override
+      public void close()
+      {
+        parsedExpressions.forEach(expr -> Parser.closeQuietly(expr));
+      }
+
       @Override
       public InputRow evaluate(InputRow inputRow)
       {

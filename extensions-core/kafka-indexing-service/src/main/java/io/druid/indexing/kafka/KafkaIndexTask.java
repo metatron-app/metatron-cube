@@ -873,6 +873,9 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       if (publishExecService != null) {
         publishExecService.shutdownNow();
       }
+      if (parser != null) {
+        parser.close();
+      }
 
       toolbox.getDataSegmentServerAnnouncer().unannounce();
     }

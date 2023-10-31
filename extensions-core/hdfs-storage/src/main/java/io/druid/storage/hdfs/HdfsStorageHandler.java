@@ -216,7 +216,8 @@ public class HdfsStorageHandler implements StorageHandler
         }
       }
     };
-    return Sequences.once(Sequences.concat(Iterators.transform(locations.iterator(), converter)));
+    Iterator<Row> iterator = Sequences.concat(Iterators.transform(locations.iterator(), converter));
+    return Sequences.withBaggage(Sequences.once(iterator), parser);
   }
 
   @Override

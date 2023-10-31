@@ -31,6 +31,7 @@ import io.druid.data.input.impl.StringInputRowParser;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Set;
 
@@ -97,5 +98,11 @@ public class HadoopyStringInputRowParser implements InputRowParser<Object>
         parseSpec.withDimensionsSpec(DimensionsSpec.withExclusions(parseSpec.getDimensionsSpec(), exclusions)),
         encoding
     );
+  }
+
+  @Override
+  public void close()
+  {
+    parser.close();
   }
 }
