@@ -532,17 +532,20 @@ public class Lucenes
     return null;
   }
 
-  public static String findLuceneField(String field, Column column, String... expected)
+  public static Pair<String, String> findLuceneField(String field, Column column, String... expected)
   {
     final String columnName = column.getName();
     final Map<String, String> columnDesc = column.getColumnDescs();
-    if (!field.equals(columnName) && columnDesc.containsKey(field.substring(columnName.length() + 1))) {
-      return field.substring(columnName.length() + 1);
+    if (!field.equals(columnName)) {
+      String key = field.substring(columnName.length() + 1);
+      if (columnDesc.containsKey(key)) {
+        return Pair.of(key, columnDesc.get(key));
+      }
     }
     for (Map.Entry<String, String> desc : columnDesc.entrySet()) {
       for (String prefix : expected) {
         if (desc.getValue().startsWith(prefix)) {
-          return desc.getKey();
+          return Pair.of(desc.getKey(), desc.getValue());
         }
       }
     }

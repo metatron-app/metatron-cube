@@ -106,7 +106,9 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
   @Override
   public String getFieldDescriptor()
   {
-    return TYPE_NAME;
+    return StringUtils.isNullOrEmpty(distanceMeasure)
+           ? TYPE_NAME
+           : String.format("%s(%s)", TYPE_NAME, distanceMeasure.toLowerCase());
   }
 
   @Override
@@ -138,9 +140,20 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
   {
     VectorSimilarityFunction similarity = convert(distanceMeasure);
     if (type.isArray() && type.unwrapArray(ValueDesc.FLOAT).isPrimitiveNumeric()) {
+      if (similarity == VectorSimilarityFunction.DOT_PRODUCT) {
+        return v -> v == null ? null : new Field[]{new KnnFloatVectorField(fieldName, normalize(toVector(v, dimension)), similarity)};
+      }
       return v -> v == null ? null : new Field[]{new KnnFloatVectorField(fieldName, toVector(v, dimension), similarity)};
     }
     throw new IAE("cannot index '%s' as knn.vector", type);
+  }
+
+  public static VectorSimilarityFunction distanceMeasure(String descriptor)
+  {
+    if (TYPE_NAME.equals(descriptor)) {
+      return VectorSimilarityFunction.EUCLIDEAN;
+    }
+    return convert(descriptor.substring(TYPE_NAME.length() + 1, descriptor.length() - 1));
   }
 
   private static VectorSimilarityFunction convert(String distanceMeasure)
@@ -173,6 +186,24 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
       return vector;
     }
     throw new IAE("connot convert %s to float vector", x);
+  }
+
+  public static float[] normalize(float[] vector)
+  {
+    final double norm = norm(vector);
+    for (int i = 0; i < vector.length; i++) {
+      vector[i] /= norm;
+    }
+    return vector;
+  }
+
+  private static double norm(float[] vector)
+  {
+    double s = 0;
+    for (int i = 0; i < vector.length; i++) {
+      s += vector[i] * vector[i];
+    }
+    return Math.sqrt(s);
   }
 
   @Override
