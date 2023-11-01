@@ -27,6 +27,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.KeyBuilder;
+import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
@@ -130,7 +131,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
         Column column = Preconditions.checkNotNull(
             Lucenes.findColumnWithLuceneIndex(field, context.internal()), "no lucene index on [%s]", field
         );
-        String luceneField = Preconditions.checkNotNull(
+        Pair<String, String> luceneField = Preconditions.checkNotNull(
             Lucenes.findLuceneField(field, column, TextIndexingStrategy.TYPE_NAME, JsonIndexingStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
@@ -142,7 +143,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
 
         LuceneIndex lucene = column.getExternalIndex(LuceneIndex.class).get();
         try {
-          Query query = parser.parse(expression, luceneField);
+          Query query = parser.parse(expression, luceneField.getKey());
           return lucene.filterFor(query, context, scoreField);
         }
         catch (Exception e) {
