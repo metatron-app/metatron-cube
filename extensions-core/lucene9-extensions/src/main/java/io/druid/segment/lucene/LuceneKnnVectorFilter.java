@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import io.druid.common.KeyBuilder;
+import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilterCacheKey;
@@ -33,6 +34,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
+import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
@@ -110,12 +112,17 @@ public class LuceneKnnVectorFilter extends LuceneSelector implements DimFilter.O
         Column column = Preconditions.checkNotNull(
             Lucenes.findColumnWithLuceneIndex(field, context.internal()), "no lucene index on [%s]", field
         );
-        String luceneField = Preconditions.checkNotNull(
+        Pair<String, String> luceneField = Preconditions.checkNotNull(
             Lucenes.findLuceneField(field, column, KnnVectorStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
+        float[] target = vector;
+        VectorSimilarityFunction similarity = KnnVectorStrategy.distanceMeasure(luceneField.getValue());
+        if (similarity == VectorSimilarityFunction.DOT_PRODUCT) {
+          target = KnnVectorStrategy.normalize(Arrays.copyOf(target, target.length));
+        }
         Query filter = BitmapRelay.queryFor(context.baseBitmap());
-        KnnFloatVectorQuery query = new KnnFloatVectorQuery(luceneField, vector, count, filter);
+        KnnFloatVectorQuery query = new KnnFloatVectorQuery(luceneField.getKey(), target, count, filter);
         LuceneIndex lucene = column.getExternalIndex(LuceneIndex.class).get();
         try {
           TopDocs searched = lucene.searcher().search(query, count);

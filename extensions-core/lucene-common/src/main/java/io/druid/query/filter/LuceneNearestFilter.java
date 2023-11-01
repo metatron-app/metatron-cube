@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import io.druid.common.KeyBuilder;
+import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
@@ -121,14 +122,14 @@ public class LuceneNearestFilter extends LuceneSelector implements DimFilter.Out
         Column column = Preconditions.checkNotNull(
             Lucenes.findColumnWithLuceneIndex(field, context.internal()), "no lucene index for [%s]", field
         );
-        String luceneField = Preconditions.checkNotNull(
+        Pair<String, String> luceneField = Preconditions.checkNotNull(
             Lucenes.findLuceneField(field, column, LatLonPointIndexingStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
         LuceneIndex index = column.getExternalIndex(LuceneIndex.class).get();
         try {
           IndexSearcher searcher = index.searcher();
-          TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField, latitude, longitude, count);
+          TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField.getKey(), latitude, longitude, count);
           return BitmapHolder.exact(Lucenes.toBitmap(searched, context, scoreField));
         }
         catch (Exception e) {
