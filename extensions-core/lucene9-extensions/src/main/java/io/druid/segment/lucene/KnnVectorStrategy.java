@@ -151,7 +151,7 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
   public static VectorSimilarityFunction distanceMeasure(String descriptor)
   {
     if (TYPE_NAME.equals(descriptor)) {
-      return VectorSimilarityFunction.EUCLIDEAN;
+      return VectorSimilarityFunction.DOT_PRODUCT;
     }
     return convert(descriptor.substring(TYPE_NAME.length() + 1, descriptor.length() - 1));
   }
@@ -159,7 +159,7 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
   private static VectorSimilarityFunction convert(String distanceMeasure)
   {
     if (StringUtils.isNullOrEmpty(distanceMeasure)) {
-      return VectorSimilarityFunction.EUCLIDEAN;
+      return VectorSimilarityFunction.DOT_PRODUCT;
     }
     return VectorSimilarityFunction.valueOf(distanceMeasure.toUpperCase(Locale.ROOT));
   }
