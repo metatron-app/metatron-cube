@@ -1,5 +1,6 @@
 package io.druid.query.deeplearning;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import org.deeplearning4j.models.embeddings.WeightLookupTable;
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
@@ -37,13 +38,29 @@ public class ParagraphVectorsTest
     ParagraphVectors p2Vec = SequenceVectorsUtil.p2v_load(new ClassPathResource("/p2v_model.bin").getFile());
     p2Vec.setTokenizerFactory(ModelConf.tokenizer());
 
-    INDArray syn0 = p2Vec.lookupTable().getWeights();
     long p = System.currentTimeMillis();
+    System.out.println(p2Vec.predictSeveral("This is my", 3));
+    System.out.printf("took %,d msec%n", System.currentTimeMillis() - p);
+
+    p = System.currentTimeMillis();
+    System.out.println(Paragraph2VecFunctions.predict(p2Vec, "This is my", 3));
+    System.out.printf("took %,d msec%n", System.currentTimeMillis() - p);
+
+    INDArray syn0 = p2Vec.lookupTable().getWeights();
     INDArray r0 = syn0.getRow(0, false);
-    for (int i = 1; i < 1000; i++) {
-      Transforms.cosineSim(r0, syn0.getRow(i, false));
+    p = System.currentTimeMillis();
+    INDArray similarities = Transforms.allCosineSimilarities(syn0, r0, 1);
+    System.out.printf("took %,d msec%n", System.currentTimeMillis() - p);
+    p = System.currentTimeMillis();
+    double[] ss = new double[syn0.rows()];
+    for (int i = 0; i < syn0.rows(); i++) {
+      ss[i]= Transforms.cosineSim(r0, syn0.getRow(i, false));
     }
     System.out.printf("took %,d msec%n", System.currentTimeMillis() - p);
+
+    for (int i = 0; i < syn0.rows(); i++) {
+      Preconditions.checkArgument(similarities.getDouble(i, 0) == ss[i]);
+    }
 
     SentenceIterator find = new BasicLineIterator(new ClassPathResource("/raw_sentences.txt").getFile());
     List<String> batch = Lists.newArrayList();
