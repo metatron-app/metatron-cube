@@ -20,6 +20,9 @@
 package io.druid.query.deeplearning;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.MinMaxPriorityQueue;
+import com.google.common.primitives.Ints;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
@@ -29,6 +32,10 @@ import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import org.deeplearning4j.models.paragraphvectors.ParagraphVectors;
+import org.deeplearning4j.models.word2vec.VocabWord;
+import org.deeplearning4j.models.word2vec.wordstore.VocabCache;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.ops.transforms.Transforms;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -44,6 +51,25 @@ public class Paragraph2VecFunctions
     Parser.register(new VectorBatchFunc(name, p2Vec));
     Parser.register(new SimilarityFunc(name, p2Vec));
     Parser.register(new NerestFunc(name, p2Vec));
+    Parser.register(new PredictFunc(name, p2Vec));
+  }
+
+  static List<String> predict(ParagraphVectors model, String text, int n)
+  {
+    INDArray vector = model.inferVector(text);
+    INDArray syn0 = model.getLookupTable().getWeights();
+    INDArray similarities = Transforms.allCosineSimilarities(syn0, vector, 1);
+
+    MinMaxPriorityQueue<DocScore> queue = MinMaxPriorityQueue.expectedSize(n).maximumSize(n).create();
+    for (int i = 0; i < similarities.rows(); i++) {
+      queue.add(new DocScore(i, similarities.getFloat(i, 0)));
+    }
+    List<String> docs = Lists.newArrayList();
+    VocabCache<VocabWord> vocab = model.getLookupTable().getVocabCache();
+    while (!queue.isEmpty()) {
+      docs.add(vocab.elementAtIndex(queue.poll().doc).getLabel());
+    }
+    return docs;
   }
 
   private static class VectorFunc extends Function.Factory.Simple
@@ -142,6 +168,44 @@ public class Paragraph2VecFunctions
       String text = Evals.evalString(args.get(0), bindings);
       int n = Evals.evalInt(args.get(1), bindings);
       return ImmutableList.copyOf(model.nearestLabels(text, n));
+    }
+  }
+
+  private static class PredictFunc extends Function.Factory.WithType.Simple
+  {
+    private final ParagraphVectors model;
+
+    private PredictFunc(String name, ParagraphVectors model)
+    {
+      super("p2v_" + name + "_predict", ValueDesc.STRING_ARRAY);
+      this.model = model;
+    }
+
+    @Override
+    protected List<String> _evaluate(List<Expr> args, Expr.NumericBinding bindings)
+    {
+      String text = Evals.evalString(args.get(0), bindings);
+      int n = args.size() > 1 ? Evals.evalInt(args.get(1), bindings) : 1;
+      return predict(model, text, n);
+    }
+  }
+
+  private static class DocScore implements Comparable<DocScore>
+  {
+    private final int doc;
+    private final float score;
+
+    private DocScore(int doc, float score)
+    {
+      this.doc = doc;
+      this.score = score;
+    }
+
+    @Override
+    public int compareTo(DocScore o)
+    {
+      int compare = Float.compare(score, o.score);
+      return compare == 0 ? Ints.compare(doc, o.doc) : -compare;
     }
   }
 }
