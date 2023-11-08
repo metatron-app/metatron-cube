@@ -17,22 +17,12 @@
  * under the License.
  */
 
-package io.druid.segment;
+package io.druid.segment.lucene;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.druid.data.ValueDesc;
+import org.apache.lucene.document.Field;
 
-/**
- */
-@Deprecated
-public class BitSlicedBitmapSpec implements SecondaryIndexingSpec
+import java.util.function.Function;
+
+public interface LuceneFieldGenerator extends Function<Object, Field[]>
 {
-  @JsonCreator
-  public BitSlicedBitmapSpec() {}
-
-  @Override
-  public MetricColumnSerializer serializer(String columnName, ValueDesc type, Iterable<Object> values)
-  {
-    throw new UnsupportedOperationException();
-  }
 }

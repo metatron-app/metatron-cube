@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.druid.common.utils.StringUtils;
@@ -34,7 +33,6 @@ import io.druid.query.GeomUtils;
 import io.druid.query.ShapeFormat;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
-import org.apache.lucene.document.Field;
 import org.apache.lucene.spatial.SpatialStrategy;
 import org.apache.lucene.spatial.prefix.RecursivePrefixTreeStrategy;
 import org.apache.lucene.spatial.prefix.tree.GeohashPrefixTree;
@@ -186,7 +184,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
   }
 
   @Override
-  public Function<Object, Field[]> createIndexableField(ValueDesc type)
+  public LuceneFieldGenerator createIndexableField(ValueDesc type, Iterable<Object> values)
   {
     // use CompositeSpatialStrategy ?
     final SpatialPrefixTree grid = new GeohashPrefixTree(JtsSpatialContext.GEO, maxLevels);
@@ -203,27 +201,23 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
     } else {
       wktIndex = -1;
     }
-    return new Function<Object, Field[]>()
+    return input ->
     {
-      @Override
-      public Field[] apply(Object input)
-      {
-        if (wktIndex >= 0) {
-          input = ((Object[]) input)[wktIndex];
+      if (wktIndex >= 0) {
+        input = ((Object[]) input)[wktIndex];
+      }
+      if (StringUtils.isNullOrEmpty(input)) {
+        return null;
+      }
+      try {
+        final Shape shape = reader.read(input);
+        if (!validator.validate(shape)) {
+          throw new IllegalStateException("invalid shape type " + shape);
         }
-        if (StringUtils.isNullOrEmpty(input)) {
-          return null;
-        }
-        try {
-          final Shape shape = reader.read(input);
-          if (!validator.validate(shape)) {
-            throw new IllegalStateException("invalid shape type " + shape);
-          }
-          return strategy.createIndexableFields(shape);
-        }
-        catch (Exception e) {
-          throw ParsingFail.propagate(input, e, "failed to read shape");
-        }
+        return strategy.createIndexableFields(shape);
+      }
+      catch (Exception e) {
+        throw ParsingFail.propagate(input, e, "failed to read shape");
       }
     };
   }

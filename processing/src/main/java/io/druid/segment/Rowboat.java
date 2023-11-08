@@ -106,7 +106,7 @@ public class Rowboat implements Comparable<Rowboat>
   public String toString()
   {
     return "Rowboat{" +
-           "timestamp=" + new DateTime(timestamp).toString() +
+           "timestamp=" + new DateTime(timestamp) +
            ", dims=" + Arrays.deepToString(dims) +
            ", metrics=" + Arrays.toString(metrics) +
            ", rowNum=" + rowNum +

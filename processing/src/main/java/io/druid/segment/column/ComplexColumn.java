@@ -34,8 +34,6 @@ import java.util.Map;
  */
 public interface ComplexColumn extends ColumnAccess
 {
-  ValueDesc getType();
-
   int numRows();
 
   CompressionStrategy compressionType();  // just for index viewer

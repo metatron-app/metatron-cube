@@ -52,7 +52,11 @@ public class BitSetInvertedIndexingSpec implements SecondaryIndexingSpec
   private static final ObjectStrategy<ImmutableBitmap> STRATEGY = RoaringBitmapSerdeFactory.objectStrategy;
 
   @Override
-  public MetricColumnSerializer serializer(String columnName, final ValueDesc type)
+  public MetricColumnSerializer serializer(
+      String columnName,
+      final ValueDesc type,
+      Iterable<Object> values
+  )
   {
     if (!type.isBitSet()) {
       return MetricColumnSerializer.DUMMY;

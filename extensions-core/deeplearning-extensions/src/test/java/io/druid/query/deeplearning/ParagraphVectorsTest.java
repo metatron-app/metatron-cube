@@ -2,6 +2,8 @@ package io.druid.query.deeplearning;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Floats;
+import io.druid.java.util.common.VectorUtils;
 import org.deeplearning4j.models.embeddings.WeightLookupTable;
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
 import org.deeplearning4j.models.paragraphvectors.ParagraphVectors;
@@ -149,6 +151,15 @@ public class ParagraphVectorsTest
 
     vec.fit();
 
+    INDArray syn0 = vec.getLookupTable().getWeights();
+    float[][] m = syn0.toFloatMatrix();
+    float[] minmax = new float[] {Float.MAX_VALUE, Float.MIN_VALUE};
+    for (float[] v : m) {
+      v = VectorUtils.normalize(v);
+      minmax[0] = Math.min(minmax[0], Floats.min(v));
+      minmax[1] = Math.max(minmax[1], Floats.max(v));
+    }
+    System.out.println("minmax = " + Arrays.toString(minmax));
     /**
      * In training corpus we have few lines that contain pretty close words invloved.
      * These sentences should be pretty close to each other in vector space

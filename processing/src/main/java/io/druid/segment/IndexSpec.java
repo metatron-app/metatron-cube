@@ -246,13 +246,10 @@ public class IndexSpec
     }
     Map<String, Map<String, String>> columnDescs = Maps.newHashMap();
     for (Map.Entry<String, SecondaryIndexingSpec> entry : secondaryIndexing.entrySet()) {
-      if (entry.getValue() instanceof SecondaryIndexingSpec.WithDescriptor) {
-        String columnName = entry.getKey();
-        SecondaryIndexingSpec.WithDescriptor provider = (SecondaryIndexingSpec.WithDescriptor) entry.getValue();
-        Map<String, String> columnDesc = provider.descriptor(columnName);
-        if (!GuavaUtils.isNullOrEmpty(columnDesc)) {
-          columnDescs.put(columnName, columnDesc);
-        }
+      String columnName = entry.getKey();
+      Map<String, String> columnDesc = entry.getValue().descriptor(columnName);
+      if (!GuavaUtils.isNullOrEmpty(columnDesc)) {
+        columnDescs.put(columnName, columnDesc);
       }
     }
     return columnDescs;

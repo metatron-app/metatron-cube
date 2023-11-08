@@ -20,9 +20,7 @@
 package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.base.Function;
 import io.druid.data.ValueDesc;
-import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexWriterConfig;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -34,10 +32,15 @@ public interface LuceneIndexingStrategy
 
   LuceneIndexingStrategy withFieldName(String fieldName);
 
-  Function<Object, Field[]> createIndexableField(ValueDesc type);
+  LuceneFieldGenerator createIndexableField(ValueDesc type, Iterable<Object> values);
 
   default IndexWriterConfig configure(IndexWriterConfig config)
   {
     return config;
+  }
+
+  default LuceneIndexingStrategy replaceFieldIfNull(String column)
+  {
+    return getFieldName() == null ? withFieldName(column) : this;
   }
 }

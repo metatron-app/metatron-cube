@@ -20,7 +20,10 @@
 package io.druid.segment;
 
 import com.google.common.collect.Lists;
+import io.druid.common.guava.Sequence;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.UOE;
+import io.druid.java.util.common.parsers.CloseableIterable;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
@@ -43,6 +46,11 @@ public interface IndexableAdapter
   Indexed<String> getMetricNames();
 
   Indexed<String> getDimValueLookup(String dimension);
+
+  default CloseableIterable<Object> visit(String metric)
+  {
+    throw new UOE("visit");   // just for making stats for secondary indexing
+  }
 
   default Iterable<Rowboat> getRows()
   {

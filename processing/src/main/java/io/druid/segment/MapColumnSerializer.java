@@ -69,7 +69,7 @@ public class MapColumnSerializer implements MetricColumnSerializer
       }
     };
     MetricColumnSerializer keys = TagColumnSerializer.create(metric + ".k", ValueDesc.STRING, compression, bitmap);
-    MetricColumnSerializer values = ComplexColumnSerializer.create(metric + ".v", serde, null, compression);
+    MetricColumnSerializer values = ComplexColumnSerializer.create(metric + ".v", serde, null, null, compression);
     Preconditions.checkArgument(valueType.isPrimitiveNumeric() || valueType.isBoolean());
     return new MapColumnSerializer(keys, values, valueType);
   }

@@ -79,6 +79,7 @@ public class ComplexColumnSerializerTest
     ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
         "test-lucene",
         StringMetricSerde.INSTANCE,
+        null,
         LuceneIndexingSpec.of(null, new TextIndexingStrategy("test-lucene")),
         null
     );
@@ -148,6 +149,7 @@ public class ComplexColumnSerializerTest
     ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
         "test-lucene",
         serde,
+        null,
         LuceneIndexingSpec.of(
             null,
             new LatLonPointIndexingStrategy("coord", "lat", "lon", null),
@@ -215,6 +217,7 @@ public class ComplexColumnSerializerTest
     ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
         "test-lucene",
         StringMetricSerde.INSTANCE,
+        null,
         LuceneIndexingSpec.of(null, new JsonIndexingStrategy("payload", null)),
         null
     );

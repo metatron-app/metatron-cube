@@ -24,14 +24,18 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.primitives.Floats;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.VectorUtils;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.lucene95.Lucene95Codec;
 import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsFormat;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.VectorSimilarityFunction;
@@ -53,7 +57,9 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
   private final int maxConn;
   private final int beamWidth;
   private final int dimension;
-  private final String distanceMeasure;
+
+  private final String similarityFn;
+  private final VectorType vectorType;
 
   @JsonCreator
   public KnnVectorStrategy(
@@ -61,14 +67,17 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
       @JsonProperty("maxConn") int maxConn,
       @JsonProperty("beamWidth") int beamWidth,
       @JsonProperty("dimension") int dimension,
-      @JsonProperty("distanceMeasure") String distanceMeasure
+      @JsonProperty("similarityFn") String similarityFn,
+      @JsonProperty("vectorType") VectorType vectorType
   )
   {
     this.fieldName = fieldName;
     this.maxConn = maxConn;
     this.beamWidth = beamWidth;
     this.dimension = dimension;
-    this.distanceMeasure = distanceMeasure;
+    this.similarityFn = similarityFn;
+    this.vectorType = vectorType == null ? VectorType.FLOATS : vectorType;
+    Preconditions.checkArgument(this.vectorType == VectorType.FLOATS || similarityFn == null);
   }
 
   @Override
@@ -98,23 +107,29 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
   }
 
   @JsonProperty
-  public String getDistanceMeasure()
+  public String getSimilarityFn()
   {
-    return distanceMeasure;
+    return similarityFn;
+  }
+
+  @JsonProperty
+  public VectorType getVectorType()
+  {
+    return vectorType;
   }
 
   @Override
   public String getFieldDescriptor()
   {
-    return StringUtils.isNullOrEmpty(distanceMeasure)
+    return StringUtils.isNullOrEmpty(similarityFn)
            ? TYPE_NAME
-           : String.format("%s(%s)", TYPE_NAME, distanceMeasure.toLowerCase());
+           : String.format("%s(%s)", TYPE_NAME, similarityFn.toLowerCase());
   }
 
   @Override
   public LuceneIndexingStrategy withFieldName(String fieldName)
   {
-    return new KnnVectorStrategy(fieldName, maxConn, beamWidth, dimension, distanceMeasure);
+    return new KnnVectorStrategy(fieldName, maxConn, beamWidth, dimension, similarityFn, vectorType);
   }
 
   @Override
@@ -136,16 +151,51 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
   }
 
   @Override
-  public Function<Object, Field[]> createIndexableField(ValueDesc type)
+  public LuceneFieldGenerator createIndexableField(ValueDesc type, Iterable<Object> values)
   {
-    VectorSimilarityFunction similarity = convert(distanceMeasure);
-    if (type.isArray() && type.unwrapArray(ValueDesc.FLOAT).isPrimitiveNumeric()) {
-      if (similarity == VectorSimilarityFunction.DOT_PRODUCT) {
-        return v -> v == null ? null : new Field[]{new KnnFloatVectorField(fieldName, normalize(toVector(v, dimension)), similarity)};
+    Function<Object, Field> generator = createFieldGenerator(type, values, convert(similarityFn));
+    return v -> v == null ? null : new Field[] {generator.apply(v)};
+  }
+
+  private Function<Object, Field> createFieldGenerator(
+      ValueDesc type,
+      Iterable<Object> values,
+      VectorSimilarityFunction similarity
+  )
+  {
+    if (type.isVector() || (type.isArray() && type.unwrapArray(ValueDesc.FLOAT).isPrimitiveNumeric())) {
+      if (vectorType == VectorType.FLOATS) {
+        Function<Object, float[]> normalizer = toNormalizer(similarity, dimension);
+        return v -> new KnnFloatVectorField(fieldName, normalizer.apply(v), similarity);
       }
-      return v -> v == null ? null : new Field[]{new KnnFloatVectorField(fieldName, toVector(v, dimension), similarity)};
+      Function<Object, byte[]> quantizer = toQuantizer(vectorType, dimension, values);
+      return v -> new KnnByteVectorField(fieldName, quantizer.apply(v));
     }
     throw new IAE("cannot index '%s' as knn.vector", type);
+  }
+
+  private static Function<Object, float[]> toNormalizer(VectorSimilarityFunction similarity, int dimension)
+  {
+    if (similarity == VectorSimilarityFunction.DOT_PRODUCT) {
+      return v -> VectorUtils.normalize(toVector(v, dimension));
+    }
+    return v -> toVector(v, dimension);
+  }
+
+  private static Function<Object, byte[]> toQuantizer(VectorType vectorType, int dimension, Iterable<Object> values)
+  {
+    if (vectorType == VectorType.BYTE_CLIP) {
+      return v -> VectorUtils.clip(VectorUtils.normalize(toVector(v, dimension)));
+    }
+    // todo: how to propagate min/max to description?
+    Preconditions.checkArgument(values != null);
+    float[] minmax = new float[] {Float.MAX_VALUE, Float.MIN_VALUE};
+    for (Object object : values) {
+      float[] vector = (float[]) object;
+      minmax[0] = Math.min(minmax[0], Floats.min(vector));
+      minmax[1] = Math.max(minmax[1], Floats.max(vector));
+    }
+    return v -> VectorUtils.quantizeGlobal(VectorUtils.normalize(toVector(v, dimension)), minmax);
   }
 
   public static VectorSimilarityFunction distanceMeasure(String descriptor)
@@ -186,24 +236,6 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
       return vector;
     }
     throw new IAE("connot convert %s to float vector", x);
-  }
-
-  public static float[] normalize(float[] vector)
-  {
-    final double norm = norm(vector);
-    for (int i = 0; i < vector.length; i++) {
-      vector[i] /= norm;
-    }
-    return vector;
-  }
-
-  private static double norm(float[] vector)
-  {
-    double s = 0;
-    for (int i = 0; i < vector.length; i++) {
-      s += vector[i] * vector[i];
-    }
-    return Math.sqrt(s);
   }
 
   @Override
