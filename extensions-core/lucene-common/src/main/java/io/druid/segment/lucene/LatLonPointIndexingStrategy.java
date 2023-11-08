@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.ValueDesc;
@@ -102,7 +101,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   }
 
   @Override
-  public Function<Object, Field[]> createIndexableField(ValueDesc type)
+  public LuceneFieldGenerator createIndexableField(ValueDesc type, Iterable<Object> values)
   {
     Preconditions.checkArgument(type.isStruct(), "only struct type can be used but %s", type);
     StructMetricSerde serde = (StructMetricSerde) Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
@@ -119,46 +118,38 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
         serde.type(indexLon).isNumeric(), "invalid field type %s for %s", serde.type(indexLon), longitude
     );
     if (crs == null) {
-      return new Function<Object, Field[]>()
+      return input ->
       {
-        @Override
-        public Field[] apply(Object input)
-        {
-          double latitude;
-          double longitude;
-          if (input instanceof List) {
-            List struct = (List) input;
-            latitude = ((Number) struct.get(indexLat)).doubleValue();
-            longitude = ((Number) struct.get(indexLon)).doubleValue();
-          } else {
-            Object[] struct = (Object[]) input;
-            latitude = ((Number) struct[indexLat]).doubleValue();
-            longitude = ((Number) struct[indexLon]).doubleValue();
-          }
-          return new Field[]{new LatLonPoint(fieldName, latitude, longitude)};
+        double latitude;
+        double longitude;
+        if (input instanceof List) {
+          List struct = (List) input;
+          latitude = ((Number) struct.get(indexLat)).doubleValue();
+          longitude = ((Number) struct.get(indexLon)).doubleValue();
+        } else {
+          Object[] struct = (Object[]) input;
+          latitude = ((Number) struct[indexLat]).doubleValue();
+          longitude = ((Number) struct[indexLon]).doubleValue();
         }
+        return new Field[]{new LatLonPoint(fieldName, latitude, longitude)};
       };
     }
     final double[] lonlat = new double[2];
     final Expr.NumericBinding binding = Parser.withMap(ImmutableMap.<String, Object>of("lonlat", lonlat));
-    final Expr expr = Parser.parse(String.format("lonlat.to4326('%s',lonlat)", crs));
-    return new Function<Object, Field[]>()
+    final Expr expr = Parser.parse(String.format("lonlat_to4326('%s',lonlat)", crs));
+    return input ->
     {
-      @Override
-      public Field[] apply(Object input)
-      {
-        if (input instanceof List) {
-          List struct = (List) input;
-          lonlat[0] = ((Number) struct.get(indexLon)).doubleValue();
-          lonlat[1] = ((Number) struct.get(indexLat)).doubleValue();
-        } else {
-          Object[] struct = (Object[]) input;
-          lonlat[0] = ((Number) struct[indexLon]).doubleValue();
-          lonlat[1] = ((Number) struct[indexLat]).doubleValue();
-        }
-        double[] converted = (double[]) expr.eval(binding).value();
-        return new Field[]{new LatLonPoint(fieldName, converted[1], converted[0])};
+      if (input instanceof List) {
+        List struct = (List) input;
+        lonlat[0] = ((Number) struct.get(indexLon)).doubleValue();
+        lonlat[1] = ((Number) struct.get(indexLat)).doubleValue();
+      } else {
+        Object[] struct = (Object[]) input;
+        lonlat[0] = ((Number) struct[indexLon]).doubleValue();
+        lonlat[1] = ((Number) struct[indexLat]).doubleValue();
       }
+      double[] converted = (double[]) expr.eval(binding).value();
+      return new Field[]{new LatLonPoint(fieldName, converted[1], converted[0])};
     };
   }
 

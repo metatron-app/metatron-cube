@@ -27,6 +27,7 @@ import com.google.common.base.Throwables;
 import io.druid.common.KeyBuilder;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
+import io.druid.java.util.common.VectorUtils;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilterCacheKey;
 import io.druid.query.filter.Filter;
@@ -119,7 +120,7 @@ public class LuceneKnnVectorFilter extends LuceneSelector implements DimFilter.O
         float[] target = vector;
         VectorSimilarityFunction similarity = KnnVectorStrategy.distanceMeasure(luceneField.getValue());
         if (similarity == VectorSimilarityFunction.DOT_PRODUCT) {
-          target = KnnVectorStrategy.normalize(Arrays.copyOf(target, target.length));
+          target = VectorUtils.normalize(Arrays.copyOf(target, target.length));
         }
         Query filter = BitmapRelay.queryFor(context.baseBitmap());
         KnnFloatVectorQuery query = new KnnFloatVectorQuery(luceneField.getKey(), target, count, filter);

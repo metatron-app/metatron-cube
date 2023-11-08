@@ -17,22 +17,24 @@
  * under the License.
  */
 
-package io.druid.segment;
+package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import io.druid.data.ValueDesc;
+import com.fasterxml.jackson.annotation.JsonValue;
 
-/**
- */
-@Deprecated
-public class BitSlicedBitmapSpec implements SecondaryIndexingSpec
+public enum VectorType
 {
-  @JsonCreator
-  public BitSlicedBitmapSpec() {}
+  FLOATS, BYTE_CLIP, BYTE_QUANTIZE;
 
-  @Override
-  public MetricColumnSerializer serializer(String columnName, ValueDesc type, Iterable<Object> values)
+  @JsonValue
+  public String getName()
   {
-    throw new UnsupportedOperationException();
+    return name().toLowerCase();
+  }
+
+  @JsonCreator
+  public static VectorType fromString(String name)
+  {
+    return name == null ? FLOATS : valueOf(name.toUpperCase());
   }
 }

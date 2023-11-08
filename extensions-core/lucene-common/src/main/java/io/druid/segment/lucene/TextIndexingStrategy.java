@@ -23,15 +23,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
-import org.apache.lucene.document.Field;
 
 import java.util.List;
 import java.util.Objects;
@@ -72,18 +69,17 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   }
 
   @Override
-  public Function<Object, Field[]> createIndexableField(ValueDesc type)
+  public LuceneFieldGenerator createIndexableField(ValueDesc type, Iterable<Object> values)
   {
+    LuceneFieldGenerator generator = Lucenes.makeTextFieldGenerator(fieldName);
     if (type.isPrimitive()) {
-      return Lucenes.makeTextFieldGenerator(fieldName);
+      return generator;
     }
     if (type.isStruct()) {
       final ComplexMetricSerde serde = Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
       final int index = ((StructMetricSerde) serde).indexOf(fieldName);
       Preconditions.checkArgument(index >= 0, "invalid field name %s", fieldName);
-      return Functions.compose(
-          Lucenes.makeTextFieldGenerator(fieldName), input -> ((List) input).get(index)
-      );
+      return v -> generator.apply(((List) v).get(index));
     }
     throw new IAE("cannot index %s as text", type);
   }

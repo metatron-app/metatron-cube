@@ -68,6 +68,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.SetAggregatorFactory;
 import io.druid.query.aggregation.TimestampMaxAggregatorFactory;
+import io.druid.query.aggregation.VectorMetricSerde;
 import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.countmin.CountMinAggregatorFactory;
@@ -93,6 +94,7 @@ import io.druid.segment.serde.StringMetricSerde;
 import io.druid.segment.serde.StructMetricSerde;
 
 /**
+ *
  */
 public class AggregatorsModule extends SimpleModule
 {
@@ -147,6 +149,9 @@ public class AggregatorsModule extends SimpleModule
     }
     if (ComplexMetrics.getSerdeForType(ValueDesc.BITSET) == null) {
       ComplexMetrics.registerSerde(ValueDesc.BITSET, new BitSetMetricSerDe(), false);
+    }
+    if (ComplexMetrics.getSerdeFactory(ValueDesc.VECTOR_TYPE) == null) {
+      ComplexMetrics.registerSerdeFactory(ValueDesc.VECTOR_TYPE, new VectorMetricSerde.Factory());
     }
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);

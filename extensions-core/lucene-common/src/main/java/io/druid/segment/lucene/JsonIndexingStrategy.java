@@ -23,10 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
-import org.apache.lucene.document.Field;
 
 import java.util.List;
 import java.util.Objects;
@@ -79,7 +77,7 @@ public class JsonIndexingStrategy implements LuceneIndexingStrategy
   }
 
   @Override
-  public Function<Object, Field[]> createIndexableField(ValueDesc type)
+  public LuceneFieldGenerator createIndexableField(ValueDesc type, Iterable<Object> values)
   {
     return Lucenes.makeJsonFieldGenerator(new DefaultObjectMapper(), fieldName, patterns);
   }

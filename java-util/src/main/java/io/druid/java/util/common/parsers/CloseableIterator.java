@@ -15,10 +15,62 @@
 package io.druid.java.util.common.parsers;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
+ *
  */
 public interface CloseableIterator<T> extends Iterator<T>, Closeable
 {
+  CloseableIterator EMPTY = new CloseableIterator()
+  {
+    @Override
+    public void close() throws IOException
+    {
+    }
+
+    @Override
+    public boolean hasNext()
+    {
+      return false;
+    }
+
+    @Override
+    public Object next()
+    {
+      throw new NoSuchElementException("no");
+    }
+  };
+
+  @SuppressWarnings("unchecked")
+  static <T> CloseableIterator<T> empty()
+  {
+    return EMPTY;
+  }
+
+  static <T> CloseableIterator<T> wrap(Iterator<T> iterator)
+  {
+    if (iterator instanceof CloseableIterator) {
+      return (CloseableIterator<T>) iterator;
+    }
+    return new CloseableIterator<T>()
+    {
+      @Override
+      public void close() throws IOException {}
+
+      @Override
+      public boolean hasNext()
+      {
+        return iterator.hasNext();
+      }
+
+      @Override
+      public T next()
+      {
+        return iterator.next();
+      }
+    };
+  }
 }

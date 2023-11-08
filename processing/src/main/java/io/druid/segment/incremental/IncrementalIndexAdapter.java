@@ -27,6 +27,7 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
+import io.druid.java.util.common.parsers.CloseableIterable;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexableAdapter;
@@ -44,6 +45,7 @@ import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -231,6 +233,17 @@ public class IncrementalIndexAdapter implements IndexableAdapter
   {
     DimensionIndexer indexer = indexerMap.get(dimension);
     return indexer == null ? null : indexer.getDimValueLookup();
+  }
+
+  @Override
+  public CloseableIterable<Object> visit(String metric)
+  {
+    IncrementalIndex.MetricDesc desc = index.getMetricDesc(metric);
+    if (desc == null) {
+      return null;
+    }
+    Collection<Object[]> values = index.getAll().values();
+    return CloseableIterable.wrap(() -> Iterators.transform(values.iterator(), e -> e[desc.getIndex()]));
   }
 
   @Override

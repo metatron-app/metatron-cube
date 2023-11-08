@@ -37,10 +37,7 @@ import java.util.Map;
 })
 public interface SecondaryIndexingSpec
 {
-  MetricColumnSerializer serializer(String columnName, ValueDesc type);
+  MetricColumnSerializer serializer(String columnName, ValueDesc type, Iterable<Object> values);
 
-  interface WithDescriptor extends SecondaryIndexingSpec
-  {
-    Map<String, String> descriptor(String column);
-  }
+  default Map<String, String> descriptor(String column) {return null;}
 }

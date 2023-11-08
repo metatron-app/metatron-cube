@@ -25,13 +25,13 @@ public class CloseQuietly
 {
   private static final Logger log = new Logger(CloseQuietly.class);
 
-  public static void close(Closeable closeable)
+  public static void close(Object closeable)
   {
-    if (closeable == null) {
+    if (!(closeable instanceof Closeable)) {
       return;
     }
     try {
-      closeable.close();
+      ((Closeable) closeable).close();
     }
     catch (IOException e) {
       log.error(e, "IOException thrown while closing Closeable.");

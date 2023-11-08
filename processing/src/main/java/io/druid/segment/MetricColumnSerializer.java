@@ -63,6 +63,11 @@ public interface MetricColumnSerializer extends Closeable
 
   interface Factory
   {
-    MetricColumnSerializer create(String name, ValueDesc type) throws IOException;
+    default MetricColumnSerializer create(String name, ValueDesc type) throws IOException
+    {
+      return create(name, type, null);
+    }
+
+    MetricColumnSerializer create(String name, ValueDesc type, Iterable<Object> values) throws IOException;
   }
 }

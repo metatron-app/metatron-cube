@@ -33,7 +33,6 @@ import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ObjectStrategy;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;

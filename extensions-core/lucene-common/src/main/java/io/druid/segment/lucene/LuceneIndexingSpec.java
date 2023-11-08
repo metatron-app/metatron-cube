@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -31,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.MetricColumnSerializer;
 import io.druid.segment.SecondaryIndexingSpec;
@@ -58,12 +58,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  */
 @JsonTypeName("lucene")
-public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
+public class LuceneIndexingSpec implements SecondaryIndexingSpec
 {
   public static LuceneIndexingSpec of(String textAnalyzer, LuceneIndexingStrategy... strategies)
   {
@@ -125,16 +124,16 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
   }
 
   @Override
-  public MetricColumnSerializer serializer(String columnName, final ValueDesc type)
+  public MetricColumnSerializer serializer(String columnName, ValueDesc type, Iterable<Object> values)
   {
     if (GuavaUtils.isNullOrEmpty(strategies)) {
       return MetricColumnSerializer.DUMMY;
     }
     final List<LuceneIndexingStrategy> replaced = GuavaUtils.transform(
-        strategies, s -> s.getFieldName() == null ? s.withFieldName(columnName) : s
+        strategies, s -> s.replaceFieldIfNull(columnName)
     );
-    final List<Function<Object, Field[]>> generators = GuavaUtils.transform(
-        replaced, strategy -> strategy.createIndexableField(type)
+    final List<LuceneFieldGenerator> generators = GuavaUtils.transform(
+        replaced, strategy -> strategy.createIndexableField(type, values)
     );
 
     return new MetricColumnSerializer()
@@ -151,7 +150,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       public void serialize(int rowNum, Object obj) throws IOException
       {
         final Document doc = new Document();
-        for (Function<Object, Field[]> generator : generators) {
+        for (LuceneFieldGenerator generator : generators) {
           Field[] fields = generator.apply(obj);
           if (fields != null) {
             for (Field field : fields) {
@@ -166,6 +165,9 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       public void close() throws IOException
       {
         writer.commit();
+        for (LuceneFieldGenerator generator : generators) {
+          CloseQuietly.close(generator);
+        }
       }
 
       @Override
@@ -193,9 +195,10 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
   {
     Map<String, String> descriptors = Maps.newLinkedHashMap();
     for (LuceneIndexingStrategy strategy : strategies) {
+      strategy = strategy.replaceFieldIfNull(column);
       String desc = strategy.getFieldDescriptor();
       if (desc != null) {
-        descriptors.put(Optional.ofNullable(strategy.getFieldName()).orElse(column), desc);
+        descriptors.put(strategy.getFieldName(), desc);
       }
     }
     return descriptors;

@@ -27,6 +27,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.common.parsers.CloseableIterable;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnAccess;
@@ -38,11 +39,13 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
 import org.joda.time.Interval;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 /**
  */
@@ -113,6 +116,34 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   {
     final Column column = input.getColumn(dimension);
     return column == null ? null : column.getDictionary();
+  }
+
+  @Override
+  public CloseableIterable<Object> visit(String metric)
+  {
+    final Column column = input.getColumn(metric);
+    if (column == null) {
+      return null;
+    }
+    final ColumnAccess access;
+    if (column.hasGenericColumn()) {
+      access = column.getGenericColumn();
+    } else if (column.hasComplexColumn()) {
+      access = column.getComplexColumn();
+    } else {
+      return null;
+    }
+    return new CloseableIterable<Object>()
+    {
+      @Override
+      public void close() throws IOException {access.close();}
+
+      @Override
+      public Iterator<Object> iterator()
+      {
+        return IntStream.range(0, numRows).mapToObj(access::getValue).iterator();
+      }
+    };
   }
 
   @Override

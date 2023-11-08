@@ -765,7 +765,7 @@ public class GuavaUtils
     return mapped;
   }
 
-  public static <T> Iterator<T> withResource(final Iterator<T> iterator, final Closeable closeable)
+  public static <T> CloseableIterator<T> withResource(final Iterator<T> iterator, final Closeable closeable)
   {
     return new CloseableIterator<T>()
     {

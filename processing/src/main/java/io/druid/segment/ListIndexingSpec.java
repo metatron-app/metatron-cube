@@ -21,18 +21,16 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.segment.column.ColumnDescriptor;
+import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.IOPeon;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 @JsonTypeName("list")
-public class ListIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
+public class ListIndexingSpec implements SecondaryIndexingSpec
 {
   private final List<SecondaryIndexingSpec> indexingSpecs;
 
@@ -42,10 +40,10 @@ public class ListIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
   }
 
   @Override
-  public MetricColumnSerializer serializer(String columnName, ValueDesc type)
+  public MetricColumnSerializer serializer(String columnName, ValueDesc type, Iterable<Object> values)
   {
     final List<MetricColumnSerializer> serializers = GuavaUtils.transform(
-        indexingSpecs, spec -> spec.serializer(columnName, type)
+        indexingSpecs, spec -> spec.serializer(columnName, type, values)
     );
     return new MetricColumnSerializer()
     {
@@ -66,11 +64,7 @@ public class ListIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       }
 
       @Override
-      public ColumnDescriptor.Builder buildDescriptor(
-          IOPeon ioPeon,
-          ColumnDescriptor.Builder builder
-      )
-          throws IOException
+      public Builder buildDescriptor(IOPeon ioPeon, Builder builder) throws IOException
       {
         for (MetricColumnSerializer serializer : serializers) {
           builder = serializer.buildDescriptor(ioPeon, builder);
@@ -86,19 +80,5 @@ public class ListIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
         }
       }
     };
-  }
-
-  @Override
-  public Map<String, String> descriptor(String column)
-  {
-    Map<String, String> descriptor = Maps.newHashMap();
-    for (SecondaryIndexingSpec indexingSpec : indexingSpecs) {
-      if (indexingSpec instanceof SecondaryIndexingSpec.WithDescriptor) {
-        for (Map.Entry<String, String> entry : ((WithDescriptor) indexingSpec).descriptor(column).entrySet()) {
-          descriptor.compute(entry.getKey(), (k, v) -> v == null ? entry.getValue() : v + "|" + entry.getValue());
-        }
-      }
-    }
-    return descriptor;
   }
 }

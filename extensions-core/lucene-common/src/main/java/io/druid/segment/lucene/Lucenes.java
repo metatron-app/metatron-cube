@@ -21,7 +21,6 @@ package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
@@ -173,13 +172,13 @@ public class Lucenes
     }
   }
 
-  public static Function<Object, Field[]> makeTextFieldGenerator(final String fieldName)
+  public static LuceneFieldGenerator makeTextFieldGenerator(final String fieldName)
   {
     // to string whatever..
     return input -> new Field[]{new TextField(fieldName, Objects.toString(input, ""), Field.Store.NO)};
   }
 
-  public static Function<Object, Field[]> makeJsonFieldGenerator(
+  public static LuceneFieldGenerator makeJsonFieldGenerator(
       ObjectMapper mapper, String fieldName, List<String> indexing
   )
   {
