@@ -21,6 +21,7 @@ package io.druid.segment.column;
 
 import io.druid.collections.ResourceHolder;
 import io.druid.common.guava.BufferRef;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.Tools;
@@ -35,6 +36,8 @@ import java.util.Arrays;
 
 public interface ColumnAccess extends Closeable
 {
+  ValueDesc getType();
+
   Object getValue(int rowNum);
 
   interface WithRawAccess extends ColumnAccess

@@ -351,6 +351,11 @@ public class Sequences
     });
   }
 
+  public static <From, To> Sequence<To> explode(Iterable<From> sequence, Function<From, Sequence<To>> fn)
+  {
+    return concat(Iterables.transform(sequence, fn));
+  }
+
   public static <From, To> Sequence<To> explode(Sequence<From> sequence, Function<From, Sequence<To>> fn)
   {
     return concat(sequence.columns(), map(sequence, fn));

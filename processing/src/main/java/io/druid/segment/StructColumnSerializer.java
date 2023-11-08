@@ -39,6 +39,7 @@ public class StructColumnSerializer implements MetricColumnSerializer
   public static StructColumnSerializer create(
       String metric,
       ValueDesc type,
+      Iterable<Object> values,
       SecondaryIndexingSpec indexingSpec,
       Factory factory
   ) throws IOException
@@ -48,10 +49,10 @@ public class StructColumnSerializer implements MetricColumnSerializer
     List<MetricColumnSerializer> serializers = Lists.newArrayList();
     for (Pair<String, ValueDesc> pair : StructMetricSerde.parse(type)) {
       fieldNames.add(pair.lhs);
-      serializers.add(factory.create(prefix + pair.lhs, pair.rhs));
+      serializers.add(factory.create(prefix + pair.lhs, pair.rhs, null));
     }
     MetricColumnSerializer secondary = indexingSpec == null ? MetricColumnSerializer.DUMMY :
-                                       indexingSpec.serializer(metric, type);
+                                       indexingSpec.serializer(metric, type, values);
     return new StructColumnSerializer(fieldNames, serializers, secondary);
   }
 

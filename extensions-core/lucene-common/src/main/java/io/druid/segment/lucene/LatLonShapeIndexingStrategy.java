@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
@@ -83,32 +82,28 @@ public class LatLonShapeIndexingStrategy implements LuceneIndexingStrategy
   }
 
   @Override
-  public Function<Object, Field[]> createIndexableField(ValueDesc type)
+  public LuceneFieldGenerator createIndexableField(ValueDesc type, Iterable<Object> values)
   {
     Preconditions.checkArgument(type.isString(), "only string type can be used");
     final ShapeReader reader = shapeFormat.newReader(JtsSpatialContext.GEO);
-    return new Function<Object, Field[]>()
+    return input ->
     {
-      @Override
-      public Field[] apply(Object input)
-      {
-        final String value = Objects.toString(input, null);
-        if (StringUtils.isNullOrEmpty(value)) {
-          return null;
-        }
-        Shape shape;
-        try {
-          shape = reader.read(value);
-        }
-        catch (Throwable t) {
-          throw ParsingFail.propagate(value, t, "failed to read shape");
-        }
-        Preconditions.checkArgument(shape instanceof Point, "%s is not point", StringUtils.forLog(value));
-        Point point = (Point) shape;
-        return new Field[]{
-            new LatLonPoint(fieldName, point.getY(), point.getX())
-        };
+      final String value = Objects.toString(input, null);
+      if (StringUtils.isNullOrEmpty(value)) {
+        return null;
       }
+      Shape shape;
+      try {
+        shape = reader.read(value);
+      }
+      catch (Throwable t) {
+        throw ParsingFail.propagate(value, t, "failed to read shape");
+      }
+      Preconditions.checkArgument(shape instanceof Point, "%s is not point", StringUtils.forLog(value));
+      Point point = (Point) shape;
+      return new Field[]{
+          new LatLonPoint(fieldName, point.getY(), point.getX())
+      };
     };
   }
 

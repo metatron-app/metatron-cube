@@ -72,7 +72,6 @@ import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.data.VintsWriter;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexAdapter;
@@ -663,7 +662,7 @@ public class IndexMerger
       progress.progress();
       startTime = System.currentTimeMillis();
 
-      Iterator<Rowboat> theRows = makeRowIterable(
+      Iterable<Rowboat> theRows = makeRowIterable(
           indexes,
           mergedDimensions,
           mergedMetrics,
@@ -720,8 +719,7 @@ public class IndexMerger
       long time = System.currentTimeMillis();
 
       int rowCount = 0;
-      while (theRows.hasNext()) {
-        Rowboat theRow = theRows.next();
+      for (Rowboat theRow : theRows) {
         progress.progress();
         timeWriter.add(theRow.getTimestamp());
 
@@ -947,7 +945,7 @@ public class IndexMerger
     }
   }
 
-  protected Iterator<Rowboat> makeRowIterable(
+  protected Iterable<Rowboat> makeRowIterable(
       final List<IndexableAdapter> indexes,
       final List<String> mergedDimensions,
       final List<String> mergedMetrics,
@@ -956,7 +954,7 @@ public class IndexMerger
       final Function<List<Iterator<Rowboat>>, Iterator<Rowboat>> rowMergerFn
   )
   {
-    final List<Iterator<Rowboat>> boats = Lists.newArrayListWithCapacity(indexes.size());
+    final List<Iterable<Rowboat>> boats = Lists.newArrayListWithCapacity(indexes.size());
 
     for (int i = 0; i < indexes.size(); ++i) {
       final Map<String, IntBuffer> conversionMap = dimConversions.get(i);
@@ -965,15 +963,15 @@ public class IndexMerger
           .transform(input -> conversionMap.get(input))
           .toArray(IntBuffer.class);
 
-      Iterator<Rowboat> target = indexes.get(i).getRows(mergedDimensions, mergedMetrics).iterator();
+      Iterable<Rowboat> target = indexes.get(i).getRows(mergedDimensions, mergedMetrics);
       if (!Arrays.equals(convertMissingDimsFlags, new boolean[mergedDimensions.size()]) ||
           !Arrays.equals(conversions, new IntBuffer[mergedDimensions.size()])) {
-        target = new DimConversionIterator(target, conversions, convertMissingDimsFlags);
+        target = new DimConversionIterable(target, conversions, convertMissingDimsFlags);
       }
       boats.add(target);
     }
 
-    return rowMergerFn.apply(boats);
+    return () -> rowMergerFn.apply(GuavaUtils.transform(boats, Iterable::iterator));
   }
 
   // `values` is super set of `indexed`
@@ -1111,15 +1109,26 @@ public class IndexMerger
     }
   }
 
-  private static class DimConversionIterator implements Iterator<Rowboat>
+  private static class DimConversionIterable implements Iterable<Rowboat>
   {
     private static final int[] EMPTY_STR_DIM = new int[]{0};
-    private final Iterator<Rowboat> iterator;
 
-    DimConversionIterator(Iterator<Rowboat> rows, IntBuffer[] conversions, boolean[] convertMissingDimsFlags)
+    private final Iterable<Rowboat> rows;
+    private final IntBuffer[] conversions;
+    private final boolean[] convertMissingDimsFlags;
+
+    private DimConversionIterable(Iterable<Rowboat> rows, IntBuffer[] conversions, boolean[] convertMissingDimsFlags)
     {
-      iterator = Iterators.transform(
-          rows,
+      this.rows = rows;
+      this.conversions = conversions;
+      this.convertMissingDimsFlags = convertMissingDimsFlags;
+    }
+
+    @Override
+    public Iterator<Rowboat> iterator()
+    {
+      return Iterators.transform(
+          rows.iterator(),
           input -> {
             final int[][] dims = input.getDims();
             for (int i = 0; i < conversions.length; ++i) {
@@ -1138,18 +1147,6 @@ public class IndexMerger
             return input;
           }
       );
-    }
-
-    @Override
-    public boolean hasNext()
-    {
-      return iterator.hasNext();
-    }
-
-    @Override
-    public Rowboat next()
-    {
-      return iterator.next();
     }
   }
 

@@ -44,23 +44,25 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   public static ComplexColumnSerializer create(
       String metric,
       ValueDesc type,
+      Iterable<Object> values,
       SecondaryIndexingSpec indexingSpec,
       CompressionStrategy compression
   )
   {
     ComplexMetricSerde serde = Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type), "Unknown type[%s]", type);
-    return create(metric, serde, indexingSpec, compression);
+    return create(metric, serde, values, indexingSpec, compression);
   }
 
   public static ComplexColumnSerializer create(
       String metric,
       ComplexMetricSerde serde,
+      Iterable<Object> values,
       SecondaryIndexingSpec indexingSpec,
       CompressionStrategy compression
   )
   {
     CompressionStrategy strategy = compression == null ? CompressionStrategy.NONE : compression;
-    return new ComplexColumnSerializer(metric, serde, indexingSpec, strategy);
+    return new ComplexColumnSerializer(metric, serde, values, indexingSpec, strategy);
   }
 
   private final String columnName;
@@ -77,6 +79,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   private ComplexColumnSerializer(
       String columnName,
       ComplexMetricSerde serde,
+      Iterable<Object> values,
       SecondaryIndexingSpec indexingSpec,
       CompressionStrategy compression
   )
@@ -85,7 +88,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     this.serde = serde;
     this.compression = compression;
     this.secondary = indexingSpec == null ? MetricColumnSerializer.DUMMY :
-                     indexingSpec.serializer(columnName, serde.getType());
+                     indexingSpec.serializer(columnName, serde.getType(), values);
   }
 
   @Override

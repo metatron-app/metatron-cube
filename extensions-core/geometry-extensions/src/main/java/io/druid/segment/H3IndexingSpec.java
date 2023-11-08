@@ -60,7 +60,7 @@ import java.util.regex.Pattern;
 /**
  */
 @JsonTypeName("h3")
-public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
+public class H3IndexingSpec implements SecondaryIndexingSpec
 {
   public static final String INDEX_NAME = "__h3";
 
@@ -117,7 +117,7 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
   }
 
   @Override
-  public MetricColumnSerializer serializer(String columnName, final ValueDesc type)
+  public MetricColumnSerializer serializer(String columnName, ValueDesc type, Iterable<Object> values)
   {
     final int[] ix = extractIx(type, latitude, longitude);
 

@@ -93,6 +93,9 @@ public class ValueDesc implements Serializable, Cacheable
   public static final String STRING_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_TYPE;
   public static final String STRING_MV_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_MV_TYPE;
 
+  public static final String VECTOR_TYPE = "vector";
+  public static final String VECTOR_TYPE_PREFIX = VECTOR_TYPE + "(";
+
   static {
     INTERNER.intern(STRING_TYPE);
     INTERNER.intern(FLOAT_TYPE);
@@ -741,6 +744,11 @@ public class ValueDesc implements Serializable, Cacheable
   public boolean isArray()
   {
     return isValueArray() || isNestedArray();
+  }
+
+  public boolean isVector()
+  {
+    return typeName.equals(VECTOR_TYPE) || typeName.startsWith(VECTOR_TYPE_PREFIX);
   }
 
   public boolean isValueArray()

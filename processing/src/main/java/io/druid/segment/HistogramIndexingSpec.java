@@ -33,7 +33,7 @@ public class HistogramIndexingSpec implements SecondaryIndexingSpec
   public HistogramIndexingSpec() {}
 
   @Override
-  public MetricColumnSerializer serializer(String columnName, ValueDesc type)
+  public MetricColumnSerializer serializer(String columnName, ValueDesc type, Iterable<Object> values)
   {
     throw new UnsupportedOperationException();
   }
