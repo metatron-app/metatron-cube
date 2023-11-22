@@ -230,12 +230,35 @@ public class RowSignature implements TypeResolver
       appendStruct(builder, name + ".", type);
     } else if (type.isMap()) {
       appendMap(builder, name + ".", type);
+    } else if (type.isArray()) {
+      appendArray(builder, name + ".", type);
     }
   }
 
   RowSignature.Builder appendStruct(RowSignature.Builder builder, String prefix, ValueDesc struct)
   {
     String[] description = TypeUtils.splitDescriptiveType(struct);
+    if (description == null) {
+      return builder;   // cannot
+    }
+    for (int i = 1; i < description.length; i++) {
+      String element = description[i].trim();
+      int index = element.indexOf(":");
+      Preconditions.checkArgument(index > 0, "'fieldName:fieldType' for field declaration");
+      String name = prefix + element.substring(0, index).trim();
+      ValueDesc type = ValueDesc.of(element.substring(index + 1).trim());
+      append(name, type, builder);
+    }
+    return builder.append(prefix + Row.MAP_KEY, ValueDesc.STRING);
+  }
+
+  RowSignature.Builder appendArray(RowSignature.Builder builder, String prefix, ValueDesc array)
+  {
+    ValueDesc elementType = array.unwrapArray();
+    if (!elementType.isStruct()) {
+      return builder;   // ignore
+    }
+    String[] description = TypeUtils.splitDescriptiveType(elementType);
     if (description == null) {
       return builder;   // cannot
     }

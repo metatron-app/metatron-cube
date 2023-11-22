@@ -409,6 +409,13 @@ public abstract class AggregatorFactory implements Cacheable
     return toNames(aggregators).toArray(new String[aggregators.size()]);
   }
 
+  public static Set<String> getRequiredFields(List<AggregatorFactory> aggregators)
+  {
+    Set<String> required = Sets.newHashSet();
+    aggregators.forEach(f -> required.addAll(f.requiredFields()));
+    return required;
+  }
+
   public static Map<String, ValueDesc> toExpectedInputType(AggregatorFactory[] aggregators)
   {
     Map<String, ValueDesc> types = Maps.newHashMap();

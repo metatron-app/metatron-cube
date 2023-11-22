@@ -235,4 +235,21 @@ public class NestedColumnTest extends CalciteQueryTestHelper
         "GroupByQuery{dataSource='ups', dimensions=[DefaultDimensionSpec{dimension='ci_profile.xdr_category.__key', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='ci_profile.xdr_category.__value', inputType='double'}], outputColumns=[d0, a0]}"
     );
   }
+
+  @Test
+  public void testUPS2() throws Exception
+  {
+    Object[][] expected = {
+        {"agentpenguin", 0.7148069143295288D},
+        {"icerunner", 0.7235291004180908D},
+        {"minipet", 0.7108146548271179D},
+        {"monkeystick", 1.150700330734253D},
+        {"puzzlewoodblock", 0.7828053832054138D}
+    };
+    testQuery(
+        "SELECT \"adot_usage.entity.entity_preferences.apollo_game.preferences.name\", "
+        + "sum(\"adot_usage.entity.entity_preferences.apollo_game.preferences.score\") from ups2 group by 1",
+        expected
+    );
+  }
 }
