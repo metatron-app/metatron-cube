@@ -42,11 +42,13 @@ import static io.druid.data.input.Row.MAP_VALUE;
 public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
 {
   private final String metric;
+  private final ValueDesc type;
   private final KeyIndexedVirtualColumn keyIndexed;
 
-  public ImplicitMapVirtualColumn(String metric)
+  public ImplicitMapVirtualColumn(String metric, ValueDesc type)
   {
     this.metric = metric;
+    this.type = type;
     this.keyIndexed = new KeyIndexedVirtualColumn(
         metric + "." + MAP_KEY,
         null,
@@ -54,12 +56,16 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
         null,
         metric
     );
+    Preconditions.checkArgument(type == null || type.isMap());
   }
 
   @Override
   public ValueDesc resolveType(String column, TypeResolver resolver)
   {
     Preconditions.checkArgument(column.startsWith(metric));
+    if (metric.equals(column)) {
+      return type == null ? ValueDesc.MAP : type;
+    }
     ValueDesc type = resolver.resolve(metric);
     if (type == null || metric.equals(column)) {
       return type;
@@ -79,7 +85,7 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
     Preconditions.checkArgument(column.charAt(metric.length()) == '.');
     String expression = column.substring(metric.length() + 1);
     if (selector instanceof ComplexColumnSelector.Nested) {
-      return ((ComplexColumnSelector.Nested) selector).selector(expression);
+      return ((ComplexColumnSelector.Nested) selector).nested(expression);
     }
     return NestedTypes.resolve(selector, expression);
   }
@@ -138,13 +144,13 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
   @Override
   public VirtualColumn duplicate()
   {
-    return new ImplicitMapVirtualColumn(metric);
+    return new ImplicitMapVirtualColumn(metric, type);
   }
 
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.disable();
+    return builder;
   }
 
   @Override

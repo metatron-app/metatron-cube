@@ -63,6 +63,7 @@ public class SqlTest extends CalciteQueryTestHelper
         "SELECT NUMBER, vector FROM chameleon WHERE lucene_knn_vector('vector', \"array\"(0.5, 0.5), 10)",
         expected
     );
+
     hook.verifyHooked(
         "AUfmsJrIs1Wod8227jA6vg==",
         "StreamQuery{dataSource='chameleon', filter=KnnVectorFilter{field='vector', vector=[0.5, 0.5], count=10}, columns=[NUMBER, vector]}"

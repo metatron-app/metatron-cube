@@ -26,6 +26,8 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.segment.serde.StructMetricSerde;
 
+import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -82,6 +84,9 @@ public class NestedTypes
     }
     if (columnType.isStruct()) {
       StructMetricSerde serde = StructMetricSerde.parse(columnType);
+      if (expression.equals(Row.MAP_KEY)) {
+        return ValueDesc.STRING_ARRAY;
+      }
       int ix = -1;
       int fx = serde.indexOf(expression);
       if (fx < 0) {
@@ -95,20 +100,32 @@ public class NestedTypes
       return fx < 0 ? null : ix < 0 ? serde.type(fx) : resolve(serde.type(fx), expression.substring(ix + 1));
     }
     if (columnType.isArray()) {
-      int ix = expression.indexOf('.');
-      final Integer access = Ints.tryParse(ix < 0 ? expression : expression.substring(0, ix));
-      if (access == null || access < 0) {
-        return null;
-      }
       ValueDesc elementType = columnType.unwrapArray();
-      return ix < 0 ? elementType : resolve(elementType, expression.substring(ix + 1));
+      int ix = expression.indexOf('.');
+      Integer access = Ints.tryParse(ix < 0 ? expression : expression.substring(0, ix));
+      if (access != null && access >= 0) {
+        // element access
+        return ix < 0 ? elementType : resolve(elementType, expression.substring(ix + 1));
+      }
+      if (elementType.isStruct()) {
+        ValueDesc fieldType = resolve(elementType, expression);
+        if (fieldType != null) {
+          return ValueDesc.ofArray(fieldType);
+        }
+      }
+      return null;
     }
     return null;
   }
 
   public static ObjectColumnSelector resolve(ObjectColumnSelector selector, String expression)
   {
-    ValueDesc type = selector.type();
+    return resolve(selector, selector.type(), expression);
+  }
+
+  @Nullable
+  public static ObjectColumnSelector resolve(ObjectColumnSelector selector, ValueDesc type, String expression)
+  {
     if (type.isMap()) {
       String[] description = TypeUtils.splitDescriptiveType(type);
       if (Row.MAP_KEY.equals(expression)) {
@@ -139,6 +156,10 @@ public class NestedTypes
     }
     if (type.isStruct()) {
       StructMetricSerde serde = StructMetricSerde.parse(type);
+      if (Row.MAP_KEY.equals(expression)) {
+        List<String> fieldNames = Arrays.asList(serde.getFieldNames());
+        return ObjectColumnSelector.typed(ValueDesc.STRING_ARRAY, () -> fieldNames);
+      }
       int ix = -1;
       int index = serde.indexOf(expression);
       if (index < 0) {
@@ -178,14 +199,28 @@ public class NestedTypes
     if (type.isArray()) {
       int ix = expression.indexOf('.');
       Integer access = Ints.tryParse(ix < 0 ? expression : expression.substring(0, ix));
-      if (access == null) {
-        return ColumnSelectors.NULL_UNKNOWN;
+      if (access != null) {
+        ObjectColumnSelector nested = ObjectColumnSelector.typed(type.unwrapArray(), () -> {
+          List list = (List) selector.get();
+          return access < list.size() ? list.get(access) : null;
+        });
+        return ix < 0 ? nested : resolve(nested, expression.substring(ix + 1));
       }
-      ObjectColumnSelector nested = ObjectColumnSelector.typed(type.unwrapArray(), () -> {
-        List list = (List) selector.get();
-        return access < list.size() ? list.get(access) : null;
-      });
-      return ix < 0 ? nested : resolve(nested, expression.substring(ix + 1));
+      StructMetricSerde serde = StructMetricSerde.parse(type.unwrapArray());
+      int index = serde.indexOf(expression);
+      return new ObjectColumnSelector.Typed(serde.type(index))
+      {
+        @Override
+        public Object get()
+        {
+          final List o = (List) selector.get();
+          final Object[] extract = new Object[o.size()];
+          for (int i = 0; i < extract.length; i++) {
+            extract[i] = ((List) o.get(i)).get(index);
+          }
+          return Arrays.asList(extract);
+        }
+      };
     }
     return ColumnSelectors.NULL_UNKNOWN;
   }

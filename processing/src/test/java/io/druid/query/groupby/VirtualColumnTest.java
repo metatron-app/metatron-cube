@@ -194,7 +194,7 @@ public class VirtualColumnTest
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
-        new ArrayVirtualColumn("array", "array")
+        new ArrayVirtualColumn("array", null)
     );
     GroupByQuery query = builder
         .setDimensions(DefaultDimensionSpec.toSpec("dim"))
@@ -228,8 +228,8 @@ public class VirtualColumnTest
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
-        new ArrayVirtualColumn("array", "array"),
-        new StructVirtualColumn("gis", "gis")
+        new ArrayVirtualColumn("array", null),
+        new StructVirtualColumn("gis", "gis", null)
     );
     GroupByQuery query = builder
         .setDimensions(DefaultDimensionSpec.toSpec("gis.city"))
@@ -505,12 +505,12 @@ public class VirtualColumnTest
     // explicit
     query = builder
         .setDimensions(DefaultDimensionSpec.toSpec("dim"))
-        .setVirtualColumns(Arrays.<VirtualColumn>asList(new ArrayVirtualColumn("array", "access")))
+        .setVirtualColumns(Arrays.<VirtualColumn>asList(new ArrayVirtualColumn("array", null)))
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new LongSumAggregatorFactory("sumOfArray0", "access.0"),
-                new LongSumAggregatorFactory("sumOfArray1", "access.1"),
-                new LongSumAggregatorFactory("sumOfArray2", "access.2")
+                new LongSumAggregatorFactory("sumOfArray0", "array.0"),
+                new LongSumAggregatorFactory("sumOfArray1", "array.1"),
+                new LongSumAggregatorFactory("sumOfArray2", "array.2")
             )
         )
         .build();

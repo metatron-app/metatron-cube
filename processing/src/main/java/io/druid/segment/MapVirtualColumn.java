@@ -45,9 +45,9 @@ import static io.druid.data.input.Row.MAP_VALUE;
  */
 public class MapVirtualColumn implements VirtualColumn.IndexProvider
 {
-  public static VirtualColumn implict(String metric)
+  public static VirtualColumn implict(String metric, ValueDesc type)
   {
-    return new ImplicitMapVirtualColumn(metric);
+    return new ImplicitMapVirtualColumn(metric, type);
   }
 
   private static final byte VC_TYPE_ID = 0x00;

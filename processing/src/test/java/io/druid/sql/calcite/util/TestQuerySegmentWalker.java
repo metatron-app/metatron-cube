@@ -163,8 +163,10 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   public TestQuerySegmentWalker addUps()
   {
-    return addIndex("ups", "ups_schema.json", "ups.tbl", true)
-        .addIndex("ups_i", "ups_schema.json", "ups.tbl", false);
+    return addIndex("ups", "ups_schema.json", "ups.json", true)
+        .addIndex("ups_i", "ups_schema.json", "ups.json", false)
+        .addIndex("ups2", "ups2_schema.json", "ups2.json", true)
+        .addIndex("ups2_i", "ups2_schema.json", "ups2.json", false);
   }
 
   public TestQuerySegmentWalker addAdotUsage()
@@ -783,7 +785,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return PostProcessingOperators.wrap(QueryRunners.empty());
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver, true);
+    final Query<T> resolved = factory.prepare(query.resolveQuery(resolver, true), resolver);
     final Supplier<Object> optimizer = factory.preFactoring(resolved, targets, resolver, executor);
 
     final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
