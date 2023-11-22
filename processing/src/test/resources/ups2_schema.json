@@ -1,0 +1,365 @@
+{
+  "parser" : {
+    "type" : "json.stream"
+  },
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": ["_id", "age_cd"]
+  },
+  "metricsExpr":
+  {
+    "email": "string",
+    "onboarding": {
+      "interest": [
+        {
+          "_id": "tag",
+          "name": "string"
+        }
+      ],
+      "artist": [
+        {
+          "_id": "tag",
+          "name": "string"
+        }
+      ]
+    },
+    "settings":{
+      "birthdate":"string",
+      "gender":"enum('MALE','FEMALE')",
+      "year_type":"enum('SUN','MOON')"
+    },
+    "terms": {
+      "flo": "enum('동의','미동의')",
+      "mbrs": "enum('동의','미동의')",
+      "tmap": "enum('동의','미동의')",
+      "wavve": "enum('동의','미동의')",
+      "event_receive": "enum('동의','미동의')",
+      "marketing_msg": "enum('동의','미동의')",
+      "proactive_receive": "enum('동의','미동의')"
+    },
+    "ci_profile": {
+      "base": "boolean",
+      "family": {
+        "bf_m1_call_cnt_fmly": "int",
+        "bf_m1_call_cnt_hhld": "int",
+        "bf_m1_call_duration_fmly": "long",
+        "bf_m1_call_duration_hhld": "long",
+        "fmly_memb_cnt": "int",
+        "hhld_memb_cnt": "int",
+        "child_y": "boolean",
+        "adult_child_y": "boolean",
+        "married": "boolean"
+      },
+      "life_stage": "tag",
+      "life_style": "tag",
+      "segment": "tag",
+      "onboarding_interest": "tag",
+      "shopping_channel": "tag",
+      "transport": "tag",
+      "media": {
+        "bf_m1_flo_dt_ratio": "float",
+        "bf_m1_netflix_dt_ratio": "float",
+        "bf_m1_youtube_dt_ratio": "float"
+      },
+      "mno_usage": {
+        "bf_m1_arpu": "int",
+        "bf_m3_avg_arpu": "int",
+        "data_usag_amt": "int",
+        "eqp_out_prc": "int",
+        "google_dcb_amt": "int",
+        "google_dcb_cnt": "int"
+      },
+      "cdr": {
+        "bf_m1_sms_cnt":"int",
+        "bf_m1_sms_snd_cnt":"int",
+        "bf_m1_sms_snd_prtn_cnt":"int",
+        "bf_m1_voc_cnt":"int",
+        "bf_m1_voc_snd_cnt":"int",
+        "bf_m1_voc_snd_prtn_cnt":"int"
+      },
+      "xdr_app": {
+        "bf_m1_tmap_dt_cnt": "int"
+      },
+      "xdr_category": {
+        "bf_m1_app_dt_ratio_cat_01":"float",
+        "bf_m1_app_dt_ratio_cat_02":"float",
+        "bf_m1_app_dt_ratio_cat_04":"float",
+        "bf_m1_app_dt_ratio_cat_05":"float",
+        "bf_m1_app_dt_ratio_cat_10":"float",
+        "bf_m1_app_dt_ratio_cat_11":"float",
+        "bf_m1_app_dt_ratio_cat_12":"float",
+        "bf_m1_app_dt_ratio_cat_13":"float",
+        "bf_m1_app_dt_ratio_cat_14":"float",
+        "bf_m1_app_dt_ratio_cat_15":"float",
+        "bf_m1_app_dt_ratio_cat_17":"float",
+        "bf_m1_app_dt_ratio_cat_18":"float",
+        "bf_m1_app_dt_ratio_cat_19":"float",
+        "bf_m1_app_dt_ratio_cat_20":"float",
+        "bf_m1_app_dt_ratio_cat_21":"float",
+        "bf_m1_app_dt_ratio_cat_23":"float",
+        "bf_m1_app_dt_ratio_cat_25":"float",
+        "bf_m1_app_dt_ratio_cat_28":"float",
+        "bf_m1_app_dt_ratio_cat_30":"float"
+      },
+      "xdr_cat1_df_m1_dt_ratio": {
+        "Utility":"float",
+        "Game":"float",
+        "Entertainment":"float",
+        "Education":"float",
+        "Finance":"float",
+        "Life":"float",
+        "Shopping":"float",
+        "Information":"float",
+        "Communication":"float",
+        "Location":"float",
+        "Business":"float"
+      },
+      "interest_topic_v3": {
+        "categories": [
+          {
+            "score": "float",
+            "cat1": "string",
+            "cat2": "string",
+            "topic_id" : "string"
+          }
+        ],
+        "basis_time": "string",
+        "update_time": "string"
+      },
+      "topic_v3": "tag",
+      "location": {
+        "life": {
+          "hday_n_home_latitude_nm":"string",
+          "hday_n_home_longitude_nm":"string",
+          "hday_n_home_hcode_cd":"string",
+          "hday_n_home_zip_cd":"string",
+          "hday_n_home_tot_duration":"long",
+          "hday_y_home_tot_duration":"long",
+          "hday_n_home_sleeptime_duration":"long",
+          "hday_n_work_latitude_nm":"string",
+          "hday_n_work_longitude_nm":"string",
+          "hday_n_work_hcode_cd":"string",
+          "hday_n_work_zip_cd":"string",
+          "hday_n_work_tot_duration":"long",
+          "hday_y_work_tot_duration":"long",
+          "hday_n_work_worktime_duration":"long",
+          "home_work_distance":"float",
+          "hday_n_loc_cnt":"int",
+          "hday_n_loc_entropy":"float",
+          "hday_y_loc_cnt":"int",
+          "hday_y_loc_entropy":"float",
+          "hday_n_dt_cnt":"int",
+          "hday_n_tot_move_cnt":"int",
+          "hday_n_tot_move_distance":"float",
+          "hday_n_move_distance_med":"float",
+          "hday_n_move_speed_avg":"float",
+          "hday_n_move_speed_med":"float",
+          "hday_y_dt_cnt":"int",
+          "hday_y_tot_move_cnt":"long",
+          "hday_y_tot_move_distance":"float",
+          "hday_y_move_distance_med":"float",
+          "hday_y_move_speed_avg":"float",
+          "hday_y_move_speed_med":"float",
+          "hday_n_first_move_hh_avg":"float",
+          "hday_n_last_move_hh_avg":"float",
+          "hday_n_first_move_hh_sd":"float",
+          "hday_n_last_move_hh_sd":"float",
+          "hday_n_first_move_hh_med":"float",
+          "hday_n_last_move_hh_med":"float",
+          "hday_n_first_move_hh_iqr":"float",
+          "hday_n_last_move_hh_iqr":"float",
+          "house_price_weighted_avg_100m":"float",
+          "move_type_taxi_cnt":"int",
+          "move_type_navi_cnt":"int",
+          "move_type_subway_cnt":"int",
+          "move_type_train_cnt":"int",
+          "move_type_intl_flight_cnt":"int",
+          "move_type_dome_flight_cnt":"int",
+          "hday_n_home_rel_2d_svc_cnt":"int",
+          "hday_n_work_rel_2d_svc_cnt":"int",
+          "move_type_subway_dt_cnt":"int"
+        },
+        "basis_time": "string",
+        "update_time": "string"
+      }
+    },
+    "adot_usage": {
+      "life_cycle": "tag",
+      "quest": {
+        "cube": {
+          "received": "int",
+          "retention": "int",
+          "received_percentile": "int"
+        },
+        "cone": {
+          "received": "int",
+          "retention": "int",
+          "received_percentile": "int"
+        }
+      },
+      "residence_time":{
+        "sumary": {
+          "daily_avg_time_sec": "long",
+          "percentile": "int"
+        }
+      },
+      "stickness": {
+        "day_7": "float",
+        "day_30": "float"
+      },
+      "entity": {
+        "entity_preferences": {
+          "apollo_samsungstock": {
+            "entity_role": "string",
+            "preferences": [
+              {
+                "name":"string",
+                "ranking":"string",
+                "score":"float",
+                "usage_yn":"boolean"
+              }
+            ]
+          },
+          "apollo_game": {
+            "entity_role": "string",
+            "preferences": [
+              {
+                "name":"string",
+                "ranking":"string",
+                "score":"float",
+                "usage_yn":"boolean"
+              }
+            ]
+          },
+          "apollo_radio": {
+            "entity_role": "string",
+            "preferences": [
+              {
+                "name":"string",
+                "ranking":"string",
+                "score":"float",
+                "usage_yn":"enum('y','n')"
+              }
+            ]
+          }
+        }
+      },
+      "service":{
+        "service_preferences_daily":[
+          {
+            "ranking":"float",
+            "score":"float",
+            "service":"string",
+            "usage_yn":"enum('y','n')"
+          }
+        ],
+        "basis_time": "string",
+        "update_time": "string"
+      }
+    },
+    "user_status": {
+      "appStatus":{
+        "status":"string",
+        "before_status":"string",
+        "event_timestamp":"string",
+        "create_timestamp":"string",
+        "update_timestamp":"string"
+      },
+      "lastUsedPlay":{
+        "status":"string",
+        "before_status":"string",
+        "event_timestamp":"string",
+        "create_timestamp":"string",
+        "update_timestamp":"string"
+      },
+      "viewStatus":{
+        "status":"string",
+        "before_status":"string",
+        "event_timestamp":"string",
+        "create_timestamp":"string",
+        "update_timestamp":"string"
+      },
+      "audioPlayerStatus":{
+        "status":"string",
+        "before_status":"string",
+        "event_timestamp":"string",
+        "create_timestamp":"string",
+        "update_timestamp":"string"
+      }
+    },
+    "user_update_time":"string",
+    "service_status":{
+      "apollo_routine":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_friendsbitna":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_friendsharu":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_friendsj":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_chatgpt":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_tmap":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_call":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_qfeed":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_calendar2":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_weather":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      },
+      "apollo_dailycostume":{
+        "service_code":"string",
+        "event_timestamp":"string",
+        "update_timestamp":"string",
+        "create_timestamp":"string"
+      }
+    }
+  },
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true
+}

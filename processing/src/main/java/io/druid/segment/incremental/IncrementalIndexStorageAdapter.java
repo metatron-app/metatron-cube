@@ -348,7 +348,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               @Override
               public ColumnSelectorFactory forAggregators()
               {
-                return VirtualColumns.wrap(this, resolver.getVirtualColumns());
+                return VirtualColumns.wrap(this, ImmutableList.copyOf(resolver.getVirtualColumns()));
               }
 
               @Override

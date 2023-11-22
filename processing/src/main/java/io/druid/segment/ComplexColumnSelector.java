@@ -41,12 +41,20 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
 
   interface Nested<T> extends ComplexColumnSelector<T>
   {
-    Column resolve(String expression);
-
-    default ObjectColumnSelector selector(String expression)
+    default ObjectColumnSelector nested(String expression)
     {
-      return asSelector(resolve(expression));
+      int ix = expression.indexOf('.');
+      ObjectColumnSelector selector = selector(ix < 0 ? expression : expression.substring(0, ix));
+      if (ix < 0) {
+        return selector;
+      }
+      if (selector instanceof Nested) {
+        return ((Nested) selector).nested(expression.substring(ix + 1));
+      }
+      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
     }
+
+    ObjectColumnSelector selector(String element);
   }
 
   interface StructColumnSelector extends ComplexColumnSelector.Nested<List>

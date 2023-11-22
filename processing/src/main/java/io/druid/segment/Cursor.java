@@ -19,6 +19,8 @@
 
 package io.druid.segment;
 
+import io.druid.query.BaseAggregationQuery;
+
 import java.util.function.IntFunction;
 
 /**

@@ -22,61 +22,85 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.UOE;
 import io.druid.query.dimension.DimensionSpec;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  */
-public class ArrayVirtualColumn implements VirtualColumn
+public class ArrayVirtualColumn implements VirtualColumn.IndexProvider.Rewritable
 {
-  private static final byte VC_TYPE_ID = 0x04;
+  private final KeyIndexedVirtualColumn keyIndexed;
 
-  public static VirtualColumn implicit(String metric)
+  public static VirtualColumn implicit(String metric, ValueDesc type)
   {
-    return new ArrayVirtualColumn(metric, metric);
+    return new ArrayVirtualColumn(metric, type);
   }
 
   private final String columnName;
-  private final String outputName;
+  private final ValueDesc type;
 
   @JsonCreator
   public ArrayVirtualColumn(
       @JsonProperty("columnName") String columnName,
-      @JsonProperty("outputName") String outputName
+      @JsonProperty("type") ValueDesc type
   )
   {
     this.columnName = Preconditions.checkNotNull(columnName, "columnName should not be null");
-    this.outputName = outputName == null ? columnName : outputName;
+    this.keyIndexed = null;
+    this.type = type;
+  }
+
+  private ArrayVirtualColumn(String columnName, ValueDesc type, KeyIndexedVirtualColumn indexer)
+  {
+    this.columnName = columnName;
+    this.keyIndexed = indexer;
+    this.type = type;
   }
 
   @Override
   public ValueDesc resolveType(String column, TypeResolver types)
   {
-    Preconditions.checkArgument(column.startsWith(outputName));
+    Preconditions.checkArgument(column.startsWith(columnName));
+    if (columnName.equals(column)) {
+      return type == null ? ValueDesc.ARRAY : type;
+    }
     ValueDesc resolved = types.resolve(columnName);
-    if (resolved == null || column.equals(outputName)) {
+    if (resolved == null || column.equals(columnName)) {
       return resolved;
     }
-    String expression = column.substring(outputName.length() + 1);
+    String expression = column.substring(columnName.length() + 1);
     return NestedTypes.resolve(resolved, expression);
   }
 
   @Override
   public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
   {
-    Preconditions.checkArgument(column.startsWith(outputName));
-    ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
-    if (selector == null || column.equals(outputName)) {
-      return selector;
+    Preconditions.checkArgument(column.startsWith(columnName));
+    if (columnName.equals(column)) {
+      return factory.makeObjectColumnSelector(column);
     }
-    Preconditions.checkArgument(column.charAt(outputName.length()) == '.');
-    String expression = column.substring(outputName.length() + 1);
-    if (selector instanceof ComplexColumnSelector.Nested) {
-      return ((ComplexColumnSelector.Nested) selector).selector(expression);
+    Preconditions.checkArgument(column.charAt(columnName.length()) == '.');
+    for (int ix = columnName.length(); ix > 0; ix = column.indexOf('.', ix + 1)) {
+      ObjectColumnSelector selector = factory.makeObjectColumnSelector(column.substring(0, ix));
+      if (selector == null) {
+        continue;
+      }
+      Preconditions.checkArgument(column.charAt(columnName.length()) == '.');
+      String expression = column.substring(ix + 1);
+      if (selector instanceof ComplexColumnSelector.Nested) {
+        return ((ComplexColumnSelector.Nested) selector).nested(expression);
+      }
+      return NestedTypes.resolve(selector, expression);
     }
-    return NestedTypes.resolve(selector, expression);
+    return factory.makeObjectColumnSelector(column);
   }
 
   @Override
@@ -113,23 +137,26 @@ public class ArrayVirtualColumn implements VirtualColumn
   public DimensionSelector asDimension(DimensionSpec dimension, ColumnSelectorFactory factory)
   {
     ObjectColumnSelector selector = asMetric(dimension.getDimension(), factory);
-    if (selector == null || !selector.type().isString()) {
-      throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
+    if (selector == null) {
+      throw new UOE("%s cannot be used as dimension", dimension.getDimension());
     }
-    return VirtualColumns.toDimensionSelector(selector, dimension.getExtractionFn());
+    DimensionSelector dimensions = VirtualColumns.toDimensionSelector(selector, dimension.getExtractionFn());
+    if (keyIndexed != null && keyIndexed.getKeyDimension().equals(dimension.getDimension())) {
+      dimensions = keyIndexed.wrap(dimensions);
+    }
+    return dimensions;
   }
 
   @Override
   public VirtualColumn duplicate()
   {
-    return new ArrayVirtualColumn(columnName, outputName);
+    return new ArrayVirtualColumn(columnName, type);
   }
 
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(VC_TYPE_ID)
-                  .append(columnName, outputName);
+    return builder;
   }
 
   @JsonProperty
@@ -139,10 +166,9 @@ public class ArrayVirtualColumn implements VirtualColumn
   }
 
   @Override
-  @JsonProperty
   public String getOutputName()
   {
-    return outputName;
+    return columnName;
   }
 
   @Override
@@ -154,24 +180,15 @@ public class ArrayVirtualColumn implements VirtualColumn
     if (!(o instanceof ArrayVirtualColumn)) {
       return false;
     }
-
     ArrayVirtualColumn that = (ArrayVirtualColumn) o;
-
-    if (!columnName.equals(that.columnName)) {
-      return false;
-    }
-    if (!outputName.equals(that.outputName)) {
-      return false;
-    }
-
-    return true;
+    return columnName.equals(that.columnName) && Objects.equals(type, that.type);
   }
 
   @Override
   public int hashCode()
   {
     int result = columnName.hashCode();
-    result = 31 * result + outputName.hashCode();
+    result = 31 * result + columnName.hashCode();
     return result;
   }
 
@@ -180,7 +197,35 @@ public class ArrayVirtualColumn implements VirtualColumn
   {
     return "ArrayVirtualColumn{" +
            "columnName='" + columnName + '\'' +
-           ", outputName='" + outputName + '\'' +
+           ", columnName='" + columnName + '\'' +
            '}';
+  }
+
+  @Override
+  public String sourceColumn()
+  {
+    return keyIndexed == null ? null : keyIndexed.sourceColumn();
+  }
+
+  @Override
+  public Set<String> targetColumns()
+  {
+    return keyIndexed == null ? ImmutableSet.of() : keyIndexed.targetColumns();
+  }
+
+  @Override
+  public ColumnSelectorFactory override(ColumnSelectorFactory factory)
+  {
+    return keyIndexed == null ? factory : keyIndexed.override(factory);
+  }
+
+  @Override
+  public IndexProvider withIndexer(String keyDimension, List<String> valueMetrics)
+  {
+    return new ArrayVirtualColumn(
+        columnName,
+        type,
+        KeyIndexedVirtualColumn.implicit(keyDimension, valueMetrics, columnName)
+    );
   }
 }

@@ -23,13 +23,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.SchemaProvider;
 import io.druid.segment.Segment;
@@ -53,17 +53,33 @@ public class RowResolver implements TypeResolver
 {
   public static Supplier<RowResolver> supplier(final List<Segment> segments, final Query query)
   {
-    return Suppliers.memoize(() -> of(segments, BaseQuery.getVirtualColumns(query)));
+    return Suppliers.memoize(() -> {
+      Preconditions.checkArgument(!segments.isEmpty());
+      RowSignature signature = segments.get(0).asSignature(true);
+      for (int i = 1; i < segments.size(); i++) {
+        signature = signature.merge(segments.get(i).asSignature(true));
+      }
+      return of(signature, query);
+    });
   }
 
-  public static RowResolver of(List<Segment> segments, List<VirtualColumn> virtualColumns)
+  public static RowResolver of(SchemaProvider segment, Query query)
   {
-    Preconditions.checkArgument(!segments.isEmpty());
-    RowSignature signature = segments.get(0).asSignature(true);
-    for (int i = 1; i < segments.size(); i++) {
-      signature = signature.merge(segments.get(i).asSignature(true));
+    return of(segment.asSignature(true), query);
+  }
+
+  public static RowResolver of(RowSignature signature, Query query)
+  {
+    RowResolver resolver = of(signature, BaseQuery.getVirtualColumns(query));
+    if (query instanceof Query.AggregationsSupport) {
+      Query.AggregationsSupport<?> aggregation = (Query.AggregationsSupport) query;
+      Set<String> fields = AggregatorFactory.getRequiredFields(aggregation.getAggregatorSpecs());
+      VirtualColumns vcs = resolver.getVirtualColumns();
+      for (DimensionSpec dimension : aggregation.getDimensions()) {
+        vcs.resolveIndexProvider(dimension.getDimension(), fields);
+      }
     }
-    return of(signature, virtualColumns);
+    return resolver;
   }
 
   public static RowResolver of(SchemaProvider segment, List<VirtualColumn> virtualColumns)
@@ -206,9 +222,9 @@ public class RowResolver implements TypeResolver
     return virtualColumns.getVirtualColumn(columnName);
   }
 
-  public List<VirtualColumn> getVirtualColumns()
+  public VirtualColumns getVirtualColumns()
   {
-    return ImmutableList.copyOf(virtualColumns.iterator());
+    return virtualColumns;
   }
 
   @Override

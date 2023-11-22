@@ -26,6 +26,7 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -86,6 +87,11 @@ public interface VirtualColumn extends Cacheable
     default ColumnSelectorFactory override(ColumnSelectorFactory factory)
     {
       return VirtualColumns.wrap(IndexProvider.this, factory, getOutputName(), targetColumns());
+    }
+
+    interface Rewritable extends IndexProvider
+    {
+      IndexProvider withIndexer(String keyDimension, List<String> valueMetrics);
     }
   }
 }

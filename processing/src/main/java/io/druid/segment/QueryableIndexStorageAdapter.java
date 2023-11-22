@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.cache.SessionCache;
@@ -418,7 +419,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public ColumnSelectorFactory forAggregators()
                     {
-                      return VirtualColumns.wrap(this, resolver.getVirtualColumns());
+                      return VirtualColumns.wrap(this, ImmutableList.copyOf(resolver.getVirtualColumns()));
                     }
 
                     @Override

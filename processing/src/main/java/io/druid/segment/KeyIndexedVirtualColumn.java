@@ -47,6 +47,18 @@ import java.util.function.Function;
  */
 public class KeyIndexedVirtualColumn implements VirtualColumn.IndexProvider
 {
+  public static KeyIndexedVirtualColumn implicit(String keyDimension, List<String> valueMetrics, String outputName)
+  {
+    return new KeyIndexedVirtualColumn(keyDimension, null, valueMetrics, null, outputName)
+    {
+      @Override
+      public KeyBuilder getCacheKey(KeyBuilder builder)
+      {
+        return builder;
+      }
+    };
+  }
+
   private static final byte VC_TYPE_ID = 0x02;
 
   private final String outputName;
@@ -55,7 +67,6 @@ public class KeyIndexedVirtualColumn implements VirtualColumn.IndexProvider
   private final List<String> valueDimensions;
   private final List<String> valueMetrics;
 
-  private final Set<String> valueColumns;
   private final IndexHolder indexer;
 
   @JsonCreator
@@ -67,17 +78,11 @@ public class KeyIndexedVirtualColumn implements VirtualColumn.IndexProvider
       @JsonProperty("outputName") String outputName
   )
   {
-    Preconditions.checkArgument(keyDimension != null, "key dimension should not be null");
     this.keyDimension = keyDimension;
     this.keyFilter = keyFilter;
     this.valueDimensions = valueDimensions == null ? ImmutableList.<String>of() : valueDimensions;
     this.valueMetrics = valueMetrics == null ? ImmutableList.<String>of() : valueMetrics;
-    Preconditions.checkArgument(
-        !this.valueDimensions.isEmpty() || !this.valueMetrics.isEmpty(),
-        "target column should not be empty"
-    );
     this.outputName = Preconditions.checkNotNull(outputName, "output name should not be null");
-    this.valueColumns = Sets.newHashSet(Iterables.concat(this.valueDimensions, this.valueMetrics));
     this.indexer = new IndexHolder();
   }
 
@@ -279,7 +284,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn.IndexProvider
   @Override
   public Set<String> targetColumns()
   {
-    return valueColumns;
+    return Sets.newHashSet(Iterables.concat(valueDimensions, valueMetrics));
   }
 
   public DimensionSelector wrap(DimensionSelector selector)

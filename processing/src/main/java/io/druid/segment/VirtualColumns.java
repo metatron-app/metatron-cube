@@ -101,33 +101,33 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
     }
     for (String metric : schema.getMetricNames()) {
-      if (mapping.containsKey(metric)) {
-        continue;
+      if (!mapping.containsKey(metric)) {
+        implicit(mapping, metric, schema.resolve(metric, ValueDesc.UNKNOWN));
       }
-      ValueDesc valueType = schema.resolve(metric, ValueDesc.UNKNOWN);
-      extracted(mapping, metric, valueType);
     }
     return new VirtualColumns(mapping);
   }
 
-  private static void extracted(Map<String, VirtualColumn> mapping, String metric, ValueDesc valueType)
+  private static void implicit(Map<String, VirtualColumn> mapping, String metric, ValueDesc valueType)
   {
     if (valueType.isArray()) {
-      mapping.put(metric, ArrayVirtualColumn.implicit(metric));   // implicit array vc
+      mapping.put(metric, ArrayVirtualColumn.implicit(metric, valueType));   // implicit array vc
+      implicit(mapping, metric, valueType.unwrapArray());
     } else if (valueType.isMap()) {
-      mapping.put(metric, MapVirtualColumn.implict(metric));      // implicit map vc
+      mapping.put(metric, MapVirtualColumn.implict(metric, valueType));      // implicit map vc
     } else if (valueType.isStruct()) {
-      mapping.put(metric, StructVirtualColumn.implicit(metric));  // implicit struct vc
+      if (!mapping.containsKey(metric)) {
+        mapping.put(metric, StructVirtualColumn.implicit(metric, valueType));  // implicit struct vc
+      }
       String[] description = TypeUtils.splitDescriptiveType(valueType);
-      if (description != null) {
-        String prefix = metric + ".";
-        for (int i = 1; i < description.length; i++) {
-          int ix = description[i].indexOf(':');
-          ValueDesc element = ValueDesc.of(description[i].substring(ix + 1));
-          if (needImplicitVC(element)) {
-            extracted(mapping, prefix + description[i].substring(0, ix), element);
-          }
-        }
+      if (description == null) {
+        return;
+      }
+      String prefix = metric + ".";
+      for (int i = 1; i < description.length; i++) {
+        int ix = description[i].indexOf(':');
+        ValueDesc element = ValueDesc.of(description[i].substring(ix + 1));
+        implicit(mapping, prefix + description[i].substring(0, ix), element);
       }
     } else if (valueType.isBitSet()) {
       mapping.put(metric, BitSetVirtualColumn.implicit(metric));  // implicit bitSet vc
@@ -453,14 +453,34 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   public VirtualColumn getVirtualColumn(String dimension)
   {
     VirtualColumn vc = virtualColumns.get(dimension);
-    for (int i = dimension.length(); vc == null && i > 0; ) {
-      int index = dimension.lastIndexOf('.', i - 1);
-      if (index > 0) {
-        vc = virtualColumns.get(dimension.substring(0, index));
-      }
-      i = index;
+    for (int i = dimension.lastIndexOf('.'); vc == null && i > 0; i = dimension.lastIndexOf('.', i - 1)) {
+      vc = virtualColumns.get(dimension.substring(0, i));
     }
     return vc;
+  }
+
+  public void resolveIndexProvider(String dimension, Set<String> fields)
+  {
+    VirtualColumn vc = getVirtualColumn(dimension);
+    if (vc instanceof VirtualColumn.IndexProvider.Rewritable) {
+      List<String> metrics = Lists.newArrayList();
+      for (String field : fields) {
+        VirtualColumn target = getVirtualColumn(field);
+        if (target == vc) {
+          fields.remove(field);
+          metrics.add(field);
+        }
+      }
+      VirtualColumn.IndexProvider.Rewritable rewritable = (VirtualColumn.IndexProvider.Rewritable) vc;
+      if (!metrics.isEmpty()) {
+        virtualColumns.put(vc.getOutputName(), rewritable.withIndexer(dimension, metrics));
+      }
+      int ix = vc.getOutputName().lastIndexOf('.');
+      if (ix > 0 && !fields.isEmpty()) {
+        // todo nested array??
+        resolveIndexProvider(vc.getOutputName().substring(0, ix), fields);
+      }
+    }
   }
 
   public Set<String> getVirtualColumnNames()

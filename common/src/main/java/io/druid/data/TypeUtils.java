@@ -23,8 +23,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.druid.common.IntTagged;
 import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.IAE;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -105,6 +107,21 @@ public class TypeUtils
     elements.add(0, type);
 
     return elements.toArray(new String[0]);
+  }
+
+  public static Map<String, ValueDesc> splitStructElements(String struct)
+  {
+    String[] splits = splitDescriptiveType(struct);
+    if (splits == null || !ValueDesc.STRUCT_TYPE.equals(splits[0])) {
+      throw new IAE("invalid struct type %s", struct);
+    }
+    Map<String, ValueDesc> elements = Maps.newHashMap();
+    for (int i = 1; i < splits.length; i++) {
+      int ix = splits[i].indexOf(':');
+      Preconditions.checkArgument(ix > 0);
+      elements.put(splits[i].substring(0, ix), ValueDesc.of(splits[i].substring(ix + 1)));
+    }
+    return elements;
   }
 
   public static List<String> splitWithQuote(String string, char target)

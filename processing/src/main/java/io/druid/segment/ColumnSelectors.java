@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.BufferRef;
@@ -1349,9 +1350,9 @@ public class ColumnSelectors
                                                     .map(f -> asSelector(getField(f)))
                                                     .toArray(x -> new ObjectColumnSelector[x]);
         @Override
-        public Column resolve(String expression)
+        public ObjectColumnSelector selector(String element)
         {
-          return struct.resolve(expression);
+          return asSelector(struct.resolve(element));
         }
 
         @Override
@@ -1401,12 +1402,6 @@ public class ColumnSelectors
         final ComplexColumn.MapColumn map = (ComplexColumn.MapColumn) column;
         final ObjectColumnSelector key = asSelector(map.getKey());
         final ObjectColumnSelector value = asSelector(map.getValue());
-
-        @Override
-        public Column resolve(String expression)
-        {
-          return map.resolve(expression);
-        }
 
         @Override
         public ObjectColumnSelector selector(String expression)
@@ -1509,13 +1504,60 @@ public class ColumnSelectors
       return new ComplexColumnSelector.ArrayColumnSelector()
       {
         final ComplexColumn.ArrayColumn array = (ComplexColumn.ArrayColumn) column;
-        final ObjectColumnSelector[] elements = IntStream.range(0, array.numElements())
-                                                         .mapToObj(x -> asSelector(getElement(x)))
-                                                         .toArray(x -> new ObjectColumnSelector[x]);
+        final ObjectColumnSelector[] selectors = IntStream.range(0, array.numElements())
+                                                          .mapToObj(x -> asSelector(getElement(x)))
+                                                          .toArray(x -> new ObjectColumnSelector[x]);
         @Override
-        public Column resolve(String expression)
+        public ObjectColumnSelector selector(String expression)
         {
-          return array.resolve(expression);
+          Column column = array.resolve(expression);
+          if (column != null) {
+            return asSelector(column);
+          }
+          return gatheringSelector(selectors, expression);
+        }
+
+        private ObjectColumnSelector gatheringSelector(ObjectColumnSelector[] selectors, String element)
+        {
+          ObjectColumnSelector[] resolved = new ObjectColumnSelector[selectors.length];
+          for (int i = 0; i < selectors.length; i++) {
+            resolved[i] = NestedTypes.resolve(selectors[i], element);
+          }
+          return new Nested()
+          {
+            @Override
+            public ObjectColumnSelector selector(String element)
+            {
+              Integer ix = Ints.tryParse(element);
+              if (ix != null) {
+                return resolved[ix];
+              }
+              return gatheringSelector(resolved, element);
+            }
+
+            @Override
+            public Offset offset()
+            {
+              return offset;
+            }
+
+            @Override
+            public ValueDesc type()
+            {
+              return ValueDesc.ofArray(resolved[0].type());
+            }
+
+            @Override
+            public List get()
+            {
+              int rownum = offset.get();
+              Object[] array = new Object[resolved.length];
+              for (int i = 0; i < array.length; i++) {
+                array[i] = resolved[i].get();
+              }
+              return Arrays.asList(array);
+            }
+          };
         }
 
         @Override
@@ -1545,9 +1587,9 @@ public class ColumnSelectors
         @Override
         public List get()
         {
-          Object[] array = new Object[elements.length];
-          for (int i = 0; i < elements.length; i++) {
-            array[i] = elements[i].get();
+          Object[] array = new Object[selectors.length];
+          for (int i = 0; i < selectors.length; i++) {
+            array[i] = selectors[i].get();
           }
           return Arrays.asList(array);
         }

@@ -272,34 +272,30 @@ public class MapVirtualColumnTest
     List<Map> expectedResults = Arrays.<Map>asList(
         GuavaUtils.asMap(
             "dim", "a",
-            "access", Arrays.asList(100L, 200L, 300L),
-            "access.0", 100L,
-            "access.1", 200L,
-            "access.2", 300L
+            "array", Arrays.asList(100L, 200L, 300L),
+            "array.0", 100L,
+            "array.1", 200L,
+            "array.2", 300L
         ),
         GuavaUtils.asMap(
             "dim", null,
-            "access", Arrays.asList(100L, 500L, 900L),
-            "access.0", 100L,
-            "access.1", 500L,
-            "access.2", 900L
+            "array", Arrays.asList(100L, 500L, 900L),
+            "array.0", 100L,
+            "array.1", 500L,
+            "array.2", 900L
         ),
         GuavaUtils.asMap(
             "dim", "c",
-            "access", Arrays.asList(400L, 500L, 600L),
-            "access.0", 400L,
-            "access.1", 500L,
-            "access.2", 600L
+            "array", Arrays.asList(400L, 500L, 600L),
+            "array.0", 400L,
+            "array.1", 500L,
+            "array.2", 600L
         )
     );
     // access via explicit vc
     Druids.SelectQueryBuilder builder = testBuilder();
-    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
-        new ArrayVirtualColumn("array", "access")
-    );
     SelectQuery selectQuery = builder.dimensions(Arrays.asList("dim"))
-                                     .metrics(Arrays.asList("access", "access.0", "access.1", "access.2"))
-                                     .virtualColumns(virtualColumns)
+                                     .metrics(Arrays.asList("array", "array.0", "array.1", "array.2"))
                                      .build();
     checkSelectQuery(selectQuery, expectedResults);
 

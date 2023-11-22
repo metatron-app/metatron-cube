@@ -46,7 +46,7 @@ public interface CursorFactory extends SchemaProvider
     return makeCursors(
         BaseQuery.getDimFilter(query),
         Iterables.getOnlyElement(query.getIntervals()),
-        RowResolver.of(this, BaseQuery.getVirtualColumns(query)),
+        RowResolver.of(this, query),
         Optional.ofNullable(query.getGranularity()).orElse(Granularities.ALL),
         query.isDescending(),
         cache

@@ -37,11 +37,6 @@ public class AttachmentVirtualColumn implements VirtualColumn
 {
   private static final byte VC_TYPE_ID = 0x08;
 
-  public static VirtualColumn implicit(String metric)
-  {
-    return new ArrayVirtualColumn(metric, metric);
-  }
-
   private final String outputName;
   private final ValueDesc columnType;
 

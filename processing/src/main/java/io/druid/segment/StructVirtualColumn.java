@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
@@ -36,28 +37,35 @@ public class StructVirtualColumn implements VirtualColumn
 {
   private static final byte VC_TYPE_ID = 0x05;
 
-  public static StructVirtualColumn implicit(String metric)
+  public static StructVirtualColumn implicit(String metric, ValueDesc type)
   {
-    return new StructVirtualColumn(metric, metric);
+    return new StructVirtualColumn(metric, metric, type);
   }
 
   private final String columnName;
   private final String outputName;
+  private final ValueDesc type;
 
   @JsonCreator
   public StructVirtualColumn(
       @JsonProperty("columnName") String columnName,
-      @JsonProperty("outputName") String outputName
+      @JsonProperty("outputName") String outputName,
+      @JsonProperty("type") ValueDesc type
   )
   {
     this.columnName = Preconditions.checkNotNull(columnName, "columnName should not be null");
     this.outputName = outputName == null ? columnName : outputName;
+    this.type = type;
+    Preconditions.checkArgument(type == null || type.isStruct());
   }
 
   @Override
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.startsWith(outputName));
+    if (column.equals(outputName)) {
+      return type == null ? ValueDesc.STRUCT : type;
+    }
     ValueDesc columnType = types.resolve(columnName);
     if (columnType == null || column.equals(outputName)) {
       return columnType;
@@ -78,7 +86,7 @@ public class StructVirtualColumn implements VirtualColumn
     Preconditions.checkArgument(dimension.charAt(outputName.length()) == '.');
     String expression = dimension.substring(outputName.length() + 1);
     if (selector instanceof ComplexColumnSelector.Nested) {
-      return ((ComplexColumnSelector.Nested) selector).selector(expression);
+      return ((ComplexColumnSelector.Nested) selector).nested(expression);
     }
     return NestedTypes.resolve(selector, expression);
   }
@@ -121,7 +129,7 @@ public class StructVirtualColumn implements VirtualColumn
   {
     final ObjectColumnSelector selector = asMetric(dimension.getDimension(), factory);
     final ValueDesc type = selector.type();
-    if (type.isMap() || type.isStruct() || type.isArray()) {
+    if (type.isMap() || type.isStruct()) {
       throw new IAE("%s cannot be used as a dimension", type);
     }
     return VirtualColumns.toDimensionSelector(selector, dimension.getExtractionFn());
@@ -130,7 +138,7 @@ public class StructVirtualColumn implements VirtualColumn
   @Override
   public VirtualColumn duplicate()
   {
-    return new StructVirtualColumn(columnName, outputName);
+    return new StructVirtualColumn(columnName, outputName, type);
   }
 
   @Override
@@ -151,6 +159,13 @@ public class StructVirtualColumn implements VirtualColumn
   public String getOutputName()
   {
     return outputName;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public ValueDesc getType()
+  {
+    return type;
   }
 
   @Override
