@@ -21,6 +21,7 @@ package io.druid.server.coordinator.rules;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
 import io.druid.common.guava.GuavaUtils;
@@ -39,6 +40,9 @@ import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,23 +68,24 @@ public abstract class LoadRule implements Rule
 
     final int maxLoad = params.getMaxPendingSegmentsToLoad();
 
-    boolean assignedAny = false;
+    int newlyAssigned = 0;
+    int currentlyAssigned = 0;
     int totalReplicantsInCluster = replicantLookup.getTotalReplicants(segmentId);
     final Map<String, Integer> tieredReplicants = getTieredReplicants();
     for (Map.Entry<String, Integer> entry : tieredReplicants.entrySet()) {
       final String tier = entry.getKey();
-      final MinMaxPriorityQueue<ServerHolder> serverQueue = cluster.get(tier);
-      if (GuavaUtils.isNullOrEmpty(serverQueue)) {
-        continue;
-      }
       final int expectedReplicantsInTier = entry.getValue();
       final int totalReplicantsInTier = replicantLookup.getTotalReplicants(segmentId, tier);
+
+      currentlyAssigned += totalReplicantsInCluster;
       if (totalReplicantsInTier >= expectedReplicantsInTier) {
         continue;
       }
-      final List<ServerHolder> servers = filterServers(serverQueue, failed);
-      if (!failed.isEmpty() && servers.isEmpty()) {
-        coordinator.releaseFailedServers(segment);
+      final List<ServerHolder> servers = filterServers(cluster.get(tier), segment, failed);
+      if (servers.isEmpty()) {
+        if (!failed.isEmpty()) {
+          coordinator.releaseFailedServers(segment);
+        }
         continue;
       }
 
@@ -96,22 +101,28 @@ public abstract class LoadRule implements Rule
       if (assigned > 0) {
         stats.addToTieredStat(assignedCount, tier, assigned);
         totalReplicantsInCluster += assigned;
-        assignedAny = true;
+        newlyAssigned += assigned;
       }
     }
-    if (!assignedAny) {
+    if (currentlyAssigned + newlyAssigned > totalReplicantsInCluster) {
       // Remove over-replication
       drop(segment, params, tieredReplicants);
     }
-    return totalReplicantsInCluster == 0;
+    return newlyAssigned > 0;
   }
 
-  private List<ServerHolder> filterServers(Iterable<ServerHolder> servers, Set<String> fails)
+  private List<ServerHolder> filterServers(Collection<ServerHolder> servers, DataSegment segment, Set<String> fails)
   {
-    if (!fails.isEmpty()) {
-      servers = Iterables.filter(servers, server -> !fails.contains(server.getName()));
+    if (GuavaUtils.isNullOrEmpty(servers)) {
+      return Collections.emptyList();
     }
-    return Lists.newArrayList(servers);
+    Iterator<ServerHolder> iterator = servers.iterator();
+    if (!fails.isEmpty()) {
+      iterator = Iterators.filter(iterator, server -> !fails.contains(server.getName()));
+    }
+    return Lists.newArrayList(Iterators.filter(iterator, server -> !server.isDecommissioned() &&
+                                                                   !server.isServingSegment(segment) &&
+                                                                   !server.isLoadingSegment(segment)));
   }
 
   private int assign(
@@ -126,11 +137,11 @@ public abstract class LoadRule implements Rule
   {
     int assigned = 0;
     int currReplicantsInTier = totalReplicantsInTier;
-    while (currReplicantsInTier < expectedReplicantsInTier) {
+    while (currReplicantsInTier < Math.max(expectedReplicantsInTier, servers.size())) {
 
       final ServerHolder holder = strategy.findNewSegmentHomeReplicator(segment, servers, maxLoad);
       if (holder == null) {
-        if (Iterables.all(servers, h -> h.isDecommissioned() || h.getAvailableSize() < segment.getSize())) {
+        if (Iterables.all(servers, h -> h.getAvailableSize() < segment.getSize())) {
           log.warn(
               "Not enough servers or node capacity in tier [%s] to assign segment[%s]! Expected Replicants[%d]",
               tier,

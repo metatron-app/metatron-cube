@@ -77,13 +77,13 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     int notAssignedCount = 0;
     for (Map.Entry<String, Iterable<DataSegment>> entry : getTargetSegments(params).entrySet()) {
       List<Rule> rules = databaseRuleManager.getRulesWithDefault(entry.getKey());
-      boolean notAssigned = true;
+      boolean assigned = false;
       boolean foundMatchingRule = false;
       for (DataSegment segment : entry.getValue()) {
         segments++;
         for (Rule rule : rules) {
           if (rule.appliesTo(segment, now)) {
-            notAssigned &= rule.run(coordinator, params, segment);
+            assigned |= rule.run(coordinator, params, segment);
             foundMatchingRule = true;
             break;
           }
@@ -94,7 +94,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
             segmentsWithMissingRules.add(segment.getIdentifier());
           }
           missingRules++;
-        } else if (notAssigned) {
+        } else if (!assigned) {
           notAssignedCount++;
         }
         if (segments % TIMEOUT_CHECK_INTERVAL == 0 && (params.isStopNow() || params.hasPollinIntervalElapsed(now.getMillis()))) {
