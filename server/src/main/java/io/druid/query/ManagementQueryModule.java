@@ -38,6 +38,9 @@ import io.druid.query.jmx.JMXQueryToolChest;
 import io.druid.query.load.LoadQuery;
 import io.druid.query.load.LoadQueryRunnerFactory;
 import io.druid.query.load.LoadQueryToolChest;
+import io.druid.query.segment.SegmentMoveQuery;
+import io.druid.query.segment.SegmentMoveQueryRunnerFactory;
+import io.druid.query.segment.SegmentMoveQueryToolChest;
 
 import java.util.Arrays;
 import java.util.List;
@@ -54,20 +57,26 @@ public class ManagementQueryModule implements DruidModule
       toolChests.addBinding(ConfigQuery.class).to(ConfigQueryToolChest.class);
       toolChests.addBinding(LoadQuery.class).to(LoadQueryToolChest.class);
       toolChests.addBinding(DeleteColumnsQuery.class).to(DeleteColumnsToolChest.class);
+      toolChests.addBinding(SegmentMoveQuery.class).to(SegmentMoveQueryToolChest.class);
+
       binder.bind(JMXQueryToolChest.class).in(LazySingleton.class);
       binder.bind(ConfigQueryToolChest.class).in(LazySingleton.class);
       binder.bind(LoadQueryToolChest.class).in(LazySingleton.class);
       binder.bind(DeleteColumnsToolChest.class).in(LazySingleton.class);
+      binder.bind(SegmentMoveQueryToolChest.class).in(LazySingleton.class);
 
       MapBinder<Class<? extends Query>, QueryRunnerFactory> factories = QueryToolBinders.queryRunnerFactoryBinder(binder);
       factories.addBinding(JMXQuery.class).to(JMXQueryRunnerFactory.class);
       factories.addBinding(ConfigQuery.class).to(ConfigQueryRunnerFactory.class);
       factories.addBinding(LoadQuery.class).to(LoadQueryRunnerFactory.class);
       factories.addBinding(DeleteColumnsQuery.class).to(DeleteColumnsFactory.class);
+      factories.addBinding(SegmentMoveQuery.class).to(SegmentMoveQueryRunnerFactory.class);
+
       binder.bind(JMXQueryRunnerFactory.class).in(LazySingleton.class);
       binder.bind(ConfigQueryRunnerFactory.class).in(LazySingleton.class);
       binder.bind(LoadQueryRunnerFactory.class).in(LazySingleton.class);
       binder.bind(DeleteColumnsFactory.class).in(LazySingleton.class);
+      binder.bind(SegmentMoveQueryRunnerFactory.class).in(LazySingleton.class);
     }
   }
 
