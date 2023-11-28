@@ -66,7 +66,7 @@ public class SmooshedFileMapper implements Closeable
       List<File> outFiles = Lists.newArrayListWithExpectedSize(numFiles);
 
       for (int i = 0; i < numFiles; ++i) {
-        outFiles.add(FileSmoosher.makeChunkFile(baseDir, i));
+        outFiles.add(FileSmoosher.chunkFile(baseDir, i));
       }
 
       Map<String, Metadata> internalFiles = Maps.newTreeMap();

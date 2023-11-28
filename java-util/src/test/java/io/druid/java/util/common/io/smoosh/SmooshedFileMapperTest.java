@@ -80,7 +80,7 @@ public class SmooshedFileMapperTest
     Assert.assertEquals(5, files.length);
 
     for(int i = 0; i < 4; ++i) {
-      Assert.assertEquals(FileSmoosher.makeChunkFile(baseDir, i), files[i]);
+      Assert.assertEquals(FileSmoosher.chunkFile(baseDir, i), files[i]);
     }
 
     Assert.assertEquals(FileSmoosher.metaFile(baseDir), files[files.length - 1]);
@@ -157,7 +157,7 @@ public class SmooshedFileMapperTest
     Assert.assertEquals(6, files.length);
 
     for(int i = 0; i < 4; ++i) {
-      Assert.assertEquals(FileSmoosher.makeChunkFile(baseDir, i), files[i]);
+      Assert.assertEquals(FileSmoosher.chunkFile(baseDir, i), files[i]);
     }
 
     Assert.assertEquals(FileSmoosher.metaFile(baseDir), files[files.length - 1]);

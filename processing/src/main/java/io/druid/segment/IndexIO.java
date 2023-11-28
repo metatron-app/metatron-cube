@@ -1213,8 +1213,8 @@ public class IndexIO
           io.druid.java.util.common.io.smoosh.Metadata meta = entity.getValue();
           if (meta.getFileNum() != fileNum) {
             fileNum = meta.getFileNum();
-            input = closer.register(new FileInputStream(FileSmoosher.makeChunkFile(inDir, fileNum)).getChannel());
-            output = closer.register(new FileOutputStream(FileSmoosher.makeChunkFile(outDir, fileNum)).getChannel());
+            input = closer.register(new FileInputStream(FileSmoosher.chunkFile(inDir, fileNum)).getChannel());
+            output = closer.register(new FileOutputStream(FileSmoosher.chunkFile(outDir, fileNum)).getChannel());
             offset = 0;
           }
           long l = input.transferTo(meta.getStartOffset(), meta.getLength(), output);
