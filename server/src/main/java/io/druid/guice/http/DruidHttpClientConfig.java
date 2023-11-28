@@ -33,7 +33,7 @@ public class DruidHttpClientConfig
 {
   private static final Logger LOG = new Logger(DruidHttpClientConfig.class);
 
-  private final String DEFAULT_COMPRESSION_CODEC = "gzip";
+  private final String DEFAULT_COMPRESSION_CODEC = "identity";
 
   @JsonProperty
   @Min(0)
