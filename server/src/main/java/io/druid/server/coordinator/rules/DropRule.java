@@ -34,6 +34,6 @@ public abstract class DropRule implements Rule
     if (coordinator.disableSegment("rule", segment)) {
       params.getCoordinatorStats().addToGlobalStat("deletedCount", 1);
     }
-    return false;
+    return true;
   }
 }
