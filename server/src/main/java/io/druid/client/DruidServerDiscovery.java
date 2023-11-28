@@ -38,7 +38,7 @@ import java.io.IOException;
 public class DruidServerDiscovery
 {
   private final EmittingLogger log = new EmittingLogger(DruidServerDiscovery.class);
-  private final CuratorInventoryManager curatorInventoryManager;
+  private final CuratorInventoryManager<DruidServer, ?> curatorInventoryManager;
   private volatile Listener listener;
 
   DruidServerDiscovery(
@@ -61,7 +61,7 @@ public class DruidServerDiscovery
     curatorInventoryManager.stop();
   }
 
-  private CuratorInventoryManager initCuratorInventoryManager(
+  private CuratorInventoryManager<DruidServer, Object> initCuratorInventoryManager(
       final CuratorFramework curator,
       final String announcementsPath,
       final ObjectMapper jsonMapper

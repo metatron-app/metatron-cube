@@ -202,6 +202,7 @@ public class JettyServerModule extends JerseyServletModule
           @Override
           public void start() throws Exception
           {
+            log.info("Starting jetty server %s [%s]", node.getHostAndPort(), node.getServiceName());
             try {
               server.start();
             }
@@ -221,7 +222,7 @@ public class JettyServerModule extends JerseyServletModule
               log.warn(e, "Unable to stop Jetty server.");
             }
           }
-        }
+       }
     );
     return server;
   }
