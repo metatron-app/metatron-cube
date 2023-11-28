@@ -224,9 +224,14 @@ public class FileSmoosher implements Closeable
   private OffsetWriter getNewCurrOut() throws FileNotFoundException
   {
     final int fileNum = outFiles.size();
-    File outFile = makeChunkFile(baseDir, fileNum);
+    File outFile = chunkFile(baseDir, fileNum);
     outFiles.add(outFile);
     return new OffsetWriter(fileNum, new FileOutputStream(outFile), maxChunkSize);
+  }
+
+  public static File versionFile(File baseDir)
+  {
+    return new File(baseDir, "version.bin");
   }
 
   public static File metaFile(File baseDir)
@@ -234,7 +239,7 @@ public class FileSmoosher implements Closeable
     return new File(baseDir, String.format("meta.%s", FILE_EXTENSION));
   }
 
-  public static File makeChunkFile(File baseDir, int i)
+  public static File chunkFile(File baseDir, int i)
   {
     return new File(baseDir, String.format("%05d.%s", i, FILE_EXTENSION));
   }

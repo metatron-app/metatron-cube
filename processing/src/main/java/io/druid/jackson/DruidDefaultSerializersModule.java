@@ -43,10 +43,12 @@ import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BulkRow;
 import io.druid.query.QueryException;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
+import io.druid.query.segment.SegmentLocation;
 import io.druid.segment.StringArray;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTimeZone;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.BitSet;
@@ -320,6 +322,19 @@ public class DruidDefaultSerializersModule extends SimpleModule
           }
         }
     );
+    addSerializer(
+        FileInputStream.class,
+        new JsonSerializer<FileInputStream>()
+        {
+          @Override
+          public void serialize(FileInputStream stream, JsonGenerator jsonGenerator, SerializerProvider provider)
+              throws IOException
+          {
+            jsonGenerator.writeBinary(stream, Ints.checkedCast(stream.getChannel().size()));
+          }
+        }
+    );
+    addDeserializer(SegmentLocation.class, SegmentLocation.DESERIALIZER);
   }
 
   public static interface JsonDeserializerFunc<T>
