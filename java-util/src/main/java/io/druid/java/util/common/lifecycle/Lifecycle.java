@@ -147,6 +147,7 @@ public class Lifecycle
    */
   public void addHandler(Handler handler, Stage stage)
   {
+    log.info("Registering.. %s", handler.getName());
     synchronized (handlers) {
       if (started.get()) {
         throw new ISE("Cannot add a handler after the Lifecycle has started, it doesn't work that way.");
@@ -320,12 +321,17 @@ public class Lifecycle
     return Arrays.asList(Stage.NORMAL, Stage.LAST);
   }
 
-
   public static interface Handler
   {
-    public void start() throws Exception;
+    default void start() throws Exception {}
 
-    public void stop();
+    default void stop() {}
+
+    default String getName()
+    {
+      Class<? extends Handler> clazz = getClass();
+      return clazz.isAnonymousClass() ? clazz.getEnclosingClass().getSimpleName() : clazz.getSimpleName();
+    }
   }
 
   private static class AnnotationBasedHandler implements Handler
@@ -364,6 +370,12 @@ public class Lifecycle
           }
         }
       }
+    }
+
+    @Override
+    public String getName()
+    {
+      return o.getClass().getSimpleName();
     }
   }
 
