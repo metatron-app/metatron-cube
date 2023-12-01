@@ -14,11 +14,17 @@
 
 package io.druid.java.util.http.client.netty;
 
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.DefaultChannelPipeline;
+import org.jboss.netty.channel.ExceptionEvent;
+import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpClientCodec;
 import org.jboss.netty.handler.codec.http.HttpContentDecompressor;
+
+import java.net.ConnectException;
 
 /**
  */
@@ -31,6 +37,20 @@ public class HttpClientPipelineFactory implements ChannelPipelineFactory
 
     pipeline.addLast("codec", new HttpClientCodec());
     pipeline.addLast("inflater", new HttpContentDecompressor());
+    pipeline.addLast("connectionErrorHandler", new SimpleChannelUpstreamHandler()
+    {
+      @Override
+      public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e)
+      {
+        Channel channel = ctx.getChannel();
+        if (channel != null && channel.isOpen()) {
+          channel.close();
+        }
+        if (e.getCause() instanceof ConnectException) {
+          Thread.yield();   // some backoff?
+        }
+      }
+    });
 
     return pipeline;
   }

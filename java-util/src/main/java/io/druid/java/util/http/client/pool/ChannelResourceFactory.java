@@ -178,10 +178,15 @@ public class ChannelResourceFactory implements ResourceFactory<String, ChannelFu
   private static final long MIN_AWAIT = 1000;
 
   @Override
-  public boolean isGood(ChannelFuture resource, long timeout) throws InterruptedException
+  public boolean isGood(ChannelFuture resource, long timeout)
   {
-    if (resource.isDone() || resource.await(Math.max(timeout, MIN_AWAIT))) {
-      return resource.isSuccess() && resource.getChannel().isConnected();
+    try {
+      if (resource.isDone() || resource.await(Math.max(timeout, MIN_AWAIT))) {
+        return resource.isSuccess() && resource.getChannel().isConnected();
+      }
+    }
+    catch (InterruptedException e) {
+      // ignore
     }
     return false;
   }

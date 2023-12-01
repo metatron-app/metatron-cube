@@ -21,6 +21,8 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableSet;
 import io.druid.java.util.common.logger.Logger;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongList;
 import org.jboss.netty.handler.timeout.TimeoutException;
 
 import java.io.Closeable;
@@ -36,8 +38,9 @@ public class ResourcePool<K, V> implements Closeable
 {
   private static final Logger LOG = new Logger(ResourcePool.class);
 
-  private static final long FALLBACK_MSEC = 40;
-  private static final long MINIMUM_GET_TIMEOUT_MSEC = 1000;
+  private static final int FALLBACK_MSEC = 40;
+  private static final int MINIMUM_GET_TIMEOUT_MSEC = 1000;
+  private static final int MAXIMUM_GET_TIMEOUT_MSEC = 30000;
 
   private final long getTimeoutMillis;
   private final LoadingCache<K, ImmediateCreationResourceHolder<K, V>> pool;
@@ -48,7 +51,7 @@ public class ResourcePool<K, V> implements Closeable
       final ResourcePoolConfig config
   )
   {
-    this.getTimeoutMillis = Math.max(MINIMUM_GET_TIMEOUT_MSEC, config.getGetTimeoutMillis());
+    getTimeoutMillis = Math.min(MAXIMUM_GET_TIMEOUT_MSEC, Math.max(MINIMUM_GET_TIMEOUT_MSEC, config.getGetTimeoutMillis()));
     final ResourceFactory<K, V> wrapped = new Wrap<>(factory);
     this.pool = CacheBuilder.newBuilder().build(
         new CacheLoader<K, ImmediateCreationResourceHolder<K, V>>()
@@ -133,11 +136,13 @@ public class ResourcePool<K, V> implements Closeable
   private static class ImmediateCreationResourceHolder<K, V>
   {
     private static final int INITIAL_CONNECTION = 10;
+    private static final int INITIAL_CONNECTION_TIMEOUT = 2000;
 
     private final K key;
     private final int maxSize;
     private final ResourceFactory<K, V> factory;
     private final ArrayDeque<ResourceHolder<V>> resourceHolderList;
+    private final FailQueue failQueue;
     private final AtomicInteger deficit;
     private final long unusedResourceTimeoutMillis;
 
@@ -155,12 +160,21 @@ public class ResourcePool<K, V> implements Closeable
       this.factory = factory;
       this.unusedResourceTimeoutMillis = unusedResourceTimeoutMillis;
       this.resourceHolderList = new ArrayDeque<>();
+      this.failQueue = new FailQueue();
 
-      for (int i = Math.min(INITIAL_CONNECTION, maxSize); i > 0; i--) {
-        final ResourceHolder<V> holder = ResourceHolder.of(factory.generate(key));
-        if (holder != null) {
-          resourceHolderList.add(holder);
+      long remain = INITIAL_CONNECTION_TIMEOUT;
+      for (int i = Math.min(INITIAL_CONNECTION, maxSize); i >= 0 && remain > 0; i--) {
+        final long current = System.currentTimeMillis();
+        final V channel = factory.generate(key);
+        final ResourceHolder<V> holder = ResourceHolder.of(channel);
+        if (holder == null) {
+          break;
         }
+        resourceHolderList.add(holder);
+        if (!factory.isGood(channel, remain)) {
+          break;
+        }
+        remain -= System.currentTimeMillis() - current;
       }
       deficit = new AtomicInteger(maxSize - resourceHolderList.size());
     }
@@ -169,7 +183,6 @@ public class ResourcePool<K, V> implements Closeable
     {
       final long deadline = timeout + System.currentTimeMillis();
 
-      int created = 0;
       while (true) {
         final long remain = deadline - System.currentTimeMillis();
         if (remain <= 0) {
@@ -180,9 +193,14 @@ public class ResourcePool<K, V> implements Closeable
           if (!closed) {
             if (resourceHolderList.isEmpty() && deficit.get() == 0) {
               wait(remain);
-            } else if (created > 0) {
-              // suppress excessive (vain) trial of connection
-              wait(Math.min(remain, (long) Math.pow(FALLBACK_MSEC, 1 + 0.2 * created)));
+            } else {
+              int failed = failQueue.dequeue(Math.max(timeout >> 2, MINIMUM_GET_TIMEOUT_MSEC));
+              if (failed > 0) {
+                // suppress excessive (vain) trial of connection
+                long backoff = Math.min(remain, (long) Math.pow(FALLBACK_MSEC, 1 + 0.15 * failed));
+                LOG.info("Retrying [%s] with backoff time %,d msec", Thread.currentThread().getName(), backoff);
+                wait(backoff);
+              }
             }
           }
           if (closed) {
@@ -199,18 +217,18 @@ public class ResourcePool<K, V> implements Closeable
         }
         if (holder == null) {
           holder = ResourceHolder.of(factory.generate(key));
-          created++;
         }
         final long current = System.currentTimeMillis();
-        if (holder != null &&
-            holder.isGood(current, unusedResourceTimeoutMillis) &&
-            factory.isGood(holder.resource, deadline - current)) {
-          return holder.resource;
+        if (holder != null && !holder.isTimedOut(current, unusedResourceTimeoutMillis)) {
+          if (factory.isGood(holder.resource, deadline - current)) {
+            return holder.resource;
+          }
         }
         deficitAvailable();
         if (holder != null) {
           factory.close(holder.resource);
         }
+        failQueue.enqueue();
       }
     }
 
@@ -274,6 +292,38 @@ public class ResourcePool<K, V> implements Closeable
     }
   }
 
+  private static class FailQueue
+  {
+    private final LongList queue = new LongArrayList();
+    private long nextFlush = System.currentTimeMillis() + MAXIMUM_GET_TIMEOUT_MSEC;
+
+    synchronized void enqueue()
+    {
+      queue.add(System.currentTimeMillis());
+    }
+
+    synchronized int dequeue(long timeout)
+    {
+      long timestamp = System.currentTimeMillis();
+      int size = queue.size();
+      if (size == 0) {
+        return 0;
+      }
+      if (timestamp > nextFlush) {
+        nextFlush = timestamp + MAXIMUM_GET_TIMEOUT_MSEC;
+        int i = 0;
+        for (; i < size && timestamp - queue.getLong(i) >= MAXIMUM_GET_TIMEOUT_MSEC; i++) {
+        }
+        queue.removeElements(0, i);
+        size = queue.size();
+      }
+      int i = size - 1;
+      for (; i >= 0 && timestamp - queue.getLong(i) < timeout; i--) {
+      }
+      return size - 1 - i;
+    }
+  }
+
   private static class ResourceHolder<V>
   {
     public static <V> ResourceHolder<V> of(V resource)
@@ -289,9 +339,9 @@ public class ResourcePool<K, V> implements Closeable
       this.resource = resource;
     }
 
-    public boolean isGood(long current, long threshold)
+    private boolean isTimedOut(long current, long threshold)
     {
-      return current - lastAccessedTime < threshold;
+      return threshold > 0 && current - lastAccessedTime >= threshold;
     }
   }
 
