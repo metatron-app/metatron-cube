@@ -21,7 +21,7 @@ public interface ResourceFactory<K, V>
   V generate(K key);
 
   // checking for real use
-  boolean isGood(V resource, long timeout) throws InterruptedException;
+  boolean isGood(V resource, long timeout);
 
   // checking for return
   boolean isValid(V resource);
