@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class KafkaEmitter implements Emitter
 {
-  private static Logger log = new Logger(KafkaEmitter.class);
+  private static final Logger log = new Logger(KafkaEmitter.class);
 
   private static final int DEFAULT_RETRIES = 3;
   private final AtomicLong metricLost;
@@ -99,6 +99,9 @@ public class KafkaEmitter implements Emitter
       {
         if (e != null) {
           log.debug("Event send failed [%s]", e.getMessage());
+          if (recordMetadata == null) {
+            return;
+          }
           if (recordMetadata.topic().equals(config.getMetricTopic())) {
             metricLost.incrementAndGet();
           } else if (recordMetadata.topic().equals(config.getAlertTopic())) {
@@ -189,8 +192,7 @@ public class KafkaEmitter implements Emitter
         if (o != null) {
           String contextStr = eventMap.get("context").toString();
           try {
-            Map<String, Object> context = jsonMapper.readValue(contextStr, Map.class);
-            return context;
+            return jsonMapper.readValue(contextStr, Map.class);
           }
           catch (IOException e) {
             log.warn("Failed to parse context");
