@@ -114,7 +114,7 @@ public class IndexTask extends AbstractFixedIntervalTask
   private static String makeId(String id, IndexIngestionSpec ingestionSchema)
   {
     if (id == null) {
-      return String.format("index_%s_%s", makeDataSource(ingestionSchema), new DateTime().toString());
+      return String.format("index_%s_%s", makeDataSource(ingestionSchema), new DateTime());
     }
 
     return id;
@@ -480,6 +480,7 @@ public class IndexTask extends AbstractFixedIntervalTask
     try {
       plumber.startJob();
 
+      firehose.start();
       while (firehose.hasMore()) {
         final InputRow inputRow;
         try {
@@ -542,6 +543,8 @@ public class IndexTask extends AbstractFixedIntervalTask
     }
     stats.ofLong("indexRows").increase(metrics.processed());
     stats.ofLong("numSegments").increase(1);
+
+    firehose.success();
 
     // We expect a single segment to have been created.
     return Iterables.getOnlyElement(pushedSegments);

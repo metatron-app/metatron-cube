@@ -59,7 +59,6 @@ import io.druid.server.ForwardHandler;
 import io.druid.server.coordination.DataSegmentServerAnnouncer;
 import org.joda.time.Interval;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -260,7 +259,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
            );
   }
 
-  static class FireChief extends Thread implements Closeable
+  static class FireChief extends Thread
   {
     private final FireDepartment fireDepartment;
     private final FireDepartmentMetrics metrics;
@@ -271,7 +270,6 @@ public class RealtimeManager implements ForwardingSegmentWalker
     private volatile Firehose firehose = null;
     private volatile FirehoseV2 firehoseV2 = null;
     private volatile Plumber plumber = null;
-    private volatile boolean normalExit = true;
 
     public FireChief(FireDepartment fireDepartment, QueryRunnerFactoryConglomerate conglomerate, ObjectMapper mapper)
     {
@@ -347,6 +345,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
     {
       plumber = initPlumber();
 
+      boolean success = false;
       try {
         Object metadata = plumber.startJob();
 
@@ -357,7 +356,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
           firehose = initFirehose();
           runFirehose(firehose);
         }
-
+        success = true;
       }
       catch (RuntimeException e) {
         log.makeAlert(
@@ -365,22 +364,24 @@ public class RealtimeManager implements ForwardingSegmentWalker
             "RuntimeException aborted realtime processing[%s]",
             fireDepartment.getDataSchema().getDataSource()
         ).emit();
-        normalExit = false;
         throw e;
       }
       catch (Error e) {
         log.makeAlert(e, "Exception aborted realtime processing[%s]", fireDepartment.getDataSchema().getDataSource())
            .emit();
-        normalExit = false;
         throw e;
       }
       finally {
         CloseQuietly.close(firehose);
-        if (normalExit) {
+        CloseQuietly.close(firehoseV2);
+
+        if (success) {
           plumber.finishJob();
-          plumber = null;
-          firehose = null;
+          firehose.success();
         }
+        plumber = null;
+        firehose = null;
+        firehoseV2 = null;
       }
     }
 
@@ -444,16 +445,6 @@ public class RealtimeManager implements ForwardingSegmentWalker
       QueryToolChest<T> toolChest = factory.getToolchest();
 
       return QueryRunners.finalizeAndPostProcessing(plumber.getQueryRunner(query), toolChest, mapper);
-    }
-
-    public void close() throws IOException
-    {
-      synchronized (this) {
-        if (firehose != null) {
-          normalExit = false;
-          firehose.close();
-        }
-      }
     }
   }
 

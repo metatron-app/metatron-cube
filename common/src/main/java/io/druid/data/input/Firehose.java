@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.utils.Runnables;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -40,6 +41,8 @@ import java.io.IOException;
  */
 public interface Firehose extends Closeable
 {
+  default void start() {}
+
   /**
    * Returns whether there are more rows to process.  This is used to indicate that another item is immediately
    * available via ##nextRow().  Thus, if the stream is still available but there are no new messages on it, this call
@@ -49,14 +52,14 @@ public interface Firehose extends Closeable
    *
    * @return true if and when there is another row available, false if the stream has dried up
    */
-  public boolean hasMore();
+  boolean hasMore();
 
   /**
    * The next row available.  Should only be called if hasMore returns true.
    *
    * @return The next row
    */
-  public InputRow nextRow() ;
+  InputRow nextRow();
 
   /**
    * Returns a runnable that will "commit" everything read up to the point at which commit() is called.  This is
@@ -77,30 +80,17 @@ public interface Firehose extends Closeable
    * because of InputRows delivered by prior calls to ##nextRow().
    * </p>
    */
-  public Runnable commit();
+  default Runnable commit()
+  {
+    return Runnables.getNoopRunnable();
+  }
+
+  default void success() {}
 
   public static Firehose wrap(Firehose delegate, InputRowParser parser)
   {
-    return new Firehose()
+    return new Delegated(delegate)
     {
-      @Override
-      public boolean hasMore()
-      {
-        return delegate.hasMore();
-      }
-
-      @Override
-      public InputRow nextRow()
-      {
-        return delegate.nextRow();
-      }
-
-      @Override
-      public Runnable commit()
-      {
-        return delegate.commit();
-      }
-
       @Override
       public void close() throws IOException
       {
@@ -108,5 +98,42 @@ public interface Firehose extends Closeable
         parser.close();
       }
     };
+  }
+
+  public static class Delegated implements Firehose
+  {
+    protected final Firehose delegate;
+
+    public Delegated(Firehose delegate) {this.delegate = delegate;}
+
+    @Override
+    public boolean hasMore()
+    {
+      return delegate.hasMore();
+    }
+
+    @Override
+    public InputRow nextRow()
+    {
+      return delegate.nextRow();
+    }
+
+    @Override
+    public Runnable commit()
+    {
+      return delegate.commit();
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      delegate.close();
+    }
+
+    @Override
+    public void success()
+    {
+      delegate.success();
+    }
   }
 }

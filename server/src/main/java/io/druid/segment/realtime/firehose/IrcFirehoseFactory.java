@@ -30,12 +30,12 @@ import com.ircclouds.irc.api.domain.IRCServer;
 import com.ircclouds.irc.api.domain.messages.ChannelPrivMsg;
 import com.ircclouds.irc.api.listeners.VariousMessageListenerAdapter;
 import com.ircclouds.irc.api.state.IIRCState;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.logger.Logger;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
@@ -215,19 +215,6 @@ public class IrcFirehoseFactory implements FirehoseFactory
       public InputRow nextRow()
       {
         return nextRow;
-      }
-
-      @Override
-      public Runnable commit()
-      {
-        return new Runnable()
-        {
-          @Override
-          public void run()
-          {
-            // nothing to see here
-          }
-        };
       }
 
       @Override

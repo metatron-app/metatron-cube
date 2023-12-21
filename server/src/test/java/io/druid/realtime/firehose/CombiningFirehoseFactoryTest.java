@@ -19,15 +19,14 @@
 
 package io.druid.realtime.firehose;
 
-import io.druid.java.util.common.parsers.ParseException;
 import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.java.util.common.parsers.ParseException;
 import io.druid.segment.realtime.firehose.CombiningFirehoseFactory;
-import io.druid.utils.Runnables;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -128,12 +127,6 @@ public class CombiningFirehoseFactoryTest
         public InputRow nextRow()
         {
           return iterator.next();
-        }
-
-        @Override
-        public Runnable commit()
-        {
-          return Runnables.getNoopRunnable();
         }
 
         @Override

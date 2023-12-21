@@ -255,22 +255,8 @@ public class TaskLifecycleTest
         }
 
         @Override
-        public Runnable commit()
-        {
-          return new Runnable()
-          {
-            @Override
-            public void run()
-            {
-
-            }
-          };
-        }
-
-        @Override
         public void close() throws IOException
         {
-
         }
       };
     }
@@ -306,19 +292,6 @@ public class TaskLifecycleTest
         public InputRow nextRow()
         {
           return inputRowIterator.next();
-        }
-
-        @Override
-        public Runnable commit()
-        {
-          return new Runnable()
-          {
-            @Override
-            public void run()
-            {
-
-            }
-          };
         }
 
         @Override

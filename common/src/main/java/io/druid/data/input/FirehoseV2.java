@@ -64,7 +64,7 @@ public interface FirehoseV2 extends Closeable
     /**
      * @return The current row
      */
-    public InputRow currRow() ;
+    public InputRow currRow();
 
     /**
      * Returns a Committer that will "commit" everything read up to the point at which makeCommitter() is called.
@@ -86,4 +86,6 @@ public interface FirehoseV2 extends Closeable
      * </p>
      */
     public Committer makeCommitter();
+
+    default void success() {}
 }

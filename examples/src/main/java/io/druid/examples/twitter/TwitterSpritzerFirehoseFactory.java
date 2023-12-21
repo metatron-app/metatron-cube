@@ -25,12 +25,12 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.java.util.common.logger.Logger;
 import twitter4j.ConnectionLifeCycleListener;
 import twitter4j.GeoLocation;
 import twitter4j.HashtagEntity;
@@ -212,38 +212,25 @@ public class TwitterSpritzerFirehoseFactory implements FirehoseFactory
 
     return new Firehose()
     {
-
-      private final Runnable doNothingRunnable = new Runnable()
-      {
-        public void run()
-        {
-        }
-      };
-
       private long rowCount = 0L;
-      private boolean waitIfmax = (getMaxEventCount() < 0L);
       private final Map<String, Object> theMap = new TreeMap<>();
       // DIY json parsing // private final ObjectMapper omapper = new ObjectMapper();
 
       private boolean maxTimeReached()
       {
-        if (getMaxRunMinutes() <= 0) {
-          return false;
-        } else {
-          return (System.currentTimeMillis() - startMsec) / 60000L >= getMaxRunMinutes();
-        }
+        return maxRunMinutes > 0 && (System.currentTimeMillis() - startMsec) / 60000L >= maxRunMinutes;
       }
 
       private boolean maxCountReached()
       {
-        return getMaxEventCount() >= 0 && rowCount >= getMaxEventCount();
+        return maxEventCount >= 0 && rowCount >= maxEventCount;
       }
 
       @Override
       public boolean hasMore()
       {
         if (maxCountReached() || maxTimeReached()) {
-          return waitIfmax;
+          return maxEventCount < 0;
         } else {
           return true;
         }
@@ -259,7 +246,7 @@ public class TwitterSpritzerFirehoseFactory implements FirehoseFactory
 
         // all done?
         if (maxCountReached() || maxTimeReached()) {
-          if (waitIfmax) {
+          if (maxEventCount < 0) {
             // sleep a long time instead of terminating
             try {
               log.info("reached limit, sleeping a long time...");
@@ -356,13 +343,6 @@ public class TwitterSpritzerFirehoseFactory implements FirehoseFactory
         List<String> dimensions = Lists.newArrayList(theMap.keySet());
 
         return new MapBasedInputRow(status.getCreatedAt().getTime(), dimensions, theMap);
-      }
-
-      @Override
-      public Runnable commit()
-      {
-        // ephemera in, ephemera out.
-        return doNothingRunnable; // reuse the same object each time
       }
 
       @Override

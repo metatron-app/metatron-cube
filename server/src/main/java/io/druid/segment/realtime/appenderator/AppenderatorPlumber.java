@@ -20,7 +20,6 @@
 package io.druid.segment.realtime.appenderator;
 
 import com.google.common.base.Function;
-import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -199,7 +198,7 @@ public class AppenderatorPlumber implements Plumber
     if (pending.isEmpty()) {
       log.info("No segments to hand off.");
     } else {
-      log.info("Pushing segments: %s", Joiner.on(", ").join(pending));
+      log.info("Pushing segments: %s", pending);
     }
 
     try {
@@ -210,7 +209,7 @@ public class AppenderatorPlumber implements Plumber
 
       synchronized (handoffCondition) {
         while (!segments.isEmpty()) {
-          log.info("Waiting to hand off: %s", Joiner.on(", ").join(pending));
+          log.info("Waiting to hand off: %s", pending);
           handoffCondition.wait();
           pending = appenderator.getSegments();
         }
@@ -373,22 +372,8 @@ public class AppenderatorPlumber implements Plumber
 
   private void mergeAndPush()
   {
-    final Granularity segmentGranularity = schema.getGranularitySpec().getSegmentGranularity();
-    final Period windowPeriod = config.getWindowPeriod();
-
-    final long windowMillis = windowPeriod.toStandardDuration().getMillis();
     log.info("Starting merge and push.");
-    DateTime minTimestampAsDate = segmentGranularity.bucketStart(
-        new DateTime(
-            Math.max(
-                windowMillis,
-                rejectionPolicy.getCurrMaxTime()
-                               .getMillis()
-            )
-            - windowMillis
-        )
-    );
-    long minTimestamp = minTimestampAsDate.getMillis();
+    final DateTime minTimestampAsDate = getMinDateTime();
 
     final List<SegmentIdentifier> appenderatorSegments = appenderator.getSegments();
     final List<SegmentIdentifier> segmentsToPush = Lists.newArrayList();
@@ -404,8 +389,8 @@ public class AppenderatorPlumber implements Plumber
       );
 
       for (SegmentIdentifier segment : appenderatorSegments) {
-        final Long intervalStart = segment.getInterval().getStartMillis();
-        if (intervalStart < minTimestamp) {
+        final long intervalStart = segment.getInterval().getStartMillis();
+        if (intervalStart < minTimestampAsDate.getMillis()) {
           log.info("Adding entry [%s] for merge and push.", segment);
           segmentsToPush.add(segment);
         } else {
@@ -471,6 +456,19 @@ public class AppenderatorPlumber implements Plumber
             errorHandler.apply(e);
           }
         }
+    );
+  }
+
+  private DateTime getMinDateTime()
+  {
+    final Period windowPeriod = config.getWindowPeriod();
+    final long windowMillis = windowPeriod.toStandardDuration().getMillis();
+
+    final Granularity segmentGranularity = schema.getGranularitySpec().getSegmentGranularity();
+    return segmentGranularity.bucketStart(
+        new DateTime(
+            Math.max(windowMillis, rejectionPolicy.getCurrMaxTime().getMillis()) - windowMillis
+        )
     );
   }
 

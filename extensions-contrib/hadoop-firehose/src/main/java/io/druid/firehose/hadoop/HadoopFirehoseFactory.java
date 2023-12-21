@@ -25,8 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.common.parsers.ParseException;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
@@ -34,7 +32,8 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.indexer.hadoop.HadoopInputUtils;
 import io.druid.indexer.path.PathSpec;
 import io.druid.initialization.Initialization;
-import io.druid.utils.Runnables;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.common.parsers.ParseException;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -116,12 +115,6 @@ public class HadoopFirehoseFactory implements FirehoseFactory
         catch (Exception e) {
           throw Throwables.propagate(e);
         }
-      }
-
-      @Override
-      public Runnable commit()
-      {
-        return Runnables.getNoopRunnable();
       }
 
       @Override

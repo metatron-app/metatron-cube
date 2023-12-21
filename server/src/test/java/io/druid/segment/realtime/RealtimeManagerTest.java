@@ -56,12 +56,12 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
+import io.druid.query.groupby.VectorizedGroupByQueryEngine;
 import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
@@ -78,7 +78,6 @@ import io.druid.segment.realtime.plumber.PlumberSchool;
 import io.druid.segment.realtime.plumber.Sink;
 import io.druid.server.coordination.DataSegmentServerAnnouncer;
 import io.druid.timeline.partition.LinearShardSpec;
-import io.druid.utils.Runnables;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -838,12 +837,6 @@ public class RealtimeManagerTest
     }
 
     @Override
-    public Runnable commit()
-    {
-      return Runnables.getNoopRunnable();
-    }
-
-    @Override
     public void close() throws IOException
     {
       hasMore = false;
@@ -874,12 +867,6 @@ public class RealtimeManagerTest
       } else {
         return holder.getRow();
       }
-    }
-
-    @Override
-    public Runnable commit()
-    {
-      return Runnables.getNoopRunnable();
     }
 
     @Override
