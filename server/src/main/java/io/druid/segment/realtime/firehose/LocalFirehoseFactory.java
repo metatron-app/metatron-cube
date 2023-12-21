@@ -38,16 +38,14 @@ import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.InputRowParser.Streaming;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.utils.Runnables;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -68,6 +66,8 @@ public class LocalFirehoseFactory implements FirehoseFactory
   private final String filter;
   private final String encoding;
   private final boolean extractPartition;
+  private final boolean deleteOnSuccess;
+
   private final InputRowParser parser;
 
   @JsonCreator
@@ -76,6 +76,7 @@ public class LocalFirehoseFactory implements FirehoseFactory
       @JsonProperty("filter") String filter,
       @JsonProperty("encoding") String encoding,
       @JsonProperty("extractPartition") boolean extractPartition,
+      @JsonProperty("deleteOnSuccess") boolean deleteOnSuccess,
       // Backwards compatible
       @JsonProperty("parser") InputRowParser parser
   )
@@ -84,12 +85,13 @@ public class LocalFirehoseFactory implements FirehoseFactory
     this.filter = filter;
     this.encoding = encoding;
     this.extractPartition = extractPartition;
+    this.deleteOnSuccess = deleteOnSuccess;
     this.parser = parser;
   }
 
   public LocalFirehoseFactory(File baseDir, String filter)
   {
-    this(baseDir, filter, null, false, null);
+    this(baseDir, filter, null, false, false, null);
   }
 
   @JsonProperty
@@ -119,6 +121,12 @@ public class LocalFirehoseFactory implements FirehoseFactory
   }
 
   @JsonProperty
+  public boolean isDeleteOnSuccess()
+  {
+    return deleteOnSuccess;
+  }
+
+  @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public InputRowParser getParser()
   {
@@ -131,22 +139,17 @@ public class LocalFirehoseFactory implements FirehoseFactory
     if (baseDir == null) {
       throw new IAE("baseDir is null");
     }
-    log.info("Searching for all [%s] in and beneath [%s]", filter, baseDir.getAbsoluteFile());
-
     final Collection<File> files;
     if (baseDir.isFile()) {
       files = ImmutableList.of(baseDir);
     } else {
-      files = FileUtils.listFiles(
-          baseDir.getAbsoluteFile(),
-          new WildcardFileFilter(filter),
-          TrueFileFilter.INSTANCE
-      );
+      log.info("Searching for all [%s] in [%s]", filter, baseDir.getAbsoluteFile());
+      files = FileUtils.listFiles(baseDir.getAbsoluteFile(), new WildcardFileFilter(filter), TrueFileFilter.INSTANCE);
+      if (files.isEmpty()) {
+        throw new IAE("Found no files to ingest in [%s]", baseDir);
+      }
     }
-    if (files.isEmpty()) {
-      throw new ISE("Found no files to ingest! Check your schema.");
-    }
-    log.info("Found files: " + files);
+    log.info("Start ingesting files: %s", files);
 
     final List<IntTagged<File>> foundFiles = GuavaUtils.zipWithIndex(files);
     final long[] lengths = new long[foundFiles.size()];
@@ -207,14 +210,6 @@ public class LocalFirehoseFactory implements FirehoseFactory
       }
 
       @Override
-      public void close() throws IOException
-      {
-        if (current instanceof Closeable) {
-          IOUtils.closeQuietly((Closeable) current);
-        }
-      }
-
-      @Override
       public boolean hasMore()
       {
         for (; !current.hasNext() && readers.hasNext(); current = readers.next()) {
@@ -223,16 +218,26 @@ public class LocalFirehoseFactory implements FirehoseFactory
       }
 
       @Override
-      @SuppressWarnings("unchecked")
       public InputRow nextRow()
       {
         return current.next();
       }
 
       @Override
-      public Runnable commit()
+      public void close() throws IOException
       {
-        return Runnables.getNoopRunnable();
+        CloseQuietly.close(current);
+      }
+
+      @Override
+      public void success()
+      {
+        if (deleteOnSuccess) {
+          log.info("Deleting succesfully ingested files: %s", files);
+          for (File file : files) {
+            FileUtils.deleteQuietly(file);
+          }
+        }
       }
     };
   }

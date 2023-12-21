@@ -256,12 +256,6 @@ public class JDBCFirehoseFactory implements FirehoseFactory
       }
 
       @Override
-      public Runnable commit()
-      {
-        return null;
-      }
-
-      @Override
       public void close() throws IOException
       {
         rowIterator.close();

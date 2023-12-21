@@ -23,11 +23,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import io.druid.java.util.emitter.EmittingLogger;
+import com.google.common.collect.Lists;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.java.util.emitter.EmittingLogger;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -67,6 +68,8 @@ public class CombiningFirehoseFactory implements FirehoseFactory
   {
     private final InputRowParser parser;
     private final Iterator<FirehoseFactory> firehoseFactoryIterator;
+    private final List<Firehose> firehoses = Lists.newArrayList();
+
     private volatile Firehose currentFirehose;
 
     public CombiningFirehose(InputRowParser parser) throws IOException
@@ -85,6 +88,7 @@ public class CombiningFirehoseFactory implements FirehoseFactory
           }
 
           currentFirehose = Firehose.wrap(firehoseFactoryIterator.next().connect(parser), parser);
+          firehoses.add(currentFirehose);
         }
         catch (IOException e) {
           if (currentFirehose != null) {
@@ -127,6 +131,15 @@ public class CombiningFirehoseFactory implements FirehoseFactory
     public void close() throws IOException
     {
       currentFirehose.close();
+    }
+
+    @Override
+    public void success()
+    {
+      for (Firehose firehose : firehoses) {
+        firehose.success();
+      }
+      firehoses.clear();
     }
   }
 }

@@ -22,7 +22,6 @@ package io.druid.data.input.impl;
 import com.google.common.base.Throwables;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.InputRow;
-import io.druid.utils.Runnables;
 import org.apache.commons.io.LineIterator;
 
 import java.io.IOException;
@@ -74,12 +73,6 @@ public class FileIteratingFirehose implements Firehose
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
-  }
-
-  @Override
-  public Runnable commit()
-  {
-    return Runnables.getNoopRunnable();
   }
 
   @Override

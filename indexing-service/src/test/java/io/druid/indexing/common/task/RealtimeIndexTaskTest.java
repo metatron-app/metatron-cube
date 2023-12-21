@@ -194,19 +194,6 @@ public class RealtimeIndexTaskTest
     }
 
     @Override
-    public Runnable commit()
-    {
-      return new Runnable()
-      {
-        @Override
-        public void run()
-        {
-          // do nothing
-        }
-      };
-    }
-
-    @Override
     public void close() throws IOException
     {
       synchronized (this) {

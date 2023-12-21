@@ -20,30 +20,27 @@
 package io.druid.segment.realtime.firehose;
 
 import com.google.common.base.Predicate;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.InputRow;
-
-import java.io.IOException;
+import io.druid.java.util.common.logger.Logger;
 
 /**
  * Provides a view on a firehose that only returns rows that match a certain predicate.
  * Not thread-safe.
  */
-public class PredicateFirehose implements Firehose
+public class PredicateFirehose extends Firehose.Delegated
 {
   private static final Logger log = new Logger(PredicateFirehose.class);
   private static final int IGNORE_THRESHOLD = 5000;
   private long ignored = 0;
 
-  private final Firehose firehose;
   private final Predicate<InputRow> predicate;
 
   private InputRow savedInputRow = null;
 
   public PredicateFirehose(Firehose firehose, Predicate<InputRow> predicate)
   {
-    this.firehose = firehose;
+    super(firehose);
     this.predicate = predicate;
   }
 
@@ -54,8 +51,8 @@ public class PredicateFirehose implements Firehose
       return true;
     }
 
-    while (firehose.hasMore()) {
-      final InputRow row = firehose.nextRow();
+    while (delegate.hasMore()) {
+      final InputRow row = delegate.nextRow();
       if (predicate.apply(row)) {
         savedInputRow = row;
         return true;
@@ -76,17 +73,5 @@ public class PredicateFirehose implements Firehose
     final InputRow row = savedInputRow;
     savedInputRow = null;
     return row;
-  }
-
-  @Override
-  public Runnable commit()
-  {
-    return firehose.commit();
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-    firehose.close();
   }
 }

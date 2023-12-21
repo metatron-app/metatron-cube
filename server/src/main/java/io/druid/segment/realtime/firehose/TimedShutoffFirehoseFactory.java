@@ -21,12 +21,11 @@ package io.druid.segment.realtime.firehose;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
-import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.java.util.emitter.EmittingLogger;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
@@ -58,18 +57,16 @@ public class TimedShutoffFirehoseFactory implements FirehoseFactory
     return new TimedShutoffFirehose(parser);
   }
 
-  public class TimedShutoffFirehose implements Firehose
+  public class TimedShutoffFirehose extends Firehose.Delegated
   {
-    private final Firehose firehose;
-    private final ScheduledExecutorService exec;
     private final Object shutdownLock = new Object();
     private volatile boolean shutdown = false;
 
     public TimedShutoffFirehose(InputRowParser parser) throws IOException
     {
-      firehose = Firehose.wrap(delegateFactory.connect(parser), parser);
+      super(Firehose.wrap(delegateFactory.connect(parser), parser));
 
-      exec = Execs.scheduledSingleThreaded("timed-shutoff-firehose-%d");
+      ScheduledExecutorService exec = Execs.scheduledSingleThreaded("timed-shutoff-firehose-%d");
 
       exec.schedule(
           new Runnable()
@@ -81,7 +78,7 @@ public class TimedShutoffFirehoseFactory implements FirehoseFactory
 
               shutdown = true;
               try {
-                firehose.close();
+                delegate.close();
               }
               catch (IOException e) {
                 log.warn(e, "Failed to close delegate firehose, ignoring.");
@@ -96,30 +93,12 @@ public class TimedShutoffFirehoseFactory implements FirehoseFactory
     }
 
     @Override
-    public boolean hasMore()
-    {
-      return firehose.hasMore();
-    }
-
-    @Override
-    public InputRow nextRow()
-    {
-      return firehose.nextRow();
-    }
-
-    @Override
-    public Runnable commit()
-    {
-      return firehose.commit();
-    }
-
-    @Override
     public void close() throws IOException
     {
       synchronized (shutdownLock) {
         if (!shutdown) {
           shutdown = true;
-          firehose.close();
+          super.close();
         }
       }
     }

@@ -460,6 +460,12 @@ public class RealtimeIndexTask extends AbstractTask
 
         if (finishingJob) {
           plumber.finishJob();
+          if (firehose != null) {
+            firehose.success();
+          }
+          if (firehoseV2 != null) {
+            firehoseV2.success();
+          }
         }
       }
 

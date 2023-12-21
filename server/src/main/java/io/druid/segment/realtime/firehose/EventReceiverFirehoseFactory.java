@@ -33,7 +33,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CountingInputStream;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
@@ -41,6 +40,7 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.server.metrics.EventReceiverFirehoseMetric;
 import io.druid.server.metrics.EventReceiverFirehoseRegister;
 import org.joda.time.DateTime;
@@ -244,19 +244,6 @@ public class EventReceiverFirehoseFactory implements FirehoseFactory
           return row;
         }
       }
-    }
-
-    @Override
-    public Runnable commit()
-    {
-      return new Runnable()
-      {
-        @Override
-        public void run()
-        {
-          // Nothing
-        }
-      };
     }
 
     @Override

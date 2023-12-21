@@ -42,7 +42,6 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
-import io.druid.utils.Runnables;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -192,12 +191,6 @@ public class IngestSegmentFirehose implements Firehose
     final InputRow inputRow = rowYielder.get();
     rowYielder = rowYielder.next(null);
     return inputRow;
-  }
-
-  @Override
-  public Runnable commit()
-  {
-    return Runnables.getNoopRunnable();
   }
 
   @Override
