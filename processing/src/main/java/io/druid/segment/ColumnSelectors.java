@@ -1350,7 +1350,7 @@ public class ColumnSelectors
                                                     .map(f -> asSelector(getField(f)))
                                                     .toArray(x -> new ObjectColumnSelector[x]);
         @Override
-        public ObjectColumnSelector selector(String element)
+        public ObjectColumnSelector resolve(String element)
         {
           return asSelector(struct.resolve(element));
         }
@@ -1375,6 +1375,24 @@ public class ColumnSelectors
             array[i] = fields[i].get();
           }
           return Arrays.asList(array);
+        }
+
+        @Override
+        public Object get(int ix)
+        {
+          return fields[ix].get();
+        }
+
+        @Override
+        public ValueDesc getType(int ix)
+        {
+          return fields[ix].type();
+        }
+
+        @Override
+        public int numElements()
+        {
+          return fields.length;
         }
 
         @Override
@@ -1404,7 +1422,7 @@ public class ColumnSelectors
         final ObjectColumnSelector value = asSelector(map.getValue());
 
         @Override
-        public ObjectColumnSelector selector(String expression)
+        public ObjectColumnSelector resolve(String expression)
         {
           Column resolved = map.resolve(expression);
           if (resolved != null) {
@@ -1508,13 +1526,19 @@ public class ColumnSelectors
                                                           .mapToObj(x -> asSelector(getElement(x)))
                                                           .toArray(x -> new ObjectColumnSelector[x]);
         @Override
-        public ObjectColumnSelector selector(String expression)
+        public Object get(int ix)
         {
-          Column column = array.resolve(expression);
+          return selectors[ix].get();
+        }
+
+        @Override
+        public ObjectColumnSelector resolve(String expression)
+        {
+          Column column = array.resolve(expression);    // try element access
           if (column != null) {
             return asSelector(column);
           }
-          return gatheringSelector(selectors, expression);
+          return gatheringSelector(selectors, expression);  // array of struct
         }
 
         private ObjectColumnSelector gatheringSelector(ObjectColumnSelector[] selectors, String element)
@@ -1523,10 +1547,28 @@ public class ColumnSelectors
           for (int i = 0; i < selectors.length; i++) {
             resolved[i] = NestedTypes.resolve(selectors[i], element);
           }
-          return new Nested()
+          return new ComplexColumnSelector.ListBacked()
           {
             @Override
-            public ObjectColumnSelector selector(String element)
+            public Object get(int ix)
+            {
+              return resolved[ix].get();
+            }
+
+            @Override
+            public ValueDesc getType(int ix)
+            {
+              return resolved[ix].type();
+            }
+
+            @Override
+            public int numElements()
+            {
+              return resolved.length;
+            }
+
+            @Override
+            public ObjectColumnSelector resolve(String element)
             {
               Integer ix = Ints.tryParse(element);
               if (ix != null) {

@@ -93,7 +93,6 @@ public class ArrayVirtualColumn implements VirtualColumn.IndexProvider.Rewritabl
       if (selector == null) {
         continue;
       }
-      Preconditions.checkArgument(column.charAt(columnName.length()) == '.');
       String expression = column.substring(ix + 1);
       if (selector instanceof ComplexColumnSelector.Nested) {
         return ((ComplexColumnSelector.Nested) selector).nested(expression);

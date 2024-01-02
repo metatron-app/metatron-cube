@@ -44,7 +44,7 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
     default ObjectColumnSelector nested(String expression)
     {
       int ix = expression.indexOf('.');
-      ObjectColumnSelector selector = selector(ix < 0 ? expression : expression.substring(0, ix));
+      ObjectColumnSelector selector = resolve(ix < 0 ? expression : expression.substring(0, ix));
       if (ix < 0) {
         return selector;
       }
@@ -54,10 +54,19 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
       return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
     }
 
-    ObjectColumnSelector selector(String element);
+    ObjectColumnSelector resolve(String element);
   }
 
-  interface StructColumnSelector extends ComplexColumnSelector.Nested<List>
+  interface ListBacked extends ComplexColumnSelector.Nested<List>
+  {
+    Object get(int ix);
+
+    ValueDesc getType(int ix);
+
+    int numElements();
+  }
+
+  interface StructColumnSelector extends ListBacked
   {
     List<String> getFieldNames();
 
@@ -93,12 +102,8 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
     }
   }
 
-  interface ArrayColumnSelector extends ComplexColumnSelector.Nested<List>
+  interface ArrayColumnSelector extends ListBacked
   {
-    int numElements();
-
-    ValueDesc getType(int ix);
-
     Column getElement(int ix);
   }
 }
