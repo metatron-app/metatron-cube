@@ -58,6 +58,24 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
     };
   }
 
+  public static <T> Typed<T> typed(String description, ValueDesc type, Supplier<T> supplier)
+  {
+    return new Typed<T>(type)
+    {
+      @Override
+      public T get()
+      {
+        return supplier.get();
+      }
+
+      @Override
+      public final String toString()
+      {
+        return description;
+      }
+    };
+  }
+
   abstract class StringType extends Typed<String>
   {
     protected StringType()
