@@ -39,6 +39,9 @@ public class NestedColumnTest extends CalciteQueryTestHelper
   private static final TableDataSource UPS = TableDataSource.of("ups");
   private static final TableDataSource UPS_I = TableDataSource.of("ups_i");
 
+  private static final TableDataSource UPS2 = TableDataSource.of("ups2");
+  private static final TableDataSource UPS2_I = TableDataSource.of("ups2_i");
+
   private static final CalciteQueryTestHelper.MiscQueryHook hook = new CalciteQueryTestHelper.MiscQueryHook()
   {
     @Override
@@ -49,17 +52,19 @@ public class NestedColumnTest extends CalciteQueryTestHelper
   };
   private static final TestQuerySegmentWalker walker = TestHelper.newWalker().addUps().withQueryHook(hook);
 
-  @Parameterized.Parameters(name = "ds:{0}")
+  @Parameterized.Parameters(name = "incremental:{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return Arrays.asList(new Object[]{UPS.getName()}, new Object[]{UPS_I.getName()});
+    return Arrays.asList(new Object[]{false}, new Object[]{true});
   }
 
   private final Object[] params;
+  private final Object[] params2;
 
-  public NestedColumnTest(String ds)
+  public NestedColumnTest(boolean ds)
   {
-    this.params = new Object[]{ds};
+    this.params = new Object[]{ds ? UPS.getName() : UPS_I.getName()};
+    this.params2 = new Object[]{ds ? UPS2.getName() : UPS2_I.getName()};
   }
 
   @Override
@@ -247,8 +252,9 @@ public class NestedColumnTest extends CalciteQueryTestHelper
         {"puzzlewoodblock", 0.7828053832054138D}
     };
     testQuery(
-        "SELECT \"adot_usage.entity.entity_preferences.apollo_game.preferences.name\", "
-        + "sum(\"adot_usage.entity.entity_preferences.apollo_game.preferences.score\") from ups2 group by 1",
+        String.format(
+            "SELECT \"adot_usage.entity.entity_preferences.apollo_game.preferences.name\", " +
+            "sum(\"adot_usage.entity.entity_preferences.apollo_game.preferences.score\") from %s group by 1", params2),
         expected
     );
   }

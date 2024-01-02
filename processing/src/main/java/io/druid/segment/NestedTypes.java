@@ -24,9 +24,9 @@ import com.google.common.primitives.Ints;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.segment.ComplexColumnSelector.ListBacked;
 import io.druid.segment.serde.StructMetricSerde;
 
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -120,12 +120,7 @@ public class NestedTypes
 
   public static ObjectColumnSelector resolve(ObjectColumnSelector selector, String expression)
   {
-    return resolve(selector, selector.type(), expression);
-  }
-
-  @Nullable
-  public static ObjectColumnSelector resolve(ObjectColumnSelector selector, ValueDesc type, String expression)
-  {
+    ValueDesc type = selector.type();
     if (type.isMap()) {
       String[] description = TypeUtils.splitDescriptiveType(type);
       if (Row.MAP_KEY.equals(expression)) {
@@ -176,11 +171,12 @@ public class NestedTypes
       final int vindex = index;
       final String fieldName = ix < 0 ? expression : expression.substring(0, ix);
       final ValueDesc fieldType = serde.type(index, f -> f.isDimension() ? ValueDesc.MV_STRING : f);
-      final ObjectColumnSelector nested = new ObjectColumnSelector.Typed(fieldType)
-      {
-        @Override
-        public Object get()
-        {
+
+      final ObjectColumnSelector nested;
+      if (selector instanceof ListBacked) {
+        nested = ObjectColumnSelector.typed(expression, fieldType, () -> ((ListBacked) selector).get(vindex));
+      } else {
+        nested = ObjectColumnSelector.typed(expression, fieldType, () -> {
           final Object o = selector.get();
           if (o == null) {
             return null;
@@ -192,8 +188,8 @@ public class NestedTypes
             return ((Map) o).get(fieldName);
           }
           return null;
-        }
-      };
+        });
+      }
       return ix < 0 ? nested : resolve(nested, expression.substring(ix + 1));
     }
     if (type.isArray()) {
@@ -206,21 +202,21 @@ public class NestedTypes
         });
         return ix < 0 ? nested : resolve(nested, expression.substring(ix + 1));
       }
+
       StructMetricSerde serde = StructMetricSerde.parse(type.unwrapArray());
       int index = serde.indexOf(expression);
-      return new ObjectColumnSelector.Typed(serde.type(index))
+      if (index < 0) {
+        return ColumnSelectors.NULL_UNKNOWN;
+      }
+      return ObjectColumnSelector.typed(expression, ValueDesc.ofArray(serde.type(index)), () ->
       {
-        @Override
-        public Object get()
-        {
-          final List o = (List) selector.get();
-          final Object[] extract = new Object[o.size()];
-          for (int i = 0; i < extract.length; i++) {
-            extract[i] = ((List) o.get(i)).get(index);
-          }
-          return Arrays.asList(extract);
+        final List o = (List) selector.get();
+        final Object[] extract = new Object[o.size()];
+        for (int i = 0; i < extract.length; i++) {
+          extract[i] = ((List) o.get(i)).get(index);
         }
-      };
+        return Arrays.asList(extract);
+      });
     }
     return ColumnSelectors.NULL_UNKNOWN;
   }
