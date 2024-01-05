@@ -153,43 +153,66 @@
     },
     "entity":{
       "entity_preferences": {
-        "apollo_samsungstock":
+        "apollo_samsungstock": [
           {
             "entity_role":"STOCK_NAME",
             "preferences":[
               {
-                "name":"\uc0bc\uc131\uc804\uc790",
+                "name":"삼성전자",
                 "ranking":"1",
                 "score":"0.9999999999999999",
                 "usage_yn":"n"
               },
               {
-                "name":"SK\ud154\ub808\ucf64",
+                "name":"SK텔레콤",
                 "ranking":"2",
                 "score":"0.3847228764417643",
                 "usage_yn":"n"
               },
               {
-                "name":"\uce74\uce74\uc624",
+                "name":"카카오",
                 "ranking":"3",
                 "score":"0.2178327517240167",
                 "usage_yn":"n"
               },
               {
-                "name":"\ub450\uc0b0\uc5d0\ub108\ube4c\ub9ac\ud2f0",
+                "name":"두산에너빌리티",
                 "ranking":"4",
                 "score":"0.09346485647639545",
                 "usage_yn":"n"
               },
               {
-                "name":"\uc138\ud1a0\ud53c\uc544",
+                "name":"세토피아",
                 "ranking":"5",
                 "score":"0.0806927385721469",
                 "usage_yn":"n"
               }
             ]
+          },
+          {
+            "entity_role":"STOCK_NAME",
+            "preferences":[
+              {
+                "name":"삼성전자",
+                "ranking":"1",
+                "score":"0.9999999999999999",
+                "usage_yn":"n"
+              },
+              {
+                "name":"하이닉스",
+                "ranking":"3",
+                "score":"0.8178327517240167",
+                "usage_yn":"n"
+              },
+              {
+                "name":"SK텔레콤",
+                "ranking":"2",
+                "score":"0.3847228764417643",
+                "usage_yn":"n"
+              }
+            ]
           }
-        ,
+        ],
         "apollo_game":
           {
             "entity_role":"CONTENT",

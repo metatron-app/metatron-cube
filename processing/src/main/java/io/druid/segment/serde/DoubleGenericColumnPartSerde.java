@@ -144,12 +144,6 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
                 private final ImmutableBitmap bitmap = nulls.get();
 
                 @Override
-                public CompressionStrategy compressionType()
-                {
-                  return CompressionStrategy.NONE;
-                }
-
-                @Override
                 public int numRows()
                 {
                   return numRows;

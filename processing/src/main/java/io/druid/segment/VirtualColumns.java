@@ -341,7 +341,8 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     };
   }
 
-  public static ColumnSelectorFactory wrap(Cursor factory, List<VirtualColumn> virtualColumns)
+  // share indexing key of dimension selectors to metric selectors for proper pair-matching
+  public static ColumnSelectorFactory forAggregators(Cursor factory, List<VirtualColumn> virtualColumns)
   {
     if (virtualColumns.isEmpty()) {
       return factory;

@@ -21,7 +21,6 @@ package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
-import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 /**
  */
@@ -42,12 +41,6 @@ public class BooleanGenericColumn implements GenericColumn
   public ValueDesc getType()
   {
     return ValueDesc.BOOLEAN;
-  }
-
-  @Override
-  public CompressionStrategy compressionType()
-  {
-    return CompressionStrategy.NONE;
   }
 
   @Override

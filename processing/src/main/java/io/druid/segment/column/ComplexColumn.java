@@ -36,7 +36,8 @@ public interface ComplexColumn extends ColumnAccess
 {
   int numRows();
 
-  CompressionStrategy compressionType();  // just for index viewer
+  // just for index viewer
+  default CompressionStrategy compressionType() {return CompressionStrategy.NONE;}
 
   interface Nested extends ComplexColumn
   {

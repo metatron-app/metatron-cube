@@ -32,7 +32,6 @@ import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
-import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -47,37 +46,23 @@ public class ArrayColumnPartSerde implements ColumnPartSerde
 {
   @JsonCreator
   public static ArrayColumnPartSerde createDeserializer(
-      @JsonProperty("elementDescriptor") ColumnDescriptor elementDescriptor,
-      @JsonProperty("size") int size
-      )
+      @JsonProperty("descriptor") ColumnDescriptor descriptor
+  )
   {
-    return new ArrayColumnPartSerde(Arrays.asList(elementDescriptor), size);
+    return new ArrayColumnPartSerde(Arrays.asList(descriptor));
   }
 
-  private final int size;
   private final List<ColumnDescriptor> descriptors;
 
   public ArrayColumnPartSerde(List<ColumnDescriptor> descriptors)
   {
-    this(descriptors, descriptors.size());
-  }
-
-  public ArrayColumnPartSerde(List<ColumnDescriptor> descriptors, int size)
-  {
     this.descriptors = descriptors;
-    this.size = size;
   }
 
   @JsonProperty
-  public ColumnDescriptor getElementDescriptor()
+  public ColumnDescriptor getDescriptor()
   {
     return descriptors.get(0);
-  }
-
-  @JsonProperty
-  public int getSize()
-  {
-    return size;
   }
 
   @Override
@@ -88,13 +73,13 @@ public class ArrayColumnPartSerde implements ColumnPartSerde
       @Override
       public long getSerializedSize()
       {
-        return ColumnDescriptor.getPrefixedSize(descriptors);
+        return Integer.BYTES + ColumnDescriptor.getPrefixedSize(descriptors);
       }
 
       @Override
       public long writeToChannel(WritableByteChannel channel) throws IOException
       {
-        long written = 0;
+        long written = channel.write(ByteBuffer.wrap(Ints.toByteArray(descriptors.size())));
         for (ColumnDescriptor descriptor : descriptors) {
           written += channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(descriptor.numBytes()))));
           written += descriptor.write(channel);
@@ -116,7 +101,8 @@ public class ArrayColumnPartSerde implements ColumnPartSerde
         int position = buffer.position();
         ColumnDescriptor descriptor = descriptors.get(0);
         List<Column> elements = Lists.newArrayList();
-        for (int i = 0; i < size; i++) {
+        int length = buffer.getInt();
+        for (int i = 0; i < length; i++) {
           ByteBuffer prepared = ByteBufferSerializer.prepareForRead(buffer);
           elements.add(descriptor.read(prefix + i, prepared, serdeFactory));
         }
@@ -167,12 +153,6 @@ public class ArrayColumnPartSerde implements ColumnPartSerde
     public ValueDesc getType()
     {
       return type;
-    }
-
-    @Override
-    public CompressionStrategy compressionType()
-    {
-      return null;
     }
 
     @Override

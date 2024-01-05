@@ -166,12 +166,6 @@ public class StructColumnPartSerde implements ColumnPartSerde
     }
 
     @Override
-    public CompressionStrategy compressionType()
-    {
-      return null;
-    }
-
-    @Override
     public int numRows()
     {
       return Iterables.getFirst(fields.values(), null).getNumRows();

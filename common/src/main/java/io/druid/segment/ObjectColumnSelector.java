@@ -23,6 +23,9 @@ import com.google.common.base.Supplier;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.ValueDesc;
 
+import java.util.List;
+import java.util.function.IntFunction;
+
 public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
 {
   interface Scannable<T> extends ObjectColumnSelector<T>, io.druid.common.Scannable<T>
@@ -69,7 +72,7 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
       }
 
       @Override
-      public final String toString()
+      public String toString()
       {
         return description;
       }
@@ -87,5 +90,34 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
   public static <T> Typed<T> string(Supplier<T> supplier)
   {
     return typed(ValueDesc.STRING, supplier);
+  }
+
+  interface ListBacked extends ObjectColumnSelector<List>
+  {
+    Object get(int index);
+  }
+
+  public static ObjectColumnSelector listBacked(ValueDesc type, IntFunction indexed, Supplier<List> whole)
+  {
+    return new ObjectColumnSelector.ListBacked()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return type;
+      }
+
+      @Override
+      public Object get(int index)
+      {
+        return indexed.apply(index);
+      }
+
+      @Override
+      public List get()
+      {
+        return whole.get();
+      }
+    };
   }
 }

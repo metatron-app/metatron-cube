@@ -22,7 +22,6 @@ package io.druid.segment.column;
 import io.druid.common.guava.BufferRef;
 import io.druid.data.ValueDesc;
 import io.druid.segment.Tools;
-import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 
 import java.io.IOException;
@@ -44,12 +43,6 @@ public class NotCompressedComplexColumn implements ComplexColumn, ColumnAccess.W
   public ValueDesc getType()
   {
     return type;
-  }
-
-  @Override
-  public CompressionStrategy compressionType()
-  {
-    return CompressionStrategy.NONE;
   }
 
   @Override

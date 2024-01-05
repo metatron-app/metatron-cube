@@ -61,10 +61,10 @@ public class NestedColumnTest extends CalciteQueryTestHelper
   private final Object[] params;
   private final Object[] params2;
 
-  public NestedColumnTest(boolean ds)
+  public NestedColumnTest(boolean incremental)
   {
-    this.params = new Object[]{ds ? UPS.getName() : UPS_I.getName()};
-    this.params2 = new Object[]{ds ? UPS2.getName() : UPS2_I.getName()};
+    this.params = new Object[]{incremental ? UPS_I.getName() : UPS.getName()};
+    this.params2 = new Object[]{incremental ? UPS2_I.getName() : UPS2.getName()};
   }
 
   @Override
@@ -242,7 +242,7 @@ public class NestedColumnTest extends CalciteQueryTestHelper
   }
 
   @Test
-  public void testUPS2() throws Exception
+  public void testGroupByOnArray() throws Exception
   {
     Object[][] expected = {
         {"agentpenguin", 0.7148069143295288D},
@@ -255,6 +255,25 @@ public class NestedColumnTest extends CalciteQueryTestHelper
         String.format(
             "SELECT \"adot_usage.entity.entity_preferences.apollo_game.preferences.name\", " +
             "sum(\"adot_usage.entity.entity_preferences.apollo_game.preferences.score\") from %s group by 1", params2),
+        expected
+    );
+  }
+
+  @Test
+  public void testGroupByOnArrayOfArray() throws Exception
+  {
+    Object[][] expected = {
+        {"SK텔레콤", 0.7694457769393921D},
+        {"두산에너빌리티", 0.09346485882997513D},
+        {"삼성전자", 2.0D},
+        {"세토피아", 0.08069273829460144D},
+        {"카카오", 0.2178327590227127D},
+        {"하이닉스", 0.8178327679634094D}
+    };
+    testQuery(
+        String.format(
+            "SELECT \"adot_usage.entity.entity_preferences.apollo_samsungstock.preferences.name\", " +
+            "sum(\"adot_usage.entity.entity_preferences.apollo_samsungstock.preferences.score\") from %s group by 1", params2),
         expected
     );
   }
