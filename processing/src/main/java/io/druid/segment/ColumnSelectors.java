@@ -24,7 +24,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.BufferRef;
@@ -1538,68 +1537,7 @@ public class ColumnSelectors
           if (column != null) {
             return asSelector(column);
           }
-          return gatheringSelector(selectors, expression);  // array of struct
-        }
-
-        private ObjectColumnSelector gatheringSelector(ObjectColumnSelector[] selectors, String element)
-        {
-          ObjectColumnSelector[] resolved = new ObjectColumnSelector[selectors.length];
-          for (int i = 0; i < selectors.length; i++) {
-            resolved[i] = NestedTypes.resolve(selectors[i], element);
-          }
-          return new ComplexColumnSelector.ListBacked()
-          {
-            @Override
-            public Object get(int ix)
-            {
-              return resolved[ix].get();
-            }
-
-            @Override
-            public ValueDesc getType(int ix)
-            {
-              return resolved[ix].type();
-            }
-
-            @Override
-            public int numElements()
-            {
-              return resolved.length;
-            }
-
-            @Override
-            public ObjectColumnSelector resolve(String element)
-            {
-              Integer ix = Ints.tryParse(element);
-              if (ix != null) {
-                return resolved[ix];
-              }
-              return gatheringSelector(resolved, element);
-            }
-
-            @Override
-            public Offset offset()
-            {
-              return offset;
-            }
-
-            @Override
-            public ValueDesc type()
-            {
-              return ValueDesc.ofArray(resolved[0].type());
-            }
-
-            @Override
-            public List get()
-            {
-              int rownum = offset.get();
-              Object[] array = new Object[resolved.length];
-              for (int i = 0; i < array.length; i++) {
-                array[i] = resolved[i].get();
-              }
-              return Arrays.asList(array);
-            }
-          };
+          return NestedTypes.resolve(collect(array.getType(), selectors), expression);
         }
 
         @Override
@@ -1718,5 +1656,29 @@ public class ColumnSelectors
       };
     }
     return ObjectColumnSelector.string(() -> dictionary.get(column.getSingleValueRow(offset.get())));
+  }
+
+  // array.array to array
+  public static ObjectColumnSelector concat(ValueDesc type, ObjectColumnSelector selector)
+  {
+    return ObjectColumnSelector.typed(type, () -> {
+      List list = (List) selector.get();
+      List<Object> concat = Lists.newArrayList();
+      for (Object e : list) {
+        concat.addAll((List) e);
+      }
+      return concat;
+    });
+  }
+
+  public static ObjectColumnSelector collect(ValueDesc type, ObjectColumnSelector[] selectors)
+  {
+    return ObjectColumnSelector.listBacked(type, ix -> selectors[ix].get(), () -> {
+      Object[] array = new Object[selectors.length];
+      for (int i = 0; i < array.length; i++) {
+        array[i] = selectors[i].get();
+      }
+      return Arrays.asList(array);
+    });
   }
 }

@@ -211,17 +211,19 @@
       },
       "entity": {
         "entity_preferences": {
-          "apollo_samsungstock": {
-            "entity_role": "string",
-            "preferences": [
-              {
-                "name":"string",
-                "ranking":"string",
-                "score":"float",
-                "usage_yn":"boolean"
-              }
-            ]
-          },
+          "apollo_samsungstock": [
+            {
+              "entity_role": "string",
+              "preferences": [
+                {
+                  "name":"string",
+                  "ranking":"string",
+                  "score":"float",
+                  "usage_yn":"boolean"
+                }
+              ]
+            }
+          ],
           "apollo_game": {
             "entity_role": "string",
             "preferences": [

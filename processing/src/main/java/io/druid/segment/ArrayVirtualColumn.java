@@ -84,11 +84,7 @@ public class ArrayVirtualColumn implements VirtualColumn.IndexProvider.Rewritabl
   public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
   {
     Preconditions.checkArgument(column.startsWith(columnName));
-    if (columnName.equals(column)) {
-      return factory.makeObjectColumnSelector(column);
-    }
-    Preconditions.checkArgument(column.charAt(columnName.length()) == '.');
-    for (int ix = columnName.length(); ix > 0; ix = column.indexOf('.', ix + 1)) {
+    for (int ix = column.lastIndexOf('.'); ix > 0; ix = column.lastIndexOf('.', ix - 1)) {
       ObjectColumnSelector selector = factory.makeObjectColumnSelector(column.substring(0, ix));
       if (selector == null) {
         continue;

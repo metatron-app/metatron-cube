@@ -57,10 +57,8 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
     ObjectColumnSelector resolve(String element);
   }
 
-  interface ListBacked extends ComplexColumnSelector.Nested<List>
+  interface ListBacked extends ComplexColumnSelector.Nested<List>, ObjectColumnSelector.ListBacked
   {
-    Object get(int ix);
-
     ValueDesc getType(int ix);
 
     int numElements();

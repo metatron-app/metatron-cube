@@ -40,7 +40,7 @@ public class HiveFunctionsTest
   public void test()
   {
     Map<String, DSuppliers.TypedSupplier> mapping = Maps.newHashMap();
-    mapping.put("x", new DSuppliers.TypedSupplier.Simple<String>("   xxx  ", ValueDesc.STRING));
+    mapping.put("x", DSuppliers.TypedSupplier.of(ValueDesc.STRING, () -> "   xxx  "));
     Expr.TypedBinding bindings = Parser.withTypedSuppliers(mapping);
     Expr expr = Parser.parse("hive_trim(x)", bindings);
     ExprEval eval = expr.eval(bindings);
