@@ -197,12 +197,6 @@ public class MapColumnPartSerde implements ColumnPartSerde
     }
 
     @Override
-    public CompressionStrategy compressionType()
-    {
-      return null;
-    }
-
-    @Override
     public CompressionStrategy keyCompressionType()
     {
       return key.compressionType();

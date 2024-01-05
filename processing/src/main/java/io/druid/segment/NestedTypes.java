@@ -24,7 +24,7 @@ import com.google.common.primitives.Ints;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.segment.ComplexColumnSelector.ListBacked;
+import io.druid.segment.ObjectColumnSelector.ListBacked;
 import io.druid.segment.serde.StructMetricSerde;
 
 import java.util.Arrays;
@@ -112,6 +112,11 @@ public class NestedTypes
         if (fieldType != null) {
           return ValueDesc.ofArray(fieldType);
         }
+      } else if (elementType.isArray()) {
+        ValueDesc fieldType = resolve(elementType.unwrapArray(), expression);
+        if (fieldType != null) {
+          return ValueDesc.ofArray(fieldType);
+        }
       }
       return null;
     }
@@ -122,101 +127,119 @@ public class NestedTypes
   {
     ValueDesc type = selector.type();
     if (type.isMap()) {
-      String[] description = TypeUtils.splitDescriptiveType(type);
-      if (Row.MAP_KEY.equals(expression)) {
-        return ObjectColumnSelector.typed(
-            description == null ? ValueDesc.STRING_ARRAY : ValueDesc.ofArray(description[1]),
-            () -> {
-              Map v = (Map) selector.get();
-              return v == null ? null : Lists.newArrayList(v.keySet());
-            }
-        );
-      }
-      if (Row.MAP_VALUE.equals(expression)) {
-        return ObjectColumnSelector.typed(
-            description == null ? ValueDesc.ARRAY : ValueDesc.ofArray(description[2]),
-            () -> {
-              Map v = (Map) selector.get();
-              return v == null ? null : Lists.newArrayList(v.values());
-            }
-        );
-      }
+      return resolveMap(selector, type, expression);
+    }
+    if (type.isStruct()) {
+      return resolveStruct(selector, type, expression, false);
+    }
+    if (type.isArray()) {
+      return resolveArray(selector, type, expression);
+    }
+    return ColumnSelectors.NULL_UNKNOWN;
+  }
+
+  private static ObjectColumnSelector resolveMap(ObjectColumnSelector selector, ValueDesc type, String expression)
+  {
+    String[] description = TypeUtils.splitDescriptiveType(type);
+    if (Row.MAP_KEY.equals(expression)) {
       return ObjectColumnSelector.typed(
-          description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]),
+          description == null ? ValueDesc.STRING_ARRAY : ValueDesc.ofArray(description[1]),
           () -> {
             Map v = (Map) selector.get();
-            return v == null ? null : v.get(expression);
+            return v == null ? null : Lists.newArrayList(v.keySet());
           }
       );
     }
-    if (type.isStruct()) {
-      StructMetricSerde serde = StructMetricSerde.parse(type);
-      if (Row.MAP_KEY.equals(expression)) {
-        List<String> fieldNames = Arrays.asList(serde.getFieldNames());
-        return ObjectColumnSelector.typed(ValueDesc.STRING_ARRAY, () -> fieldNames);
-      }
-      int ix = -1;
-      int index = serde.indexOf(expression);
-      if (index < 0) {
-        for (ix = expression.indexOf('.'); ix > 0; ix = expression.indexOf('.', ix + 1)) {
-          index = serde.indexOf(expression.substring(0, ix));
-          if (index >= 0) {
-            break;
+    if (Row.MAP_VALUE.equals(expression)) {
+      return ObjectColumnSelector.typed(
+          description == null ? ValueDesc.ARRAY : ValueDesc.ofArray(description[2]),
+          () -> {
+            Map v = (Map) selector.get();
+            return v == null ? null : Lists.newArrayList(v.values());
           }
+      );
+    }
+    return ObjectColumnSelector.typed(
+        description == null ? ValueDesc.UNKNOWN : ValueDesc.of(description[2]),
+        () -> {
+          Map v = (Map) selector.get();
+          return v == null ? null : v.get(expression);
+        }
+    );
+  }
+
+  private static ObjectColumnSelector resolveStruct(
+      ObjectColumnSelector selector,
+      ValueDesc type,
+      String expression,
+      boolean collect
+  )
+  {
+    StructMetricSerde serde = StructMetricSerde.parse(type);
+    if (Row.MAP_KEY.equals(expression)) {
+      List<String> fieldNames = Arrays.asList(serde.getFieldNames());
+      return ObjectColumnSelector.typed(ValueDesc.STRING_ARRAY, () -> fieldNames);
+    }
+    int ix = -1;
+    int index = serde.indexOf(expression);
+    if (index < 0) {
+      for (ix = expression.indexOf('.'); ix > 0; ix = expression.indexOf('.', ix + 1)) {
+        index = serde.indexOf(expression.substring(0, ix));
+        if (index >= 0) {
+          break;
         }
       }
-      if (index < 0) {
-        return ColumnSelectors.NULL_UNKNOWN;
-      }
-      final int vindex = index;
-      final String fieldName = ix < 0 ? expression : expression.substring(0, ix);
-      final ValueDesc fieldType = serde.type(index, f -> f.isDimension() ? ValueDesc.MV_STRING : f);
+    }
+    if (index < 0) {
+      return ColumnSelectors.NULL_UNKNOWN;
+    }
+    final int vindex = index;
+    final String fieldName = ix < 0 ? expression : expression.substring(0, ix);
+    final ValueDesc fieldType = serde.type(index, f -> f.isDimension() ? ValueDesc.MV_STRING : f);
 
-      final ObjectColumnSelector nested;
-      if (selector instanceof ListBacked) {
-        nested = ObjectColumnSelector.typed(expression, fieldType, () -> ((ListBacked) selector).get(vindex));
-      } else {
-        nested = ObjectColumnSelector.typed(expression, fieldType, () -> {
-          final Object o = selector.get();
-          if (o == null) {
-            return null;
-          } else if (o instanceof List) {
-            return ((List) o).get(vindex);
-          } else if (o instanceof Object[]) {
-            return ((Object[]) o)[vindex];
-          } else if (o instanceof Map) {
-            return ((Map) o).get(fieldName);
-          }
-          return null;
-        });
-      }
+    final ObjectColumnSelector nested;
+    if (collect) {
+      nested = ObjectColumnSelector.typed(fieldName, ValueDesc.ofArray(fieldType), () -> {
+        final List x = (List) selector.get();   // array of struct
+        final Object[] ret = new Object[x.size()];
+        for (int i = 0; i < ret.length; i++) {
+          ret[i] = ((List) x.get(i)).get(vindex);
+        }
+        return Arrays.asList(ret);
+      });
+    } else if (selector instanceof ListBacked) {
+      nested = ObjectColumnSelector.typed(fieldName, fieldType, () -> ((ListBacked) selector).get(vindex));
+    } else {
+      nested = ObjectColumnSelector.typed(fieldName, fieldType, () -> {
+        final Object o = selector.get();
+        if (o instanceof List) {
+          return ((List) o).get(vindex);
+        } else if (o instanceof Object[]) {
+          return ((Object[]) o)[vindex];
+        }
+        return null;
+      });
+    }
+    return ix < 0 ? nested : resolve(nested, expression.substring(ix + 1));
+  }
+
+  private static ObjectColumnSelector resolveArray(ObjectColumnSelector selector, ValueDesc type, String expression)
+  {
+    ValueDesc element = type.unwrapArray();
+    int ix = expression.indexOf('.');
+    Integer access = Ints.tryParse(ix < 0 ? expression : expression.substring(0, ix));
+    if (access != null) {
+      ObjectColumnSelector nested = ObjectColumnSelector.typed(element, () -> {
+        List list = (List) selector.get();
+        return access < list.size() ? list.get(access) : null;
+      });
       return ix < 0 ? nested : resolve(nested, expression.substring(ix + 1));
     }
-    if (type.isArray()) {
-      int ix = expression.indexOf('.');
-      Integer access = Ints.tryParse(ix < 0 ? expression : expression.substring(0, ix));
-      if (access != null) {
-        ObjectColumnSelector nested = ObjectColumnSelector.typed(type.unwrapArray(), () -> {
-          List list = (List) selector.get();
-          return access < list.size() ? list.get(access) : null;
-        });
-        return ix < 0 ? nested : resolve(nested, expression.substring(ix + 1));
-      }
-
-      StructMetricSerde serde = StructMetricSerde.parse(type.unwrapArray());
-      int index = serde.indexOf(expression);
-      if (index < 0) {
-        return ColumnSelectors.NULL_UNKNOWN;
-      }
-      return ObjectColumnSelector.typed(expression, ValueDesc.ofArray(serde.type(index)), () ->
-      {
-        final List o = (List) selector.get();
-        final Object[] extract = new Object[o.size()];
-        for (int i = 0; i < extract.length; i++) {
-          extract[i] = ((List) o.get(i)).get(index);
-        }
-        return Arrays.asList(extract);
-      });
+    if (element.isStruct()) {
+      return resolveStruct(selector, element, expression, true);
+    }
+    if (element.isArray()) {
+      return resolve(ColumnSelectors.concat(element, selector), expression);
     }
     return ColumnSelectors.NULL_UNKNOWN;
   }

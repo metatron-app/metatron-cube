@@ -178,12 +178,6 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
     }
 
     @Override
-    public CompressionStrategy compressionType()
-    {
-      return CompressionStrategy.NONE;
-    }
-
-    @Override
     public int numRows()
     {
       return numRows;
