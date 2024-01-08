@@ -24,7 +24,7 @@ import com.google.common.primitives.Ints;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.segment.ObjectColumnSelector.ListBacked;
+import io.druid.segment.ObjectColumnSelector.Collectable;
 import io.druid.segment.serde.StructMetricSerde;
 
 import java.util.Arrays;
@@ -199,16 +199,7 @@ public class NestedTypes
 
     final ObjectColumnSelector nested;
     if (collect) {
-      nested = ObjectColumnSelector.typed(fieldName, ValueDesc.ofArray(fieldType), () -> {
-        final List x = (List) selector.get();   // array of struct
-        final Object[] ret = new Object[x.size()];
-        for (int i = 0; i < ret.length; i++) {
-          ret[i] = ((List) x.get(i)).get(vindex);
-        }
-        return Arrays.asList(ret);
-      });
-    } else if (selector instanceof ListBacked) {
-      nested = ObjectColumnSelector.typed(fieldName, fieldType, () -> ((ListBacked) selector).get(vindex));
+      nested = collect(ValueDesc.ofArray(fieldType), selector, vindex);
     } else {
       nested = ObjectColumnSelector.typed(fieldName, fieldType, () -> {
         final Object o = selector.get();
@@ -239,8 +230,40 @@ public class NestedTypes
       return resolveStruct(selector, element, expression, true);
     }
     if (element.isArray()) {
-      return resolve(ColumnSelectors.concat(element, selector), expression);
+      return resolve(concat(element, selector), expression);
     }
     return ColumnSelectors.NULL_UNKNOWN;
+  }
+
+  // array.struct to array
+  private static ObjectColumnSelector collect(ValueDesc type, ObjectColumnSelector selector, int ix)
+  {
+    if (selector instanceof Collectable) {
+      return  ((Collectable) selector).collect(type, ix);
+    }
+    return ObjectColumnSelector.typed(type, () -> {
+      final List x = (List) selector.get();
+      final Object[] ret = new Object[x.size()];
+      for (int i = 0; i < ret.length; i++) {
+        ret[i] = ((List) x.get(i)).get(ix);
+      }
+      return Arrays.asList(ret);
+    });
+  }
+
+  // array.array to array
+  private static ObjectColumnSelector concat(ValueDesc type, ObjectColumnSelector selector)
+  {
+    if (selector instanceof Collectable) {
+      return ((Collectable) selector).concat(type);
+    }
+    return ObjectColumnSelector.typed(type, () -> {
+      List list = (List) selector.get();
+      List<Object> concat = Lists.newArrayList();
+      for (Object e : list) {
+        concat.addAll((List) e);
+      }
+      return concat;
+    });
   }
 }

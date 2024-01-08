@@ -27,7 +27,7 @@ import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.segment.ComplexColumnSelector.MapColumnSelector;
+import io.druid.segment.ComplexColumnSelector.FromMap;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -108,9 +108,9 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
     }
     String postfix = dimension.substring(metric.length() + 1);
     if (MAP_KEY.equals(postfix)) {
-      if (selector instanceof MapColumnSelector) {
+      if (selector instanceof ComplexColumnSelector.FromMap) {
         ScanContext context = factory instanceof Cursor ? ((Cursor) factory).scanContext() : null;  // todo
-        return ((MapColumnSelector) selector).keyDimensionSelector(context, extractionFn, keyIndexed.indexer());
+        return ((FromMap) selector).keyDimensionSelector(context, extractionFn, keyIndexed.indexer());
       }
       ObjectColumnSelector values = ObjectColumnSelector.typed(ValueDesc.MV_STRING, () ->
       {
@@ -123,8 +123,8 @@ public class ImplicitMapVirtualColumn implements VirtualColumn.IndexProvider
       return keyIndexed.wrap(VirtualColumns.toDimensionSelector(values, extractionFn));
     }
     if (MAP_VALUE.equals(postfix)) {
-      if (selector instanceof MapColumnSelector) {
-        ObjectColumnSelector values = ((MapColumnSelector) selector).valueSelector();
+      if (selector instanceof ComplexColumnSelector.FromMap) {
+        ObjectColumnSelector values = ((FromMap) selector).valueSelector();
         return VirtualColumns.toDimensionSelector(values, extractionFn);
       }
       String[] description = TypeUtils.splitDescriptiveType(type);

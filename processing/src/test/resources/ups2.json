@@ -2,118 +2,118 @@
   "_id":"APL00000BJQEAF9KD1C0",
   "age_cd":40,
   "terms":{
-    "wavve":"\ub3d9\uc758",
-    "proactive_receive":"\ub3d9\uc758",
-    "mbrs":"\ub3d9\uc758",
-    "flo":"\ub3d9\uc758",
-    "tmap":"\ub3d9\uc758",
-    "event_receive":"\ub3d9\uc758",
-    "marketing_msg":"\ub3d9\uc758"
+    "wavve":"동의",
+    "proactive_receive":"동의",
+    "mbrs":"동의",
+    "flo":"동의",
+    "tmap":"동의",
+    "event_receive":"동의",
+    "marketing_msg":"동의"
   },
   "onboarding":{
     "movie":[
       {
-        "name":"(\uc790\ub9c9) \uc5b4\ubca4\uc838\uc2a4: \uc5d4\ub4dc\uac8c\uc784",
+        "name":"(자막) 어벤져스: 엔드게임",
         "_id":"MV_CA01_DY0000011491"
       },
       {
-        "name":"\ubc30\ud2b8\ub9e8 \ub300 \uc288\ud37c\ub9e8: \uc800\uc2a4\ud2f0\uc2a4\uc758 \uc2dc\uc791",
+        "name":"배트맨 대 슈퍼맨: 저스티스의 시작]",
         "_id":"MV_CD01_WR0000011498"
       },
       {
-        "name":"\uc2a4\ud30c\uc774\ub354\ub9e8 3",
+        "name":"스파이더맨 3",
         "_id":"MV_CF01_SY0000011176"
       }
     ],
     "interest":[
       {
-        "name":"\ub3d9\ub124 \ud0d0\ubc29",
+        "name":"동네 탐방",
         "_id":"KEYWORD_001"
       },
       {
-        "name":"\ud328\uc158\uc758 \ubaa8\ub4e0 \uac83",
+        "name":"패션의 모든 것",
         "_id":"KEYWORD_002"
       },
       {
-        "name":"\uac9f\uc787\ubdf0\ud2f0",
+        "name":"겟잇뷰티",
         "_id":"KEYWORD_003"
       },
       {
-        "name":"\ud2b8\ub80c\ub4dc\uc138\ud130",
+        "name":"트렌드세터",
         "_id":"KEYWORD_004"
       },
       {
-        "name":"\uae08\uc735/\ubd80\ub3d9\uc0b0 \ud22c\uc790",
+        "name":"금융/부동산 투자",
         "_id":"KEYWORD_005"
       },
       {
-        "name":"\uac8c\uc784",
+        "name":"게임",
         "_id":"KEYWORD_006"
       },
       {
-        "name":"\uc2a4\ud2b8\ub9ac\ubc0d \ucee8\ud150\uce20",
+        "name":"스트리밍 컨텐츠",
         "_id":"KEYWORD_007"
       },
       {
-        "name":"\uc74c\uc545 \ub4e3\uae30",
+        "name":"음악 듣기",
         "_id":"KEYWORD_008"
       },
       {
-        "name":"\uc778\uae30\uc601\uc0c1/\uc601\ud654 \ubcf4\uae30",
+        "name":"인기영상/영화 보기",
         "_id":"KEYWORD_009"
       },
       {
-        "name":"\uc815\ubcf4 \ud0d0\uc0c9",
+        "name":"정보 탐색",
         "_id":"KEYWORD_010"
       },
       {
-        "name":"\uc6f9\ud230/\uc560\ub2c8 \ubcf4\uae30",
+        "name":"웹툰/애니 보기",
         "_id":"KEYWORD_011"
       },
       {
-        "name":"SNS \ud0d0\uc0c9/\uc5c5\ub85c\ub4dc",
+        "name":"SNS 탐색/업로드",
         "_id":"KEYWORD_012"
       },
       {
-        "name":"\uc544\uc6c3\ub3c4\uc5b4/\ub808\uc800",
+        "name":"아웃도어/레저",
         "_id":"KEYWORD_013"
       },
       {
-        "name":"\uc608\uc220/\ubb38\ud654",
+        "name":"예술/문화",
         "_id":"KEYWORD_014"
       },
       {
-        "name":"\ub9db\uc9d1\ud0d0\ubc29",
+        "name":"맛집탐방",
         "_id":"KEYWORD_015"
       },
       {
-        "name":"\uc790\uae30\uac1c\ubc1c",
+        "name":"자기개발",
         "_id":"KEYWORD_016"
       },
       {
-        "name":"\uc790\ub140\uad50\uc721",
+        "name":"자녀교육",
         "_id":"KEYWORD_017"
       },
       {
-        "name":"\uc77c\uc0c1\uc801\uc778",
+        "name":"일상적인",
         "_id":"KEYWORD_019"
       },
       {
-        "name":"\uc5ec\ud589\uc744 \ub5a0\ub098\uc694",
+        "name":"여행을 떠나요",
         "_id":"KEYWORD_020"
       }
     ],
     "artist":[
       {
-        "name":"\ud0dc\uc5f0 (TAEYEON)",
+        "name":"태연 (TAEYEON)",
         "_id":"80026437"
       },
       {
-        "name":"\uc544\uc774\uc720 (IU)",
+        "name":"아이유 (IU)",
         "_id":"80049126"
       },
       {
-        "name":"AKMU (\uc545\ubba4)",
+        "name":"AKMU (악뮤)",
         "_id":"80141499"
       }
     ]
@@ -125,7 +125,7 @@
   },
   "adot_usage":{
     "_id":"APL00000BJQEAF9KD1C0",
-    "life_cycle":"\ubcf5\uadc0",
+    "life_cycle":"복귀",
     "quest":{
       "cube":{
         "received":61,
@@ -560,21 +560,21 @@
       "married":true
     },
     "life_stage":[
-      "\uc9c1\uc7a5\uc778"
+      "직장인"
     ],
     "life_style":[
-      "\uace8\ud504",
-      "\uc601\ud654\uad00"
+      "골프",
+      "영화관"
     ],
     "onboarding_interest":[
 
     ],
-    "segment":"\uc911\ub144_\ubcf4\ud1b5\uc758 \uc911\ub144",
+    "segment":"중년_보통의 중년",
     "shopping_channel":[
 
     ],
     "transport":[
-      "\uc9c0\ud558\ucca0"
+      "지하철"
     ],
     "cdr":{
       "bf_m1_sms_cnt":55,
