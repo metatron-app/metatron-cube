@@ -24,7 +24,6 @@ import io.druid.common.guava.DSuppliers;
 import io.druid.data.ValueDesc;
 
 import java.util.List;
-import java.util.function.IntFunction;
 
 public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
 {
@@ -97,27 +96,12 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
     Object get(int index);
   }
 
-  public static ObjectColumnSelector listBacked(ValueDesc type, IntFunction indexed, Supplier<List> whole)
+  interface Collectable extends ObjectColumnSelector<List>
   {
-    return new ObjectColumnSelector.ListBacked()
-    {
-      @Override
-      public ValueDesc type()
-      {
-        return type;
-      }
+    // A-S -> A
+    ObjectColumnSelector collect(ValueDesc type, int index);
 
-      @Override
-      public Object get(int index)
-      {
-        return indexed.apply(index);
-      }
-
-      @Override
-      public List get()
-      {
-        return whole.get();
-      }
-    };
+    // A-A -> A
+    ObjectColumnSelector concat(ValueDesc type);
   }
 }

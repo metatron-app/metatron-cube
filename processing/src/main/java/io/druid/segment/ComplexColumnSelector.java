@@ -64,7 +64,7 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
     int numElements();
   }
 
-  interface StructColumnSelector extends ListBacked
+  interface FromStruct extends ListBacked
   {
     List<String> getFieldNames();
 
@@ -73,7 +73,7 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
     ValueDesc getType(String field);
   }
 
-  interface MapColumnSelector extends ComplexColumnSelector.Nested<Map>
+  interface FromMap extends ComplexColumnSelector.Nested<Map>
   {
     Column getKey();
 
@@ -100,7 +100,7 @@ public interface ComplexColumnSelector<T> extends ObjectColumnSelector<T>
     }
   }
 
-  interface ArrayColumnSelector extends ListBacked
+  interface FromArray extends ListBacked, Collectable
   {
     Column getElement(int ix);
   }

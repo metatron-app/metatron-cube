@@ -12,6 +12,12 @@
   {
     "email": "string",
     "onboarding": {
+      "movie": [
+        {
+          "_id": "tag",
+          "name": "string"
+        }
+      ],
       "interest": [
         {
           "_id": "tag",

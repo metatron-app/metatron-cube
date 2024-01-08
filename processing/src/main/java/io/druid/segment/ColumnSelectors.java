@@ -1341,245 +1341,12 @@ public class ColumnSelectors
     if (column == null) {
       return NULL_UNKNOWN;
     }
-    if (column instanceof ComplexColumn.StructColumn) {
-      return new ComplexColumnSelector.StructColumnSelector()
-      {
-        final ComplexColumn.StructColumn struct = (ComplexColumn.StructColumn) column;
-        final ObjectColumnSelector[] fields = struct.getFieldNames().stream()
-                                                    .map(f -> asSelector(getField(f)))
-                                                    .toArray(x -> new ObjectColumnSelector[x]);
-        @Override
-        public ObjectColumnSelector resolve(String element)
-        {
-          return asSelector(struct.resolve(element));
-        }
-
-        @Override
-        public Offset offset()
-        {
-          return offset;
-        }
-
-        @Override
-        public ValueDesc type()
-        {
-          return struct.getType();
-        }
-
-        @Override
-        public List get()
-        {
-          Object[] array = new Object[fields.length];
-          for (int i = 0; i < fields.length; i++) {
-            array[i] = fields[i].get();
-          }
-          return Arrays.asList(array);
-        }
-
-        @Override
-        public Object get(int ix)
-        {
-          return fields[ix].get();
-        }
-
-        @Override
-        public ValueDesc getType(int ix)
-        {
-          return fields[ix].type();
-        }
-
-        @Override
-        public int numElements()
-        {
-          return fields.length;
-        }
-
-        @Override
-        public List<String> getFieldNames()
-        {
-          return struct.getFieldNames();
-        }
-
-        @Override
-        public ValueDesc getType(String field)
-        {
-          return struct.getType(field);
-        }
-
-        @Override
-        public Column getField(String field)
-        {
-          return struct.getField(field);
-        }
-      };
-    }
     if (column instanceof ComplexColumn.MapColumn) {
-      return new ComplexColumnSelector.MapColumnSelector()
-      {
-        final ComplexColumn.MapColumn map = (ComplexColumn.MapColumn) column;
-        final ObjectColumnSelector key = asSelector(map.getKey());
-        final ObjectColumnSelector value = asSelector(map.getValue());
-
-        @Override
-        public ObjectColumnSelector resolve(String expression)
-        {
-          Column resolved = map.resolve(expression);
-          if (resolved != null) {
-            return asSelector(resolved);
-          }
-          int ix = expression.indexOf('.');
-          if (ix < 0 && !Row.MAP_KEY.equals(expression) && !Row.MAP_VALUE.equals(expression)) {
-            DictionaryEncodedColumn keyColumn = map.getKey().getDictionaryEncoded();
-            int vx = keyColumn.dictionary().indexOf(expression);
-            if (vx < 0) {
-              return nullObjectSelector(ValueDesc.STRING);
-            }
-            ComplexColumn valueColumn = map.getValue().getComplexColumn();
-            return new ObjectColumnSelector.Typed(ValueDesc.STRING)
-            {
-              @Override
-              public Object get()
-              {
-                int rownum = offset.get();
-                IndexedInts indexed = keyColumn.getMultiValueRow(rownum);
-                int size = indexed.size();
-                for (int i = 0; i < size; i++) {
-                  if (indexed.get(i) == vx) {
-                    Object value = valueColumn.getValue(rownum);
-                    if (value instanceof List) {
-                      return ((List) value).get(i);
-                    }
-                    return Array.get(value, i);
-                  }
-                }
-                return null;
-              }
-            };
-          }
-          return NULL_UNKNOWN;
-        }
-
-        @Override
-        public Offset offset()
-        {
-          return offset;
-        }
-
-        @Override
-        public ValueDesc type()
-        {
-          return map.getType();
-        }
-
-        @Override
-        public Map get()
-        {
-          Object keys = key.get();
-          Object values = value.get();
-          if (values instanceof List) {
-            List list = (List) values;
-            int length = list.size();
-            if (length == 0) {
-              return ImmutableMap.of();
-            }
-            if (length == 1) {
-              return ImmutableMap.of(Objects.toString(keys), list.get(0));
-            }
-            Map<String, Object> map = Maps.newLinkedHashMap();
-            for (int i = 0; i < length; i++) {
-              map.put(Objects.toString(((List)keys).get(i)), list.get(i));
-            }
-            return map;
-          }
-          int length = Array.getLength(values);
-          if (length == 0) {
-            return ImmutableMap.of();
-          }
-          if (length == 1) {
-            return ImmutableMap.of(Objects.toString(keys), Array.get(values, 0));
-          }
-          Map<String, Object> map = Maps.newLinkedHashMap();
-          for (int i = 0; i < length; i++) {
-            map.put(Objects.toString(((List)keys).get(i)), Array.get(values, i));
-          }
-          return map;
-        }
-
-        @Override
-        public Column getKey()
-        {
-          return map.getKey();
-        }
-
-        @Override
-        public Column getValue()
-        {
-          return map.getValue();
-        }
-      };
+      return new MapColumnSelector((ComplexColumn.MapColumn) column, offset);
+    } else if (column instanceof ComplexColumn.StructColumn) {
+      return new StructColumnSelector((ComplexColumn.StructColumn) column, offset);
     } else if (column instanceof ComplexColumn.ArrayColumn) {
-      return new ComplexColumnSelector.ArrayColumnSelector()
-      {
-        final ComplexColumn.ArrayColumn array = (ComplexColumn.ArrayColumn) column;
-        final ObjectColumnSelector[] selectors = IntStream.range(0, array.numElements())
-                                                          .mapToObj(x -> asSelector(getElement(x)))
-                                                          .toArray(x -> new ObjectColumnSelector[x]);
-        @Override
-        public Object get(int ix)
-        {
-          return selectors[ix].get();
-        }
-
-        @Override
-        public ObjectColumnSelector resolve(String expression)
-        {
-          Column column = array.resolve(expression);    // try element access
-          if (column != null) {
-            return asSelector(column);
-          }
-          return NestedTypes.resolve(collect(array.getType(), selectors), expression);
-        }
-
-        @Override
-        public int numElements()
-        {
-          return array.numElements();
-        }
-
-        @Override
-        public ValueDesc getType(int ix)
-        {
-          return array.getType(ix);
-        }
-
-        @Override
-        public Column getElement(int ix)
-        {
-          return array.getElement(ix);
-        }
-
-        @Override
-        public Offset offset()
-        {
-          return offset;
-        }
-
-        @Override
-        public List get()
-        {
-          Object[] array = new Object[selectors.length];
-          for (int i = 0; i < selectors.length; i++) {
-            array[i] = selectors[i].get();
-          }
-          return Arrays.asList(array);
-        }
-
-        @Override
-        public ValueDesc type()
-        {
-          return array.getType();
-        }
-      };
+      return new ArrayColumnSelector((ComplexColumn.ArrayColumn) column, offset);
     }
     if (column instanceof ColumnAccess.WithRawAccess) {
       return new ObjectColumnSelector.WithRawAccess<Object>()
@@ -1658,27 +1425,318 @@ public class ColumnSelectors
     return ObjectColumnSelector.string(() -> dictionary.get(column.getSingleValueRow(offset.get())));
   }
 
-  // array.array to array
-  public static ObjectColumnSelector concat(ValueDesc type, ObjectColumnSelector selector)
+  private static class MapColumnSelector implements ComplexColumnSelector.FromMap
   {
-    return ObjectColumnSelector.typed(type, () -> {
-      List list = (List) selector.get();
-      List<Object> concat = Lists.newArrayList();
-      for (Object e : list) {
-        concat.addAll((List) e);
+    private final Offset offset;
+    private final ComplexColumn.MapColumn map;
+    private final ObjectColumnSelector key;
+    private final ObjectColumnSelector value;
+
+    private MapColumnSelector(ComplexColumn.MapColumn map, Offset offset)
+    {
+      this.offset = offset;
+      this.map = map;
+      this.key = asSelector(map.getKey());
+      this.value = asSelector(map.getValue());
+    }
+    @Override
+    public ValueDesc type()
+    {
+      return map.getType();
+    }
+
+    @Override
+    public ObjectColumnSelector resolve(String expression)
+    {
+      Column resolved = map.resolve(expression);
+      if (resolved != null) {
+        return asSelector(resolved);
       }
-      return concat;
-    });
+      int ix = expression.indexOf('.');
+      if (ix < 0 && !Row.MAP_KEY.equals(expression) && !Row.MAP_VALUE.equals(expression)) {
+        DictionaryEncodedColumn keyColumn = map.getKey().getDictionaryEncoded();
+        int vx = keyColumn.dictionary().indexOf(expression);
+        if (vx < 0) {
+          return nullObjectSelector(ValueDesc.STRING);
+        }
+        ComplexColumn valueColumn = map.getValue().getComplexColumn();
+        return new ObjectColumnSelector.Typed(ValueDesc.STRING)
+        {
+          @Override
+          public Object get()
+          {
+            int rownum = offset.get();
+            IndexedInts indexed = keyColumn.getMultiValueRow(rownum);
+            int size = indexed.size();
+            for (int i = 0; i < size; i++) {
+              if (indexed.get(i) == vx) {
+                Object value = valueColumn.getValue(rownum);
+                if (value instanceof List) {
+                  return ((List) value).get(i);
+                }
+                return Array.get(value, i);
+              }
+            }
+            return null;
+          }
+        };
+      }
+      return NULL_UNKNOWN;
+    }
+
+    @Override
+    public Offset offset()
+    {
+      return offset;
+    }
+
+    @Override
+    public Map get()
+    {
+      Object keys = key.get();
+      Object values = value.get();
+      if (values instanceof List) {
+        List list = (List) values;
+        int length = list.size();
+        if (length == 0) {
+          return ImmutableMap.of();
+        }
+        if (length == 1) {
+          return ImmutableMap.of(Objects.toString(keys), list.get(0));
+        }
+        Map<String, Object> map = Maps.newLinkedHashMap();
+        for (int i = 0; i < length; i++) {
+          map.put(Objects.toString(((List)keys).get(i)), list.get(i));
+        }
+        return map;
+      }
+      int length = Array.getLength(values);
+      if (length == 0) {
+        return ImmutableMap.of();
+      }
+      if (length == 1) {
+        return ImmutableMap.of(Objects.toString(keys), Array.get(values, 0));
+      }
+      Map<String, Object> map = Maps.newLinkedHashMap();
+      for (int i = 0; i < length; i++) {
+        map.put(Objects.toString(((List)keys).get(i)), Array.get(values, i));
+      }
+      return map;
+    }
+
+    @Override
+    public Column getKey()
+    {
+      return map.getKey();
+    }
+
+    @Override
+    public Column getValue()
+    {
+      return map.getValue();
+    }
   }
 
-  public static ObjectColumnSelector collect(ValueDesc type, ObjectColumnSelector[] selectors)
+  private static class StructColumnSelector implements ComplexColumnSelector.FromStruct
   {
-    return ObjectColumnSelector.listBacked(type, ix -> selectors[ix].get(), () -> {
+    private final Offset offset;
+    private final ComplexColumn.StructColumn struct;
+    private final ObjectColumnSelector[] fields;
+
+    private StructColumnSelector(ComplexColumn.StructColumn struct, Offset offset)
+    {
+      this.offset = offset;
+      this.struct = struct;
+      this.fields = struct.getFieldNames().stream()
+                          .map(f -> asSelector(getField(f)))
+                          .toArray(x -> new ObjectColumnSelector[x]);
+    }
+
+    @Override
+    public ValueDesc type()
+    {
+      return struct.getType();
+    }
+
+    @Override
+    public ObjectColumnSelector resolve(String element)
+    {
+      return asSelector(struct.resolve(element));
+    }
+
+    @Override
+    public Offset offset()
+    {
+      return offset;
+    }
+
+    @Override
+    public List get()
+    {
+      Object[] array = new Object[fields.length];
+      for (int i = 0; i < fields.length; i++) {
+        array[i] = fields[i].get();
+      }
+      return Arrays.asList(array);
+    }
+
+    @Override
+    public Object get(int ix)
+    {
+      return fields[ix].get();
+    }
+
+    @Override
+    public ValueDesc getType(int ix)
+    {
+      return fields[ix].type();
+    }
+
+    @Override
+    public int numElements()
+    {
+      return fields.length;
+    }
+
+    @Override
+    public List<String> getFieldNames()
+    {
+      return struct.getFieldNames();
+    }
+
+    @Override
+    public ValueDesc getType(String field)
+    {
+      return struct.getType(field);
+    }
+
+    @Override
+    public Column getField(String field)
+    {
+      return struct.getField(field);
+    }
+  }
+
+  private static class ArrayColumnSelector implements ComplexColumnSelector.FromArray
+  {
+    private final Offset offset;
+    private final ComplexColumn.ArrayColumn array;
+    private final ObjectColumnSelector[] selectors;
+
+    private ArrayColumnSelector(ComplexColumn.ArrayColumn array, Offset offset)
+    {
+      this.offset = offset;
+      this.array = array;
+      this.selectors = IntStream.range(0, array.numElements())
+                                .mapToObj(x -> asSelector(getElement(x)))
+                                .toArray(x -> new ObjectColumnSelector[x]);
+    }
+
+    private ArrayColumnSelector(ComplexColumn.ArrayColumn array, Offset offset, ObjectColumnSelector[] selectors)
+    {
+      this.offset = offset;
+      this.array = array;
+      this.selectors = selectors;
+    }
+
+    @Override
+    public ValueDesc type()
+    {
+      return array.getType();
+    }
+
+    @Override
+    public ObjectColumnSelector resolve(String expression)
+    {
+      Column column = array.resolve(expression);    // try element access
+      if (column != null) {
+        return asSelector(column);
+      }
+      return NestedTypes.resolve(this, expression);
+    }
+
+    @Override
+    public Offset offset()
+    {
+      return offset;
+    }
+
+    @Override
+    public List get()
+    {
       Object[] array = new Object[selectors.length];
-      for (int i = 0; i < array.length; i++) {
+      for (int i = 0; i < selectors.length; i++) {
         array[i] = selectors[i].get();
       }
       return Arrays.asList(array);
-    });
+    }
+
+    @Override
+    public Object get(int ix)
+    {
+      return selectors[ix].get();
+    }
+
+    @Override
+    public ObjectColumnSelector collect(ValueDesc type, int index)
+    {
+      return new ObjectColumnSelector()
+      {
+        @Override
+        public ValueDesc type() {return type;}
+
+        @Override
+        public List get()
+        {
+          Object[] array = new Object[selectors.length];
+          for (int i = 0; i < selectors.length; i++) {
+            Object o = ((ObjectColumnSelector.ListBacked) selectors[i]).get(index);
+            System.out.printf("collect(%d) : %d = %s%n", index, i, o);
+            array[i] = o;
+          }
+          return Arrays.asList(array);
+        }
+      };
+    }
+
+    @Override
+    public ObjectColumnSelector concat(ValueDesc type)
+    {
+      return new ObjectColumnSelector()
+      {
+        @Override
+        public ValueDesc type() {return type;}
+
+        @Override
+        public List get()
+        {
+          List<Object> concat = Lists.newArrayList();
+          for (int i = 0; i < selectors.length; i++) {
+            List c = (List) selectors[i].get();
+            System.out.printf("concat : %d = %s%n", i, c);
+            concat.addAll(c);
+          }
+          return concat;
+        }
+      };
+    }
+
+    @Override
+    public int numElements()
+    {
+      return array.numElements();
+    }
+
+    @Override
+    public ValueDesc getType(int ix)
+    {
+      return array.getType(ix);
+    }
+
+    @Override
+    public Column getElement(int ix)
+    {
+      return array.getElement(ix);
+    }
   }
 }
