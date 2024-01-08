@@ -260,6 +260,26 @@ public class NestedColumnTest extends CalciteQueryTestHelper
   }
 
   @Test
+  public void testSelectFieldInArraysOfStruct() throws Exception
+  {
+    testQuery(
+        String.format("SELECT \"onboarding.movie.name\" from %s", params2),
+        new Object[][]{
+            {"[(자막) 어벤져스: 엔드게임, 배트맨 대 슈퍼맨: 저스티스의 시작], 스파이더맨 3]"}
+        }
+    );
+
+    testQuery(
+        String.format(
+            "SELECT \"adot_usage.entity.entity_preferences.apollo_samsungstock.preferences.name\" from %s", params2
+        ),
+        new Object[][]{
+            {"[삼성전자, SK텔레콤, 카카오, 두산에너빌리티, 세토피아, 삼성전자, 하이닉스, SK텔레콤]"}
+        }
+    );
+  }
+
+  @Test
   public void testGroupByOnArrayOfArray() throws Exception
   {
     Object[][] expected = {
