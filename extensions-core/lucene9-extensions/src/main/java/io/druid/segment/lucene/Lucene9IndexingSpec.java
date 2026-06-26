@@ -35,6 +35,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.ScorerSupplier;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.FixedBitSet;
@@ -114,12 +115,13 @@ public class Lucene9IndexingSpec extends LuceneIndexingSpec
             }
 
             @Override
-            public Scorer scorer(LeafReaderContext context) throws IOException
+            public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException
             {
-              return new Scorer(this)
+              // Lucene 10: Weight.scorer() was replaced by scorerSupplier(), and
+              // Scorer no longer takes a Weight in its constructor.
+              final BitSet bitset = RoaringBitmapFactory.toBitset(bitmap);
+              final Scorer scorer = new Scorer()
               {
-                private final BitSet bitset = RoaringBitmapFactory.toBitset(bitmap);
-
                 @Override
                 public DocIdSetIterator iterator()
                 {
@@ -142,6 +144,20 @@ public class Lucene9IndexingSpec extends LuceneIndexingSpec
                 public int docID()
                 {
                   throw new UOE("docID");
+                }
+              };
+              return new ScorerSupplier()
+              {
+                @Override
+                public Scorer get(long leadCost)
+                {
+                  return scorer;
+                }
+
+                @Override
+                public long cost()
+                {
+                  return bitset.length();
                 }
               };
             }

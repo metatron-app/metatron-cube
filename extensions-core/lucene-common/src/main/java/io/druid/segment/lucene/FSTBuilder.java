@@ -20,8 +20,8 @@
 package io.druid.segment.lucene;
 
 import org.apache.lucene.util.IntsRefBuilder;
-import org.apache.lucene.util.fst.Builder;
 import org.apache.lucene.util.fst.FST;
+import org.apache.lucene.util.fst.FSTCompiler;
 import org.apache.lucene.util.fst.PositiveIntOutputs;
 import org.apache.lucene.util.fst.Util;
 
@@ -32,10 +32,14 @@ public class FSTBuilder
   private static final int CHECK_INTERVAL = 10000;
 
   private final float reduction;
-  private final Builder<Long> _builder = new Builder<>(FST.INPUT_TYPE.BYTE4, PositiveIntOutputs.getSingleton());
+  // Lucene 9 renamed fst.Builder -> FSTCompiler and split building (compile()) from
+  // FST instantiation (FST.fromFSTReader(metadata, reader)).
+  private final FSTCompiler<Long> _compiler =
+      new FSTCompiler.Builder<>(FST.INPUT_TYPE.BYTE4, PositiveIntOutputs.getSingleton()).build();
   private final IntsRefBuilder _scratch = new IntsRefBuilder();
 
   private boolean disabled;
+  private long added;
 
   public FSTBuilder()
   {
@@ -52,31 +56,41 @@ public class FSTBuilder
     if (disabled) {
       return;
     }
-    if (ix > 0 && ix % CHECK_INTERVAL == 0 && reduction > 0 && _builder.getNodeCount() > ix * reduction) {
+    if (ix > 0 && ix % CHECK_INTERVAL == 0 && reduction > 0 && _compiler.getNodeCount() > ix * reduction) {
       disabled = true;
       return;
     }
-    _builder.add(Util.toUTF16(key, _scratch), ix);
+    _compiler.add(Util.toUTF16(key, _scratch), ix);
+    added++;
+  }
+
+  private FST<Long> finish() throws IOException
+  {
+    if (added == 0) {
+      return null;   // matches the old Builder.finish() returning null for an empty FST
+    }
+    final FST.FSTMetadata<Long> metadata = _compiler.compile();
+    return metadata == null ? null : FST.fromFSTReader(metadata, _compiler.getFSTReader());
   }
 
   protected FST<Long> make(int cardinality) throws IOException
   {
     final float threshold = cardinality * reduction;
-    return disabled || (reduction > 0 && _builder.getNodeCount() > threshold) ? null : _builder.finish();
+    return disabled || (reduction > 0 && _compiler.getNodeCount() > threshold) ? null : finish();
   }
 
   public FST<Long> done() throws IOException
   {
-    return disabled ? null : _builder.finish();
+    return disabled ? null : finish();
   }
 
   public long getNodeCount()
   {
-    return _builder.getNodeCount();
+    return _compiler.getNodeCount();
   }
 
   public long getArcCount()
   {
-    return _builder.getArcCount();
+    return _compiler.getArcCount();
   }
 }

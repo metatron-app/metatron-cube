@@ -34,8 +34,8 @@ import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LatLonPointIndexingStrategy;
 import io.druid.segment.lucene.LuceneSelector;
 import io.druid.segment.lucene.Lucenes;
+import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.LatLonPointPrototypeQueries;
 import org.apache.lucene.search.TopDocs;
 
 import java.util.Map;
@@ -129,7 +129,7 @@ public class LuceneNearestFilter extends LuceneSelector implements DimFilter.Out
         LuceneIndex index = column.getExternalIndex(LuceneIndex.class).get();
         try {
           IndexSearcher searcher = index.searcher();
-          TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField.getKey(), latitude, longitude, count);
+          TopDocs searched = LatLonPoint.nearest(searcher, luceneField.getKey(), latitude, longitude, count);
           return BitmapHolder.exact(Lucenes.toBitmap(searched, context, scoreField));
         }
         catch (Exception e) {

@@ -32,8 +32,8 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.VectorUtils;
 import org.apache.lucene.codecs.KnnVectorsFormat;
-import org.apache.lucene.codecs.lucene95.Lucene95Codec;
-import org.apache.lucene.codecs.lucene95.Lucene95HnswVectorsFormat;
+import org.apache.lucene.codecs.lucene104.Lucene104Codec;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.document.KnnFloatVectorField;
@@ -138,14 +138,14 @@ public class KnnVectorStrategy implements LuceneIndexingStrategy
     if (maxConn == 0 && beamWidth == 0) {
       return config;    // 16, 100
     }
-    int _maxConn = maxConn == 0 ? Lucene95HnswVectorsFormat.DEFAULT_MAX_CONN : maxConn;
-    int _beamWidth = beamWidth == 0 ? Lucene95HnswVectorsFormat.DEFAULT_BEAM_WIDTH : beamWidth;
-    return config.setCodec(new Lucene95Codec()
+    int _maxConn = maxConn == 0 ? Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN : maxConn;
+    int _beamWidth = beamWidth == 0 ? Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH : beamWidth;
+    return config.setCodec(new Lucene104Codec()
     {
       @Override
       public KnnVectorsFormat getKnnVectorsFormatForField(String field)
       {
-        return new Lucene95HnswVectorsFormat(_maxConn, _beamWidth);   // I'm not sure on this
+        return new Lucene99HnswVectorsFormat(_maxConn, _beamWidth);
       }
     });
   }

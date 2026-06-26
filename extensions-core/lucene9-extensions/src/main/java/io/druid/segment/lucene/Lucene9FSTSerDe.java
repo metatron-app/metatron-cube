@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.util.fst.FST;
-import org.apache.lucene.util.fst.OffHeapFSTStore;
 import org.apache.lucene.util.fst.PositiveIntOutputs;
 
 import java.io.IOException;
@@ -47,6 +46,9 @@ public class Lucene9FSTSerDe extends LuceneFSTSerDe
   @Override
   protected FST<Long> load(DataInput input) throws IOException
   {
-    return new FST<>(input, input, PositiveIntOutputs.getSingleton(), new OffHeapFSTStore());
+    // Lucene 10 removed the no-arg OffHeapFSTStore (it now needs an IndexInput);
+    // read the FST on-heap from this DataInput hook.
+    final FST.FSTMetadata<Long> metadata = FST.readMetadata(input, PositiveIntOutputs.getSingleton());
+    return new FST<>(metadata, input);
   }
 }

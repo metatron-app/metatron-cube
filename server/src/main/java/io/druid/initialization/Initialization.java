@@ -311,8 +311,6 @@ public class Initialization
   private static final ImmutableMap<String, String> PARENT_MODULES = ImmutableMap.<String, String>builder()
       .put("druid-lucene-common", "druid-geometry-extensions")
       .put("druid-geotools-extensions", "druid-lucene-common")
-      .put("druid-lucene-extensions", "druid-lucene-common")
-      .put("druid-lucene8-extensions", "druid-lucene-common")
       .put("druid-lucene9-extensions", "druid-lucene-common")
       .put("druid-orc-extensions", "druid-hive-extensions")
       .put("druid-hive-udf-extensions", "druid-hive-extensions")

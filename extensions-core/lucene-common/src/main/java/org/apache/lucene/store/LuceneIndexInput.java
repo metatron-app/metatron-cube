@@ -21,24 +21,26 @@ package org.apache.lucene.store;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Collections;
 
-public class LuceneIndexInput extends ByteBufferIndexInput
+/**
+ * Wraps an in-memory {@link ByteBuffer} as a Lucene {@link IndexInput}.
+ *
+ * Lucene 10 removed the (internal) ByteBufferIndexInput/ByteBufferGuard this used
+ * to extend; the public replacement is ByteBuffersDataInput + ByteBuffersIndexInput.
+ * Buffers must be little-endian (Lucene's on-disk byte order since 9.0).
+ */
+public class LuceneIndexInput
 {
-  public static ByteBufferIndexInput newInstance(String resourceDescription, ByteBuffer buffer, long length)
+  private LuceneIndexInput()
   {
-    return new SingleBufferImpl(
-        resourceDescription, buffer.order(ByteOrder.LITTLE_ENDIAN), length, 30, new ByteBufferGuard(resourceDescription, null)
-    );
   }
 
-  private LuceneIndexInput(
-      String resourceDescription,
-      ByteBuffer[] buffers,
-      long length,
-      int chunkSizePower,
-      ByteBufferGuard guard
-  )
+  public static IndexInput newInstance(String resourceDescription, ByteBuffer buffer, long length)
   {
-    super(resourceDescription, buffers, length, chunkSizePower, guard);
+    final ByteBuffer ordered = buffer.order(ByteOrder.LITTLE_ENDIAN);
+    final ByteBuffersDataInput dataInput =
+        new ByteBuffersDataInput(Collections.singletonList(ordered)).slice(0, length);
+    return new ByteBuffersIndexInput(dataInput, resourceDescription);
   }
 }

@@ -37,7 +37,7 @@ public class BitmapRelay extends Query
       return true;
     }
     if (query instanceof BooleanQuery) {
-      return isRelay(((BooleanQuery) query).clauses().get(0).getQuery());
+      return isRelay(((BooleanQuery) query).clauses().get(0).query());
     }
     return false;
   }
@@ -48,7 +48,7 @@ public class BitmapRelay extends Query
       return ((BitmapRelay) query).bitmap;
     }
     if (query instanceof BooleanQuery) {
-      return unwrap(((BooleanQuery) query).clauses().get(0).getQuery());
+      return unwrap(((BooleanQuery) query).clauses().get(0).query());
     }
     return null;
   }
