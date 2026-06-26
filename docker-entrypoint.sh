@@ -47,6 +47,22 @@ if [ -f "${ROLE_CONF}/jvm.config" ]; then
   JVM_ARGS=$(grep -v '^[[:space:]]*#' "${ROLE_CONF}/jvm.config" | xargs)
 fi
 
+# Java 17+/21 strong encapsulation: this 2016-era code (and libs like the gridkit
+# perfdata JvmMonitor, mapdb, direct-buffer/Cleaner usage) reaches into JDK
+# internals that are no longer open by default. Open/export what Druid needs.
+JDK_MODULE_OPTS="\
+--add-opens=java.base/java.lang=ALL-UNNAMED \
+--add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
+--add-opens=java.base/java.io=ALL-UNNAMED \
+--add-opens=java.base/java.nio=ALL-UNNAMED \
+--add-opens=java.base/java.util=ALL-UNNAMED \
+--add-opens=java.base/java.util.concurrent=ALL-UNNAMED \
+--add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
+--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED \
+--add-exports=java.base/sun.nio.ch=ALL-UNNAMED \
+--add-exports=java.management/sun.management.counter=ALL-UNNAMED \
+--add-exports=java.management/sun.management.counter.perf=ALL-UNNAMED"
+
 # This fork's PropertiesModule resolves "_common/common.runtime.properties" and
 # "<role>/runtime.properties" relative to the classpath, so the conf *parent*
 # dir (the one containing _common and the role dirs) must be on the classpath --
@@ -56,4 +72,4 @@ fi
 CP="${DRUID_CONF_DIR}:${DRUID_CONF_DIR}/_common:${DRUID_HOME}/lib/*:${DRUID_HOME}/lib/guava/*"
 
 echo "starting druid role=${ROLE}"
-exec java ${JVM_ARGS} ${DRUID_JAVA_OPTS} -cp "${CP}" io.druid.cli.Main server "${ROLE}"
+exec java ${JDK_MODULE_OPTS} ${JVM_ARGS} ${DRUID_JAVA_OPTS} -cp "${CP}" io.druid.cli.Main server "${ROLE}"

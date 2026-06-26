@@ -53,6 +53,8 @@ EOF
 # distribution/target/druid-<version>-bin.tar.gz (lib/, conf/, bin/, ...).
 # Note: the distribution module's `pull-deps` step downloads the Hadoop and
 # extension jars, so this stage needs network access and is not fast.
+# skipTests (run skipped, but test sources are compiled and test-jars produced —
+# some modules depend on others' test-jars, e.g. druid-common -> java-util:tests).
 RUN mvn -B clean install -DskipTests=true \
       -Dmaven.javadoc.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
