@@ -173,7 +173,7 @@ public class IngestSegmentFirehose implements Firehose
           @Override
           public InputRow accumulate(InputRow accumulated, InputRow in)
           {
-            yield();
+            this.yield();
             return in;
           }
         }

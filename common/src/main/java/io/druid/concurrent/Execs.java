@@ -300,7 +300,7 @@ public class Execs
 
     public <V> Yielder<V> yield(Yielder<V> yielder)
     {
-      return yield(Arrays.asList(yielder)).get(0);
+      return this.yield(Arrays.asList(yielder)).get(0);
     }
 
     public <V> List<Yielder<V>> yield(Iterable<Yielder<V>> yielders)

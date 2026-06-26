@@ -86,8 +86,8 @@
     </repositories>
 
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <apache.curator.version>4.0.0</apache.curator.version>
         <apache.curator.test.version>2.12.0</apache.curator.test.version>
         <guava.version>16.0.1</guava.version>
@@ -128,7 +128,7 @@
         <module>aws-common</module>
         <module>java-util</module>
         <module>sql</module>
-        <module>web-console</module>
+<!--        <module>web-console</module>-->
         <!-- Core extensions -->
         <module>extensions-core/avro-extensions</module>
         <module>extensions-core/datasketches</module>
@@ -885,6 +885,11 @@
                 <artifactId>jaxb-api</artifactId>
                 <version>2.3.1</version>
             </dependency>
+            <dependency>
+                <groupId>org.objenesis</groupId>
+                <artifactId>objenesis</artifactId>
+                <version>3.2</version> <scope>test</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -910,9 +915,16 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
                     <configuration>
                         <source>${maven.compiler.source}</source>
                         <target>${maven.compiler.target}</target>
+                        <fork>true</fork>
+                        <compilerArgs>
+                            <arg>--add-exports=java.base/sun.nio.ch=ALL-UNNAMED</arg>
+                            <arg>--add-opens=java.base/java.lang=ALL-UNNAMED</arg>
+                            <arg>--add-exports=java.base/sun.util.calendar=ALL-UNNAMED</arg>
+                        </compilerArgs>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -1043,7 +1055,7 @@
                 <plugin>
                     <groupId>com.github.eirslett</groupId>
                     <artifactId>frontend-maven-plugin</artifactId>
-                    <version>1.6</version>
+                    <version>1.12.1</version>
                     <configuration>
                         <nodeVersion>v10.13.0</nodeVersion>
                         <npmVersion>6.4.1</npmVersion>
@@ -1160,6 +1172,11 @@
                                 <forceJavacCompilerUse>true</forceJavacCompilerUse>
                                 <source>${maven.compiler.source}</source>
                                 <target>${maven.compiler.target}</target>
+                                <fork>true</fork>
+                                <compilerArgs>
+                                    <arg>-J--add-exports=java.base/sun.misc=ALL-UNNAMED</arg>
+                                    <arg>-J--add-exports=java.base/sun.nio.ch=ALL-UNNAMED</arg>
+                                </compilerArgs>
                             </configuration>
                             <dependencies>
                                 <dependency>

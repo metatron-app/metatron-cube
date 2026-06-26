@@ -41,11 +41,11 @@
             <artifactId>druid-aws-common</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
-        <dependency>
-            <groupId>app.metatron</groupId>
-            <artifactId>druid-console</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>app.metatron</groupId>-->
+<!--            <artifactId>druid-console</artifactId>-->
+<!--            <version>${project.parent.version}</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>app.metatron</groupId>
             <artifactId>java-util</artifactId>

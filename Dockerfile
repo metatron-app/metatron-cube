@@ -19,10 +19,8 @@
 # ---------------------------------------------------------------------------
 # Stage 1: build the full distribution tarball (mvn install -> distribution/)
 # ---------------------------------------------------------------------------
-# The project compiles with source/target 1.9 (see <maven.compiler.target> in
-# the root pom), so the builder needs a JDK that supports target 1.9 — JDK 8
-# fails with "invalid target release: 1.9". JDK 11 supports targets 6..11.
-FROM maven:3.8.6-eclipse-temurin-11 AS builder
+# Modernization: the project now targets Java 21 (see <maven.compiler.target>).
+FROM maven:3.9-eclipse-temurin-21 AS builder
 
 WORKDIR /src
 
@@ -66,8 +64,8 @@ RUN mkdir -p /opt/druid \
 # ---------------------------------------------------------------------------
 # Stage 2: slim runtime image
 # ---------------------------------------------------------------------------
-# Code is compiled to Java 9 bytecode (major version 53); the JRE must be >= 9.
-FROM eclipse-temurin:11-jre
+# Code is compiled to Java 21 bytecode (major version 65); the JRE must be >= 21.
+FROM eclipse-temurin:21-jre
 
 LABEL org.opencontainers.image.title="metatron-cube (druid)" \
       org.opencontainers.image.description="SK Telecom Metatron-Cube / Druid fork" \

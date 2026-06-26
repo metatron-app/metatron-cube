@@ -196,7 +196,7 @@ public class EmbeddedBroker extends ServerRunnable
             @Override
             public Object accumulate(Object accumulated, Object in)
             {
-              yield();
+              this.yield();
               return in;
             }
           }

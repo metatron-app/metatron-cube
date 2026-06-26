@@ -306,7 +306,7 @@ public class QueryResource
             public Object accumulate(Object accumulated, Object in)
             {
               counter.add(numRows.applyAsInt(in));
-              yield();
+              this.yield();
               return in;
             }
           }

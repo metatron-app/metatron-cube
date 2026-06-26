@@ -57,7 +57,7 @@ public class Yielders
     @Override
     public T accumulate(T accumulated, T in)
     {
-      yield();
+      this.yield();
       return in;
     }
   }
