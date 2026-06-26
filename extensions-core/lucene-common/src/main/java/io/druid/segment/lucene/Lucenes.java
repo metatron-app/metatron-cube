@@ -344,7 +344,7 @@ public class Lucenes
     }
     final byte[] buffer = new byte[IO_BUFFER];
     for (int i = 0; i < files.length; i++) {
-      IndexInput input = directory.openInput(files[i], null);
+      IndexInput input = directory.openInput(files[i], IOContext.DEFAULT);
       int offset = 0;
       int length = dataOffsets[i].rhs[1];
       while (offset < length) {
@@ -470,7 +470,7 @@ public class Lucenes
       bout.write(bytes);
       final int length = Ints.checkedCast(directory.fileLength(file));
       bout.writeInt(length);
-      IndexInput input = directory.openInput(file, null);
+      IndexInput input = directory.openInput(file, IOContext.DEFAULT);
       int offset = 0;
       while (offset < length) {
         int toRead = Math.min((length - offset), buffer.length);
