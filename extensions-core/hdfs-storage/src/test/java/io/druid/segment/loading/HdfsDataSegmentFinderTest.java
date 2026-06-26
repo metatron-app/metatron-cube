@@ -168,11 +168,11 @@ public class HdfsDataSegmentFinderTest
     indexZip4_0 = new Path(descriptor4_0.getParent(), INDEX_ZIP);
     indexZip4_1 = new Path(descriptor4_1.getParent(), INDEX_ZIP);
 
-    mapper.writeValue(fs.create(descriptor1), SEGMENT_1);
-    mapper.writeValue(fs.create(descriptor2), SEGMENT_2);
-    mapper.writeValue(fs.create(descriptor3), SEGMENT_3);
-    mapper.writeValue(fs.create(descriptor4_0), SEGMENT_4_0);
-    mapper.writeValue(fs.create(descriptor4_1), SEGMENT_4_1);
+    mapper.writeValue((java.io.OutputStream) fs.create(descriptor1), SEGMENT_1);
+    mapper.writeValue((java.io.OutputStream) fs.create(descriptor2), SEGMENT_2);
+    mapper.writeValue((java.io.OutputStream) fs.create(descriptor3), SEGMENT_3);
+    mapper.writeValue((java.io.OutputStream) fs.create(descriptor4_0), SEGMENT_4_0);
+    mapper.writeValue((java.io.OutputStream) fs.create(descriptor4_1), SEGMENT_4_1);
 
     create(indexZip1);
     create(indexZip2);
