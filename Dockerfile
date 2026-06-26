@@ -55,7 +55,8 @@ EOF
 # extension jars, so this stage needs network access and is not fast.
 # skipTests (run skipped, but test sources are compiled and test-jars produced —
 # some modules depend on others' test-jars, e.g. druid-common -> java-util:tests).
-RUN mvn -B clean install -DskipTests=true \
+RUN --mount=type=cache,target=/root/.m2 \
+      mvn -B clean install -DskipTests=true \
       -Dmaven.javadoc.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
 # Unpack the assembled tarball into a fixed, version-independent path.

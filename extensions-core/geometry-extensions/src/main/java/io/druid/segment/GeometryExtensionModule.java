@@ -25,7 +25,6 @@ import com.google.inject.Binder;
 import io.druid.data.ConstantQuery;
 import io.druid.data.EnvelopeAggregatorFactory;
 import io.druid.data.output.GeoJsonDecorator;
-import io.druid.data.output.GeoJsonFormatter;
 import io.druid.initialization.DruidModule;
 import io.druid.query.GeoHashFunctions;
 import io.druid.query.GeomFunctions;
@@ -51,7 +50,6 @@ public class GeometryExtensionModule implements DruidModule
         .registerSubtypes(GeoHexFunctions.class)
         .registerSubtypes(GeomFunctions.class)
         .registerSubtypes(GeoJsonDecorator.class)
-        .registerSubtypes(GeoJsonFormatter.class)
         .registerSubtypes(GeomUnionAggregatorFactory.class)
         .registerSubtypes(GeomCollectPointAggregatorFactory.class)
         .addSerializer(Geometry.class, new GeometrySerializer())

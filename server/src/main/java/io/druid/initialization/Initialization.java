@@ -332,8 +332,7 @@ public class Initialization
 
   // -_-;;;
   private static final ImmutableSet<String> HADOOP_DEPENDENT = ImmutableSet.of(
-      "druid-indexing-hadoop",
-      "druid-geometry-extensions"   // for shape formatter
+      "druid-indexing-hadoop"
   );
 
   public static File toModuleDirectory(File rootExtensionsDir, String extensionName)

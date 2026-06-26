@@ -86,12 +86,28 @@ Lucene 10 is the headline feature but depends on everything else being on Java 2
 ### Phase 6 — ZooKeeper 3.4 → 3.9, Curator 4 → 5
 - Bump together (Curator 5 requires ZK 3.6+). Update compose `zookeeper:3.9`.
 
-### Phase 7 — Lucene → 10.x (the headline)
-- New module `lucene10-extensions` ported from `lucene9-extensions` (9→10 API breaks:
-  analyzers, `IndexableField`, codecs, spatial). Keep `lucene-common` shared bits.
-- Re-evaluate the `lucene-common → geometry-extensions → hadoop` coupling (see note);
-  ideally decouple so Lucene no longer drags Hadoop.
-- Re-enable lucene in `loadList` once green.
+### Phase 7 — Lucene → 10.x (the headline), consolidated to a single module
+The current split — `lucene-common` (abstract base, 33 files) + thin per-version
+modules `lucene-extensions` (7.7), `lucene8` (8.11), `lucene9` (9.8) — exists only
+to keep multiple Lucene versions (all in package `org.apache.lucene.*`) side by side
+via classloader isolation, so a JVM can read segments written by older codecs. That
+isolation is the `ABSTRACT_MODULES` + `PARENT_MODULES` "merge lucene-common into each
+version's classloader" machinery in `Initialization.java`.
+
+Targeting **only Lucene 10** removes the need for version coexistence, so:
+- **Merge `lucene-common` + a 9→10 port into one module** (`druid-lucene-extensions`)
+  that bundles Lucene 10 normally; **drop `lucene-extensions`/`lucene8`/`lucene9`**.
+- **Remove the lucene-specific `ABSTRACT_MODULES`/`PARENT_MODULES` special-casing**
+  in `Initialization.java`; geotools depends on the merged module via a normal pom dep.
+- Port the 9→10 API breaks (analyzers, `IndexableField`, codecs, KNN/vector, spatial).
+- **Index-compat caveat:** Lucene 10 reads only Lucene 9 indexes (N-1). Segments
+  written by 7.x/8.x become unreadable → require reindexing. Fine for fresh/modernized
+  deployments; existing 7/8 data needs a reindex plan.
+
+Prerequisite (DONE): decouple `geometry-extensions` from Hadoop by removing
+`GeoJsonFormatter` (its only `hadoop.fs.FileSystem` user) and dropping
+`druid-geometry-extensions` from `HADOOP_DEPENDENT`. Lucene (→ lucene-common →
+geometry) then loads without the hadoop-client bundle; lucene re-enabled in `loadList`.
 
 ### Phase 8 — aws-sdk / S3
 - Replace `jets3t` + aws-sdk v1 with **aws-sdk v2** (`s3`), rewrite `S3StorageDruidModule`
@@ -106,10 +122,10 @@ Lucene 10 is the headline feature but depends on everything else being on Java 2
 
 ## Notes / decisions to make
 
-- **Hadoop coupling**: `lucene-common` uses `io.druid.query.GeomUtils/ShapeFormat` from
-  `geometry-extensions`, and `geometry-extensions` is `HADOOP_DEPENDENT` because
-  `GeoJsonFormatter` uses `hadoop.fs.FileSystem`. Either keep bundling `hadoop-client`,
-  or (cleaner) drop the hadoop dependency from `GeoJsonFormatter` so Lucene is hadoop-free.
+- **Hadoop coupling (RESOLVED)**: `lucene-common` uses `GeomUtils/ShapeFormat` from
+  `geometry-extensions`, which was `HADOOP_DEPENDENT` only because `GeoJsonFormatter`
+  used `hadoop.fs.FileSystem`. `GeoJsonFormatter` was removed and geometry dropped from
+  `HADOOP_DEPENDENT`, so Lucene is now hadoop-free (no `-h hadoop-client` bundle needed).
 - **javax → jakarta**: unavoidable eventually (Jetty 12 / Jersey 3). Doing it in one
   dedicated phase after the rest is on Java 21 keeps each step reviewable.
 - **Guice 6 vs 7**: 7.0 switches to `jakarta.inject`; pick it only together with the
