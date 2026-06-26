@@ -47,8 +47,13 @@ if [ -f "${ROLE_CONF}/jvm.config" ]; then
   JVM_ARGS=$(grep -v '^[[:space:]]*#' "${ROLE_CONF}/jvm.config" | xargs)
 fi
 
-# guava is shaded into lib/guava and must precede lib/* on the classpath.
-CP="${DRUID_CONF_DIR}/_common:${ROLE_CONF}:${DRUID_HOME}/lib/*:${DRUID_HOME}/lib/guava/*"
+# This fork's PropertiesModule resolves "_common/common.runtime.properties" and
+# "<role>/runtime.properties" relative to the classpath, so the conf *parent*
+# dir (the one containing _common and the role dirs) must be on the classpath --
+# not the _common/<role> dirs themselves. _common is also added so log4j2 picks
+# up log4j2.xml from the classpath root. guava is shaded into lib/guava and must
+# precede lib/* on the classpath.
+CP="${DRUID_CONF_DIR}:${DRUID_CONF_DIR}/_common:${DRUID_HOME}/lib/*:${DRUID_HOME}/lib/guava/*"
 
 echo "starting druid role=${ROLE}"
 exec java ${JVM_ARGS} ${DRUID_JAVA_OPTS} -cp "${CP}" io.druid.cli.Main server "${ROLE}"

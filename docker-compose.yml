@@ -16,6 +16,7 @@ x-druid-common: &druid-common
   restart: unless-stopped
   volumes:
     - ./docker/conf/druid:/opt/druid/conf/druid:ro
+    - ./docker-entrypoint.sh:/usr/local/bin/docker-entrypoint.sh:ro
     - druid_var:/opt/druid/var
   depends_on:
     postgres:
