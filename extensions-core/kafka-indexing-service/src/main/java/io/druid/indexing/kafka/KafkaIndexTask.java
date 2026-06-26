@@ -31,7 +31,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -713,7 +713,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
                   }
                 }
                 if (isPersistRequired) {
-                  Futures.addCallback(
+                  io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
                       driver.persistAsync(committerSupplier.get()),
                       new FutureCallback<Object>()
                       {

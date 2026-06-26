@@ -253,7 +253,7 @@ public class WorkerTaskMonitor
   private void addRunningTask(final Task task, final ListenableFuture<TaskStatus> future)
   {
     running.put(task.getId(), new TaskDetails(task));
-    Futures.addCallback(
+    io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
         future,
         new FutureCallback<TaskStatus>()
         {

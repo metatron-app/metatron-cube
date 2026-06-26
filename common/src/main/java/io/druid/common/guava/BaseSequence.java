@@ -14,7 +14,7 @@
 
 package io.druid.common.guava;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.common.Yielders;
 import io.druid.java.util.common.logger.Logger;
 

@@ -163,7 +163,7 @@ public class SegmentListerResource
         }
     );
 
-    Futures.addCallback(
+    io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
         future,
         new FutureCallback<SegmentChangeRequestsSnapshot>()
         {

@@ -19,7 +19,7 @@
 
 package io.druid.data.input.impl;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.InputRow;
 import io.druid.utils.Runnables;

@@ -23,7 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.MapMaker;
 import io.druid.concurrent.Execs;
 import io.druid.curator.inventory.CuratorInventoryManager;

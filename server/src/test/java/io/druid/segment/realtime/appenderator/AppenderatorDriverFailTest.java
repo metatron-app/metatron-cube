@@ -389,7 +389,7 @@ public class AppenderatorDriverFailTest
                                                           )
                                                       )
                                                       .collect(Collectors.toList());
-        return Futures.transform(
+        return io.druid.java.util.common.concurrent.ListenableFutures.transform(
             persist(identifiers, committer),
             (Function<Object, SegmentsAndMetadata>) commitMetadata -> new SegmentsAndMetadata(segments, commitMetadata)
         );

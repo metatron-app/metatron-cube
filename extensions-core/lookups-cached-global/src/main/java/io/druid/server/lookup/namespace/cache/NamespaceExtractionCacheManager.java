@@ -19,7 +19,7 @@
 
 package io.druid.server.lookup.namespace.cache;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -261,7 +261,7 @@ public abstract class NamespaceExtractionCacheManager
     synchronized (implDatum.enabled) {
       final CountDownLatch latch = new CountDownLatch(1);
       final ListenableFuture<?> future = implDatum.future;
-      Futures.addCallback(
+      io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
           future, new FutureCallback<Object>()
           {
             @Override

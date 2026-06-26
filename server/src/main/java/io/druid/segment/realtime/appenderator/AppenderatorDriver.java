@@ -27,7 +27,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -407,7 +407,7 @@ public class AppenderatorDriver implements Closeable
               metrics.incrementHandOffCount();
 
               final ListenableFuture<?> dropFuture = appenderator.drop(segmentIdentifier);
-              Futures.addCallback(
+              io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
                   dropFuture,
                   new FutureCallback<Object>()
                   {
@@ -624,7 +624,7 @@ public class AppenderatorDriver implements Closeable
         theSegments
     );
 
-    Futures.addCallback(
+    io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
         publishFuture,
         new FutureCallback<SegmentsAndMetadata>()
         {
@@ -669,7 +669,7 @@ public class AppenderatorDriver implements Closeable
   {
     log.info("Pushing segments: [%s]", Joiner.on(", ").join(segmentIdentifiers));
 
-    return Futures.transform(
+    return io.druid.java.util.common.concurrent.ListenableFutures.transform(
         appenderator.push(segmentIdentifiers, wrappedCommitter),
         (Function<SegmentsAndMetadata, SegmentsAndMetadata>) segmentsAndMetadata -> {
           // Sanity check

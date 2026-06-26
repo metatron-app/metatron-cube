@@ -20,7 +20,7 @@
 package io.druid.server.router;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import io.druid.java.util.common.Pair;

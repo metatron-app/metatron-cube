@@ -21,7 +21,7 @@ package io.druid.sql.avatica;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.Yielders;
 import io.druid.common.guava.Sequence;

@@ -19,7 +19,7 @@
 
 package io.druid.segment.loading;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.RetryUtils;
 import io.druid.data.SearchableVersionedDataFinder;

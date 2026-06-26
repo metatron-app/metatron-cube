@@ -38,7 +38,7 @@ import com.esri.core.geometry.SpatialReference;
 import com.esri.core.geometry.ogc.OGCGeometry;
 import com.esri.hadoop.hive.GeometryUtils;
 import com.esri.hadoop.hive.GeometryUtils.OGCType;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;

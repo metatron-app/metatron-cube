@@ -21,7 +21,7 @@ package io.druid.server.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.inject.Inject;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.emitter.service.ServiceEmitter;

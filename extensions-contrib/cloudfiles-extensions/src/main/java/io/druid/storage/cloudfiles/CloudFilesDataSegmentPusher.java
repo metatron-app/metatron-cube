@@ -20,7 +20,7 @@
 package io.druid.storage.cloudfiles;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.druid.java.util.common.logger.Logger;

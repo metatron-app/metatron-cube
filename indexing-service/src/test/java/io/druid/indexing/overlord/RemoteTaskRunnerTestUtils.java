@@ -22,7 +22,7 @@ package io.druid.indexing.overlord;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.concurrent.ScheduledExecutors;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.common.guava.DSuppliers;

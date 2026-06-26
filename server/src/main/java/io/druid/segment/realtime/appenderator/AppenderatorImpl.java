@@ -25,7 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -789,7 +789,7 @@ public class AppenderatorImpl implements Appenderator
       sink.finishWriting();
     }
 
-    return Futures.transform(
+    return io.druid.java.util.common.concurrent.ListenableFutures.transform(
         persist(identifiers, committer),
         (Function<Object, SegmentsAndMetadata>) commitMetadata -> {
           final List<DataSegment> dataSegments = Lists.newArrayList();
@@ -1273,7 +1273,7 @@ public class AppenderatorImpl implements Appenderator
     totalRows.addAndGet(-sink.getNumRows());
 
     // Wait for any outstanding pushes to finish, then abandon the segment inside the persist thread.
-    return Futures.transform(
+    return io.druid.java.util.common.concurrent.ListenableFutures.transform(
         pushBarrier(),
         new Function<Object, Object>()
         {

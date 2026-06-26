@@ -19,7 +19,7 @@
 
 package io.druid.server.listener.announcer;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.common.guava.HostAndPort;
 import io.druid.curator.announcement.Announcer;
 import io.druid.java.util.common.lifecycle.LifecycleStart;

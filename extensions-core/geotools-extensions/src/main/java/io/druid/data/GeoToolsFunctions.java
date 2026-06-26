@@ -19,7 +19,7 @@
 
 package io.druid.data;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.primitives.Longs;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.IAE;

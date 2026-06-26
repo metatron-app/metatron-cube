@@ -22,7 +22,7 @@ package io.druid.indexer;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.granularity.Granularities;
 import io.druid.indexer.partitions.HashedPartitionsSpec;

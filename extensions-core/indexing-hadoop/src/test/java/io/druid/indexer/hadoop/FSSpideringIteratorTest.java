@@ -20,7 +20,7 @@
 package io.druid.indexer.hadoop;
 
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;

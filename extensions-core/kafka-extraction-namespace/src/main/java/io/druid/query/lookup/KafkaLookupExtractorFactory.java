@@ -233,7 +233,7 @@ public class KafkaLookupExtractorFactory implements LookupExtractorFactory
             }
           }
       );
-      Futures.addCallback(
+      io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
           future, new FutureCallback<Object>()
           {
             @Override

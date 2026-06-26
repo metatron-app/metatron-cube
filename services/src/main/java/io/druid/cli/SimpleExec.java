@@ -19,7 +19,7 @@
 
 package io.druid.cli;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.airlift.airline.Arguments;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;

@@ -20,7 +20,7 @@
 package io.druid.hive;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;

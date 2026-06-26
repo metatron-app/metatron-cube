@@ -20,7 +20,7 @@
 package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;

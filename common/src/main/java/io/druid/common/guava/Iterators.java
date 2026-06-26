@@ -46,7 +46,7 @@ public class Iterators
     private final Iterator<T> delegate;
 
     private final T[] batch;
-    private Iterator<T> iterator = com.google.common.collect.Iterators.emptyIterator();
+    private Iterator<T> iterator = java.util.Collections.emptyIterator();
 
     @SuppressWarnings("unchecked")
     public Batch(Class<T> clazz, int size, Iterator<T> delegate)

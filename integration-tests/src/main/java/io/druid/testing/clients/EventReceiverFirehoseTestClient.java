@@ -23,7 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;

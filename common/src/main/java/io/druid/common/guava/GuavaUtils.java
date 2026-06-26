@@ -818,7 +818,7 @@ public class GuavaUtils
   public static <T> Iterator<T> dedup(List<T> values)
   {
     if (values.isEmpty()) {
-      return Iterators.emptyIterator();
+      return java.util.Collections.emptyIterator();
     }
     return new Iterator<T>()
     {

@@ -150,7 +150,7 @@ public class SegmentChangeRequestHistoryTest
     Assert.assertEquals(1, history.waitingFutures.size());
 
     final AtomicBoolean callbackExcecuted = new AtomicBoolean(false);
-    Futures.addCallback(
+    io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
         future,
         new FutureCallback<SegmentChangeRequestsSnapshot>()
         {

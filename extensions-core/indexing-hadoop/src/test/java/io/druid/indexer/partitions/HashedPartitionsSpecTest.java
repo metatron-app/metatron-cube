@@ -20,7 +20,7 @@
 package io.druid.indexer.partitions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
 import io.druid.jackson.DefaultObjectMapper;
 import org.junit.Assert;

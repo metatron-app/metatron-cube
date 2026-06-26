@@ -19,7 +19,7 @@
 
 package io.druid.server.lookup.namespace;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import io.druid.java.util.common.CompressionUtils;

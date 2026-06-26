@@ -20,7 +20,7 @@
 package io.druid.indexer;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ParserInitializationFail;

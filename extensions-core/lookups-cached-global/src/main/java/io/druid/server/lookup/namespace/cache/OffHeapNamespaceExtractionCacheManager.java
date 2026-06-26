@@ -20,7 +20,7 @@
 package io.druid.server.lookup.namespace.cache;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.util.concurrent.Striped;
 import com.google.inject.Inject;
 import io.druid.java.util.common.lifecycle.Lifecycle;

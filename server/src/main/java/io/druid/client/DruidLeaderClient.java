@@ -19,7 +19,7 @@
 
 package io.druid.client;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.RE;

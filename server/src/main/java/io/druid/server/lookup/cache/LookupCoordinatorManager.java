@@ -26,7 +26,7 @@ import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -592,7 +592,7 @@ public class LookupCoordinatorManager
           lookupCoordinatorManagerConfig.getPeriod(),
           TimeUnit.MILLISECONDS
       );
-      Futures.addCallback(backgroundManagerFuture, new FutureCallback<Object>()
+      io.druid.java.util.common.concurrent.ListenableFutures.addCallback(backgroundManagerFuture, new FutureCallback<Object>()
       {
         @Override
         public void onSuccess(@Nullable Object result)

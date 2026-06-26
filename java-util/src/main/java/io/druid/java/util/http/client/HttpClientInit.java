@@ -14,7 +14,7 @@
 
 package io.druid.java.util.http.client;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.lifecycle.Lifecycle;

@@ -16,7 +16,7 @@ package io.druid.java.util.common;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.logger.Logger;
 
 import java.util.concurrent.Callable;

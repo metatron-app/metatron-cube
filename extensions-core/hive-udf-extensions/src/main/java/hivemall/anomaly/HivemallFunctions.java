@@ -19,7 +19,7 @@
 
 package hivemall.anomaly;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.IAE;
 import hivemall.utils.lang.Preconditions;
 import io.druid.data.TypeResolver;

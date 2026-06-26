@@ -22,7 +22,7 @@ package io.druid.testing.clients;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.inject.Inject;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;

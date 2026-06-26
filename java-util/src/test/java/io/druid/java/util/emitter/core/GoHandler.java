@@ -19,7 +19,7 @@
 
 package io.druid.java.util.emitter.core;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.ISE;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;

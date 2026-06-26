@@ -19,7 +19,7 @@
 
 package io.druid.storage.cloudfiles;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.io.ByteSource;
 import org.jclouds.io.Payload;
 

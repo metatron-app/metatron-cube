@@ -14,7 +14,7 @@
 
 package io.druid.java.util.http.client.response;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.http.client.io.AppendableByteArrayInputStream;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.handler.codec.http.HttpChunk;

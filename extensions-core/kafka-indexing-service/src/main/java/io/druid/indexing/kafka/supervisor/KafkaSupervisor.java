@@ -29,7 +29,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -983,7 +983,7 @@ public class KafkaSupervisor implements Supervisor
 
           futureTaskIds.add(taskId);
           futures.add(
-              Futures.transform(
+              io.druid.java.util.common.concurrent.ListenableFutures.transform(
                   taskClient.getStatusAsync(taskId), new Function<KafkaIndexTask.Status, Boolean>()
                   {
                     @Override
@@ -1123,7 +1123,7 @@ public class KafkaSupervisor implements Supervisor
           true
       );
       futures.add(checkpointsFuture);
-      Futures.addCallback(
+      io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
           checkpointsFuture,
           new FutureCallback<TreeMap<Integer, Map<Integer, Long>>>()
           {
@@ -1291,7 +1291,7 @@ public class KafkaSupervisor implements Supervisor
         if (taskData.startTime == null) {
           futureTaskIds.add(taskId);
           futures.add(
-              Futures.transform(
+              io.druid.java.util.common.concurrent.ListenableFutures.transform(
                   taskClient.getStartTimeAsync(taskId), new Function<DateTime, Boolean>()
                   {
                     @Nullable
@@ -1423,7 +1423,7 @@ public class KafkaSupervisor implements Supervisor
           // This will cause us to create a new set of tasks next cycle that will start from the offsets in
           // metadata store (which will have advanced if we succeeded in publishing and will remain the same if publishing
           // failed and we need to re-ingest)
-          return Futures.transform(
+          return io.druid.java.util.common.concurrent.ListenableFutures.transform(
               stopTasksInGroup(taskGroup), new Function<Object, Map<Integer, Long>>()
               {
                 @Nullable
@@ -1453,7 +1453,7 @@ public class KafkaSupervisor implements Supervisor
       pauseFutures.add(taskClient.pauseAsync(taskId));
     }
 
-    return Futures.transform(
+    return io.druid.java.util.common.concurrent.ListenableFutures.transform(
         Futures.successfulAsList(pauseFutures), new Function<List<Map<Integer, Long>>, Map<Integer, Long>>()
         {
           @Nullable
@@ -1948,7 +1948,7 @@ public class KafkaSupervisor implements Supervisor
 
   private ListenableFuture<Void> stopTask(final String id, final boolean publish)
   {
-    return Futures.transform(
+    return io.druid.java.util.common.concurrent.ListenableFutures.transform(
         taskClient.stopAsync(id, publish), new Function<Boolean, Void>()
         {
           @Nullable
@@ -2172,7 +2172,7 @@ public class KafkaSupervisor implements Supervisor
                                    .flatMap(List::stream)
                                    .flatMap(taskGroup -> taskGroup.tasks.entrySet().stream())
     ).map(
-        task -> Futures.transform(
+        task -> io.druid.java.util.common.concurrent.ListenableFutures.transform(
             taskClient.getCurrentOffsetsAsync(task.getKey(), false),
             (Function<Map<Integer, Long>, Void>) (currentOffsets) -> {
 

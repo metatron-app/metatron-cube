@@ -19,7 +19,7 @@
 
 package io.druid.server.coordinator;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.concurrent.Execs;
 
 /**

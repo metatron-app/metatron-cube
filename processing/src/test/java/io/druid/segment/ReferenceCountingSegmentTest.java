@@ -19,7 +19,7 @@
 
 package io.druid.segment;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.timeline.DataSegment;

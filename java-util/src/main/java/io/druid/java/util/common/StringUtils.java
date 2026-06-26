@@ -22,7 +22,7 @@ package io.druid.java.util.common;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import sun.misc.Unsafe;
 import sun.nio.ch.DirectBuffer;
 

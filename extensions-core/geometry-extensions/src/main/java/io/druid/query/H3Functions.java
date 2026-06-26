@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.uber.h3core.H3Core;
 import com.uber.h3core.LengthUnit;
 import com.uber.h3core.util.GeoCoord;

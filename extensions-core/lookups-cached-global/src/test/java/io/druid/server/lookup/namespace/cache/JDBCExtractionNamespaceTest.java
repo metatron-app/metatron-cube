@@ -20,7 +20,7 @@
 package io.druid.server.lookup.namespace.cache;
 
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;

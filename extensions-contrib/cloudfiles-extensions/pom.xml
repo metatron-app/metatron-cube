@@ -67,12 +67,6 @@
             <version>${guice.version}</version>
             <!--$NO-MVN-MAN-VER$ -->
         </dependency>
-        <dependency>
-            <groupId>com.google.inject.extensions</groupId>
-            <artifactId>guice-multibindings</artifactId>
-            <version>${guice.version}</version>
-            <!--$NO-MVN-MAN-VER$ -->
-        </dependency>
         <!-- jclouds dependencies -->
         <dependency>
             <groupId>org.apache.jclouds.driver</groupId>

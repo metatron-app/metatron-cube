@@ -19,7 +19,7 @@
 
 package io.druid.segment.realtime;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.Pair;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;

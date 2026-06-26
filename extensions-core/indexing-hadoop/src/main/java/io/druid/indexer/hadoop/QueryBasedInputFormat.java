@@ -29,7 +29,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -647,7 +647,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
           builder.pagingSpec(new PagingSpec(paging, threshold, true));
         }
         SelectQuery query = builder.build();
-        return Futures.transform(
+        return io.druid.java.util.common.concurrent.ListenableFutures.transform(
             submitQuery(query, handler),
             new Function<InputStream, SelectResultValue>()
             {

@@ -24,7 +24,7 @@ import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.MapMaker;
 import com.google.common.util.concurrent.FutureCallback;
@@ -512,7 +512,7 @@ public class HttpServerInventoryView implements ServerInventoryView, FilteredSer
 
         log.debug("Sent segment list fetch request to [%s]", druidServer.getName());
 
-        Futures.addCallback(
+        io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
             future,
             new FutureCallback<InputStream>()
             {

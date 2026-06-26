@@ -19,7 +19,7 @@
 
 package io.druid.java.util.http.client.pool;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.ISE;
 import org.easymock.EasyMock;
 import org.easymock.IAnswer;

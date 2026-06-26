@@ -20,7 +20,7 @@
 package io.druid.tests.indexer;
 
 import com.beust.jcommander.internal.Lists;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.inject.Inject;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.http.client.HttpClient;

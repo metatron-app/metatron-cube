@@ -118,7 +118,7 @@ public class StreamJsonExplodinInputRowParser extends StreamJsonInputRowParser
               if (!ignoreInvalidRows) {
                 throw ParsingFail.propagate(merged, new IAE("timestamp is null"));
               }
-              return Iterators.emptyIterator();
+              return java.util.Collections.emptyIterator();
             }
             return Arrays.<InputRow>asList(new MapBasedInputRow(dateTime, dimensions, merged)).iterator();
           }

@@ -18,7 +18,7 @@
  */
 package io.druid.segment.lucene;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
 import io.druid.java.util.common.UOE;

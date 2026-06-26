@@ -22,7 +22,7 @@ package io.druid.indexing.worker.executor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
@@ -173,7 +173,7 @@ public class ExecutorLifecycle
       throw new ISE(e, "Failed to run isReady", task.getId());
     }
 
-    statusFuture = Futures.transform(
+    statusFuture = io.druid.java.util.common.concurrent.ListenableFutures.transform(
         taskRunner.run(task),
         new Function<TaskStatus, TaskStatus>()
         {

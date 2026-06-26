@@ -14,7 +14,7 @@
 
 package io.druid.common.guava;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import io.druid.common.Yielders;

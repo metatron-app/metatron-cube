@@ -21,7 +21,7 @@ package io.druid.segment.indexing.granularity;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 
 import io.druid.granularity.Granularity;

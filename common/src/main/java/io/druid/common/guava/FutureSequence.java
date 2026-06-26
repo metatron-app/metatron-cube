@@ -20,7 +20,7 @@
 package io.druid.common.guava;
 
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;

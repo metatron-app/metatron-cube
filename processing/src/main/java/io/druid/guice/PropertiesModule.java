@@ -20,7 +20,7 @@
 package io.druid.guice;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 import com.google.inject.Binder;
 import com.google.inject.Module;

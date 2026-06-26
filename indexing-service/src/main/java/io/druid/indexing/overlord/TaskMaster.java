@@ -20,7 +20,7 @@
 package io.druid.indexing.overlord;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.inject.Inject;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.lifecycle.LifecycleStart;

@@ -20,7 +20,7 @@
 package io.druid.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.cache.Cache;
 import io.druid.common.utils.StringUtils;

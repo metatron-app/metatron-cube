@@ -14,7 +14,7 @@
 
 package io.druid.java.util.metrics;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.StreamUtils;
 import io.druid.java.util.common.logger.Logger;
 import org.hyperic.jni.ArchLoaderException;

@@ -22,7 +22,7 @@ package io.druid.common.config;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.inject.Inject;
 import io.druid.audit.AuditEntry;
 import io.druid.audit.AuditInfo;

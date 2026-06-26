@@ -20,7 +20,7 @@
 package io.druid.common.guava;
 
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.data.ValueDesc;
 import io.druid.segment.Tools;
 

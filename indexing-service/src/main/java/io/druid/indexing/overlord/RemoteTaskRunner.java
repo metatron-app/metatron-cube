@@ -29,7 +29,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -241,7 +241,7 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
                   synchronized (waitingForMonitor) {
                     waitingFor.increment();
                   }
-                  Futures.addCallback(
+                  io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
                       addWorker(worker),
                       new FutureCallback<ZkWorker>()
                       {
@@ -1149,7 +1149,7 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
     removedWorkerCleanups.put(worker, cleanupTask);
 
     // Remove this entry from removedWorkerCleanups when done, if it's actually the one in there.
-    Futures.addCallback(
+    io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
         cleanupTask,
         new FutureCallback<Object>()
         {

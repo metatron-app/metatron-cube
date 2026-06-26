@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.common.guava.Comparators;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;

@@ -14,7 +14,7 @@
 
 package io.druid.common.guava;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 
 import java.io.IOException;
 import java.util.List;

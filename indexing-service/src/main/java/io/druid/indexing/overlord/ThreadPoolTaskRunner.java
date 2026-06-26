@@ -276,7 +276,7 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
         statusFuture
     );
     runningItems.add(taskRunnerWorkItem);
-    Futures.addCallback(
+    io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
         statusFuture, new FutureCallback<TaskStatus>()
         {
           @Override

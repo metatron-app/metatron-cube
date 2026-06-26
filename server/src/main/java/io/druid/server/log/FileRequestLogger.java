@@ -21,7 +21,7 @@ package io.druid.server.log;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.concurrent.ScheduledExecutors;
 import io.druid.java.util.common.guava.CloseQuietly;

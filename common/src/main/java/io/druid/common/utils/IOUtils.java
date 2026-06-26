@@ -19,7 +19,7 @@
 
 package io.druid.common.utils;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.primitives.Ints;
 
 import java.io.Closeable;

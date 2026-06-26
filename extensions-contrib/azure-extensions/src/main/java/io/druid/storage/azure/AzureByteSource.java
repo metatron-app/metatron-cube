@@ -19,7 +19,7 @@
 
 package io.druid.storage.azure;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.io.ByteSource;
 import com.microsoft.azure.storage.StorageException;
 

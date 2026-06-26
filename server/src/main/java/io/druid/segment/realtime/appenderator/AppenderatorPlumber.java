@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -295,7 +295,7 @@ public class AppenderatorPlumber implements Plumber
     log.info("Dropping segment: %s", identifier);
     segments.remove(identifier.getInterval().getStartMillis());
 
-    Futures.addCallback(
+    io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
         appenderator.drop(identifier),
         new FutureCallback<Object>()
         {
@@ -444,7 +444,7 @@ public class AppenderatorPlumber implements Plumber
     };
 
     // WARNING: Committers.nil() here means that on-disk data can get out of sync with committing.
-    Futures.addCallback(
+    io.druid.java.util.common.concurrent.ListenableFutures.addCallback(
         appenderator.push(segmentsToPush, Committers.nil()),
         new FutureCallback<SegmentsAndMetadata>()
         {

@@ -19,7 +19,7 @@
 
 package io.druid.server.http;
 
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.inject.Inject;
 import io.druid.server.coordinator.DruidCoordinator;
 

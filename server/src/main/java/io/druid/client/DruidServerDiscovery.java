@@ -21,7 +21,7 @@ package io.druid.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.concurrent.Execs;

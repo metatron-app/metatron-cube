@@ -21,7 +21,7 @@ package io.druid.indexer.hadoop;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Iterators;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.common.Progressing;

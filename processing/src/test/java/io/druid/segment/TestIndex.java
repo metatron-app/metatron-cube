@@ -20,7 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.io.CharSource;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;

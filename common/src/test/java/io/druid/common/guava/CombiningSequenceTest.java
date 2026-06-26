@@ -262,7 +262,7 @@ public class CombiningSequenceTest
           {
             count++;
             if (count % yieldEvery == 0) {
-              yield();
+              this.yield();
             }
             return rhs;
           }

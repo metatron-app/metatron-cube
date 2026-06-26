@@ -122,7 +122,7 @@ public class KerberosHttpClient implements HttpClient
           duration
       );
 
-      Futures.addCallback(internalFuture, new FutureCallback<RetryResponseHolder<Final>>()
+      io.druid.java.util.common.concurrent.ListenableFutures.addCallback(internalFuture, new FutureCallback<RetryResponseHolder<Final>>()
       {
         @Override
         public void onSuccess(RetryResponseHolder<Final> result)
