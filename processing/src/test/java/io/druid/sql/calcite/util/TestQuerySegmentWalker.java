@@ -848,7 +848,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       try {
         BytesOutputStream output = new BytesOutputStream();
         Yielder yielder = Yielders.each(toolChest.serializeSequence(query, sequence, segmentWalker));
-        mapper.writer().writeValue(output, yielder);
+        mapper.writer().writeValue((java.io.OutputStream) output, yielder);
 
         JavaType typeReference = toolChest.getResultTypeReference(query, mapper.getTypeFactory());
         JsonParserIterator iterator = new JsonParserIterator(

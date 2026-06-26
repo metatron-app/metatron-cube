@@ -108,7 +108,10 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
         if (cachedResult.length == 0) {
           return Sequences.empty(columns);
         }
-        final TypeReference<?> cacheObjectClazz = strategy.getCacheObjectClazz();
+        // raw TypeReference: Jackson 2.17 can't infer readValues() through a
+        // wildcard capture into the Sequence<Object> below.
+        @SuppressWarnings("rawtypes")
+        final TypeReference cacheObjectClazz = strategy.getCacheObjectClazz();
 
         final Sequence<Object> sequence = Sequences.simple(() -> {
           try {

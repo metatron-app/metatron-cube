@@ -122,7 +122,7 @@ public class TaskStatusPlusTest
         // make sure to preserve time zone information when parsing timestamps
         return DateTimes.ISO_DATE_OR_TIME_WITH_OFFSET.parse(str);
       }
-      throw ctxt.mappingException(getValueClass());
+      throw com.fasterxml.jackson.databind.JsonMappingException.from(ctxt, "unexpected token for " + getValueClass());
     }
   }
 }

@@ -115,7 +115,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         FileStatus[] segments = fs.listStatus(descriptorInfoDir);
         log.info("Indexing job reported total %d segments created", segments.length);
         for (FileStatus status : segments) {
-          final DataSegment segment = jsonMapper.readValue(fs.open(status.getPath()), DataSegment.class);
+          final DataSegment segment = jsonMapper.readValue((java.io.InputStream) fs.open(status.getPath()), DataSegment.class);
           publishedSegmentsBuilder.add(segment);
           log.info("Adding segment %s to the list of published segments", segment.getIdentifier());
         }

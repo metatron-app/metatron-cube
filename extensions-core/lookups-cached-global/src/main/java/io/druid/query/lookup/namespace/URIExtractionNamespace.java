@@ -622,7 +622,7 @@ public class URIExtractionNamespace implements ExtractionNamespace
         {
           try {
             return jsonMapper.readValue(
-                input, new TypeReference<Map<String, String>>()
+                input, new TypeReference<Map<Object, String>>()
                 {
                 }
             );

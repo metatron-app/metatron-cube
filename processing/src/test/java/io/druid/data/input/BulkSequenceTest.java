@@ -198,7 +198,7 @@ public class BulkSequenceTest
 
   private List<BulkRow> serde(Sequence<BulkRow> sequence) throws IOException
   {
-    return mapper.readValue(mapper.writeValueAsBytes(sequence), new TypeReference<List<Row>>() {});
+    return mapper.readValue(mapper.writeValueAsBytes(sequence), new TypeReference<List<BulkRow>>() {});
   }
 
   private Sequence<BulkRow> seqSerde(Sequence<BulkRow> sequence) throws IOException

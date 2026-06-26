@@ -20,14 +20,17 @@
 package io.druid.guice;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.databind.introspect.AnnotatedField;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMethod;
+import com.fasterxml.jackson.databind.introspect.AnnotatedParameter;
 import com.fasterxml.jackson.databind.introspect.NopAnnotationIntrospector;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Key;
 import io.druid.java.util.common.IAE;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
 
 /**
  */
@@ -52,8 +55,21 @@ public class GuiceAnnotationIntrospector extends NopAnnotationIntrospector
       if (m instanceof AnnotatedMethod) {
         throw new IAE("Annotated methods don't work very well yet...");
       }
-      return Key.get(m.getGenericType());
+      return Key.get(genericType(m));
     }
-    return Key.get(m.getGenericType(), guiceAnnotation);
+    return Key.get(genericType(m), guiceAnnotation);
+  }
+
+  // Jackson 2.7+ removed AnnotatedMember.getGenericType(); reconstruct the
+  // reflective generic type from the concrete member.
+  private static Type genericType(AnnotatedMember m)
+  {
+    if (m instanceof AnnotatedField) {
+      return ((AnnotatedField) m).getAnnotated().getGenericType();
+    }
+    if (m instanceof AnnotatedParameter) {
+      return ((AnnotatedParameter) m).getParameterType();
+    }
+    return m.getType().getRawClass();
   }
 }

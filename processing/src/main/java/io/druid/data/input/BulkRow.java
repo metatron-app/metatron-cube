@@ -169,7 +169,7 @@ public class BulkRow extends AbstractRow
             compressTo((byte[]) bulk.values[i], output);
             continue;
           case 6:
-            final JsonGenerator hack = factory.createGenerator(scratch);
+            final JsonGenerator hack = factory.createGenerator((java.io.OutputStream) scratch);
             hack.writeObject(bulk.values[i]);
             hack.flush();
             compressTo(scratch, output);
@@ -282,7 +282,7 @@ public class BulkRow extends AbstractRow
             values[i] = decompressed;
             continue;
           case 6:
-            final JsonParser hack = factory.createParser(decompressed);
+            final JsonParser hack = factory.createParser((java.io.InputStream) decompressed);
             values[i] = Iterators.get(hack.readValuesAs(Object[].class), 0);
             continue;
           default:

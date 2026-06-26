@@ -23,6 +23,8 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.KeyDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -63,7 +65,9 @@ public class JodaStuff
     module.addSerializer(DateTime.class, new DateTimeSerializer());
     module.addDeserializer(Interval.class, new JodaStuff.IntervalDeserializer());
     module.addSerializer(Interval.class, ToStringSerializer.instance);
-    module.addDeserializer(Period.class, new PeriodDeserializer());
+    // jackson-datatype-joda's PeriodDeserializer is typed JsonDeserializer<ReadablePeriod>
+    // (a supertype of Period), so addDeserializer's <? extends Period> bound needs a cast.
+    module.addDeserializer(Period.class, (JsonDeserializer<? extends Period>) (JsonDeserializer<?>) new PeriodDeserializer());
     module.addSerializer(Period.class, ToStringSerializer.instance);
     module.addDeserializer(Duration.class, new DurationDeserializer());
     module.addSerializer(Duration.class, ToStringSerializer.instance);
@@ -186,7 +190,7 @@ public class JodaStuff
         }
         return new DateTime(millis, timeZone);
       }
-      throw ctxt.mappingException(handledType());
+      throw JsonMappingException.from(ctxt, "unexpected token for " + handledType() + ": " + jp.getCurrentToken());
     }
   }
 }

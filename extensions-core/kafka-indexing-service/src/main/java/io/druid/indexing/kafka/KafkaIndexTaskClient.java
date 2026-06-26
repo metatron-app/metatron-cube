@@ -272,7 +272,7 @@ public class KafkaIndexTaskClient
     log.debug("GetCheckpoints task[%s] retry[%s]", id, retry);
     try {
       final FullResponseHolder response = submitRequest(id, HttpMethod.GET, "checkpoints", null, retry);
-      return jsonMapper.readValue(response.getContent(), new TypeReference<TreeMap<Integer, TreeMap<Integer, Long>>>()
+      return jsonMapper.readValue(response.getContent(), new TypeReference<TreeMap<Integer, Map<Integer, Long>>>()
       {
       });
     }

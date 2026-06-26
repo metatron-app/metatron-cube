@@ -49,6 +49,10 @@ public class StringDimensionSchema extends DimensionSchema
     super(name, fieldName, multiValueHandling);
   }
 
+  // Delegating creator so a bare JSON string ("dim") deserializes to a
+  // StringDimensionSchema via DimensionSchema's defaultImpl. Jackson 2.12+ no
+  // longer implicitly builds the defaultImpl from a scalar for polymorphic types.
+  @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
   public StringDimensionSchema(String name)
   {
     this(name, null, null);

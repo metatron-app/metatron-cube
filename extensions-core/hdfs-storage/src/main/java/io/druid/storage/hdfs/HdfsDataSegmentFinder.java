@@ -81,7 +81,7 @@ public class HdfsDataSegmentFinder implements DataSegmentFinder
         if (path.getName().equals("descriptor.json")) {
           final Path indexZip = new Path(path.getParent(), "index.zip");
           if (fs.exists(indexZip)) {
-            final DataSegment dataSegment = mapper.readValue(fs.open(path), DataSegment.class);
+            final DataSegment dataSegment = mapper.readValue((java.io.InputStream) fs.open(path), DataSegment.class);
             log.info("Found segment [%s] located at [%s]", dataSegment.getIdentifier(), indexZip);
 
             final Map<String, Object> loadSpec = dataSegment.getLoadSpec();
@@ -93,7 +93,7 @@ public class HdfsDataSegmentFinder implements DataSegmentFinder
               loadSpec.put("path", pathWithoutScheme);
               if (updateDescriptor) {
                 log.info("Updating loadSpec in descriptor.json at [%s] with new path [%s]", path, pathWithoutScheme);
-                mapper.writeValue(fs.create(path, true), dataSegment);
+                mapper.writeValue((java.io.OutputStream) fs.create(path, true), dataSegment);
               }
             }
             segments.add(dataSegment);
