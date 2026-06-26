@@ -86,38 +86,17 @@
                                 <argument>${project.parent.version}</argument>
                                 <argument>-l</argument>
                                 <argument>${settings.localRepository}</argument>
-                                <argument>-h</argument>
-                                <argument>org.apache.hadoop:hadoop-client:${hadoop.dist.version}</argument>
+                                <!-- Storage / deep storage -->
                                 <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-avro-extensions</argument>
+                                <argument>app.metatron.extensions:druid-s3-extensions</argument>
                                 <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-esri-extensions</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-examples</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-datasketches</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-geotools-extensions</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-indexing-hadoop</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-hdfs-storage</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-kerberos-extensions</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-histogram</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-hive-extensions</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-hive-udf-extensions</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-kafka-eight</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-kafka-extraction-namespace</argument>
+                                <argument>app.metatron.extensions:postgresql-metadata-storage</argument>
+                                <!-- Ingestion: Kafka -->
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-kafka-indexing-service</argument>
                                 <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-geometry-extensions</argument>
+                                <argument>app.metatron.extensions:druid-kafka-extraction-namespace</argument>
+                                <!-- Search / Lucene -->
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-lucene-common</argument>
                                 <argument>-c</argument>
@@ -126,34 +105,27 @@
                                 <argument>app.metatron.extensions:druid-lucene8-extensions</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-lucene9-extensions</argument>
+                                <!-- Query / function / aggregator extensions -->
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-datasketches</argument>
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-histogram</argument>
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-stats</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-median</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-jdbc-firehose</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-uri-firehose</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-range</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-area</argument>
                                 <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-geometry-extensions</argument>
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-geotools-extensions</argument>
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-esri-extensions</argument>
+                                <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-lookups-cached-global</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-s3-extensions</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-stats</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:mysql-metadata-storage</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions:postgresql-metadata-storage</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions.contrib:druid-orc-extensions</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions.contrib:druid-parquet-extensions</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions.contrib:druid-kafka-eight-simple-consumer</argument>
-                                <argument>-c</argument>
-                                <argument>app.metatron.extensions.contrib:kafka-emitter</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-jfreechart-extensions</argument>
                             </arguments>

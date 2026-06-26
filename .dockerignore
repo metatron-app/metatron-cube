@@ -1,0 +1,26 @@
+# VCS / IDE
+.git
+.idea
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+
+# build outputs (rebuilt inside the image)
+**/target
+dist
+*.tar.gz
+
+# docs / large non-build assets
+docs
+publications
+web-console/node_modules
+*.pdf
+
+# logs / local cruft
+*.log
+**/logs
+*.DS_Store
+test.yaml

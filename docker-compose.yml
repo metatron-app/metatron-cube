@@ -1,0 +1,89 @@
+# Local single-node Druid (metatron-cube) stack:
+#   zookeeper + postgres (metadata) + coordinator/overlord/broker/historical/middleManager
+#
+#   docker compose up -d --build          # build image + start everything
+#   docker compose logs -f broker         # follow a role
+#   docker compose down                   # stop (add -v to wipe data volumes)
+#
+# Config lives in ./docker/conf/druid (bind-mounted read-only onto every role).
+# Edit ./docker/conf/druid/_common/common.runtime.properties to retarget DB etc.
+name: metatron
+
+x-druid-common: &druid-common
+  image: metatron-cube:2021.3
+  build:
+    context: .
+  restart: unless-stopped
+  volumes:
+    - ./docker/conf/druid:/opt/druid/conf/druid:ro
+    - druid_var:/opt/druid/var
+  depends_on:
+    postgres:
+      condition: service_healthy
+    zookeeper:
+      condition: service_healthy
+  networks: [druid]
+
+services:
+  zookeeper:
+    image: zookeeper:3.5
+    environment:
+      ZOO_4LW_COMMANDS_WHITELIST: "ruok,stat,conf,mntr"
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep -q imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [druid]
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: druid
+      POSTGRES_USER: druid
+      POSTGRES_PASSWORD: diurd
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U druid -d druid"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [druid]
+
+  coordinator:
+    <<: *druid-common
+    command: ["coordinator"]
+    ports:
+      - "8081:8081"
+
+  overlord:
+    <<: *druid-common
+    command: ["overlord"]
+    ports:
+      - "8090:8090"
+
+  broker:
+    <<: *druid-common
+    command: ["broker"]
+    ports:
+      - "8082:8082"
+
+  historical:
+    <<: *druid-common
+    command: ["historical"]
+    ports:
+      - "8083:8083"
+
+  middleManager:
+    <<: *druid-common
+    command: ["middleManager"]
+    ports:
+      - "8091:8091"
+
+volumes:
+  druid_var:
+  pg_data:
+
+networks:
+  druid:
