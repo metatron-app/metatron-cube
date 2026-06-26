@@ -100,7 +100,7 @@
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-lucene-common</argument>
                                 <argument>-c</argument>
-                                <argument>app.metatron.extensions:druid-lucene9-extensions</argument>
+                                <argument>app.metatron.extensions:druid-lucene10-extensions</argument>
                                 <!-- Query / function / aggregator extensions -->
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-datasketches</argument>

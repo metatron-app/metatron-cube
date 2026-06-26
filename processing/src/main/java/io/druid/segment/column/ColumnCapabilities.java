@@ -209,7 +209,7 @@ public class ColumnCapabilities
     return this;
   }
 
-  private static final Pattern LUCENE = Pattern.compile("lucene(\\d)?");
+  private static final Pattern LUCENE = Pattern.compile("lucene(\\d+)?");
 
   @JsonIgnore
   public boolean hasLuceneIndex()
