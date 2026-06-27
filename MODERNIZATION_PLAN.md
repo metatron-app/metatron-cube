@@ -6,6 +6,27 @@
 > This is a multi-week effort. The work is sequenced so the project **builds and
 > runs after every phase** — never a big-bang.
 
+## Status — DONE (branch `modernize-java21`)
+
+All phases complete; verified end-to-end in docker (ingest + query of the
+wikiticker sample: 39,244 rows, topN pages).
+
+| Phase | Result |
+|-------|--------|
+| 1 Java 21 toolchain | ✅ (only `yield` qualification needed) |
+| 2 Guice 4.1 → 6.0 | ✅ |
+| 3 Guava 16 → 32 | ✅ (Throwables shim, Futures/Iterators/CharMatcher) |
+| 4 Jackson 2.4 → 2.17 | ✅ (+ JAX-RS 2.1 API, airline 0.9, @JacksonInject fix, dimension string-shorthand) |
+| 5 Web stack | ✅ runs on Jersey 1.x via JAX-RS 2.1 API (full Jersey 3 upgrade not needed) |
+| 6 ZooKeeper 3.9 / Curator 5.7 | ✅ |
+| 7 Lucene 10.5 (consolidated) | ✅ tested (spatial/text/serde); dropped 7/8, hadoop-decoupled |
+| 8 aws-sdk / S3 | ✅ *lazy-init* chosen: s3 loads without credentials (anonymous fallback). Full aws-sdk v2 migration deferred. |
+| 9 Cleanup | ✅ surefire `--add-opens`, JAXB runtime. *Deferred:* JvmMonitor port (gridkit perfdata → JMX). |
+
+Also required to get the cluster running, beyond the planned phases:
+- CliPeon moved out of the dropped Hadoop extension into core `services`.
+- Peon JDK module opts in `druid.indexer.runner.javaOpts`.
+
 ## Why this is needed (root cause recap)
 
 - `master` targets **Java 8** (`maven.compiler.target=1.8`). The local bump to `1.9`
