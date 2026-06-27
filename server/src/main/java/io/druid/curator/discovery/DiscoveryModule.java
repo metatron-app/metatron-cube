@@ -333,12 +333,6 @@ public class DiscoveryModule implements Module
       return this;
     }
 
-    @Override
-    public ServiceCacheBuilder<T> executorService(CloseableExecutorService closeableExecutorService)
-    {
-      return this;
-    }
-
     private static class NoopServiceCache<T> implements ServiceCache<T>
     {
       @Override
@@ -351,6 +345,12 @@ public class DiscoveryModule implements Module
       public void start() throws Exception
       {
 
+      }
+
+      @Override
+      public java.util.concurrent.CountDownLatch startImmediate() throws Exception
+      {
+        return new java.util.concurrent.CountDownLatch(0);
       }
 
       @Override
@@ -403,6 +403,12 @@ public class DiscoveryModule implements Module
 
     @Override
     public ServiceProviderBuilder<T> threadFactory(ThreadFactory threadFactory)
+    {
+      return this;
+    }
+
+    @Override
+    public ServiceProviderBuilder<T> executorService(ExecutorService executorService)
     {
       return this;
     }

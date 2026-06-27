@@ -171,7 +171,8 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
           try {
             zooKeeperServer.runFromConfig(configuration);
           }
-          catch (IOException e) {
+          // ZK 3.9's runFromConfig also throws AdminServerException (checked); catch broadly.
+          catch (Exception e) {
             LOGGER.error(e, "ZooKeeper Failed");
           }
         }

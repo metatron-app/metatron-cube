@@ -27,7 +27,7 @@ x-druid-common: &druid-common
 
 services:
   zookeeper:
-    image: zookeeper:3.5
+    image: zookeeper:3.9
     environment:
       ZOO_4LW_COMMANDS_WHITELIST: "ruok,stat,conf,mntr"
     healthcheck:
