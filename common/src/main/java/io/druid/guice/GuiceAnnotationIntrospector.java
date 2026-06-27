@@ -30,6 +30,9 @@ import com.google.inject.Key;
 import io.druid.java.util.common.IAE;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Member;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 
 /**
@@ -68,8 +71,20 @@ public class GuiceAnnotationIntrospector extends NopAnnotationIntrospector
       return ((AnnotatedField) m).getAnnotated().getGenericType();
     }
     if (m instanceof AnnotatedParameter) {
-      return ((AnnotatedParameter) m).getParameterType();
+      // NB: AnnotatedParameter.getParameterType() returns Jackson's JavaType (it
+      // implements java.lang.reflect.Type, but Guice's Key only accepts
+      // Class/ParameterizedType/GenericArrayType). Resolve the real reflective
+      // parameter type from the owning constructor/method instead.
+      final AnnotatedParameter p = (AnnotatedParameter) m;
+      final Member owner = p.getOwner() == null ? null : p.getOwner().getMember();
+      if (owner instanceof Constructor) {
+        return ((Constructor<?>) owner).getGenericParameterTypes()[p.getIndex()];
+      }
+      if (owner instanceof Method) {
+        return ((Method) owner).getGenericParameterTypes()[p.getIndex()];
+      }
     }
+    // Raw class is a Guice-compatible java.lang.reflect.Type; never hand Guice a JavaType.
     return m.getType().getRawClass();
   }
 }
