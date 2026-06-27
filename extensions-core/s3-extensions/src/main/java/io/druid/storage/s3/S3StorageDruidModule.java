@@ -34,6 +34,7 @@ import io.druid.guice.Binders;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.http.HttpResponse;
 import org.jets3t.service.Constants;
 import org.jets3t.service.ServiceException;
@@ -48,6 +49,8 @@ import java.util.Map;
  */
 public class S3StorageDruidModule implements DruidModule
 {
+  private static final Logger LOG = new Logger(S3StorageDruidModule.class);
+
   public static final String SCHEME = "s3_zip";
 
   @Override
@@ -113,12 +116,21 @@ public class S3StorageDruidModule implements DruidModule
   @LazySingleton
   public RestS3Service getRestS3Service(AWSCredentialsProvider provider)
   {
-    final com.amazonaws.auth.AWSCredentials credentials = provider.getCredentials();
-    final ProviderCredentials providerCredentials;
-    if (credentials instanceof com.amazonaws.auth.AWSSessionCredentials) {
-      providerCredentials = new AWSSessionCredentialsAdapter(provider);
-    } else {
-      providerCredentials = new AWSCredentials(credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey());
+    // Resolve credentials lazily-tolerant: if none are configured, build an
+    // anonymous client so the extension can be loaded (e.g. when deep storage is
+    // local). Actual S3 operations will fail until credentials are provided.
+    ProviderCredentials providerCredentials;
+    try {
+      final com.amazonaws.auth.AWSCredentials credentials = provider.getCredentials();
+      if (credentials instanceof com.amazonaws.auth.AWSSessionCredentials) {
+        providerCredentials = new AWSSessionCredentialsAdapter(provider);
+      } else {
+        providerCredentials = new AWSCredentials(credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey());
+      }
+    }
+    catch (Exception e) {
+      LOG.warn("No AWS credentials available; creating an anonymous S3 client (S3 operations will fail until configured)");
+      providerCredentials = null;
     }
     final String defaultRegion = System.getProperty("aws.region", Constants.S3_DEFAULT_HOSTNAME);
     return new RestS3Service(providerCredentials)
