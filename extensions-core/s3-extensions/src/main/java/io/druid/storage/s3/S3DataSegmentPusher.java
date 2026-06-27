@@ -30,10 +30,11 @@ import io.druid.segment.SegmentUtils;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.timeline.DataSegment;
 import io.druid.utils.CompressionUtils;
-import org.jets3t.service.ServiceException;
-import org.jets3t.service.acl.gs.GSAccessControlList;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.S3Object;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,13 +44,13 @@ public class S3DataSegmentPusher implements DataSegmentPusher
 {
   private static final EmittingLogger log = new EmittingLogger(S3DataSegmentPusher.class);
 
-  private final RestS3Service s3Client;
+  private final S3Client s3Client;
   private final S3DataSegmentPusherConfig config;
   private final ObjectMapper jsonMapper;
 
   @Inject
   public S3DataSegmentPusher(
-      RestS3Service s3Client,
+      S3Client s3Client,
       S3DataSegmentPusherConfig config,
       ObjectMapper jsonMapper
   )
@@ -91,19 +92,19 @@ public class S3DataSegmentPusher implements DataSegmentPusher
             @Override
             public DataSegment call() throws Exception
             {
-              S3Object toPush = new S3Object(zipOutFile);
-
               final String outputBucket = config.getBucket();
               final String s3DescriptorPath = S3Utils.descriptorPathForSegmentPath(s3Path);
 
-              toPush.setBucketName(outputBucket);
-              toPush.setKey(s3Path);
+              PutObjectRequest.Builder toPushBuilder = PutObjectRequest.builder()
+                                                                       .bucket(outputBucket)
+                                                                       .key(s3Path);
               if (!config.getDisableAcl()) {
-                toPush.setAcl(GSAccessControlList.REST_CANNED_BUCKET_OWNER_FULL_CONTROL);
+                toPushBuilder.acl(ObjectCannedACL.BUCKET_OWNER_FULL_CONTROL);
               }
+              PutObjectRequest toPush = toPushBuilder.build();
 
-              log.info("Pushing %s.", toPush);
-              s3Client.putObject(outputBucket, toPush);
+              log.info("Pushing [%s] to bucket[%s] and key[%s].", zipOutFile, outputBucket, s3Path);
+              s3Client.putObject(toPush, RequestBody.fromFile(zipOutFile.toPath()));
 
               final DataSegment outSegment = inSegment.withSize(indexSize)
                                                       .withLoadSpec(
@@ -113,22 +114,23 @@ public class S3DataSegmentPusher implements DataSegmentPusher
                                                               "bucket",
                                                               outputBucket,
                                                               "key",
-                                                              toPush.getKey()
+                                                              toPush.key()
                                                           )
                                                       )
                                                       .withBinaryVersion(SegmentUtils.getVersionFromDir(indexFilesDir));
 
               File descriptorFile = File.createTempFile("druid", "descriptor.json");
               ByteSource.wrap(jsonMapper.writeValueAsBytes(inSegment)).copyTo(Files.asByteSink(descriptorFile));
-              S3Object descriptorObject = new S3Object(descriptorFile);
-              descriptorObject.setBucketName(outputBucket);
-              descriptorObject.setKey(s3DescriptorPath);
+              PutObjectRequest.Builder descriptorBuilder = PutObjectRequest.builder()
+                                                                          .bucket(outputBucket)
+                                                                          .key(s3DescriptorPath);
               if (!config.getDisableAcl()) {
-                descriptorObject.setAcl(GSAccessControlList.REST_CANNED_BUCKET_OWNER_FULL_CONTROL);
+                descriptorBuilder.acl(ObjectCannedACL.BUCKET_OWNER_FULL_CONTROL);
               }
+              PutObjectRequest descriptorObject = descriptorBuilder.build();
 
-              log.info("Pushing %s", descriptorObject);
-              s3Client.putObject(outputBucket, descriptorObject);
+              log.info("Pushing [%s] to bucket[%s] and key[%s]", descriptorFile, outputBucket, s3DescriptorPath);
+              s3Client.putObject(descriptorObject, RequestBody.fromFile(descriptorFile.toPath()));
 
               log.info("Deleting zipped index File[%s]", zipOutFile);
               zipOutFile.delete();
@@ -141,7 +143,7 @@ public class S3DataSegmentPusher implements DataSegmentPusher
           }
       );
     }
-    catch (ServiceException e) {
+    catch (SdkException e) {
       throw new IOException(e);
     }
     catch (Exception e) {

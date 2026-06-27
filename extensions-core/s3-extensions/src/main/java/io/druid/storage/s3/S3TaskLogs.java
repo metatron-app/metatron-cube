@@ -24,10 +24,13 @@ import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.tasklogs.TaskLogs;
-import org.jets3t.service.ServiceException;
-import org.jets3t.service.StorageService;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.StorageObject;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,11 +44,11 @@ public class S3TaskLogs implements TaskLogs
 {
   private static final Logger log = new Logger(S3TaskLogs.class);
 
-  private final StorageService service;
+  private final S3Client service;
   private final S3TaskLogsConfig config;
 
   @Inject
-  public S3TaskLogs(S3TaskLogsConfig config, RestS3Service service)
+  public S3TaskLogs(S3TaskLogsConfig config, S3Client service)
   {
     this.config = config;
     this.service = service;
@@ -57,7 +60,12 @@ public class S3TaskLogs implements TaskLogs
     final String taskKey = getTaskLogKey(taskid);
 
     try {
-      final StorageObject objectDetails = service.getObjectDetails(config.getS3Bucket(), taskKey, null, null, null, null);
+      final HeadObjectResponse objectDetails = service.headObject(
+          HeadObjectRequest.builder().bucket(config.getS3Bucket()).key(taskKey).build()
+      );
+
+      final long length = objectDetails.contentLength();
+      final String etag = objectDetails.eTag();
 
       return Optional.<ByteSource>of(
           new ByteSource()
@@ -67,38 +75,37 @@ public class S3TaskLogs implements TaskLogs
             {
               try {
                 final long start;
-                final long end = objectDetails.getContentLength() - 1;
+                final long end = length - 1;
 
-                if (offset > 0 && offset < objectDetails.getContentLength()) {
+                if (offset > 0 && offset < length) {
                   start = offset;
-                } else if (offset < 0 && (-1 * offset) < objectDetails.getContentLength()) {
-                  start = objectDetails.getContentLength() + offset;
+                } else if (offset < 0 && (-1 * offset) < length) {
+                  start = length + offset;
                 } else {
                   start = 0;
                 }
 
                 return service.getObject(
-                    config.getS3Bucket(),
-                    taskKey,
-                    null,
-                    null,
-                    new String[]{objectDetails.getETag()},
-                    null,
-                    start,
-                    end
-                ).getDataInputStream();
+                    GetObjectRequest.builder()
+                        .bucket(config.getS3Bucket())
+                        .key(taskKey)
+                        .ifMatch(etag)
+                        .range(String.format("bytes=%d-%d", start, end))
+                        .build()
+                );
               }
-              catch (ServiceException e) {
+              catch (S3Exception e) {
                 throw new IOException(e);
               }
             }
           }
       );
     }
-    catch (ServiceException e) {
-      if (404 == e.getResponseCode()
-          || "NoSuchKey".equals(e.getErrorCode())
-          || "NoSuchBucket".equals(e.getErrorCode())) {
+    catch (S3Exception e) {
+      final String errorCode = e.awsErrorDetails() == null ? null : e.awsErrorDetails().errorCode();
+      if (404 == e.statusCode()
+          || "NoSuchKey".equals(errorCode)
+          || "NoSuchBucket".equals(errorCode)) {
         return Optional.absent();
       } else {
         throw new IOException(String.format("Failed to stream logs from: %s", taskKey), e);
@@ -119,9 +126,10 @@ public class S3TaskLogs implements TaskLogs
             @Override
             public Void call() throws Exception
             {
-              final StorageObject object = new StorageObject(logFile);
-              object.setKey(taskKey);
-              service.putObject(config.getS3Bucket(), object);
+              service.putObject(
+                  PutObjectRequest.builder().bucket(config.getS3Bucket()).key(taskKey).build(),
+                  RequestBody.fromFile(logFile.toPath())
+              );
               return null;
             }
           }

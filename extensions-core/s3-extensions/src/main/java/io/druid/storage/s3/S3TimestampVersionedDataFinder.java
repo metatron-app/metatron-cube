@@ -24,8 +24,10 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.druid.data.SearchableVersionedDataFinder;
 import io.druid.java.util.common.RetryUtils;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.S3Object;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import javax.annotation.Nullable;
 import java.net.URI;
@@ -40,7 +42,7 @@ import java.util.regex.Pattern;
 public class S3TimestampVersionedDataFinder extends S3DataSegmentPuller implements SearchableVersionedDataFinder<URI>
 {
   @Inject
-  public S3TimestampVersionedDataFinder(RestS3Service s3Client)
+  public S3TimestampVersionedDataFinder(S3Client s3Client)
   {
     super(s3Client);
   }
@@ -69,25 +71,32 @@ public class S3TimestampVersionedDataFinder extends S3DataSegmentPuller implemen
               final S3Coords coords = new S3Coords(checkURI(uri));
               long mostRecent = Long.MIN_VALUE;
               URI latest = null;
-              S3Object[] objects = s3Client.listObjects(coords.bucket, coords.path, "/");
-              if (objects == null) {
-                return null;
-              }
-              for (S3Object storageObject : objects) {
-                storageObject.closeDataInputStream();
-                String keyString = storageObject.getKey().substring(coords.path.length());
-                if (keyString.startsWith("/")) {
-                  keyString = keyString.substring(1);
+              String continuationToken = null;
+              do {
+                final ListObjectsV2Request.Builder requestBuilder = ListObjectsV2Request.builder()
+                    .bucket(coords.bucket)
+                    .prefix(coords.path)
+                    .delimiter("/");
+                if (continuationToken != null) {
+                  requestBuilder.continuationToken(continuationToken);
                 }
-                if (pattern != null && !pattern.matcher(keyString).matches()) {
-                  continue;
+                final ListObjectsV2Response response = s3Client.listObjectsV2(requestBuilder.build());
+                for (S3Object storageObject : response.contents()) {
+                  String keyString = storageObject.key().substring(coords.path.length());
+                  if (keyString.startsWith("/")) {
+                    keyString = keyString.substring(1);
+                  }
+                  if (pattern != null && !pattern.matcher(keyString).matches()) {
+                    continue;
+                  }
+                  final long latestModified = storageObject.lastModified().toEpochMilli();
+                  if (latestModified >= mostRecent) {
+                    mostRecent = latestModified;
+                    latest = new URI(String.format("s3://%s/%s", coords.bucket, storageObject.key()));
+                  }
                 }
-                final long latestModified = storageObject.getLastModifiedDate().getTime();
-                if (latestModified >= mostRecent) {
-                  mostRecent = latestModified;
-                  latest = new URI(String.format("s3://%s/%s", storageObject.getBucketName(), storageObject.getKey()));
-                }
-              }
+                continuationToken = Boolean.TRUE.equals(response.isTruncated()) ? response.nextContinuationToken() : null;
+              } while (continuationToken != null);
               return latest;
             }
           },
@@ -112,19 +121,27 @@ public class S3TimestampVersionedDataFinder extends S3DataSegmentPuller implemen
             {
               final S3Coords coords = new S3Coords(checkURI(uri));
               final List<URI> uriList = Lists.newArrayList();
-              S3Object[] objects = s3Client.listObjects(coords.bucket, coords.path, "/");
-              if (objects != null) {
-                for (S3Object storageObject : objects) {
-                  storageObject.closeDataInputStream();
-                  String keyString = storageObject.getKey().substring(coords.path.length());
+              String continuationToken = null;
+              do {
+                final ListObjectsV2Request.Builder requestBuilder = ListObjectsV2Request.builder()
+                    .bucket(coords.bucket)
+                    .prefix(coords.path)
+                    .delimiter("/");
+                if (continuationToken != null) {
+                  requestBuilder.continuationToken(continuationToken);
+                }
+                final ListObjectsV2Response response = s3Client.listObjectsV2(requestBuilder.build());
+                for (S3Object storageObject : response.contents()) {
+                  String keyString = storageObject.key().substring(coords.path.length());
                   if (keyString.startsWith("/")) {
                     keyString = keyString.substring(1);
                   }
                   if (pattern == null || pattern.matcher(keyString).matches()) {
-                    uriList.add(new URI(String.format("s3://%s/%s", storageObject.getBucketName(), storageObject.getKey())));
+                    uriList.add(new URI(String.format("s3://%s/%s", coords.bucket, storageObject.key())));
                   }
                 }
-              }
+                continuationToken = Boolean.TRUE.equals(response.isTruncated()) ? response.nextContinuationToken() : null;
+              } while (continuationToken != null);
               return uriList;
             }
           },

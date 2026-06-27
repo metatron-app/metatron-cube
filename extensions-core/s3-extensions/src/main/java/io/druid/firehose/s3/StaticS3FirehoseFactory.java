@@ -35,9 +35,8 @@ import io.druid.data.input.impl.FileIteratingFirehose;
 import io.druid.data.input.impl.InputRowParser;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.S3Bucket;
-import org.jets3t.service.model.S3Object;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -55,12 +54,12 @@ public class StaticS3FirehoseFactory implements FirehoseFactory
 {
   private static final Logger log = new Logger(StaticS3FirehoseFactory.class);
 
-  private final RestS3Service s3Client;
+  private final S3Client s3Client;
   private final List<URI> uris;
 
   @JsonCreator
   public StaticS3FirehoseFactory(
-      @JacksonInject("s3Client") RestS3Service s3Client,
+      @JacksonInject("s3Client") S3Client s3Client,
       @JsonProperty("uris") List<URI> uris
   )
   {
@@ -100,21 +99,18 @@ public class StaticS3FirehoseFactory implements FirehoseFactory
             final URI nextURI = objectQueue.poll();
 
             final String s3Bucket = nextURI.getAuthority();
-            final S3Object s3Object = new S3Object(
-                nextURI.getPath().startsWith("/")
-                ? nextURI.getPath().substring(1)
-                : nextURI.getPath()
-            );
+            final String s3Key = nextURI.getPath().startsWith("/")
+                                 ? nextURI.getPath().substring(1)
+                                 : nextURI.getPath();
 
-            log.info("Reading from bucket[%s] object[%s] (%s)", s3Bucket, s3Object.getKey(), nextURI);
+            log.info("Reading from bucket[%s] object[%s] (%s)", s3Bucket, s3Key, nextURI);
 
             try {
               final InputStream innerInputStream = s3Client.getObject(
-                  new S3Bucket(s3Bucket), s3Object.getKey()
-              )
-                                                           .getDataInputStream();
+                  GetObjectRequest.builder().bucket(s3Bucket).key(s3Key).build()
+              );
 
-              final InputStream outerInputStream = s3Object.getKey().endsWith(".gz")
+              final InputStream outerInputStream = s3Key.endsWith(".gz")
                                                    ? CompressionUtils.gzipInputStream(innerInputStream)
                                                    : innerInputStream;
 
@@ -129,7 +125,7 @@ public class StaticS3FirehoseFactory implements FirehoseFactory
                   e,
                   "Exception reading from bucket[%s] object[%s]",
                   s3Bucket,
-                  s3Object.getKey()
+                  s3Key
               );
 
               throw Throwables.propagate(e);

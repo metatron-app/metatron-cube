@@ -26,13 +26,15 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.easymock.EasyMock;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.S3Object;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
 import java.io.File;
 
@@ -46,9 +48,9 @@ public class S3DataSegmentPusherTest
   @Test
   public void testPush() throws Exception
   {
-    RestS3Service s3Client = EasyMock.createStrictMock(RestS3Service.class);
-    EasyMock.expect(s3Client.putObject(EasyMock.anyString(), EasyMock.<S3Object>anyObject()))
-            .andReturn(null)
+    S3Client s3Client = EasyMock.createStrictMock(S3Client.class);
+    EasyMock.expect(s3Client.putObject(EasyMock.<PutObjectRequest>anyObject(), EasyMock.<RequestBody>anyObject()))
+            .andReturn(PutObjectResponse.builder().build())
             .atLeastOnce();
     EasyMock.replay(s3Client);
 

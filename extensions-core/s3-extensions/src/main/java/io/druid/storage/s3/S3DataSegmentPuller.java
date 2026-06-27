@@ -39,10 +39,14 @@ import io.druid.segment.loading.DataSegmentPuller;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.segment.loading.URIDataPuller;
 import io.druid.timeline.DataSegment;
-import org.jets3t.service.S3ServiceException;
-import org.jets3t.service.ServiceException;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.StorageObject;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import javax.tools.FileObject;
 import java.io.File;
@@ -63,19 +67,21 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
 {
   public static final int DEFAULT_RETRY_COUNT = 3;
 
-  public static FileObject buildFileObject(final URI uri, final RestS3Service s3Client) throws ServiceException
+  public static FileObject buildFileObject(final URI uri, final S3Client s3Client) throws SdkException
   {
     final S3Coords coords = new S3Coords(checkURI(uri));
-    final StorageObject s3Obj = s3Client.getObjectDetails(coords.bucket, coords.path);
+    final HeadObjectResponse s3Obj = s3Client.headObject(
+        HeadObjectRequest.builder().bucket(coords.bucket).key(coords.path).build()
+    );
     final String path = uri.getPath();
 
     return new FileObject()
     {
-      final Supplier<StorageObject> supplier = Suppliers.synchronizedSupplier(Suppliers.memoize(() -> {
+      final Supplier<ResponseInputStream<GetObjectResponse>> supplier = Suppliers.synchronizedSupplier(Suppliers.memoize(() -> {
         try {
-          return s3Client.getObject(coords.bucket, coords.path);
+          return s3Client.getObject(GetObjectRequest.builder().bucket(coords.bucket).key(coords.path).build());
         }
-        catch (S3ServiceException e) {
+        catch (SdkException e) {
           throw Throwables.propagate(e);
         }
       }));
@@ -97,7 +103,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
       public InputStream openInputStream() throws IOException
       {
         try {
-          return supplier.get().getDataInputStream();
+          return supplier.get();
         }
         catch (Throwable e) {
           if (e instanceof RuntimeException && e.getCause() != null) {
@@ -134,7 +140,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
       @Override
       public long getLastModified()
       {
-        return s3Obj.getLastModifiedDate().getTime();
+        return s3Obj.lastModified().toEpochMilli();
       }
 
       @Override
@@ -152,10 +158,10 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
   protected static final String BUCKET = "bucket";
   protected static final String KEY = "key";
 
-  protected final RestS3Service s3Client;
+  protected final S3Client s3Client;
 
   @Inject
-  public S3DataSegmentPuller(RestS3Service s3Client)
+  public S3DataSegmentPuller(S3Client s3Client)
   {
     this.s3Client = s3Client;
   }
@@ -194,7 +200,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
           try {
             return buildFileObject(uri, s3Client).openInputStream();
           }
-          catch (ServiceException e) {
+          catch (SdkException e) {
             if (e.getCause() != null) {
               if (S3Utils.S3RETRY.apply(e)) {
                 throw new IOException("Recoverable exception", e);
@@ -256,7 +262,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
     try {
       return buildFileObject(uri, s3Client).openInputStream();
     }
-    catch (ServiceException e) {
+    catch (SdkException e) {
       throw new IOException(String.format("Could not load URI [%s]", uri.toString()), e);
     }
   }
@@ -273,8 +279,8 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
         if (e == null || e instanceof FileNotFoundException) {
           return false;
         }
-        if (e instanceof ServiceException) {
-          return S3Utils.isServiceExceptionRecoverable((ServiceException) e);
+        if (e instanceof SdkException) {
+          return S3Utils.isServiceExceptionRecoverable((SdkException) e);
         }
         if (S3Utils.S3RETRY.apply(e)) {
           return true;
@@ -301,7 +307,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
       final FileObject object = buildFileObject(uri, s3Client);
       return String.format("%d", object.getLastModified());
     }
-    catch (ServiceException e) {
+    catch (SdkException e) {
       if (S3Utils.isServiceExceptionRecoverable(e)) {
         // The recoverable logic is always true for IOException, so we want to only pass IOException if it is recoverable
         throw new IOException(
@@ -330,12 +336,18 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
             @Override
             public Boolean call() throws Exception
             {
-              return s3Client.isObjectInBucket(coords.bucket, coords.path);
+              try {
+                s3Client.headObject(HeadObjectRequest.builder().bucket(coords.bucket).key(coords.path).build());
+                return true;
+              }
+              catch (NoSuchKeyException e) {
+                return false;
+              }
             }
           }
       );
     }
-    catch (S3ServiceException | IOException e) {
+    catch (SdkException | IOException e) {
       throw new SegmentLoadingException(e, "S3 fail! Key[%s]", coords);
     }
     catch (Exception e) {

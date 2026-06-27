@@ -20,7 +20,7 @@ wikiticker sample: 39,244 rows, topN pages).
 | 5 Web stack | ✅ runs on Jersey 1.x via JAX-RS 2.1 API (full Jersey 3 upgrade not needed) |
 | 6 ZooKeeper 3.9 / Curator 5.7 | ✅ |
 | 7 Lucene 10.5 (consolidated) | ✅ tested (spatial/text/serde); dropped 7/8, hadoop-decoupled |
-| 8 aws-sdk / S3 | ✅ *lazy-init* chosen: s3 loads without credentials (anonymous fallback). Full aws-sdk v2 migration deferred. |
+| 8 aws-sdk / S3 | ✅ **full aws-sdk v2** migration done: jets3t removed, all pullers/pushers/mover/killer/archiver/firehose/finder/tasklogs on `S3Client`. Pure-JDK url-connection-client (apache/netty clients excluded). 17/17 s3 tests pass. **Deep storage verified end-to-end against live SeaweedFS** (push→S3, pull→query, loadSpec `s3_zip`). `druid.s3.endpoint`/`druid.s3.region` are first-class config (path-style auto-on for custom endpoints). *Note:* file-session-credentials no longer wired into the v2 client (aws-common still v1). |
 | 9 Cleanup | ✅ surefire `--add-opens`, JAXB runtime. *Deferred:* JvmMonitor port (gridkit perfdata → JMX). |
 
 Also required to get the cluster running, beyond the planned phases:

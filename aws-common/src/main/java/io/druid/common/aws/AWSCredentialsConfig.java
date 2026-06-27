@@ -34,6 +34,15 @@ public class AWSCredentialsConfig
   @JsonProperty
   private String fileSessionCredentials = "";
 
+  // S3-compatible endpoint override (e.g. SeaweedFS/MinIO). Empty => real AWS S3.
+  // When set, the client uses path-style addressing.
+  @JsonProperty
+  private String endpoint = "";
+
+  // AWS region. Empty => us-east-1 (S3-compatible gateways usually ignore it).
+  @JsonProperty
+  private String region = "";
+
   public String getAccessKey()
   {
     return accessKey;
@@ -45,4 +54,8 @@ public class AWSCredentialsConfig
   }
 
   public String getFileSessionCredentials() { return fileSessionCredentials; }
+
+  public String getEndpoint() { return endpoint; }
+
+  public String getRegion() { return region; }
 }

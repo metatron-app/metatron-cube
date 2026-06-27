@@ -21,23 +21,27 @@ package io.druid.storage.s3;
 
 import io.druid.java.util.common.FileUtils;
 import io.druid.segment.loading.SegmentLoadingException;
+import org.easymock.EasyMock;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
-import java.util.Date;
+import java.time.Instant;
 import java.util.zip.GZIPOutputStream;
-import org.easymock.EasyMock;
-import org.jets3t.service.S3ServiceException;
-import org.jets3t.service.ServiceException;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.S3Object;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 /**
  *
@@ -48,38 +52,35 @@ public class S3DataSegmentPullerTest
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Test
-  public void testSimpleGetVersion() throws ServiceException, IOException
+  public void testSimpleGetVersion() throws IOException
   {
     String bucket = "bucket";
     String keyPrefix = "prefix/dir/0";
-    RestS3Service s3Client = EasyMock.createStrictMock(RestS3Service.class);
+    S3Client s3Client = EasyMock.createStrictMock(S3Client.class);
 
-    S3Object object0 = new S3Object();
+    final String key = keyPrefix + "/renames-0.gz";
 
-    object0.setBucketName(bucket);
-    object0.setKey(keyPrefix + "/renames-0.gz");
-    object0.setLastModifiedDate(new Date(0));
-
-    EasyMock.expect(s3Client.getObjectDetails(EasyMock.eq(bucket), EasyMock.eq(object0.getKey())))
-            .andReturn(object0)
+    EasyMock.expect(s3Client.headObject(EasyMock.<HeadObjectRequest>anyObject()))
+            .andReturn(HeadObjectResponse.builder().lastModified(Instant.ofEpochMilli(0)).build())
             .once();
     S3DataSegmentPuller puller = new S3DataSegmentPuller(s3Client);
 
     EasyMock.replay(s3Client);
 
-    String version = puller.getVersion(URI.create(String.format("s3://%s/%s", bucket, object0.getKey())));
+    String version = puller.getVersion(URI.create(String.format("s3://%s/%s", bucket, key)));
 
     EasyMock.verify(s3Client);
 
-    Assert.assertEquals(String.format("%d", new Date(0).getTime()), version);
+    Assert.assertEquals(String.format("%d", 0L), version);
   }
 
   @Test
-  public void testGZUncompress() throws ServiceException, IOException, SegmentLoadingException
+  public void testGZUncompress() throws IOException, SegmentLoadingException
   {
     final String bucket = "bucket";
     final String keyPrefix = "prefix/dir/0";
-    final RestS3Service s3Client = EasyMock.createStrictMock(RestS3Service.class);
+    final String key = keyPrefix + "/renames-0.gz";
+    final S3Client s3Client = EasyMock.createStrictMock(S3Client.class);
     final byte[] value = bucket.getBytes("utf8");
 
     final File tmpFile = temporaryFolder.newFile("gzTest.gz");
@@ -88,23 +89,14 @@ public class S3DataSegmentPullerTest
       outputStream.write(value);
     }
 
-    final S3Object object0 = new S3Object();
-
-    object0.setBucketName(bucket);
-    object0.setKey(keyPrefix + "/renames-0.gz");
-    object0.setLastModifiedDate(new Date(0));
-    object0.setDataInputStream(new FileInputStream(tmpFile));
-
     final File tmpDir = temporaryFolder.newFolder("gzTestDir");
 
-    EasyMock.expect(s3Client.isObjectInBucket(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
-            .andReturn(true)
-            .once();
-    EasyMock.expect(s3Client.getObjectDetails(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
-            .andReturn(object0)
-            .once();
-    EasyMock.expect(s3Client.getObject(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
-            .andReturn(object0)
+    // isObjectInBucket() head + buildFileObject() head
+    EasyMock.expect(s3Client.headObject(EasyMock.<HeadObjectRequest>anyObject()))
+            .andReturn(HeadObjectResponse.builder().lastModified(Instant.ofEpochMilli(0)).build())
+            .times(2);
+    EasyMock.expect(s3Client.getObject(EasyMock.<GetObjectRequest>anyObject()))
+            .andReturn(new ResponseInputStream<>(GetObjectResponse.builder().build(), new FileInputStream(tmpFile)))
             .once();
     S3DataSegmentPuller puller = new S3DataSegmentPuller(s3Client);
 
@@ -112,7 +104,7 @@ public class S3DataSegmentPullerTest
     FileUtils.FileCopyResult result = puller.getSegmentFiles(
         new S3DataSegmentPuller.S3Coords(
             bucket,
-            object0.getKey()
+            key
         ), tmpDir
     );
     EasyMock.verify(s3Client);
@@ -124,11 +116,12 @@ public class S3DataSegmentPullerTest
   }
 
   @Test
-  public void testGZUncompressRetries() throws ServiceException, IOException, SegmentLoadingException
+  public void testGZUncompressRetries() throws IOException, SegmentLoadingException
   {
     final String bucket = "bucket";
     final String keyPrefix = "prefix/dir/0";
-    final RestS3Service s3Client = EasyMock.createStrictMock(RestS3Service.class);
+    final String key = keyPrefix + "/renames-0.gz";
+    final S3Client s3Client = EasyMock.createStrictMock(S3Client.class);
     final byte[] value = bucket.getBytes("utf8");
 
     final File tmpFile = temporaryFolder.newFile("gzTest.gz");
@@ -137,32 +130,30 @@ public class S3DataSegmentPullerTest
       outputStream.write(value);
     }
 
-    S3Object object0 = new S3Object();
-
-    object0.setBucketName(bucket);
-    object0.setKey(keyPrefix + "/renames-0.gz");
-    object0.setLastModifiedDate(new Date(0));
-    object0.setDataInputStream(new FileInputStream(tmpFile));
-
     File tmpDir = temporaryFolder.newFolder("gzTestDir");
 
-    S3ServiceException exception = new S3ServiceException();
-    exception.setErrorCode("NoSuchKey");
-    exception.setResponseCode(404);
-    EasyMock.expect(s3Client.isObjectInBucket(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
-            .andReturn(true)
+    final S3Exception exception = (S3Exception) S3Exception.builder()
+                                                           .message("NoSuchKey")
+                                                           .statusCode(404)
+                                                           .build();
+
+    // isObjectInBucket() head
+    EasyMock.expect(s3Client.headObject(EasyMock.<HeadObjectRequest>anyObject()))
+            .andReturn(HeadObjectResponse.builder().lastModified(Instant.ofEpochMilli(0)).build())
             .once();
-    EasyMock.expect(s3Client.getObjectDetails(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
-            .andReturn(object0)
+    // first attempt: buildFileObject() head, then getObject throws (recoverable)
+    EasyMock.expect(s3Client.headObject(EasyMock.<HeadObjectRequest>anyObject()))
+            .andReturn(HeadObjectResponse.builder().lastModified(Instant.ofEpochMilli(0)).build())
             .once();
-    EasyMock.expect(s3Client.getObject(EasyMock.eq(bucket), EasyMock.eq(object0.getKey())))
+    EasyMock.expect(s3Client.getObject(EasyMock.<GetObjectRequest>anyObject()))
             .andThrow(exception)
             .once();
-    EasyMock.expect(s3Client.getObjectDetails(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
-            .andReturn(object0)
+    // retry: buildFileObject() head, then getObject succeeds
+    EasyMock.expect(s3Client.headObject(EasyMock.<HeadObjectRequest>anyObject()))
+            .andReturn(HeadObjectResponse.builder().lastModified(Instant.ofEpochMilli(0)).build())
             .once();
-    EasyMock.expect(s3Client.getObject(EasyMock.eq(bucket), EasyMock.eq(object0.getKey())))
-            .andReturn(object0)
+    EasyMock.expect(s3Client.getObject(EasyMock.<GetObjectRequest>anyObject()))
+            .andReturn(new ResponseInputStream<>(GetObjectResponse.builder().build(), new FileInputStream(tmpFile)))
             .once();
     S3DataSegmentPuller puller = new S3DataSegmentPuller(s3Client);
 
@@ -170,7 +161,7 @@ public class S3DataSegmentPullerTest
     FileUtils.FileCopyResult result = puller.getSegmentFiles(
         new S3DataSegmentPuller.S3Coords(
             bucket,
-            object0.getKey()
+            key
         ), tmpDir
     );
     EasyMock.verify(s3Client);

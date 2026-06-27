@@ -19,38 +19,35 @@
 
 package io.druid.storage.s3;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.Module;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.multibindings.MapBinder;
 import io.druid.common.aws.AWSCredentialsConfig;
-import io.druid.common.aws.AWSCredentialsUtils;
 import io.druid.data.SearchableVersionedDataFinder;
 import io.druid.guice.Binders;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
-import io.druid.java.util.common.logger.Logger;
-import org.apache.http.HttpResponse;
-import org.jets3t.service.Constants;
-import org.jets3t.service.ServiceException;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.security.AWSCredentials;
-import org.jets3t.service.security.ProviderCredentials;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
+import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
 /**
  */
 public class S3StorageDruidModule implements DruidModule
 {
-  private static final Logger LOG = new Logger(S3StorageDruidModule.class);
-
   public static final String SCHEME = "s3_zip";
 
   @Override
@@ -107,62 +104,42 @@ public class S3StorageDruidModule implements DruidModule
 
   @Provides
   @LazySingleton
-  public AWSCredentialsProvider getAWSCredentialsProvider(final AWSCredentialsConfig config)
+  public S3Client getS3Client(final AWSCredentialsConfig config)
   {
-    return AWSCredentialsUtils.defaultAWSCredentialsProviderChain(config);
-  }
-
-  @Provides
-  @LazySingleton
-  public RestS3Service getRestS3Service(AWSCredentialsProvider provider)
-  {
-    // Resolve credentials lazily-tolerant: if none are configured, build an
-    // anonymous client so the extension can be loaded (e.g. when deep storage is
-    // local). Actual S3 operations will fail until credentials are provided.
-    ProviderCredentials providerCredentials;
-    try {
-      final com.amazonaws.auth.AWSCredentials credentials = provider.getCredentials();
-      if (credentials instanceof com.amazonaws.auth.AWSSessionCredentials) {
-        providerCredentials = new AWSSessionCredentialsAdapter(provider);
-      } else {
-        providerCredentials = new AWSCredentials(credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey());
-      }
+    final AwsCredentialsProvider credentials;
+    if (!Strings.isNullOrEmpty(config.getAccessKey()) && !Strings.isNullOrEmpty(config.getSecretKey())) {
+      credentials = StaticCredentialsProvider.create(
+          AwsBasicCredentials.create(config.getAccessKey(), config.getSecretKey())
+      );
+    } else {
+      // No static credentials configured: use the default provider chain. v2 resolves
+      // credentials lazily (per request), so the client builds even with none present
+      // (e.g. local deep storage); S3 operations fail only when actually used.
+      credentials = DefaultCredentialsProvider.create();
     }
-    catch (Exception e) {
-      LOG.warn("No AWS credentials available; creating an anonymous S3 client (S3 operations will fail until configured)");
-      providerCredentials = null;
+
+    final S3ClientBuilder builder = S3Client.builder()
+        .credentialsProvider(credentials)
+        // Pure-JDK HTTP client: avoids aws-sdk v2's default ApacheHttpClient, which is
+        // incompatible with the legacy apache httpclient version on this project's classpath.
+        .httpClientBuilder(UrlConnectionHttpClient.builder());
+
+    // Region: config first, then -Daws.region, else us-east-1 (gateways ignore it).
+    String region = config.getRegion();
+    if (Strings.isNullOrEmpty(region)) {
+      region = System.getProperty("aws.region");
     }
-    final String defaultRegion = System.getProperty("aws.region", Constants.S3_DEFAULT_HOSTNAME);
-    return new RestS3Service(providerCredentials)
-    {
-      private final Map<String, String> initialized = Maps.newConcurrentMap();
+    builder.region(!Strings.isNullOrEmpty(region) ? Region.of(region) : Region.US_EAST_1);
 
-      @Override
-      protected HttpResponse performRestHead(
-          String bucketName, String objectKey, Map<String, String> requestParameters, Map<String, Object> requestHeaders
-      )
-          throws ServiceException
-      {
-        // HTTP_METHOD.HEAD which is used for ObjectDetail does not rety with AWS4-HMAC-SHA256
-        final String location = initialized.computeIfAbsent(
-            bucketName,
-            bucket -> {
-              try {
-                return getBucketLocation(bucket);
-              }
-              catch (Exception e) {
-                return null;
-              }
-            }
-        );
-        return super.performRestHead(bucketName, objectKey, requestParameters, requestHeaders);
-      }
-
-      @Override
-      public String getEndpoint()
-      {
-        return getJetS3tProperties().getStringProperty("s3service.s3-endpoint", defaultRegion);
-      }
-    };
+    // Endpoint: config first, then -Ddruid.s3.endpoint / -Daws.s3.endpoint (back-compat).
+    // A non-empty endpoint => S3-compatible gateway (SeaweedFS/MinIO): use path-style.
+    String endpoint = config.getEndpoint();
+    if (Strings.isNullOrEmpty(endpoint)) {
+      endpoint = System.getProperty("druid.s3.endpoint", System.getProperty("aws.s3.endpoint"));
+    }
+    if (!Strings.isNullOrEmpty(endpoint)) {
+      builder.endpointOverride(URI.create(endpoint)).forcePathStyle(true);
+    }
+    return builder.build();
   }
 }

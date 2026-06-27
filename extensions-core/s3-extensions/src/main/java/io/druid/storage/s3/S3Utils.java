@@ -24,9 +24,10 @@ import com.google.common.base.Predicate;
 import io.druid.java.util.common.RetryUtils;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.timeline.DataSegment;
-import org.jets3t.service.ServiceException;
-import org.jets3t.service.model.S3Object;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkException;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 
@@ -37,25 +38,29 @@ public class S3Utils
 {
   private static final Joiner JOINER = Joiner.on("/").skipNulls();
 
-  public static void closeStreamsQuietly(S3Object s3Obj)
+  public static void closeStreamsQuietly(Closeable closeable)
   {
-    if (s3Obj == null) {
+    if (closeable == null) {
       return;
     }
 
     try {
-      s3Obj.closeDataInputStream();
+      closeable.close();
     }
     catch (IOException e) {
 
     }
   }
 
-  public static boolean isServiceExceptionRecoverable(ServiceException ex)
+  public static boolean isServiceExceptionRecoverable(SdkException ex)
   {
     final boolean isIOException = ex.getCause() instanceof IOException;
-    final boolean isTimeout = "RequestTimeout".equals(((ServiceException) ex).getErrorCode());
-    return isIOException || isTimeout;
+    boolean isTimeout = false;
+    if (ex instanceof AwsServiceException) {
+      final AwsServiceException ase = (AwsServiceException) ex;
+      isTimeout = ase.awsErrorDetails() != null && "RequestTimeout".equals(ase.awsErrorDetails().errorCode());
+    }
+    return isIOException || isTimeout || ex.retryable();
   }
 
   public static final Predicate<Throwable> S3RETRY = new Predicate<Throwable>()
@@ -67,8 +72,8 @@ public class S3Utils
         return false;
       } else if (e instanceof IOException) {
         return true;
-      } else if (e instanceof ServiceException) {
-        return isServiceExceptionRecoverable((ServiceException) e);
+      } else if (e instanceof SdkException) {
+        return isServiceExceptionRecoverable((SdkException) e);
       } else {
         return apply(e.getCause());
       }
