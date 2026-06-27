@@ -89,6 +89,15 @@ public class Main
            .withDefaultCommand(Help.class)
            .withCommands(CliHadoopIndexer.class);
 
+    // The peon (forked per task by the middleManager as "internal peon ...") used
+    // to be contributed only by the druid-indexing-hadoop extension's
+    // CliCommandCreator; register it in core so ingestion works without that
+    // (Hadoop) extension bundled.
+    builder.withGroup("internal")
+           .withDescription("Processes that Druid runs internally")
+           .withDefaultCommand(Help.class)
+           .withCommands(CliPeon.class);
+
     String[] properties = new String[]{};
     if (args.length > 1 && args[0].equals("server")) {
       int index = args[1].indexOf(':');
