@@ -112,6 +112,14 @@
             <groupId>com.sun.jersey</groupId>
             <artifactId>jersey-core</artifactId>
         </dependency>
+        <!-- Jersey 1.x ships against JAX-RS 1.1 (jsr311-api), but jackson-jaxrs-json-provider
+             2.17 references JAX-RS 2.0 classes (e.g. javax.ws.rs.core.NoContentException).
+             Add the JAX-RS 2.1 API so those classes resolve at runtime. -->
+        <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+            <version>2.1.1</version>
+        </dependency>
         <dependency>
             <groupId>com.google.inject.extensions</groupId>
             <artifactId>guice-servlet</artifactId>
