@@ -17,7 +17,7 @@ wikiticker sample: 39,244 rows, topN pages).
 | 2 Guice 4.1 → 6.0 | ✅ |
 | 3 Guava 16 → 32 | ✅ (Throwables shim, Futures/Iterators/CharMatcher) |
 | 4 Jackson 2.4 → 2.17 | ✅ (+ JAX-RS 2.1 API, airline 0.9, @JacksonInject fix, dimension string-shorthand) |
-| 5 Web stack | ✅ runs on Jersey 1.x via JAX-RS 2.1 API (full Jersey 3 upgrade not needed) |
+| 5 Web stack | ✅ runs on Jersey 1.x via JAX-RS 2.1 API on Java 21; **Jetty 9.3.24 → 9.4.57** (drop-in, `SslContextFactory` → `.Client`/`.Server`). Full Jersey 3 / Jetty 12 / jakarta upgrade deliberately deferred as a separate initiative (jersey-guice has no clean jakarta successor). |
 | 6 ZooKeeper 3.9 / Curator 5.7 | ✅ |
 | 7 Lucene 10.5 (consolidated) | ✅ tested (spatial/text/serde); dropped 7/8, hadoop-decoupled |
 | 8 aws-sdk / S3 | ✅ **full aws-sdk v2** migration done: jets3t removed, all pullers/pushers/mover/killer/archiver/firehose/finder/tasklogs on `S3Client`. Pure-JDK url-connection-client (apache/netty clients excluded). 17/17 s3 tests pass. **Deep storage verified end-to-end against live SeaweedFS** (push→S3, pull→query, loadSpec `s3_zip`). `druid.s3.endpoint`/`druid.s3.region` are first-class config (path-style auto-on for custom endpoints). *Note:* file-session-credentials no longer wired into the v2 client (aws-common still v1). |

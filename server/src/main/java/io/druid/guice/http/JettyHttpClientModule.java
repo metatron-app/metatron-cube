@@ -107,7 +107,8 @@ public class JettyHttpClientModule implements Module
 
       final HttpClient httpClient;
       if (getSslContextBinding() != null) {
-        final SslContextFactory sslContextFactory = new SslContextFactory();
+        // Jetty 9.4.19+: SslContextFactory is abstract; this is an outbound HttpClient.
+        final SslContextFactory sslContextFactory = new SslContextFactory.Client();
         sslContextFactory.setSslContext(getSslContextBinding().getProvider().get());
         httpClient = new HttpClient(sslContextFactory);
       } else {
