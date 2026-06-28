@@ -1,0 +1,66 @@
+#
+# Metadata store. This is a minimal single-instance Postgres for the metadata DB.
+# For production, point druid.metadata.* at a managed/HA Postgres instead and
+# delete this file.
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: druid-postgres
+  namespace: metatron
+type: Opaque
+stringData:
+  POSTGRES_DB: druid
+  POSTGRES_USER: druid
+  POSTGRES_PASSWORD: diurd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: metatron
+  labels: { app: postgres }
+spec:
+  selector: { app: postgres }
+  ports:
+    - { name: pg, port: 5432, targetPort: 5432 }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: metatron
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:13
+          envFrom:
+            - secretRef: { name: druid-postgres }
+          env:
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports:
+            - { name: pg, containerPort: 5432 }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+          readinessProbe:
+            exec: { command: ["sh", "-c", "pg_isready -U druid -d druid"] }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["sh", "-c", "pg_isready -U druid -d druid"] }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 5Gi } }

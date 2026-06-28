@@ -1,0 +1,207 @@
+#
+# Druid configuration, mounted onto every role at /opt/druid/conf/druid/{_common,<role>}.
+# The image's PropertiesModule resolves "_common/common.runtime.properties" and
+# "<role>/runtime.properties" off the classpath, so each pod mounts the _common
+# ConfigMap and its own role ConfigMap under that conf dir.
+#
+# Deep storage + indexing logs = S3 (SeaweedFS gateway, reachable from the pod
+# network). Credentials are NOT stored here: druid.s3.accessKey/secretKey are left
+# empty and AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY are injected from the
+# swd-iceberg-credentials Secret (aws-sdk v2 default credential chain picks them up).
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: druid-common
+  namespace: metatron
+data:
+  log4j2.xml: |
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <Configuration status="WARN">
+        <Appenders>
+            <Console name="Console" target="SYSTEM_OUT">
+                <PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/>
+            </Console>
+        </Appenders>
+        <Loggers>
+            <Root level="info">
+                <AppenderRef ref="Console"/>
+            </Root>
+        </Loggers>
+    </Configuration>
+  common.runtime.properties: |
+    #
+    # Extensions
+    #
+    druid.extensions.loadList=["postgresql-metadata-storage", "druid-s3-extensions", "druid-kafka-indexing-service", "druid-lucene-common", "druid-lucene10-extensions", "druid-histogram", "druid-datasketches", "druid-lookups-cached-global"]
+
+    druid.startup.logging.logProperties=true
+
+    #
+    # ZooKeeper (in-cluster Service)
+    #
+    druid.zk.service.host=zookeeper
+    druid.zk.paths.base=/druid
+
+    #
+    # Metadata storage (PostgreSQL Service)
+    #
+    druid.metadata.storage.type=postgresql
+    druid.metadata.storage.connector.connectURI=jdbc:postgresql://postgres:5432/druid
+    druid.metadata.storage.connector.user=druid
+    druid.metadata.storage.connector.password=diurd
+    druid.metadata.storage.connector.createTables=true
+
+    #
+    # Deep storage = S3 (SeaweedFS gateway). A non-empty endpoint enables path-style.
+    # NOTE: set the bucket to one the credentials can WRITE to (the svc-adp-iceberg
+    # account can write to tmp-decompress / adp-iceberg, not to the `druid` bucket).
+    # disableAcl=true: S3-compatible gateways generally don't support canned ACLs.
+    #
+    druid.storage.type=s3
+    druid.storage.bucket=tmp-decompress
+    druid.storage.baseKey=druid/segments
+    druid.storage.disableAcl=true
+    druid.s3.endpoint=http://seaweed.s2dev.net:8333
+    # druid.s3.region=us-east-1   # optional; gateways ignore it, default is us-east-1
+    # Credentials come from AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env (Secret).
+
+    #
+    # Indexing service logs -> S3 (so logs are visible across pods)
+    #
+    druid.indexer.logs.type=s3
+    druid.indexer.logs.s3Bucket=tmp-decompress
+    druid.indexer.logs.s3Prefix=druid/indexing-logs
+
+    #
+    # Service discovery
+    #
+    druid.selectors.indexing.serviceName=druid/overlord
+    druid.selectors.coordinator.serviceName=druid/coordinator
+
+    #
+    # Monitoring / emitter (JvmMonitor disabled: uses sun.misc.Perf, gone in Java 9+)
+    #
+    druid.monitoring.monitors=[]
+    druid.emitter=logging
+    druid.emitter.logging.logLevel=info
+    druid.emitter.druidName=metatron
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: druid-coordinator
+  namespace: metatron
+data:
+  jvm.config: |
+    -server
+    -Xms256m
+    -Xmx512m
+    -Duser.timezone=UTC
+    -Dfile.encoding=UTF-8
+    -Djava.io.tmpdir=var/tmp
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+  runtime.properties: |
+    druid.service=druid/coordinator
+    druid.port=8081
+    druid.coordinator.startDelay=PT30S
+    druid.coordinator.period=PT30S
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: druid-overlord
+  namespace: metatron
+data:
+  jvm.config: |
+    -server
+    -Xms256m
+    -Xmx512m
+    -Duser.timezone=UTC
+    -Dfile.encoding=UTF-8
+    -Djava.io.tmpdir=var/tmp
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+  runtime.properties: |
+    druid.service=druid/overlord
+    druid.port=8090
+    druid.indexer.queue.startDelay=PT30S
+    druid.indexer.runner.type=remote
+    druid.indexer.storage.type=metadata
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: druid-broker
+  namespace: metatron
+data:
+  jvm.config: |
+    -server
+    -Xms512m
+    -Xmx1g
+    -XX:MaxDirectMemorySize=1g
+    -Duser.timezone=UTC
+    -Dfile.encoding=UTF-8
+    -Djava.io.tmpdir=var/tmp
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+  runtime.properties: |
+    druid.service=druid/broker
+    druid.port=8082
+    druid.broker.http.numConnections=5
+    druid.server.http.numThreads=10
+    druid.processing.buffer.sizeBytes=67108864
+    druid.processing.numThreads=2
+    druid.processing.numMergeBuffers=2
+    druid.broker.cache.useCache=true
+    druid.broker.cache.populateCache=true
+    druid.cache.type=local
+    druid.cache.sizeInBytes=134217728
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: druid-historical
+  namespace: metatron
+data:
+  jvm.config: |
+    -server
+    -Xms512m
+    -Xmx1g
+    -XX:MaxDirectMemorySize=1g
+    -Duser.timezone=UTC
+    -Dfile.encoding=UTF-8
+    -Djava.io.tmpdir=var/tmp
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+  runtime.properties: |
+    druid.service=druid/historical
+    druid.port=8083
+    druid.server.http.numThreads=10
+    druid.processing.buffer.sizeBytes=67108864
+    druid.processing.numThreads=2
+    druid.processing.numMergeBuffers=2
+    druid.segmentCache.locations=[{"path":"var/druid/segment-cache","maxSize":10000000000}]
+    druid.server.maxSize=10000000000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: druid-middlemanager
+  namespace: metatron
+data:
+  jvm.config: |
+    -server
+    -Xms128m
+    -Xmx256m
+    -Duser.timezone=UTC
+    -Dfile.encoding=UTF-8
+    -Djava.io.tmpdir=var/tmp
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+  runtime.properties: |
+    druid.service=druid/middleManager
+    druid.port=8091
+    druid.worker.capacity=2
+    druid.indexer.runner.javaOpts=-server -Xms256m -Xmx512m -XX:MaxDirectMemorySize=512m -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED --add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.management/sun.management.counter=ALL-UNNAMED --add-exports=java.management/sun.management.counter.perf=ALL-UNNAMED
+    druid.indexer.task.baseTaskDir=var/druid/task
+    druid.server.http.numThreads=10
+    druid.processing.buffer.sizeBytes=67108864
+    druid.processing.numThreads=2
+    druid.indexer.task.hadoopWorkingPath=var/druid/hadoop-tmp

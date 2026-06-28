@@ -1,0 +1,216 @@
+#
+# Druid roles. Replace REGISTRY/metatron-cube:2021.3 with your pushed image.
+#
+# Inter-node discovery is via ZooKeeper, where each node announces druid.host:port.
+# druid.host is set to the pod IP (-Ddruid.host=$(POD_IP)) so peers reach it on the
+# flat pod network. Peons forked by the middleManager auto-detect their pod IP.
+#
+# Credentials: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY come from the
+# swd-iceberg-credentials Secret (must exist in the metatron namespace; see README).
+#
+# ----------------------------------------------------------------------------- coordinator
+apiVersion: v1
+kind: Service
+metadata: { name: coordinator, namespace: metatron, labels: { app: druid, role: coordinator } }
+spec:
+  selector: { app: druid, role: coordinator }
+  ports: [ { name: http, port: 8081, targetPort: 8081 } ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: coordinator, namespace: metatron }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: druid, role: coordinator } }
+  template:
+    metadata: { labels: { app: druid, role: coordinator } }
+    spec:
+      securityContext: { fsGroup: 999 }
+      containers:
+        - name: druid
+          image: REGISTRY/metatron-cube:2021.3
+          args: ["coordinator"]
+          env:
+            - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
+            - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
+            - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } } }
+            - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } } }
+          ports: [ { containerPort: 8081 } ]
+          volumeMounts:
+            - { name: common-conf, mountPath: /opt/druid/conf/druid/_common }
+            - { name: role-conf,   mountPath: /opt/druid/conf/druid/coordinator }
+            - { name: var,         mountPath: /opt/druid/var }
+          readinessProbe: { httpGet: { path: /status/health, port: 8081 }, initialDelaySeconds: 45, periodSeconds: 10, failureThreshold: 30 }
+          livenessProbe:  { httpGet: { path: /status/health, port: 8081 }, initialDelaySeconds: 90, periodSeconds: 15, failureThreshold: 6 }
+      volumes:
+        - { name: common-conf, configMap: { name: druid-common } }
+        - { name: role-conf,   configMap: { name: druid-coordinator } }
+        - { name: var,         emptyDir: {} }
+# ----------------------------------------------------------------------------- overlord
+---
+apiVersion: v1
+kind: Service
+metadata: { name: overlord, namespace: metatron, labels: { app: druid, role: overlord } }
+spec:
+  selector: { app: druid, role: overlord }
+  ports: [ { name: http, port: 8090, targetPort: 8090 } ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: overlord, namespace: metatron }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: druid, role: overlord } }
+  template:
+    metadata: { labels: { app: druid, role: overlord } }
+    spec:
+      securityContext: { fsGroup: 999 }
+      containers:
+        - name: druid
+          image: REGISTRY/metatron-cube:2021.3
+          args: ["overlord"]
+          env:
+            - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
+            - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
+            - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } } }
+            - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } } }
+          ports: [ { containerPort: 8090 } ]
+          volumeMounts:
+            - { name: common-conf, mountPath: /opt/druid/conf/druid/_common }
+            - { name: role-conf,   mountPath: /opt/druid/conf/druid/overlord }
+            - { name: var,         mountPath: /opt/druid/var }
+          readinessProbe: { httpGet: { path: /status/health, port: 8090 }, initialDelaySeconds: 45, periodSeconds: 10, failureThreshold: 30 }
+          livenessProbe:  { httpGet: { path: /status/health, port: 8090 }, initialDelaySeconds: 90, periodSeconds: 15, failureThreshold: 6 }
+      volumes:
+        - { name: common-conf, configMap: { name: druid-common } }
+        - { name: role-conf,   configMap: { name: druid-overlord } }
+        - { name: var,         emptyDir: {} }
+# ----------------------------------------------------------------------------- broker
+---
+apiVersion: v1
+kind: Service
+metadata: { name: broker, namespace: metatron, labels: { app: druid, role: broker } }
+spec:
+  selector: { app: druid, role: broker }
+  ports: [ { name: http, port: 8082, targetPort: 8082 } ]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: broker, namespace: metatron }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: druid, role: broker } }
+  template:
+    metadata: { labels: { app: druid, role: broker } }
+    spec:
+      securityContext: { fsGroup: 999 }
+      containers:
+        - name: druid
+          image: REGISTRY/metatron-cube:2021.3
+          args: ["broker"]
+          env:
+            - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
+            - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
+            - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } } }
+            - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } } }
+          ports: [ { containerPort: 8082 } ]
+          volumeMounts:
+            - { name: common-conf, mountPath: /opt/druid/conf/druid/_common }
+            - { name: role-conf,   mountPath: /opt/druid/conf/druid/broker }
+            - { name: var,         mountPath: /opt/druid/var }
+          readinessProbe: { httpGet: { path: /status/health, port: 8082 }, initialDelaySeconds: 45, periodSeconds: 10, failureThreshold: 30 }
+          livenessProbe:  { httpGet: { path: /status/health, port: 8082 }, initialDelaySeconds: 90, periodSeconds: 15, failureThreshold: 6 }
+      volumes:
+        - { name: common-conf, configMap: { name: druid-common } }
+        - { name: role-conf,   configMap: { name: druid-broker } }
+        - { name: var,         emptyDir: {} }
+# ----------------------------------------------------------------------------- historical
+---
+apiVersion: v1
+kind: Service
+metadata: { name: historical, namespace: metatron, labels: { app: druid, role: historical } }
+spec:
+  clusterIP: None
+  selector: { app: druid, role: historical }
+  ports: [ { name: http, port: 8083, targetPort: 8083 } ]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: historical, namespace: metatron }
+spec:
+  serviceName: historical
+  replicas: 1
+  selector: { matchLabels: { app: druid, role: historical } }
+  template:
+    metadata: { labels: { app: druid, role: historical } }
+    spec:
+      securityContext: { fsGroup: 999 }
+      containers:
+        - name: druid
+          image: REGISTRY/metatron-cube:2021.3
+          args: ["historical"]
+          env:
+            - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
+            - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
+            - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } } }
+            - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } } }
+          ports: [ { containerPort: 8083 } ]
+          volumeMounts:
+            - { name: common-conf, mountPath: /opt/druid/conf/druid/_common }
+            - { name: role-conf,   mountPath: /opt/druid/conf/druid/historical }
+            - { name: var,         mountPath: /opt/druid/var }
+          readinessProbe: { httpGet: { path: /status/health, port: 8083 }, initialDelaySeconds: 45, periodSeconds: 10, failureThreshold: 30 }
+          livenessProbe:  { httpGet: { path: /status/health, port: 8083 }, initialDelaySeconds: 90, periodSeconds: 15, failureThreshold: 6 }
+      volumes:
+        - { name: common-conf, configMap: { name: druid-common } }
+        - { name: role-conf,   configMap: { name: druid-historical } }
+  volumeClaimTemplates:
+    - metadata: { name: var }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 20Gi } }   # segment cache (maxSize 10Gi in config)
+# ----------------------------------------------------------------------------- middleManager
+---
+apiVersion: v1
+kind: Service
+metadata: { name: middlemanager, namespace: metatron, labels: { app: druid, role: middlemanager } }
+spec:
+  clusterIP: None
+  selector: { app: druid, role: middlemanager }
+  ports: [ { name: http, port: 8091, targetPort: 8091 } ]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: middlemanager, namespace: metatron }
+spec:
+  serviceName: middlemanager
+  replicas: 1
+  selector: { matchLabels: { app: druid, role: middlemanager } }
+  template:
+    metadata: { labels: { app: druid, role: middlemanager } }
+    spec:
+      securityContext: { fsGroup: 999 }
+      containers:
+        - name: druid
+          image: REGISTRY/metatron-cube:2021.3
+          args: ["middleManager"]
+          env:
+            - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
+            - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
+            - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } } }
+            - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } } }
+          ports: [ { containerPort: 8091 } ]
+          volumeMounts:
+            - { name: common-conf, mountPath: /opt/druid/conf/druid/_common }
+            - { name: role-conf,   mountPath: /opt/druid/conf/druid/middleManager }
+            - { name: var,         mountPath: /opt/druid/var }
+          readinessProbe: { httpGet: { path: /status/health, port: 8091 }, initialDelaySeconds: 45, periodSeconds: 10, failureThreshold: 30 }
+          livenessProbe:  { httpGet: { path: /status/health, port: 8091 }, initialDelaySeconds: 90, periodSeconds: 15, failureThreshold: 6 }
+      volumes:
+        - { name: common-conf, configMap: { name: druid-common } }
+        - { name: role-conf,   configMap: { name: druid-middlemanager } }
+  volumeClaimTemplates:
+    - metadata: { name: var }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 20Gi } }   # peon task working dirs
