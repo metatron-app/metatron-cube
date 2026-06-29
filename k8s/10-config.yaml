@@ -83,8 +83,9 @@ data:
     # Monitoring / emitter (JvmMonitor disabled: uses sun.misc.Perf, gone in Java 9+)
     #
     druid.monitoring.monitors=[]
-    druid.emitter=logging
-    druid.emitter.logging.logLevel=info
+    # noop: don't spam INFO logs with per-period metrics (segment/dropQueue/count, ...).
+    # Real ERROR/WARN logs are unaffected. Set to "logging" to see metrics again.
+    druid.emitter=noop
     druid.emitter.druidName=metatron
 ---
 apiVersion: v1

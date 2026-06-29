@@ -1,5 +1,5 @@
 #
-# Druid roles. Replace REGISTRY/metatron-cube:2021.3 with your pushed image.
+# Druid roles. Replace nas2.s2dev.net:5050/adp/metatron-cube:2021.3 with your pushed image.
 #
 # Inter-node discovery is via ZooKeeper, where each node announces druid.host:port.
 # druid.host is set to the pod IP (-Ddruid.host=$(POD_IP)) so peers reach it on the
@@ -28,7 +28,8 @@ spec:
       securityContext: { fsGroup: 999 }
       containers:
         - name: druid
-          image: REGISTRY/metatron-cube:2021.3
+          image: nas2.s2dev.net:5050/adp/metatron-cube:2021.3
+          imagePullPolicy: Always
           args: ["coordinator"]
           env:
             - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
@@ -70,7 +71,8 @@ spec:
       securityContext: { fsGroup: 999 }
       containers:
         - name: druid
-          image: REGISTRY/metatron-cube:2021.3
+          image: nas2.s2dev.net:5050/adp/metatron-cube:2021.3
+          imagePullPolicy: Always
           args: ["broker"]
           env:
             - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
@@ -111,7 +113,8 @@ spec:
       securityContext: { fsGroup: 999 }
       containers:
         - name: druid
-          image: REGISTRY/metatron-cube:2021.3
+          image: nas2.s2dev.net:5050/adp/metatron-cube:2021.3
+          imagePullPolicy: Always
           args: ["historical"]
           env:
             - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }

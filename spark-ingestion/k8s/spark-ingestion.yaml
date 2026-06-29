@@ -17,20 +17,17 @@ metadata:
 data:
   ingest-spec.json: |
     {
-      "dataSource": "wikiticker",
-      "paths": ["s3a://tmp-decompress/input/wikiticker/"],
+      "dataSource": "gdp_cred_test",
+      "paths": ["s3a://adp-iceberg/ato/gdp_credential_stealer_source_v2/data/timestamp_trigger_hour=2026-04-20-07/"],
       "format": "parquet",
-      "timestampColumn": "time",
-      "dimensions": ["channel","cityName","comment","countryIsoCode","countryName","isAnonymous","isMinor","isNew","isRobot","isUnpatrolled","metroCode","namespace","page","regionIsoCode","regionName","user"],
+      "timestampColumn": "timestamp",
+      "dimensions": ["reference_type","stealer_root_path","source_sha256"],
       "metrics": [
-        {"type":"count","name":"count"},
-        {"type":"longSum","name":"added","fieldName":"added"},
-        {"type":"longSum","name":"deleted","fieldName":"deleted"},
-        {"type":"longSum","name":"delta","fieldName":"delta"}
+        {"type":"count","name":"count"}
       ],
       "segmentGranularity": "DAY",
       "queryGranularity": "NONE",
-      "rollup": true,
+      "rollup": false,
       "numShards": 1,
       "bucket": "tmp-decompress",
       "baseKey": "druid/segments",
@@ -47,8 +44,8 @@ metadata:
 spec:
   type: Java
   mode: cluster
-  image: "REGISTRY/spark-druid-ingestion:3.5.1"     # spark 3.5.1 + hadoop-aws + the jar
-  imagePullPolicy: IfNotPresent
+  image: "nas2.s2dev.net:5050/adp/spark-druid-ingestion:3.5.1"     # spark 3.5.1 + hadoop-aws + the jar
+  imagePullPolicy: Always
   mainClass: io.druid.segwriter.spark.SparkIngestion
   mainApplicationFile: "local:///opt/spark/jars/druid-spark-ingestion-spark.jar"
   arguments:
