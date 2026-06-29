@@ -24,5 +24,5 @@
   "endpoint": "http://seaweed.s2dev.net:8333",
   "disableAcl": true,
 
-  "publishUrl": "http://coordinator.metatron.svc:8081/druid/indexer/v1/segments/publish"
+  "publishUrl": "http://coordinator:8081/druid/indexer/v1/segments/publish"
 }

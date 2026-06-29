@@ -13,7 +13,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-common
-  namespace: metatron
+  namespace: spark-apps
 data:
   log4j2.xml: |
     <?xml version="1.0" encoding="UTF-8" ?>
@@ -91,7 +91,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-coordinator
-  namespace: metatron
+  namespace: spark-apps
 data:
   jvm.config: |
     -server
@@ -122,7 +122,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-overlord
-  namespace: metatron
+  namespace: spark-apps
 data:
   jvm.config: |
     -server
@@ -143,7 +143,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-broker
-  namespace: metatron
+  namespace: spark-apps
 data:
   jvm.config: |
     -server
@@ -171,7 +171,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-historical
-  namespace: metatron
+  namespace: spark-apps
 data:
   jvm.config: |
     -server
@@ -196,7 +196,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-middlemanager
-  namespace: metatron
+  namespace: spark-apps
 data:
   jvm.config: |
     -server
