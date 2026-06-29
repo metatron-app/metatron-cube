@@ -28,7 +28,7 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -595,11 +595,18 @@ public class TestHelper
             Doubles.toArray(Arrays.asList((Double[]) rv)),
             0.0001
         );
+      } else if (ev instanceof double[]) {
+        Assert.assertArrayEquals(
+                String.format("%s: key[%s]", msg, key),
+                (double[]) ev,
+                (double[]) rv,
+                0.0001
+        );
       } else if (ev != null && ev.getClass().isArray()) {
         int length = Array.getLength(ev);
         for (int i = 0; i < length; i++) {
           Assert.assertEquals(
-              String.format("%s: key[%s.%d]", msg, key, i),
+              String.format("%s[%s]: key[%s.%d]", msg, ev.getClass(), key, i),
               Array.get(ev, i),
               Array.get(rv, i)
           );
