@@ -56,8 +56,9 @@ EOF
 # skipTests (run skipped, but test sources are compiled and test-jars produced —
 # some modules depend on others' test-jars, e.g. druid-common -> java-util:tests).
 RUN --mount=type=cache,target=/root/.m2 \
-      mvn -B clean install -DskipTests=true \
-      -Dmaven.javadoc.skip=true -Dcheckstyle.skip=true -Drat.skip=true
+      mvn -B -T 1C clean install -DskipTests=true \
+      -Dmaven.javadoc.skip=true -Dcheckstyle.skip=true -Drat.skip=true \
+      -Dlicense.skipDownloadLicenses=true
 
 # Unpack the assembled tarball into a fixed, version-independent path.
 RUN mkdir -p /opt/druid \

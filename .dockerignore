@@ -12,12 +12,22 @@
 **/target
 dist
 *.tar.gz
+# ...except the prebuilt distribution tarball used by Dockerfile.runtime
+!druid-dist.tar.gz
 
 # docs / large non-build assets
 docs
 publications
 web-console/node_modules
 *.pdf
+
+# runtime / deploy artifacts (NOT needed to build the image; keep all Maven module
+# sources so `mvn install` in the builder stage still sees every reactor module)
+var
+druid
+k8s
+docker
+docker-compose.yml
 
 # logs / local cruft
 *.log

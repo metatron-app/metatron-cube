@@ -19,3 +19,4 @@ _site
 git.tag
 git.history
 git.version
+druid-dist.tar.gz

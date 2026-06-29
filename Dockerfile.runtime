@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1
+# ---------------------------------------------------------------------------
+# Slim runtime image — NO Maven build.
+#
+# Assumes the distribution tarball is already built on a fast machine and copied
+# to ./druid-dist.tar.gz:
+#
+#   mvn -T 1C -DskipTests -Dmaven.javadoc.skip=true -Dcheckstyle.skip=true -Drat.skip=true clean install
+#   cp distribution/target/druid-*-bin.tar.gz ./druid-dist.tar.gz
+#
+# Druid jars are platform-independent, so build the tarball anywhere (e.g. an
+# arm64 Mac) and assemble this image on the target arch so the JRE base matches
+# the cluster:
+#
+#   DOCKER_HOST=ssh://vm docker build -f Dockerfile.runtime -t metatron-cube:2021.3 .
+#
+# This skips the (slow, CPU-bound) reactor compile on a small builder. The full
+# multi-stage Dockerfile remains the from-source build.
+# ---------------------------------------------------------------------------
+FROM eclipse-temurin:21-jre
+
+LABEL org.opencontainers.image.title="metatron-cube (druid)" \
+      org.opencontainers.image.description="SK Telecom Metatron-Cube / Druid fork (runtime image)" \
+      org.opencontainers.image.source="https://github.com/SKTelecom/metatron-cube"
+
+# Run as an unprivileged user.
+RUN groupadd -r druid && useradd -r -g druid -d /opt/druid druid
+
+COPY druid-dist.tar.gz /tmp/druid-dist.tar.gz
+RUN mkdir -p /opt/druid \
+      && tar -xzf /tmp/druid-dist.tar.gz -C /opt/druid --strip-components=1 \
+      && rm /tmp/druid-dist.tar.gz
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+      && mkdir -p /opt/druid/var \
+      && chown -R druid:druid /opt/druid
+
+ENV DRUID_HOME=/opt/druid \
+    DRUID_CONF_DIR=/opt/druid/conf/druid
+
+WORKDIR /opt/druid
+USER druid
+
+EXPOSE 8081 8082 8083 8090 8091
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["broker"]
