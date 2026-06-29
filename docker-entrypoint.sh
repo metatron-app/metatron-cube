@@ -69,7 +69,16 @@ JDK_MODULE_OPTS="\
 # not the _common/<role> dirs themselves. _common is also added so log4j2 picks
 # up log4j2.xml from the classpath root. guava is shaded into lib/guava and must
 # precede lib/* on the classpath.
-CP="${DRUID_CONF_DIR}:${DRUID_CONF_DIR}/_common:${DRUID_HOME}/lib/*:${DRUID_HOME}/lib/guava/*"
+#
+# lib/ ships BOTH jsr311-api (JAX-RS 1.1, what Jersey 1.19 implements) and
+# javax.ws.rs-api 2.1 (needed by jackson-jaxrs for NoContentException). They both
+# define javax.ws.rs.core.UriBuilder; if the 2.1 one wins the classpath, Jersey
+# 1.19's UriBuilderImpl lacks the 2.0 abstract method uri(String) -> AbstractMethodError
+# on every request. `lib/*` expands in filesystem order (nondeterministic), so pin
+# jsr311 first to force JAX-RS 1.1 resolution; the 2.1 jar stays on lib/* so
+# jackson-jaxrs still finds its 2.x-only classes (e.g. NoContentException).
+JSR311_API=$(ls "${DRUID_HOME}"/lib/jsr311-api-*.jar 2>/dev/null | head -1)
+CP="${DRUID_CONF_DIR}:${DRUID_CONF_DIR}/_common:${JSR311_API}:${DRUID_HOME}/lib/*:${DRUID_HOME}/lib/guava/*"
 
 echo "starting druid role=${ROLE}"
 exec java ${JDK_MODULE_OPTS} ${JVM_ARGS} ${DRUID_JAVA_OPTS} -cp "${CP}" io.druid.cli.Main server "${ROLE}"
