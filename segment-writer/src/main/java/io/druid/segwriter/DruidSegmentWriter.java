@@ -75,10 +75,13 @@ public final class DruidSegmentWriter
       ShardSpec shardSpec,
       Iterable<Map<String, Object>> rows,
       DataSegmentPusher pusher,
-      File tmpDir
+      File tmpDir,
+      IndexSpec indexSpec
   ) throws IOException
   {
-    final ObjectMapper mapper = Json.mapper();
+    // indexMapper knows the lucene column part serde subtypes, so secondary-indexed columns
+    // round-trip through IndexMergerV9/IndexIO (write + read-back).
+    final ObjectMapper mapper = Json.indexMapper();
     final IndexIO indexIO = new IndexIO(mapper);
     final IndexMergerV9 merger = new IndexMergerV9(mapper, indexIO);
 
@@ -107,7 +110,7 @@ public final class DruidSegmentWriter
           index,
           interval,
           new File(tmpDir, "seg-" + UUID.randomUUID()),
-          IndexSpec.DEFAULT
+          indexSpec
       );
     }
 

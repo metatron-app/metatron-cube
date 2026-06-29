@@ -26,6 +26,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Declarative ingestion spec for the spec-driven Spark writer. Parse it with Druid's
@@ -54,6 +55,10 @@ public class SegmentIngestSpec implements Serializable
   private final String region;
   private final boolean disableAcl;
   private final String publishUrl;
+  // column -> raw secondary-index spec JSON (e.g. {"type":"lucene10","strategies":[{"type":"text","fieldName":"x"}]}).
+  // Kept raw here so the spec parses without the polymorphic SecondaryIndexingSpec subtypes; converted
+  // to SecondaryIndexingSpec in SegmentIngestor with a mapper that has the lucene subtypes registered.
+  private final Map<String, Map<String, Object>> secondaryIndexing;
 
   @JsonCreator
   public SegmentIngestSpec(
@@ -72,7 +77,8 @@ public class SegmentIngestSpec implements Serializable
       @JsonProperty("endpoint") String endpoint,
       @JsonProperty("region") String region,
       @JsonProperty("disableAcl") Boolean disableAcl,
-      @JsonProperty("publishUrl") String publishUrl
+      @JsonProperty("publishUrl") String publishUrl,
+      @JsonProperty("secondaryIndexing") Map<String, Map<String, Object>> secondaryIndexing
   )
   {
     this.dataSource = dataSource;
@@ -91,6 +97,9 @@ public class SegmentIngestSpec implements Serializable
     this.region = region;
     this.disableAcl = disableAcl == null ? true : disableAcl;
     this.publishUrl = publishUrl;
+    this.secondaryIndexing = secondaryIndexing == null
+                             ? java.util.Collections.<String, Map<String, Object>>emptyMap()
+                             : secondaryIndexing;
   }
 
   @JsonProperty public String getDataSource() { return dataSource; }
@@ -109,4 +118,5 @@ public class SegmentIngestSpec implements Serializable
   @JsonProperty public String getRegion() { return region; }
   @JsonProperty public boolean isDisableAcl() { return disableAcl; }
   @JsonProperty public String getPublishUrl() { return publishUrl; }
+  @JsonProperty public Map<String, Map<String, Object>> getSecondaryIndexing() { return secondaryIndexing; }
 }

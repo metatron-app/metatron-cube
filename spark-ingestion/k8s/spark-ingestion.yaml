@@ -17,14 +17,21 @@ metadata:
 data:
   ingest-spec.json: |
     {
-      "dataSource": "gdp_cred_test",
+      "dataSource": "gdp_cred_lucene",
       "paths": ["s3a://adp-iceberg/ato/gdp_credential_stealer_source_v2/data/timestamp_trigger_hour=2026-04-20-07/"],
       "format": "parquet",
       "timestampColumn": "timestamp",
       "dimensions": ["reference_type","stealer_root_path","source_sha256"],
       "metrics": [
-        {"type":"count","name":"count"}
+        {"type":"count","name":"count"},
+        {"type":"relay","name":"reference_url","columnName":"reference_url","typeName":"string"}
       ],
+      "secondaryIndexing": {
+        "reference_url": {
+          "type": "lucene10",
+          "strategies": [{"type":"text","fieldName":"reference_url"}]
+        }
+      },
       "segmentGranularity": "DAY",
       "queryGranularity": "NONE",
       "rollup": false,

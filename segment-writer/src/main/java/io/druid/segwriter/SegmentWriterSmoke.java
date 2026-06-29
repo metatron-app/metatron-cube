@@ -73,7 +73,8 @@ public class SegmentWriterSmoke
     rows.add(row(t + 3000, "JP", "Tokyo", 2));
 
     final DataSegment seg = DruidSegmentWriter.write(
-        spec, interval, "v1", NoneShardSpec.instance(), rows, DataSegmentPushers.local(deep), tmp
+        spec, interval, "v1", NoneShardSpec.instance(), rows, DataSegmentPushers.local(deep), tmp,
+        io.druid.segment.IndexSpec.DEFAULT
     );
 
     System.out.println("WROTE segment: " + seg.getIdentifier());
@@ -85,11 +86,47 @@ public class SegmentWriterSmoke
     final File unpacked = new File(tmp, "unpacked");
     unpacked.mkdirs();
     CompressionUtils.unzip(zip, unpacked);
-    final IndexIO indexIO = new IndexIO(Json.mapper());
+    final IndexIO indexIO = new IndexIO(Json.indexMapper());
     try (QueryableIndex index = indexIO.loadIndex(unpacked)) {
       System.out.println("READBACK numRows=" + index.getNumRows()
                          + " columns=" + index.getColumnNames());
       System.out.println("SMOKE OK");
+    }
+
+    // --- lucene secondary-index path: build via SegmentIngestor with a raw secondaryIndexing spec.
+    //     secondaryIndexing attaches to METRIC columns, so "page" is ingested as a string "relay"
+    //     metric (a passthrough) and the lucene text index is built on it during persist. ---
+    final String ispecJson =
+        "{\"dataSource\":\"smoke_lucene\",\"timestampColumn\":\"__time\","
+        + "\"dimensions\":[\"country\"],"
+        + "\"metrics\":[{\"type\":\"count\",\"name\":\"count\"},"
+        + "{\"type\":\"relay\",\"name\":\"page\",\"columnName\":\"page\",\"typeName\":\"string\"}],"
+        + "\"segmentGranularity\":\"DAY\",\"queryGranularity\":\"NONE\",\"rollup\":false,\"numShards\":1,"
+        + "\"bucket\":\"x\",\"baseKey\":\"x\","
+        + "\"secondaryIndexing\":{\"page\":{\"type\":\"lucene10\",\"strategies\":[{\"type\":\"text\",\"fieldName\":\"page\"}]}}}";
+    final SegmentIngestSpec ispec = Json.mapper().readValue(ispecJson, SegmentIngestSpec.class);
+    final File ldeep = new File(tmp, "ldeep");
+    ldeep.mkdirs();
+    final DataSegment lseg = SegmentIngestor.buildSegment(
+        ispec, interval, "v1", 0, 1, rows.iterator(), tmp, DataSegmentPushers.local(ldeep)
+    );
+    System.out.println("LUCENE segment: " + lseg.getIdentifier()
+                       + " size=" + lseg.getSize() + " numRows=" + lseg.getNumRows());
+    final File lzip = new File((String) lseg.getLoadSpec().get("path"));
+    final File lun = new File(tmp, "lunpacked");
+    lun.mkdirs();
+    CompressionUtils.unzip(lzip, lun);
+    try (QueryableIndex li = indexIO.loadIndex(lun)) {
+      System.out.println("LUCENE READBACK numRows=" + li.getNumRows() + " columns=" + li.getColumnNames());
+      // assert the lucene index was actually built on the "page" metric column
+      final io.druid.segment.column.Column col = li.getColumn("page");
+      final boolean hasLucene = col != null
+          && col.getExternalIndexKeys().contains(io.druid.segment.column.LuceneIndex.class);
+      System.out.println("LUCENE index present on [page]: " + hasLucene);
+      if (!hasLucene) {
+        throw new IllegalStateException("lucene index was NOT built on [page]");
+      }
+      System.out.println("LUCENE SMOKE OK");
     }
   }
 

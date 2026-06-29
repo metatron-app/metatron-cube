@@ -45,7 +45,11 @@ public class GeometryExtensionModule implements DruidModule
 {
   public SimpleModule getModule(boolean lucene7)
   {
-    SimpleModule module = new SimpleModule("lucene-extension")
+    // NOTE: must be a UNIQUE module name. Jackson's ObjectMapper.registerModule skips a module whose
+    // type id (the SimpleModule name) was already registered (IGNORE_DUPLICATE_MODULE_REGISTRATIONS,
+    // on by default). This module loads before lucene, so sharing the name "lucene-extension" with
+    // LuceneCommonExtensionModule caused the latter to be silently skipped -> lucene.query et al. unregistered.
+    SimpleModule module = new SimpleModule("geometry-extension")
         .registerSubtypes(GeoHashFunctions.class)
         .registerSubtypes(GeoHexFunctions.class)
         .registerSubtypes(GeomFunctions.class)

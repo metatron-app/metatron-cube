@@ -19,7 +19,6 @@
 
 package io.druid.jackson;
 
-import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.Module;
@@ -39,7 +38,7 @@ import io.druid.math.expr.Parser;
 import io.druid.query.ModuleBuiltinFunctions;
 import io.druid.query.sql.SQLFunctions;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -65,12 +64,10 @@ public class FunctionModule implements DruidModule
 
     DeserializationConfig config = mapper.getDeserializationConfig();
     AnnotatedClass annotated = config.introspectClassAnnotations(type).getClassInfo();
-    AnnotationIntrospector inspector = config.getAnnotationIntrospector();
-
     SubtypeResolver resolver = mapper.getSubtypeResolver();
 
     List<NamedType> found = Lists.newArrayList();
-    for (NamedType resolved : resolver.collectAndResolveSubtypes(annotated, config, inspector)) {
+    for (NamedType resolved : resolver.collectAndResolveSubtypesByClass(config, annotated)) {
       if (resolved.getType() != clazz) {  // filter self
         found.add(resolved);
       }
@@ -99,10 +96,10 @@ public class FunctionModule implements DruidModule
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    return Arrays.<Module>asList(
-        new SimpleModule("FunctionModule")
-            .registerSubtypes(ModuleBuiltinFunctions.class)
-            .registerSubtypes(SQLFunctions.class)
+    return Collections.<Module>singletonList(
+            new SimpleModule("FunctionModule")
+                    .registerSubtypes(ModuleBuiltinFunctions.class)
+                    .registerSubtypes(SQLFunctions.class)
     );
   }
 

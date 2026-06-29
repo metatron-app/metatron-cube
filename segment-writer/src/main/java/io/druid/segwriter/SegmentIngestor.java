@@ -21,6 +21,8 @@ package io.druid.segwriter;
 
 import com.google.common.collect.Lists;
 import io.druid.granularity.Granularity;
+import io.druid.segment.IndexSpec;
+import io.druid.segment.SecondaryIndexingSpec;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
@@ -31,6 +33,7 @@ import org.joda.time.Interval;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -74,16 +77,32 @@ public final class SegmentIngestor
       DataSegmentPusher pusher
   ) throws IOException
   {
+    // build secondary indexes (e.g. lucene text) from the raw spec. secondaryIndexing is applied
+    // to METRIC columns during merge (IndexMergerV9.setupMetricsWriter), so each indexed column
+    // must be declared as a metric (e.g. a {"type":"relay",...,"typeName":"string"} passthrough),
+    // NOT a dimension — dimension writers ignore secondaryIndexing.
+    final List<String> dimensions = spec.getDimensions();
+    IndexSpec indexSpec = IndexSpec.DEFAULT;
+    final Map<String, Map<String, Object>> rawSecondary = spec.getSecondaryIndexing();
+    if (rawSecondary != null && !rawSecondary.isEmpty()) {
+      final Map<String, SecondaryIndexingSpec> secondary = new LinkedHashMap<>();
+      for (Map.Entry<String, Map<String, Object>> e : rawSecondary.entrySet()) {
+        secondary.put(e.getKey(), Json.indexMapper().convertValue(e.getValue(), SecondaryIndexingSpec.class));
+      }
+      indexSpec = new IndexSpec(null, null, null, null, secondary, null, false, null);
+    }
+
     final SegmentSpec segmentSpec = new SegmentSpec(
         spec.getDataSource(),
-        spec.getDimensions(),
+        dimensions,
         spec.getMetrics(),
         Granularity.fromString(spec.getQueryGranularity()),
         spec.isRollup(),
         spec.getTimestampColumn()
     );
+
     final ShardSpec shardSpec = numShards <= 1 ? NoneShardSpec.instance() : new LinearShardSpec(shardNum);
     final List<Map<String, Object>> buffered = Lists.newArrayList(rows);
-    return DruidSegmentWriter.write(segmentSpec, interval, version, shardSpec, buffered, pusher, tmpDir);
+    return DruidSegmentWriter.write(segmentSpec, interval, version, shardSpec, buffered, pusher, tmpDir, indexSpec);
   }
 }

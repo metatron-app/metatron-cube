@@ -660,10 +660,14 @@ public class Initialization
 
     private DruidModule registerJacksonModules(DruidModule module)
     {
+      // NOTE: registerModule silently skips a module whose type id (the SimpleModule name) is already
+      // registered (IGNORE_DUPLICATE_MODULE_REGISTRATIONS, on by default). Two DruidModules sharing a
+      // SimpleModule name -> the later one's subtypes are dropped. Log what registered to make that visible.
       for (com.fasterxml.jackson.databind.Module jacksonModule : module.getJacksonModules()) {
         jsonMapper.registerModule(jacksonModule);
         smileMapper.registerModule(jacksonModule);
       }
+      log.info("Registered jackson modules for [%s]", module.getClass().getName());
       return module;
     }
   }
