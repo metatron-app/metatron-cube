@@ -91,6 +91,7 @@ public final class DruidSegmentWriter
         .build();
 
     final File persisted;
+    final int numRows;
     try (IncrementalIndex index = new OnheapIncrementalIndex(schema, true, Integer.MAX_VALUE)) {
       for (Map<String, Object> row : rows) {
         final Object ts = row.get(spec.getTimestampColumn());
@@ -101,6 +102,7 @@ public final class DruidSegmentWriter
         }
         index.add(new MapBasedInputRow(((Number) ts).longValue(), spec.getDimensions(), row));
       }
+      numRows = index.size();   // post-rollup row count for the segment metadata
       persisted = merger.persist(
           index,
           interval,
@@ -123,7 +125,8 @@ public final class DruidSegmentWriter
         metricNames,
         shardSpec,
         SegmentUtils.getVersionFromDir(persisted),
-        0L                                      // size filled by the pusher
+        0L,                                     // size filled by the pusher
+        numRows
     );
     return pusher.push(persisted, template);
   }

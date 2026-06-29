@@ -78,7 +78,7 @@ public class SegmentWriterSmoke
 
     System.out.println("WROTE segment: " + seg.getIdentifier());
     System.out.println("  loadSpec=" + seg.getLoadSpec());
-    System.out.println("  size=" + seg.getSize() + " binaryVersion=" + seg.getBinaryVersion());
+    System.out.println("  size=" + seg.getSize() + " binaryVersion=" + seg.getBinaryVersion() + " numRows=" + seg.getNumRows());
 
     // read it back to prove it is a valid segment
     final File zip = new File((String) seg.getLoadSpec().get("path"));
