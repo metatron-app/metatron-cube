@@ -21,8 +21,8 @@ package io.druid.segwriter.spark;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.Files;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.loading.DataSegmentPusher;
+import io.druid.segwriter.Json;
 import io.druid.segwriter.SegmentIngestSpec;
 import io.druid.segwriter.SegmentIngestor;
 import io.druid.segwriter.SegmentPublisher;
@@ -60,7 +60,7 @@ public final class SparkIngestion
       System.err.println("usage: SparkIngestion <spec.json path>");
       System.exit(2);
     }
-    final ObjectMapper mapper = new DefaultObjectMapper();
+    final ObjectMapper mapper = Json.mapper();
     final String specJson = new String(
         java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(args[0])),
         java.nio.charset.StandardCharsets.UTF_8
@@ -77,7 +77,7 @@ public final class SparkIngestion
       // Row -> (key=(intervalStart, shard), event map)
       final JavaPairRDD<Tuple2<Long, Integer>, Map<String, Object>> keyed =
           df.toJavaRDD().mapToPair(row -> {
-            final SegmentIngestSpec s = new DefaultObjectMapper().readValue(specJson, SegmentIngestSpec.class);
+            final SegmentIngestSpec s = Json.mapper().readValue(specJson, SegmentIngestSpec.class);
             final Map<String, Object> event = rowToMap(row);
             final long ts = toMillis(event.get(s.getTimestampColumn()));
             event.put(s.getTimestampColumn(), ts);   // normalize to epoch millis for the writer
@@ -88,7 +88,7 @@ public final class SparkIngestion
 
       // one segment per (interval, shard)
       final JavaRDD<String> segmentJsons = keyed.groupByKey().map(entry -> {
-        final ObjectMapper m = new DefaultObjectMapper();
+        final ObjectMapper m = Json.mapper();
         final SegmentIngestSpec s = m.readValue(specJson, SegmentIngestSpec.class);
         final long bucketStart = entry._1()._1();
         final int shard = entry._1()._2();

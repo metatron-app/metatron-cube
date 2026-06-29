@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMergerV9;
@@ -79,7 +78,7 @@ public final class DruidSegmentWriter
       File tmpDir
   ) throws IOException
   {
-    final ObjectMapper mapper = new DefaultObjectMapper();
+    final ObjectMapper mapper = Json.mapper();
     final IndexIO indexIO = new IndexIO(mapper);
     final IndexMergerV9 merger = new IndexMergerV9(mapper, indexIO);
 

@@ -40,6 +40,9 @@ public final class SegmentPublisher
 {
   private SegmentPublisher() {}
 
+  private static final int MAX_ATTEMPTS = 12;
+  private static final long RETRY_SLEEP_MS = 5_000L;
+
   /**
    * @param publishUrl full overlord publish URL (…/druid/indexer/v1/segments/publish)
    * @return number of segments the overlord reported as published
@@ -47,23 +50,64 @@ public final class SegmentPublisher
   public static int publish(String publishUrl, List<DataSegment> segments, ObjectMapper mapper) throws IOException
   {
     final byte[] body = mapper.writeValueAsBytes(segments);
-    final HttpURLConnection con = (HttpURLConnection) new URL(publishUrl).openConnection();
-    con.setRequestMethod("POST");
-    con.setRequestProperty("Content-Type", "application/json");
-    con.setConnectTimeout(30_000);
-    con.setReadTimeout(120_000);
-    con.setDoOutput(true);
-    try (OutputStream os = con.getOutputStream()) {
-      os.write(body);
+    IOException last = null;
+    for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        return attempt(publishUrl, body, mapper, segments.size());
+      }
+      catch (RetryableException e) {
+        // overlord not leader yet (503) or transient connect error: wait and retry.
+        last = e;
+      }
+      try {
+        Thread.sleep(RETRY_SLEEP_MS);
+      }
+      catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+        throw new IOException("interrupted while retrying publish", ie);
+      }
     }
-    final int code = con.getResponseCode();
+    throw new IOException("publish failed after " + MAX_ATTEMPTS + " attempts", last);
+  }
+
+  private static int attempt(String publishUrl, byte[] body, ObjectMapper mapper, int requested) throws IOException
+  {
+    final HttpURLConnection con = (HttpURLConnection) new URL(publishUrl).openConnection();
+    try {
+      con.setRequestMethod("POST");
+      con.setRequestProperty("Content-Type", "application/json");
+      con.setConnectTimeout(30_000);
+      con.setReadTimeout(120_000);
+      con.setDoOutput(true);
+      try (OutputStream os = con.getOutputStream()) {
+        os.write(body);
+      }
+    }
+    catch (IOException e) {
+      throw new RetryableException("connect failed: " + e.getMessage(), e);
+    }
+    final int code;
+    try {
+      code = con.getResponseCode();
+    }
+    catch (IOException e) {
+      throw new RetryableException("no response: " + e.getMessage(), e);
+    }
     final InputStream is = code < 400 ? con.getInputStream() : con.getErrorStream();
     final String resp = is == null ? "" : new String(ByteStreams.toByteArray(is), StandardCharsets.UTF_8);
+    if (code == 503) {
+      throw new RetryableException("overlord not ready (503)", null);   // leader gate -> retry
+    }
     if (code >= 400) {
       throw new IOException("publish failed: HTTP " + code + " - " + resp);
     }
     final Map<String, Object> parsed = mapper.readValue(resp, Map.class);
     final Object published = parsed.get("published");
-    return published instanceof Number ? ((Number) published).intValue() : segments.size();
+    return published instanceof Number ? ((Number) published).intValue() : requested;
+  }
+
+  private static final class RetryableException extends IOException
+  {
+    RetryableException(String message, Throwable cause) { super(message, cause); }
   }
 }

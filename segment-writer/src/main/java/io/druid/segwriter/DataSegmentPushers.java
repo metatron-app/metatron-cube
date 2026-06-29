@@ -19,7 +19,6 @@
 
 package io.druid.segwriter;
 
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.storage.s3.S3Clients;
 import io.druid.storage.s3.S3DataSegmentPusher;
@@ -58,7 +57,7 @@ public final class DataSegmentPushers
     config.setBucket(bucket);
     config.setBaseKey(baseKey);
     config.setDisableAcl(disableAcl);
-    return new S3DataSegmentPusher(client, config, new DefaultObjectMapper());
+    return new S3DataSegmentPusher(client, config, Json.mapper());
   }
 
   /** Local-filesystem pusher (tests / local runs). */

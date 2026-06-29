@@ -22,7 +22,6 @@ package io.druid.segwriter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -86,7 +85,7 @@ public class SegmentWriterSmoke
     final File unpacked = new File(tmp, "unpacked");
     unpacked.mkdirs();
     CompressionUtils.unzip(zip, unpacked);
-    final IndexIO indexIO = new IndexIO(new DefaultObjectMapper());
+    final IndexIO indexIO = new IndexIO(Json.mapper());
     try (QueryableIndex index = indexIO.loadIndex(unpacked)) {
       System.out.println("READBACK numRows=" + index.getNumRows()
                          + " columns=" + index.getColumnNames());
