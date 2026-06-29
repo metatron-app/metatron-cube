@@ -22,11 +22,14 @@ package io.druid.indexing.overlord;
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import io.druid.java.util.common.DateTimes;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.Set;
 
 public class IndexerMetadataStorageAdapter
 {
@@ -68,6 +71,16 @@ public class IndexerMetadataStorageAdapter
     );
 
     return indexerMetadataStorageCoordinator.deletePendingSegments(dataSource, deleteInterval);
+  }
+
+  /**
+   * Publishes externally-built segments (e.g. produced by a Spark job) directly into the metadata
+   * store. Unlike {@link io.druid.indexing.common.actions.SegmentInsertAction}, this is not gated by
+   * a task lock, so callers must use a distinct segment version per batch to avoid clobbering.
+   */
+  public Set<DataSegment> announceHistoricalSegments(Set<DataSegment> segments) throws IOException
+  {
+    return indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
   }
 
 }

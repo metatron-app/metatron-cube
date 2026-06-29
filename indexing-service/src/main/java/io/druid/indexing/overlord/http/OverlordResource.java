@@ -484,6 +484,43 @@ public class OverlordResource
     );
   }
 
+  /**
+   * Publishes externally-built segments (e.g. produced by a Spark job) directly into the metadata
+   * store, without a task or task lock. Only the overlord leader serves this. Callers must use a
+   * distinct segment version per batch (no lock is taken). Body: a JSON array of DataSegment.
+   */
+  @POST
+  @Path("/segments/publish")
+  @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
+  @ResourceFilters(StateResourceFilter.class)
+  public Response publishSegments(final Set<DataSegment> segments)
+  {
+    return asLeaderWith(
+        taskMaster.getTaskQueue(),   // present only on the leader
+        new Function<TaskQueue, Response>()
+        {
+          @Override
+          public Response apply(TaskQueue taskQueue)
+          {
+            if (segments == null || segments.isEmpty()) {
+              return Response.ok().entity(ImmutableMap.of("published", 0, "requested", 0)).build();
+            }
+            try {
+              final Set<DataSegment> published = indexerMetadataStorageAdapter.announceHistoricalSegments(segments);
+              return Response.ok().entity(
+                  ImmutableMap.of("published", published.size(), "requested", segments.size())
+              ).build();
+            }
+            catch (Exception e) {
+              log.warn(e, "Failed to publish [%d] segments", segments.size());
+              return Response.serverError().entity(ImmutableMap.of("error", String.valueOf(e.getMessage()))).build();
+            }
+          }
+        }
+    );
+  }
+
   @GET
   @Path("/waitingTasks")
   @Produces(MediaType.APPLICATION_JSON)
