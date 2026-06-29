@@ -36,6 +36,7 @@ import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthenticationUtils;
 import io.druid.server.security.Authenticator;
 import io.druid.server.security.AuthenticatorMapper;
+import java.util.Properties;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -59,11 +60,13 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
   );
 
   private final DruidCoordinatorConfig config;
+  private final boolean asOverlord;
 
   @Inject
-  CoordinatorJettyServerInitializer(DruidCoordinatorConfig config)
+  CoordinatorJettyServerInitializer(DruidCoordinatorConfig config, Properties properties)
   {
     this.config = config;
+    this.asOverlord = Boolean.parseBoolean(properties.getProperty("druid.coordinator.asOverlord.enabled", "false"));
   }
 
   @Override
@@ -123,7 +126,12 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
     // this will be removed in the next major release
     root.addFilter(DelegatedGuiceFilter.class, "/coordinator/*", null);
 
-    root.addServlet(new ServletHolder(injector.getInstance(OverlordProxyServlet.class)), "/druid/indexer/*");
+    if (asOverlord) {
+      // coordinator-as-overlord: serve the overlord API locally instead of proxying to a remote overlord
+      root.addFilter(DelegatedGuiceFilter.class, "/druid/indexer/*", null);
+    } else {
+      root.addServlet(new ServletHolder(injector.getInstance(OverlordProxyServlet.class)), "/druid/indexer/*");
+    }
 
     HandlerList handlerList = new HandlerList();
     handlerList.setHandlers(new Handler[]{

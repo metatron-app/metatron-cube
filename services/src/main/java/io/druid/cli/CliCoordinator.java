@@ -24,8 +24,10 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Provides;
+import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
 import io.druid.java.util.common.logger.Logger;
@@ -33,14 +35,18 @@ import io.airlift.airline.Command;
 import io.druid.audit.AuditManager;
 import io.druid.client.CoordinatorServerView;
 import io.druid.client.indexing.IndexingServiceClient;
+import io.druid.curator.discovery.DiscoveryModule;
 import io.druid.guice.ConditionalMultibind;
 import io.druid.guice.ConfigProvider;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
+import io.druid.guice.IndexingServiceFirehoseModule;
+import io.druid.guice.IndexingServiceTaskLogsModule;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.CoordinatorIndexingServiceHelper;
+import io.druid.guice.annotations.Self;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.metadata.MetadataRuleManagerConfig;
 import io.druid.metadata.MetadataRuleManagerProvider;
@@ -50,6 +56,7 @@ import io.druid.metadata.MetadataSegmentManagerProvider;
 import io.druid.metadata.MetadataStorage;
 import io.druid.metadata.MetadataStorageProvider;
 import io.druid.server.AdminModule;
+import io.druid.server.DruidNode;
 import io.druid.server.ServiceTypes;
 import io.druid.server.audit.AuditManagerProvider;
 import io.druid.server.coordinator.BalancerStrategyFactory;
@@ -109,10 +116,17 @@ public class CliCoordinator extends ServerRunnable
     this.properties = properties;
   }
 
+  private boolean isOverlordEnabled()
+  {
+    return Boolean.parseBoolean(properties.getProperty("druid.coordinator.asOverlord.enabled", "false"));
+  }
+
   @Override
   protected List<? extends Module> getModules()
   {
-    return ImmutableList.<Module>of(
+    final boolean asOverlord = isOverlordEnabled();
+    final ImmutableList.Builder<Module> modules = ImmutableList.builder();
+    modules.add(
         new Module()
         {
           @Override
@@ -226,5 +240,35 @@ public class CliCoordinator extends ServerRunnable
         },
         new AdminModule(this)
     );
+
+    if (asOverlord) {
+      // coordinator-as-overlord: run the overlord's task/supervisor stack in this process
+      // and serve /druid/indexer/* locally (see CoordinatorJettyServerInitializer).
+      modules.add(new OverlordModule());
+      modules.add(new IndexingServiceFirehoseModule());
+      modules.add(new IndexingServiceTaskLogsModule());
+      modules.add(
+          new Module()
+          {
+            @Override
+            public void configure(Binder binder)
+            {
+              // announce this node under the overlord service name too, so it is discoverable
+              // as the indexing service (e.g. by remote task action clients).
+              DiscoveryModule.registerKey(binder, Key.get(DruidNode.class, Names.named("overlord")));
+            }
+
+            @Provides
+            @LazySingleton
+            @Named("overlord")
+            public DruidNode getOverlordSelfNode(@Self DruidNode self)
+            {
+              return new DruidNode("druid/overlord", self.getHost(), self.getPort());
+            }
+          }
+      );
+    }
+
+    return modules.build();
   }
 }

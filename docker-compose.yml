@@ -52,17 +52,13 @@ services:
       retries: 12
     networks: [druid]
 
+  # coordinator runs with druid.coordinator.asOverlord.enabled=true, so it also
+  # serves the overlord API at :8081/druid/indexer/* (no separate overlord process).
   coordinator:
     <<: *druid-common
     command: ["coordinator"]
     ports:
       - "8081:8081"
-
-  overlord:
-    <<: *druid-common
-    command: ["overlord"]
-    ports:
-      - "8090:8090"
 
   broker:
     <<: *druid-common
