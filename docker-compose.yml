@@ -72,11 +72,9 @@ services:
     ports:
       - "8083:8083"
 
-  middleManager:
-    <<: *druid-common
-    command: ["middleManager"]
-    ports:
-      - "8091:8091"
+  # No middleManager: the embedded overlord uses the forking (local) task runner,
+  # so it forks peons in the coordinator process. Add a middleManager and set
+  # druid.indexer.runner.type=remote (coordinator config) to distribute tasks instead.
 
 volumes:
   druid_var:
