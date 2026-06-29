@@ -175,6 +175,9 @@
         <!-- build failure for dependency com.yahoo.egads:egads -->
         <!--<module>extensions-contrib/egads-extensions</module>-->
 
+        <!-- embeddable, Hadoop-free segment writer (shaded jar for Spark) -->
+        <module>segment-writer</module>
+
         <!-- distribution packaging -->
         <module>distribution</module>
     </modules>

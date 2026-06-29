@@ -32,16 +32,8 @@ import io.druid.guice.Binders;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
-import java.net.URI;
 import java.util.List;
 
 /**
@@ -106,40 +98,18 @@ public class S3StorageDruidModule implements DruidModule
   @LazySingleton
   public S3Client getS3Client(final AWSCredentialsConfig config)
   {
-    final AwsCredentialsProvider credentials;
-    if (!Strings.isNullOrEmpty(config.getAccessKey()) && !Strings.isNullOrEmpty(config.getSecretKey())) {
-      credentials = StaticCredentialsProvider.create(
-          AwsBasicCredentials.create(config.getAccessKey(), config.getSecretKey())
-      );
-    } else {
-      // No static credentials configured: use the default provider chain. v2 resolves
-      // credentials lazily (per request), so the client builds even with none present
-      // (e.g. local deep storage); S3 operations fail only when actually used.
-      credentials = DefaultCredentialsProvider.create();
-    }
-
-    final S3ClientBuilder builder = S3Client.builder()
-        .credentialsProvider(credentials)
-        // Pure-JDK HTTP client: avoids aws-sdk v2's default ApacheHttpClient, which is
-        // incompatible with the legacy apache httpclient version on this project's classpath.
-        .httpClientBuilder(UrlConnectionHttpClient.builder());
-
     // Region: config first, then -Daws.region, else us-east-1 (gateways ignore it).
     String region = config.getRegion();
     if (Strings.isNullOrEmpty(region)) {
       region = System.getProperty("aws.region");
     }
-    builder.region(!Strings.isNullOrEmpty(region) ? Region.of(region) : Region.US_EAST_1);
-
     // Endpoint: config first, then -Ddruid.s3.endpoint / -Daws.s3.endpoint (back-compat).
-    // A non-empty endpoint => S3-compatible gateway (SeaweedFS/MinIO): use path-style.
     String endpoint = config.getEndpoint();
     if (Strings.isNullOrEmpty(endpoint)) {
       endpoint = System.getProperty("druid.s3.endpoint", System.getProperty("aws.s3.endpoint"));
     }
-    if (!Strings.isNullOrEmpty(endpoint)) {
-      builder.endpointOverride(URI.create(endpoint)).forcePathStyle(true);
-    }
-    return builder.build();
+    // v2 resolves credentials lazily, so the client builds even with none configured
+    // (e.g. local deep storage); S3 operations fail only when actually used.
+    return S3Clients.create(config.getAccessKey(), config.getSecretKey(), endpoint, region);
   }
 }

@@ -41,6 +41,8 @@ public class TestAWSCredentialsProvider
     AWSCredentialsConfig config = EasyMock.createMock(AWSCredentialsConfig.class);
     EasyMock.expect(config.getAccessKey()).andReturn("accessKeySample").anyTimes();
     EasyMock.expect(config.getSecretKey()).andReturn("secretKeySample").anyTimes();
+    EasyMock.expect(config.getRegion()).andReturn("").anyTimes();
+    EasyMock.expect(config.getEndpoint()).andReturn("").anyTimes();
     EasyMock.replay(config);
 
     S3Client client = module.getS3Client(config);
@@ -57,6 +59,8 @@ public class TestAWSCredentialsProvider
     AWSCredentialsConfig config = EasyMock.createMock(AWSCredentialsConfig.class);
     EasyMock.expect(config.getAccessKey()).andReturn("").anyTimes();
     EasyMock.expect(config.getSecretKey()).andReturn("").anyTimes();
+    EasyMock.expect(config.getRegion()).andReturn("").anyTimes();
+    EasyMock.expect(config.getEndpoint()).andReturn("").anyTimes();
     EasyMock.replay(config);
 
     S3Client client = module.getS3Client(config);
