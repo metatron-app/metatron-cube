@@ -1,0 +1,28 @@
+{
+  "dataSource": "wikiticker",
+  "paths": ["s3a://tmp-decompress/input/wikiticker/"],
+  "format": "parquet",
+  "timestampColumn": "time",
+  "dimensions": [
+    "channel", "cityName", "comment", "countryIsoCode", "countryName",
+    "isAnonymous", "isMinor", "isNew", "isRobot", "isUnpatrolled",
+    "metroCode", "namespace", "page", "regionIsoCode", "regionName", "user"
+  ],
+  "metrics": [
+    {"type": "count", "name": "count"},
+    {"type": "longSum", "name": "added", "fieldName": "added"},
+    {"type": "longSum", "name": "deleted", "fieldName": "deleted"},
+    {"type": "longSum", "name": "delta", "fieldName": "delta"}
+  ],
+  "segmentGranularity": "DAY",
+  "queryGranularity": "NONE",
+  "rollup": true,
+  "numShards": 1,
+
+  "bucket": "tmp-decompress",
+  "baseKey": "druid/segments",
+  "endpoint": "http://seaweed.s2dev.net:8333",
+  "disableAcl": true,
+
+  "publishUrl": "http://coordinator.metatron.svc:8081/druid/indexer/v1/segments/publish"
+}

@@ -46,45 +46,9 @@ spec:
         - { name: common-conf, configMap: { name: druid-common } }
         - { name: role-conf,   configMap: { name: druid-coordinator } }
         - { name: var,         emptyDir: {} }
-# ----------------------------------------------------------------------------- overlord
----
-apiVersion: v1
-kind: Service
-metadata: { name: overlord, namespace: metatron, labels: { app: druid, role: overlord } }
-spec:
-  selector: { app: druid, role: overlord }
-  ports: [ { name: http, port: 8090, targetPort: 8090 } ]
----
-apiVersion: apps/v1
-kind: Deployment
-metadata: { name: overlord, namespace: metatron }
-spec:
-  replicas: 1
-  selector: { matchLabels: { app: druid, role: overlord } }
-  template:
-    metadata: { labels: { app: druid, role: overlord } }
-    spec:
-      securityContext: { fsGroup: 999 }
-      containers:
-        - name: druid
-          image: REGISTRY/metatron-cube:2021.3
-          args: ["overlord"]
-          env:
-            - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
-            - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
-            - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } } }
-            - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } } }
-          ports: [ { containerPort: 8090 } ]
-          volumeMounts:
-            - { name: common-conf, mountPath: /opt/druid/conf/druid/_common }
-            - { name: role-conf,   mountPath: /opt/druid/conf/druid/overlord }
-            - { name: var,         mountPath: /opt/druid/var }
-          readinessProbe: { httpGet: { path: /status/health, port: 8090 }, initialDelaySeconds: 45, periodSeconds: 10, failureThreshold: 30 }
-          livenessProbe:  { httpGet: { path: /status/health, port: 8090 }, initialDelaySeconds: 90, periodSeconds: 15, failureThreshold: 6 }
-      volumes:
-        - { name: common-conf, configMap: { name: druid-common } }
-        - { name: role-conf,   configMap: { name: druid-overlord } }
-        - { name: var,         emptyDir: {} }
+# (no overlord deployment: the coordinator runs it embedded — asOverlord — and serves
+#  the overlord API on :8081/druid/indexer/*. No middleManager either: the embedded
+#  overlord uses the forking task runner. See k8s/10-config.yaml druid-coordinator.)
 # ----------------------------------------------------------------------------- broker
 ---
 apiVersion: v1
@@ -169,48 +133,6 @@ spec:
       spec:
         accessModes: ["ReadWriteOnce"]
         resources: { requests: { storage: 20Gi } }   # segment cache (maxSize 10Gi in config)
-# ----------------------------------------------------------------------------- middleManager
----
-apiVersion: v1
-kind: Service
-metadata: { name: middlemanager, namespace: metatron, labels: { app: druid, role: middlemanager } }
-spec:
-  clusterIP: None
-  selector: { app: druid, role: middlemanager }
-  ports: [ { name: http, port: 8091, targetPort: 8091 } ]
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata: { name: middlemanager, namespace: metatron }
-spec:
-  serviceName: middlemanager
-  replicas: 1
-  selector: { matchLabels: { app: druid, role: middlemanager } }
-  template:
-    metadata: { labels: { app: druid, role: middlemanager } }
-    spec:
-      securityContext: { fsGroup: 999 }
-      containers:
-        - name: druid
-          image: REGISTRY/metatron-cube:2021.3
-          args: ["middleManager"]
-          env:
-            - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
-            - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
-            - { name: AWS_ACCESS_KEY_ID, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } } }
-            - { name: AWS_SECRET_ACCESS_KEY, valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } } }
-          ports: [ { containerPort: 8091 } ]
-          volumeMounts:
-            - { name: common-conf, mountPath: /opt/druid/conf/druid/_common }
-            - { name: role-conf,   mountPath: /opt/druid/conf/druid/middleManager }
-            - { name: var,         mountPath: /opt/druid/var }
-          readinessProbe: { httpGet: { path: /status/health, port: 8091 }, initialDelaySeconds: 45, periodSeconds: 10, failureThreshold: 30 }
-          livenessProbe:  { httpGet: { path: /status/health, port: 8091 }, initialDelaySeconds: 90, periodSeconds: 15, failureThreshold: 6 }
-      volumes:
-        - { name: common-conf, configMap: { name: druid-common } }
-        - { name: role-conf,   configMap: { name: druid-middlemanager } }
-  volumeClaimTemplates:
-    - metadata: { name: var }
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources: { requests: { storage: 20Gi } }   # peon task working dirs
+# (no middleManager: the embedded overlord forks peons in the coordinator process.
+#  To distribute tasks instead, set druid.indexer.runner.type=remote in the coordinator
+#  config and add a middleManager StatefulSet here.)

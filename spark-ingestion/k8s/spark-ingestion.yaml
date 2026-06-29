@@ -1,0 +1,91 @@
+#
+# Spec-driven Druid ingestion as a Spark job (spark-operator).
+#
+# Prereqs:
+#  - Build the jar (online):  mvn -f spark-ingestion/pom.xml -DskipTests package
+#    -> spark-ingestion/target/druid-spark-ingestion-2021.3-SNAPSHOT-spark.jar
+#  - Bake that jar into your Spark image (with hadoop-aws for reading s3a parquet),
+#    or point mainApplicationFile at it (s3a://, http://, local://).
+#  - Copy the swd-iceberg-credentials secret into the spark-apps namespace.
+#  - Druid (coordinator-as-overlord) reachable at coordinator.metatron.svc:8081.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: druid-ingest-spec
+  namespace: spark-apps
+data:
+  ingest-spec.json: |
+    {
+      "dataSource": "wikiticker",
+      "paths": ["s3a://tmp-decompress/input/wikiticker/"],
+      "format": "parquet",
+      "timestampColumn": "time",
+      "dimensions": ["channel","cityName","comment","countryIsoCode","countryName","isAnonymous","isMinor","isNew","isRobot","isUnpatrolled","metroCode","namespace","page","regionIsoCode","regionName","user"],
+      "metrics": [
+        {"type":"count","name":"count"},
+        {"type":"longSum","name":"added","fieldName":"added"},
+        {"type":"longSum","name":"deleted","fieldName":"deleted"},
+        {"type":"longSum","name":"delta","fieldName":"delta"}
+      ],
+      "segmentGranularity": "DAY",
+      "queryGranularity": "NONE",
+      "rollup": true,
+      "numShards": 1,
+      "bucket": "tmp-decompress",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true,
+      "publishUrl": "http://coordinator.metatron.svc:8081/druid/indexer/v1/segments/publish"
+    }
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: druid-ingestion
+  namespace: spark-apps
+spec:
+  type: Java
+  mode: cluster
+  image: "REGISTRY/spark-druid-ingestion:3.5.1"     # spark 3.5.1 + hadoop-aws + the jar
+  imagePullPolicy: IfNotPresent
+  mainClass: io.druid.segwriter.spark.SparkIngestion
+  mainApplicationFile: "local:///opt/spark/jars/druid-spark-ingestion-spark.jar"
+  arguments:
+    - "/opt/spark/spec/ingest-spec.json"
+  sparkVersion: "3.5.1"
+  sparkConf:
+    # read source parquet from the SeaweedFS S3 gateway (s3a)
+    "spark.hadoop.fs.s3a.endpoint": "http://seaweed.s2dev.net:8333"
+    "spark.hadoop.fs.s3a.path.style.access": "true"
+    "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+    # Java 21 module opens for the Druid segment writer running inside the executors
+    "spark.driver.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+    "spark.executor.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+  driver:
+    cores: 1
+    memory: "1g"
+    serviceAccount: spark
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+    volumeMounts:
+      - { name: ingest-spec, mountPath: /opt/spark/spec }
+  executor:
+    instances: 2
+    cores: 2
+    memory: "2g"
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+    volumeMounts:
+      - { name: ingest-spec, mountPath: /opt/spark/spec }
+  volumes:
+    - name: ingest-spec
+      configMap: { name: druid-ingest-spec }
+  restartPolicy:
+    type: Never
