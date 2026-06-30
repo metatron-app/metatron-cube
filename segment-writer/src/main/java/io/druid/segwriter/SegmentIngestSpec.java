@@ -43,6 +43,11 @@ public class SegmentIngestSpec implements Serializable
   // where the rows come from: {"type":"file",...} or {"type":"iceberg",...}. Consumed by the
   // spark-ingestion module (which performs the actual Spark read); unused by segment building.
   private final SourceSpec source;
+  // "keyed" (default): shuffle rows into (interval,shard) groups via groupByKey. "aligned": build one
+  // segment per Spark input partition with mapPartitions (no shuffle) — for sources already partitioned
+  // on the timestamp column (e.g. an iceberg table partitioned by hour(ts)); segmentGranularity must
+  // match the source partition granularity.
+  private final String layout;
   private final String timestampColumn;
   private final List<String> dimensions;
   private final AggregatorFactory[] metrics;
@@ -65,6 +70,7 @@ public class SegmentIngestSpec implements Serializable
   public SegmentIngestSpec(
       @JsonProperty("dataSource") String dataSource,
       @JsonProperty("source") SourceSpec source,
+      @JsonProperty("layout") String layout,
       @JsonProperty("timestampColumn") String timestampColumn,
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("metrics") AggregatorFactory[] metrics,
@@ -83,6 +89,7 @@ public class SegmentIngestSpec implements Serializable
   {
     this.dataSource = dataSource;
     this.source = source;
+    this.layout = layout == null ? "keyed" : layout;
     this.timestampColumn = timestampColumn;
     this.dimensions = dimensions;
     this.metrics = metrics == null ? new AggregatorFactory[0] : metrics;
@@ -103,6 +110,7 @@ public class SegmentIngestSpec implements Serializable
 
   @JsonProperty public String getDataSource() { return dataSource; }
   @JsonProperty public SourceSpec getSource() { return source; }
+  @JsonProperty public String getLayout() { return layout; }
   @JsonProperty public String getTimestampColumn() { return timestampColumn; }
   @JsonProperty public List<String> getDimensions() { return dimensions; }
   @JsonProperty public AggregatorFactory[] getMetrics() { return metrics; }

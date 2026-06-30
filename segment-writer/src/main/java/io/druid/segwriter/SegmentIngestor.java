@@ -19,7 +19,6 @@
 
 package io.druid.segwriter;
 
-import com.google.common.collect.Lists;
 import io.druid.granularity.Granularity;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.SecondaryIndexingSpec;
@@ -102,7 +101,7 @@ public final class SegmentIngestor
     );
 
     final ShardSpec shardSpec = numShards <= 1 ? NoneShardSpec.instance() : new LinearShardSpec(shardNum);
-    final List<Map<String, Object>> buffered = Lists.newArrayList(rows);
-    return DruidSegmentWriter.write(segmentSpec, interval, version, shardSpec, buffered, pusher, tmpDir, indexSpec);
+    // stream the rows straight into the writer (it iterates exactly once) — no intermediate copy
+    return DruidSegmentWriter.write(segmentSpec, interval, version, shardSpec, () -> rows, pusher, tmpDir, indexSpec);
   }
 }

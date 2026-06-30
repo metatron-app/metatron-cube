@@ -105,34 +105,63 @@ public final class SparkIngestion
         df = df.where(source.getWhere());   // optional bound; iceberg prunes partitions
       }
 
-      // Row -> (key=(intervalStart, shard), event map)
-      final JavaPairRDD<Tuple2<Long, Integer>, Map<String, Object>> keyed =
-          df.toJavaRDD().mapToPair(row -> {
-            final SegmentIngestSpec s = Json.mapper().readValue(specJson, SegmentIngestSpec.class);
-            final Map<String, Object> event = rowToMap(row);
-            final long ts = toMillis(event.get(s.getTimestampColumn()));
-            event.put(s.getTimestampColumn(), ts);   // normalize to epoch millis for the writer
-            final Interval iv = SegmentIngestor.bucket(s, ts);
-            final int shard = s.getNumShards() <= 1 ? 0 : Math.floorMod(shardKey(event, s), s.getNumShards());
-            return new Tuple2<>(new Tuple2<>(iv.getStartMillis(), shard), event);
-          });
+      final List<String> built;
+      if ("aligned".equalsIgnoreCase(spec.getLayout())) {
+        // shuffle-free: each Spark input partition is already one segment's worth of rows (the source
+        // is partitioned on the timestamp column and segmentGranularity matches). Build one segment per
+        // partition with mapPartitions — no groupByKey, no in-memory group buffering. The writer streams
+        // the partition iterator straight into the index. Shard = the (globally unique) partition id.
+        built = df.toJavaRDD().mapPartitions(rowIter -> {
+          if (!rowIter.hasNext()) {
+            return java.util.Collections.<String>emptyIterator();
+          }
+          final ObjectMapper m = Json.mapper();
+          final SegmentIngestSpec s = m.readValue(specJson, SegmentIngestSpec.class);
+          final int shard = org.apache.spark.TaskContext.getPartitionId();
+          // Stream the partition straight into one segment (no row buffering): the writer iterates once
+          // and only the IncrementalIndex holds rows. Assumes one interval per partition — true when the
+          // source partition granularity == segmentGranularity (e.g. hour(ts) table + HOUR segments).
+          final java.util.Iterator<Map<String, Object>> events =
+              com.google.common.collect.Iterators.transform(rowIter, row -> {
+                final Map<String, Object> e = rowToMap(row);
+                e.put(s.getTimestampColumn(), toMillis(e.get(s.getTimestampColumn())));   // -> epoch millis
+                return e;
+              });
+          final com.google.common.collect.PeekingIterator<Map<String, Object>> rows =
+              com.google.common.collect.Iterators.peekingIterator(events);
+          final Interval iv = SegmentIngestor.bucket(s, ((Number) rows.peek().get(s.getTimestampColumn())).longValue());
+          final DataSegmentPusher pusher = SegmentIngestor.pusher(s);
+          final File tmp = Files.createTempDir();
+          final DataSegment seg = SegmentIngestor.buildSegment(
+              s, iv, version, shard, Integer.MAX_VALUE, rows, tmp, pusher   // numShards>1 -> LinearShardSpec(shard)
+          );
+          return java.util.Collections.singletonList(m.writeValueAsString(seg)).iterator();
+        }).collect();
+      } else {
+        // keyed (default): shuffle rows into (interval,shard) groups, one segment per group
+        final JavaPairRDD<Tuple2<Long, Integer>, Map<String, Object>> keyed =
+            df.toJavaRDD().mapToPair(row -> {
+              final SegmentIngestSpec s = Json.mapper().readValue(specJson, SegmentIngestSpec.class);
+              final Map<String, Object> event = rowToMap(row);
+              final long ts = toMillis(event.get(s.getTimestampColumn()));
+              event.put(s.getTimestampColumn(), ts);   // normalize to epoch millis for the writer
+              final Interval iv = SegmentIngestor.bucket(s, ts);
+              final int shard = s.getNumShards() <= 1 ? 0 : Math.floorMod(shardKey(event, s), s.getNumShards());
+              return new Tuple2<>(new Tuple2<>(iv.getStartMillis(), shard), event);
+            });
 
-      // one segment per (interval, shard)
-      final JavaRDD<String> segmentJsons = keyed.groupByKey().map(entry -> {
-        final ObjectMapper m = Json.mapper();
-        final SegmentIngestSpec s = m.readValue(specJson, SegmentIngestSpec.class);
-        final long bucketStart = entry._1()._1();
-        final int shard = entry._1()._2();
-        final Interval iv = SegmentIngestor.bucket(s, bucketStart);
-        final DataSegmentPusher pusher = SegmentIngestor.pusher(s);
-        final File tmp = Files.createTempDir();
-        final DataSegment seg = SegmentIngestor.buildSegment(
-            s, iv, version, shard, s.getNumShards(), entry._2().iterator(), tmp, pusher
-        );
-        return m.writeValueAsString(seg);
-      });
-
-      final List<String> built = segmentJsons.collect();
+        built = keyed.groupByKey().map(entry -> {
+          final ObjectMapper m = Json.mapper();
+          final SegmentIngestSpec s = m.readValue(specJson, SegmentIngestSpec.class);
+          final Interval iv = SegmentIngestor.bucket(s, entry._1()._1());
+          final DataSegmentPusher pusher = SegmentIngestor.pusher(s);
+          final File tmp = Files.createTempDir();
+          final DataSegment seg = SegmentIngestor.buildSegment(
+              s, iv, version, entry._1()._2(), s.getNumShards(), entry._2().iterator(), tmp, pusher
+          );
+          return m.writeValueAsString(seg);
+        }).collect();
+      }
 
       // driver publishes the whole batch atomically via the overlord
       final List<DataSegment> segments = new ArrayList<>(built.size());
