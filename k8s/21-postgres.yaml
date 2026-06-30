@@ -7,7 +7,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: druid-postgres
-  namespace: spark-apps
+  namespace: adp-dev
 type: Opaque
 stringData:
   POSTGRES_DB: druid
@@ -18,7 +18,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: spark-apps
+  namespace: adp-dev
   labels: { app: postgres }
 spec:
   selector: { app: postgres }
@@ -29,7 +29,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgres
-  namespace: spark-apps
+  namespace: adp-dev
 spec:
   serviceName: postgres
   replicas: 1

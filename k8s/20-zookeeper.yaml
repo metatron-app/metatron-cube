@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: zookeeper
-  namespace: spark-apps
+  namespace: adp-dev
   labels: { app: zookeeper }
 spec:
   # Headless: stable DNS for the StatefulSet pod (zookeeper-0.zookeeper).
@@ -17,7 +17,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: zookeeper
-  namespace: spark-apps
+  namespace: adp-dev
 spec:
   serviceName: zookeeper
   replicas: 1

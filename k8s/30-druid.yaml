@@ -6,19 +6,19 @@
 # flat pod network. Peons forked by the middleManager auto-detect their pod IP.
 #
 # Credentials: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY come from the
-# swd-iceberg-credentials Secret (already present in the spark-apps namespace).
+# swd-iceberg-credentials Secret (already present in the adp-dev namespace).
 #
 # ----------------------------------------------------------------------------- coordinator
 apiVersion: v1
 kind: Service
-metadata: { name: coordinator, namespace: spark-apps, labels: { app: druid, role: coordinator } }
+metadata: { name: coordinator, namespace: adp-dev, labels: { app: druid, role: coordinator } }
 spec:
   selector: { app: druid, role: coordinator }
   ports: [ { name: http, port: 8081, targetPort: 8081 } ]
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: coordinator, namespace: spark-apps }
+metadata: { name: coordinator, namespace: adp-dev }
 spec:
   replicas: 1
   selector: { matchLabels: { app: druid, role: coordinator } }
@@ -54,14 +54,14 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: broker, namespace: spark-apps, labels: { app: druid, role: broker } }
+metadata: { name: broker, namespace: adp-dev, labels: { app: druid, role: broker } }
 spec:
   selector: { app: druid, role: broker }
   ports: [ { name: http, port: 8082, targetPort: 8082 } ]
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: broker, namespace: spark-apps }
+metadata: { name: broker, namespace: adp-dev }
 spec:
   replicas: 1
   selector: { matchLabels: { app: druid, role: broker } }
@@ -94,7 +94,7 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: historical, namespace: spark-apps, labels: { app: druid, role: historical } }
+metadata: { name: historical, namespace: adp-dev, labels: { app: druid, role: historical } }
 spec:
   clusterIP: None
   selector: { app: druid, role: historical }
@@ -102,7 +102,7 @@ spec:
 ---
 apiVersion: apps/v1
 kind: StatefulSet
-metadata: { name: historical, namespace: spark-apps }
+metadata: { name: historical, namespace: adp-dev }
 spec:
   serviceName: historical
   replicas: 1

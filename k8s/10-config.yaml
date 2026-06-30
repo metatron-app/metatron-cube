@@ -13,7 +13,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-common
-  namespace: spark-apps
+  namespace: adp-dev
 data:
   log4j2.xml: |
     <?xml version="1.0" encoding="UTF-8" ?>
@@ -92,7 +92,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-coordinator
-  namespace: spark-apps
+  namespace: adp-dev
 data:
   jvm.config: |
     -server
@@ -123,7 +123,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-overlord
-  namespace: spark-apps
+  namespace: adp-dev
 data:
   jvm.config: |
     -server
@@ -144,7 +144,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-broker
-  namespace: spark-apps
+  namespace: adp-dev
 data:
   jvm.config: |
     -server
@@ -172,7 +172,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-historical
-  namespace: spark-apps
+  namespace: adp-dev
 data:
   jvm.config: |
     -server
@@ -197,7 +197,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: druid-middlemanager
-  namespace: spark-apps
+  namespace: adp-dev
 data:
   jvm.config: |
     -server

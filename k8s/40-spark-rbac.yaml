@@ -1,0 +1,54 @@
+#
+# RBAC for the Spark-on-Kubernetes driver service account in the adp-dev namespace.
+#
+# The spark-operator launches the driver pod as serviceAccount "spark"; the driver itself then
+# creates/watches/deletes the executor pods (and a headless service + configmaps) via the k8s API.
+# Without this Role/RoleBinding the driver fails at startup with:
+#
+#   pods "druid-ingestion-driver" is forbidden: User "system:serviceaccount:adp-dev:spark"
+#   cannot get resource "pods" in API group "" in the namespace "adp-dev".
+#
+# NOTE: applying this needs RBAC-admin in adp-dev (create role/rolebinding). Hand to a cluster admin:
+#   kubectl apply -f k8s/40-spark-rbac.yaml
+#
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spark
+  namespace: adp-dev
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-driver-role
+  namespace: adp-dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete", "deletecollection", "patch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "delete", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-driver-rolebinding
+  namespace: adp-dev
+subjects:
+  - kind: ServiceAccount
+    name: spark
+    namespace: adp-dev
+roleRef:
+  kind: Role
+  name: spark-driver-role
+  apiGroup: rbac.authorization.k8s.io

@@ -33,13 +33,13 @@ sed -i '' 's#REGISTRY/metatron-cube:2021.3#<REGISTRY>/metatron-cube:2021.3#g' k8
 ### 2. S3 credentials secret
 Manifests inject `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` from a Secret named
 `swd-iceberg-credentials` (keys `s3-access-key` / `s3-secret-key`) **in the metatron
-namespace**. Secrets are namespace-scoped, so copy it from `spark-apps`:
+namespace**. Secrets are namespace-scoped, so copy it from `adp-dev`:
 
 ```sh
 kubectl apply -f k8s/00-namespace.yaml
 kubectl -n metatron create secret generic swd-iceberg-credentials \
-  --from-literal=s3-access-key="$(kubectl -n spark-apps get secret swd-iceberg-credentials -o jsonpath='{.data.s3-access-key}' | base64 -d)" \
-  --from-literal=s3-secret-key="$(kubectl -n spark-apps get secret swd-iceberg-credentials -o jsonpath='{.data.s3-secret-key}' | base64 -d)"
+  --from-literal=s3-access-key="$(kubectl -n adp-dev get secret swd-iceberg-credentials -o jsonpath='{.data.s3-access-key}' | base64 -d)" \
+  --from-literal=s3-secret-key="$(kubectl -n adp-dev get secret swd-iceberg-credentials -o jsonpath='{.data.s3-secret-key}' | base64 -d)"
 ```
 
 ### 3. A writable deep-storage bucket  ⚠️
