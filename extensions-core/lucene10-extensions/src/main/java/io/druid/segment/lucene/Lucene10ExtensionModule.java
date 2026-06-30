@@ -24,8 +24,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import io.druid.initialization.DruidModule;
-import io.druid.sql.calcite.planner.LuceneNearestFilterConversion;
-import io.druid.sql.guice.SqlBindings;
 
 import java.util.List;
 
@@ -48,7 +46,7 @@ public class Lucene10ExtensionModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    new LuceneCommonExtensionModule().configure(binder);
-    SqlBindings.addFilterConversion(binder, LuceneKnnVectorConversion.class);
+    // SQL/Calcite bindings isolated in Lucene10SqlBindings (keeps this module free of io.druid.sql.*)
+    Lucene10SqlBindings.register(binder);
   }
 }

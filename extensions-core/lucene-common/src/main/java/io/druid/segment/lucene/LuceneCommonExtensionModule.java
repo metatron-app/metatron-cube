@@ -33,10 +33,6 @@ import io.druid.query.filter.LuceneQueryFilter;
 import io.druid.query.filter.LuceneShapeFilter;
 import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.query.filter.RegexFSTFilter;
-import io.druid.sql.calcite.planner.LuceneNearestFilterConversion;
-import io.druid.sql.calcite.planner.LuceneQueryFilterConversion;
-import io.druid.sql.calcite.planner.LuceneShapeFilterConversion;
-import io.druid.sql.guice.SqlBindings;
 
 import java.util.List;
 
@@ -79,15 +75,8 @@ public class LuceneCommonExtensionModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    SqlBindings.addFilterConversion(binder, LuceneQueryFilterConversion.class);
-    SqlBindings.addFilterConversion(binder, LuceneNearestFilterConversion.class);
-    SqlBindings.addFilterConversion(binder, LuceneShapeFilterConversion.of("ST_EQUALS", SpatialOperations.EQUALTO));
-    SqlBindings.addFilterConversion(binder, LuceneShapeFilterConversion.of("ST_WITHIN", SpatialOperations.COVEREDBY));
-    SqlBindings.addFilterConversion(binder, LuceneShapeFilterConversion.of("ST_CONTAINS", SpatialOperations.COVERS));
-    SqlBindings.addFilterConversion(
-        binder,
-        LuceneShapeFilterConversion.of("ST_INTERSECTS", SpatialOperations.INTERSECTS)
-    );
-    SqlBindings.addFilterConversion(binder, LuceneShapeFilterConversion.of("ST_OVERLAPS", SpatialOperations.OVERLAPS));
+    // SQL/Calcite bindings live in LuceneCommonSqlBindings so this module stays free of io.druid.sql.*
+    // (loadable without druid-sql). The helper class is only resolved when this runs on a full node.
+    LuceneCommonSqlBindings.register(binder);
   }
 }

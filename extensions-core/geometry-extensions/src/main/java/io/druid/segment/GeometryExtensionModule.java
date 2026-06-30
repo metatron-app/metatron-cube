@@ -31,11 +31,9 @@ import io.druid.query.GeomFunctions;
 import io.druid.query.GeometryDeserializer;
 import io.druid.query.GeometrySerializer;
 import io.druid.query.H3Functions;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.GeomCollectPointAggregatorFactory;
 import io.druid.query.aggregation.GeomUnionAggregatorFactory;
 import io.druid.query.filter.H3PointDistanceFilter;
-import io.druid.sql.guice.SqlBindings;
 import org.geohex.geohex4j.GeoHexFunctions;
 import org.locationtech.jts.geom.Geometry;
 
@@ -80,11 +78,7 @@ public class GeometryExtensionModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    SqlBindings.addAggregator(
-        binder, AggregatorFactory.bundleSQL(new GeomUnionAggregatorFactory("<name>", "<columnName>"))
-    );
-    SqlBindings.addAggregator(
-        binder, AggregatorFactory.bundleSQL(new GeomCollectPointAggregatorFactory("<name>", "<columnName>"))
-    );
+    // SQL/Calcite bindings isolated in GeometrySqlBindings (keeps this module free of io.druid.sql.*)
+    GeometrySqlBindings.register(binder);
   }
 }
