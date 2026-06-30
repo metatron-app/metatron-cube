@@ -19,17 +19,12 @@
 
 package io.druid.segwriter;
 
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.initialization.DruidModule;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.segment.lucene.JsonIndexingStrategy;
-import io.druid.segment.lucene.KnnVectorStrategy;
-import io.druid.segment.lucene.LatLonPointIndexingStrategy;
-import io.druid.segment.lucene.LatLonShapeIndexingStrategy;
-import io.druid.segment.lucene.Lucene10FSTSerDe;
-import io.druid.segment.lucene.Lucene10IndexingSpec;
-import io.druid.segment.lucene.ShapeIndexingStrategy;
-import io.druid.segment.lucene.SpatialIndexingStrategy;
-import io.druid.segment.lucene.TextIndexingStrategy;
+
+import java.util.ServiceLoader;
 
 /**
  * One shared Druid ObjectMapper per JVM.
@@ -54,13 +49,16 @@ public final class Json
   }
 
   /**
-   * Mapper that also knows the Lucene secondary-index Jackson subtypes. Use it for anything touching
+   * Mapper that also knows the extension Jackson subtypes. Use it for anything touching
    * Lucene-indexed segments: deserializing a {@code secondaryIndexing} spec into SecondaryIndexingSpec,
    * and reading/writing column descriptors via IndexIO/IndexMergerV9 (the column part serde subtype
    * id {@code "lucene10"} must be resolvable on read-back).
    *
-   * We register only the indexing subtypes — NOT the extension's full getJacksonModules(), which also
-   * pulls query-side filters + SQL/Calcite conversions the writer never uses.
+   * We discover the DruidModules bundled in this (shaded) jar via ServiceLoader and register their
+   * Jackson subtypes — the lean equivalent of what the cluster does through Guice. This works without
+   * druid-sql/Calcite because the extension modules' getJacksonModules() no longer reference any
+   * io.druid.sql.* (those bindings were moved to separate *SqlBindings helpers invoked only from
+   * Guice configure(), which the writer never calls).
    */
   public static ObjectMapper indexMapper()
   {
@@ -70,20 +68,11 @@ public final class Json
   private static ObjectMapper createIndexMapper()
   {
     final ObjectMapper m = MAPPER.copy();   // copy() does NOT re-run the ComplexMetrics registration
-    m.registerSubtypes(
-        // SecondaryIndexingSpec + strategies (parse the secondaryIndexing spec)
-        Lucene10IndexingSpec.class,        // "lucene10"
-        TextIndexingStrategy.class,        // "text"
-        JsonIndexingStrategy.class,        // "json"
-        ShapeIndexingStrategy.class,       // "shape"
-        SpatialIndexingStrategy.class,     // "spatial"
-        LatLonPointIndexingStrategy.class, // "latlon.point"
-        LatLonShapeIndexingStrategy.class, // "latlon.shape"
-        KnnVectorStrategy.class,           // "knn.vector"
-        // ColumnPartSerde subtypes (read back lucene-indexed columns)
-        Lucene10IndexingSpec.SerDe.class,  // "lucene10" ColumnPartSerde
-        Lucene10FSTSerDe.class
-    );
+    for (DruidModule dm : ServiceLoader.load(DruidModule.class, Json.class.getClassLoader())) {
+      for (Module mod : dm.getJacksonModules()) {
+        m.registerModule(mod);
+      }
+    }
     return m;
   }
 }
