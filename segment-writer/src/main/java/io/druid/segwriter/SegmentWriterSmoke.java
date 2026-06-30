@@ -128,6 +128,46 @@ public class SegmentWriterSmoke
       }
       System.out.println("LUCENE SMOKE OK");
     }
+
+    // --- index-only path: same lucene index but the base value column is NOT stored (indexOnly:true).
+    //     Search works; SELECT page returns null. Exercises numRows-from-maxDoc (no base column). ---
+    final String ioJson =
+        "{\"dataSource\":\"smoke_io\",\"timestampColumn\":\"__time\","
+        + "\"dimensions\":[\"country\"],"
+        + "\"metrics\":[{\"type\":\"count\",\"name\":\"count\"},"
+        + "{\"type\":\"relay\",\"name\":\"page\",\"columnName\":\"page\",\"typeName\":\"string\"}],"
+        + "\"segmentGranularity\":\"DAY\",\"queryGranularity\":\"NONE\",\"rollup\":false,\"numShards\":1,"
+        + "\"bucket\":\"x\",\"baseKey\":\"x\","
+        + "\"secondaryIndexing\":{\"page\":{\"type\":\"lucene10\",\"indexOnly\":true,"
+        + "\"strategies\":[{\"type\":\"text\",\"fieldName\":\"page\"}]}}}";
+    final SegmentIngestSpec iospec = Json.mapper().readValue(ioJson, SegmentIngestSpec.class);
+    final File iodeep = new File(tmp, "iodeep");
+    iodeep.mkdirs();
+    final DataSegment ioseg = SegmentIngestor.buildSegment(
+        iospec, interval, "v1", 0, 1, rows.iterator(), tmp, DataSegmentPushers.local(iodeep)
+    );
+    System.out.println("INDEXONLY segment size=" + ioseg.getSize() + " (vs stored-value lucene size=" + lseg.getSize() + ")");
+    final File iozip = new File((String) ioseg.getLoadSpec().get("path"));
+    final File ioun = new File(tmp, "iounpacked");
+    ioun.mkdirs();
+    CompressionUtils.unzip(iozip, ioun);
+    try (QueryableIndex li = indexIO.loadIndex(ioun)) {
+      final io.druid.segment.column.Column col = li.getColumn("page");
+      final boolean hasLucene = col != null
+          && col.getExternalIndexKeys().contains(io.druid.segment.column.LuceneIndex.class);
+      final boolean baseAbsent = col != null && !col.hasGenericColumn();
+      System.out.println("INDEXONLY lucene present=" + hasLucene + " baseValueAbsent=" + baseAbsent);
+      // query() internally does searcher.search(query, numRows) -> exercises numRows==maxDoc path
+      final io.druid.segment.column.LuceneIndex idx =
+          col.getExternalIndex(io.druid.segment.column.LuceneIndex.class).get();
+      final org.apache.lucene.search.TopDocs td =
+          idx.query(new org.apache.lucene.search.TermQuery(new org.apache.lucene.index.Term("page", "seoul")));
+      System.out.println("INDEXONLY query(page:seoul) hits=" + td.scoreDocs.length);
+      if (!hasLucene || !baseAbsent) {
+        throw new IllegalStateException("index-only column wrong: hasLucene=" + hasLucene + " baseAbsent=" + baseAbsent);
+      }
+      System.out.println("INDEXONLY SMOKE OK");
+    }
   }
 
   private static Map<String, Object> row(long ts, String country, String page, long hits)

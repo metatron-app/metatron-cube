@@ -66,20 +66,23 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
 {
   public static LuceneIndexingSpec of(String textAnalyzer, LuceneIndexingStrategy... strategies)
   {
-    return new LuceneIndexingSpec(textAnalyzer, Arrays.asList(strategies));
+    return new LuceneIndexingSpec(textAnalyzer, Arrays.asList(strategies), false);
   }
 
   private final String textAnalyzer;
   private final List<LuceneIndexingStrategy> strategies;
+  private final boolean indexOnly;
 
   @JsonCreator
   public LuceneIndexingSpec(
       @JsonProperty("textAnalyzer") String textAnalyzer,
-      @JsonProperty("strategies") List<LuceneIndexingStrategy> strategies
+      @JsonProperty("strategies") List<LuceneIndexingStrategy> strategies,
+      @JsonProperty("indexOnly") boolean indexOnly
   )
   {
     this.textAnalyzer = textAnalyzer;
     this.strategies = strategies == null ? ImmutableList.<LuceneIndexingStrategy>of() : strategies;
+    this.indexOnly = indexOnly;
   }
 
   @JsonProperty
@@ -94,6 +97,14 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
   public List<LuceneIndexingStrategy> getStrategies()
   {
     return strategies;
+  }
+
+  @Override
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_DEFAULT)   // omit when false -> old spec JSON unchanged
+  public boolean isIndexOnly()
+  {
+    return indexOnly;
   }
 
   @Override
@@ -114,13 +125,16 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
     if (!Objects.equals(strategies, that.strategies)) {
       return false;
     }
+    if (indexOnly != that.indexOnly) {
+      return false;
+    }
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(textAnalyzer, strategies);
+    return Objects.hash(textAnalyzer, strategies, indexOnly);
   }
 
   @Override
@@ -250,7 +264,11 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
           final ByteBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer);
           final int length = bufferToUse.remaining();
 
-          final int numRows = builder.getNumRows();
+          // Normal columns: the base value column (read before this part) already set numRows — use it,
+          // no extra IO. Index-only columns have no base column, so derive numRows from the lucene index
+          // (maxDoc == numRows: one doc per row) — costs one reader-open at column load.
+          final int fromBase = builder.getNumRows();
+          final int numRows = fromBase >= 0 ? fromBase : Lucenes.maxDoc(bufferToUse.asReadOnlyBuffer());
           final BitmapFactory factory = serdeFactory.getBitmapFactory();
 
           builder.addSecondaryIndex(

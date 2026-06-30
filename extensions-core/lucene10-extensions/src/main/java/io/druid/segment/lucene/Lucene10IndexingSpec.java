@@ -53,16 +53,17 @@ public class Lucene10IndexingSpec extends LuceneIndexingSpec
 {
   public static LuceneIndexingSpec of(String textAnalyzer, LuceneIndexingStrategy... strategies)
   {
-    return new Lucene10IndexingSpec(textAnalyzer, Arrays.asList(strategies));
+    return new Lucene10IndexingSpec(textAnalyzer, Arrays.asList(strategies), false);
   }
 
   @JsonCreator
   public Lucene10IndexingSpec(
       @JsonProperty("textAnalyzer") String textAnalyzer,
-      @JsonProperty("strategies") List<LuceneIndexingStrategy> strategies
+      @JsonProperty("strategies") List<LuceneIndexingStrategy> strategies,
+      @JsonProperty("indexOnly") boolean indexOnly
   )
   {
-    super(textAnalyzer, strategies);
+    super(textAnalyzer, strategies, indexOnly);
   }
 
   @Override

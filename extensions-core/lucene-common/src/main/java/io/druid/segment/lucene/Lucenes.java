@@ -254,15 +254,15 @@ public class Lucenes
     if (type == null) {
       return Object.class;
     }
-    switch (type.toUpperCase()) {
-      case "STRING": return String.class;
-      case "INT": return Integer.class;
-      case "LONG": return Long.class;
-      case "FLOAT": return Float.class;
-      case "DOUBLE": return Double.class;
-      case "BIGINT": return BigInteger.class;
-    }
-    return Object.class;
+      return switch (type.toUpperCase()) {
+          case "STRING" -> String.class;
+          case "INT" -> Integer.class;
+          case "LONG" -> Long.class;
+          case "FLOAT" -> Float.class;
+          case "DOUBLE" -> Double.class;
+          case "BIGINT" -> BigInteger.class;
+          default -> Object.class;
+      };
   }
 
   public static byte[] serialize(IOConsumer<DataOutput> writer) throws IOException
@@ -357,6 +357,19 @@ public class Lucenes
     output.flush();
     output.close();
     return sizeOf(writer);
+  }
+
+  // Row count of a serialized lucene column: every row contributes exactly one document (see the
+  // per-row addDocument in LuceneIndexingSpec), so maxDoc == segment numRows. Lets a lucene column
+  // report its own row count without a base value column (index-only).
+  public static int maxDoc(final ByteBuffer buffer)
+  {
+    try (DirectoryReader reader = readFrom(buffer)) {
+      return reader.maxDoc();
+    }
+    catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   public static DirectoryReader readFrom(final ByteBuffer buffer)

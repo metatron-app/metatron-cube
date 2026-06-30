@@ -69,6 +69,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   private final ComplexMetricSerde serde;
   private final CompressionStrategy compression;
   private final MetricColumnSerializer secondary;
+  private final boolean indexOnly;   // write only the secondary index; skip the base value column
 
   private String minValue;
   private String maxValue;
@@ -89,13 +90,16 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     this.compression = compression;
     this.secondary = indexingSpec == null ? MetricColumnSerializer.DUMMY :
                      indexingSpec.serializer(columnName, serde.getType(), values);
+    this.indexOnly = indexingSpec != null && indexingSpec.isIndexOnly();
   }
 
   @Override
   public void open(IOPeon ioPeon) throws IOException
   {
-    writer = create(ioPeon, String.format("%s.complex_column", columnName));
-    writer.open();
+    if (!indexOnly) {
+      writer = create(ioPeon, String.format("%s.complex_column", columnName));
+      writer.open();
+    }
     secondary.open(ioPeon);
   }
 
@@ -116,8 +120,11 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   @Override
   public void serialize(int rowNum, Object obj) throws IOException
   {
+    secondary.serialize(rowNum, obj);   // always index the real value
+    if (indexOnly) {
+      return;                            // ... but don't materialize the base value column
+    }
     writer.add(obj);
-    secondary.serialize(rowNum, obj);
 
     if (obj == null) {
       numNulls++;
@@ -132,12 +139,14 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   public Builder buildDescriptor(IOPeon ioPeon, Builder builder) throws IOException
   {
     ValueDesc type = serde.getType();
-    if (type.isString()) {
-      builder.setValueType(ValueDesc.STRING);
-      builder.addSerde(new StringColumnPartSerde(this));
-    } else {
-      builder.setValueType(type);
-      builder.addSerde(new ComplexColumnPartSerde(type.typeName(), this));
+    builder.setValueType(type.isString() ? ValueDesc.STRING : type);
+    if (!indexOnly) {
+      // base value column; omitted entirely for index-only (search-only) columns
+      if (type.isString()) {
+        builder.addSerde(new StringColumnPartSerde(this));
+      } else {
+        builder.addSerde(new ComplexColumnPartSerde(type.typeName(), this));
+      }
     }
     return secondary.buildDescriptor(ioPeon, builder);
   }
@@ -145,20 +154,22 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   @Override
   public void close() throws IOException
   {
-    writer.close();
+    if (writer != null) {
+      writer.close();
+    }
     secondary.close();
   }
 
   @Override
   public long getSerializedSize()
   {
-    return writer.getSerializedSize();
+    return writer == null ? 0 : writer.getSerializedSize();   // index-only: no base value column
   }
 
   @Override
   public long writeToChannel(WritableByteChannel channel) throws IOException
   {
-    return writer.writeToChannel(channel);
+    return writer == null ? 0 : writer.writeToChannel(channel);
   }
 
   @Override

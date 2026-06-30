@@ -40,4 +40,11 @@ public interface SecondaryIndexingSpec
   MetricColumnSerializer serializer(String columnName, ValueDesc type, Iterable<Object> values);
 
   default Map<String, String> descriptor(String column) {return null;}
+
+  /**
+   * If true, the base value column is NOT materialized — only the secondary index is written. The
+   * column becomes search-only (e.g. lucene.query works; SELECT/group-by of the value does not).
+   * Saves the per-row value storage entirely (vs. storing the raw text just to index it).
+   */
+  default boolean isIndexOnly() {return false;}
 }
