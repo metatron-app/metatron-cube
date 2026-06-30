@@ -112,15 +112,13 @@ public final class SparkIngestion
         // partition with mapPartitions — no groupByKey, no in-memory group buffering. The writer streams
         // the partition iterator straight into the index. Shard = the (globally unique) partition id.
         built = df.toJavaRDD().mapPartitions(rowIter -> {
-          if (!rowIter.hasNext()) {
-            return java.util.Collections.<String>emptyIterator();
-          }
           final ObjectMapper m = Json.mapper();
           final SegmentIngestSpec s = m.readValue(specJson, SegmentIngestSpec.class);
-          final int shard = org.apache.spark.TaskContext.getPartitionId();
-          // Stream the partition straight into one segment (no row buffering): the writer iterates once
-          // and only the IncrementalIndex holds rows. Assumes one interval per partition — true when the
-          // source partition granularity == segmentGranularity (e.g. hour(ts) table + HOUR segments).
+          final int partitionId = org.apache.spark.TaskContext.getPartitionId();
+          // Stream the partition WITHOUT buffering rows: rows arrive grouped by interval (iceberg reads
+          // file by file, one (hour,bucket) per file), so we roll a new segment whenever the interval
+          // changes. Only the current interval's index is in memory at a time. shard is globally unique
+          // (partitionId*1024 + local index) so re-seen intervals never collide.
           final java.util.Iterator<Map<String, Object>> events =
               com.google.common.collect.Iterators.transform(rowIter, row -> {
                 final Map<String, Object> e = rowToMap(row);
@@ -129,13 +127,30 @@ public final class SparkIngestion
               });
           final com.google.common.collect.PeekingIterator<Map<String, Object>> rows =
               com.google.common.collect.Iterators.peekingIterator(events);
-          final Interval iv = SegmentIngestor.bucket(s, ((Number) rows.peek().get(s.getTimestampColumn())).longValue());
-          final DataSegmentPusher pusher = SegmentIngestor.pusher(s);
-          final File tmp = Files.createTempDir();
-          final DataSegment seg = SegmentIngestor.buildSegment(
-              s, iv, version, shard, Integer.MAX_VALUE, rows, tmp, pusher   // numShards>1 -> LinearShardSpec(shard)
-          );
-          return java.util.Collections.singletonList(m.writeValueAsString(seg)).iterator();
+          final List<String> out = new ArrayList<>();
+          int local = 0;
+          while (rows.hasNext()) {
+            final long hourStart = SegmentIngestor.bucket(
+                s, ((Number) rows.peek().get(s.getTimestampColumn())).longValue()).getStartMillis();
+            final Interval iv = SegmentIngestor.bucket(s, hourStart);
+            final int shard = partitionId * 1024 + (local++);   // globally-unique LinearShardSpec id
+            // sub-iterator that yields only this interval's contiguous run, then stops
+            final java.util.Iterator<Map<String, Object>> hourRows = new java.util.Iterator<Map<String, Object>>()
+            {
+              @Override public boolean hasNext()
+              {
+                return rows.hasNext() && SegmentIngestor.bucket(
+                    s, ((Number) rows.peek().get(s.getTimestampColumn())).longValue()).getStartMillis() == hourStart;
+              }
+              @Override public Map<String, Object> next() { return rows.next(); }
+            };
+            final File tmp = Files.createTempDir();
+            final DataSegment seg = SegmentIngestor.buildSegment(
+                s, iv, version, shard, Integer.MAX_VALUE, hourRows, tmp, SegmentIngestor.pusher(s)
+            );
+            out.add(m.writeValueAsString(seg));
+          }
+          return out.iterator();
         }).collect();
       } else {
         // keyed (default): shuffle rows into (interval,shard) groups, one segment per group
