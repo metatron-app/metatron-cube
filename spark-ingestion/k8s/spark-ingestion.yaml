@@ -17,9 +17,9 @@ metadata:
 data:
   ingest-spec.json: |
     {
-      "dataSource": "gdp_cred_lucene",
-      "paths": ["s3a://adp-iceberg/ato/gdp_credential_stealer_source_v2/data/timestamp_trigger_hour=2026-04-20-07/"],
-      "format": "parquet",
+      "dataSource": "gdp_cred_iceberg",
+      "table": "iceberg.ato.gdp_credential_stealer_source_v2",
+      "where": "timestamp >= timestamp '2024-05-20 00:00:00' AND timestamp < timestamp '2024-05-21 00:00:00'",
       "timestampColumn": "timestamp",
       "dimensions": ["reference_type","stealer_root_path","source_sha256"],
       "metrics": [
@@ -59,7 +59,19 @@ spec:
     - "/opt/spark/spec/ingest-spec.json"
   sparkVersion: "3.5.1"
   sparkConf:
-    # read source parquet from the SeaweedFS S3 gateway (s3a)
+    # --- Iceberg via the Polaris REST catalog (catalog name: "iceberg") ---
+    # Polaris vends the S3 endpoint + keys in its config response, so we don't set s3.* here.
+    # The OAuth2 credential (POLARIS_CLIENT_ID:SECRET) is injected programmatically from env by
+    # SparkIngestion so it stays out of this manifest.
+    "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+    "spark.sql.catalog.iceberg": "org.apache.iceberg.spark.SparkCatalog"
+    "spark.sql.catalog.iceberg.catalog-impl": "org.apache.iceberg.rest.RESTCatalog"
+    "spark.sql.catalog.iceberg.uri": "http://polaris.adp.svc.cluster.local:8181/api/catalog"
+    "spark.sql.catalog.iceberg.warehouse": "prod"
+    "spark.sql.catalog.iceberg.scope": "PRINCIPAL_ROLE:ALL"
+    "spark.sql.catalog.iceberg.header.Polaris-Realm": "adp-polaris"
+    "spark.sql.catalog.iceberg.io-impl": "org.apache.iceberg.aws.s3.S3FileIO"
+    # s3a (only used if reading raw parquet paths instead of an iceberg table)
     "spark.hadoop.fs.s3a.endpoint": "http://seaweed.s2dev.net:8333"
     "spark.hadoop.fs.s3a.path.style.access": "true"
     "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
@@ -75,6 +87,10 @@ spec:
         valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
       - name: AWS_SECRET_ACCESS_KEY
         valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+      - name: POLARIS_CLIENT_ID
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: polaris-client-id } }
+      - name: POLARIS_CLIENT_SECRET
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: polaris-client-secret } }
     volumeMounts:
       - { name: ingest-spec, mountPath: /opt/spark/spec }
   executor:
@@ -86,6 +102,10 @@ spec:
         valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
       - name: AWS_SECRET_ACCESS_KEY
         valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+      - name: POLARIS_CLIENT_ID
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: polaris-client-id } }
+      - name: POLARIS_CLIENT_SECRET
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: polaris-client-secret } }
     volumeMounts:
       - { name: ingest-spec, mountPath: /opt/spark/spec }
   volumes:

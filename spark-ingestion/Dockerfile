@@ -31,6 +31,13 @@ RUN set -eux; cd "$SPARK_HOME/jars"; \
     curl -fsSL -O "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/${HADOOP_AWS_VERSION}/hadoop-aws-${HADOOP_AWS_VERSION}.jar"; \
     curl -fsSL -O "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/${AWS_SDK_BUNDLE_VERSION}/aws-java-sdk-bundle-${AWS_SDK_BUNDLE_VERSION}.jar"
 
+# --- Apache Iceberg (Spark 3.5 runtime + AWS bundle for S3FileIO) to read tables through the
+#     Polaris REST catalog. iceberg-aws-bundle carries the AWS SDK v2 that S3FileIO needs. ---
+ARG ICEBERG_VERSION=1.6.1
+RUN set -eux; cd "$SPARK_HOME/jars"; \
+    curl -fsSL -O "https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-3.5_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-3.5_2.12-${ICEBERG_VERSION}.jar"; \
+    curl -fsSL -O "https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar"
+
 # --- the shaded job jar (Guava/Jackson relocated inside it) ---
 COPY target/druid-spark-ingestion-*-spark.jar /opt/spark/jars/druid-spark-ingestion-spark.jar
 

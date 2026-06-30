@@ -69,10 +69,25 @@ public final class SparkIngestion
     final int numShards = spec.getNumShards();
     final String version = new DateTime().toString();
 
-    final SparkSession spark = SparkSession.builder().appName("druid-segment-ingestion").getOrCreate();
+    final SparkSession.Builder builder = SparkSession.builder().appName("druid-segment-ingestion");
+    // Inject the Polaris OAuth2 client credential into the iceberg catalog from env, so it never lives
+    // in the (declarative) sparkConf/YAML. The rest of the catalog config (uri, warehouse, realm header,
+    // io-impl) stays in sparkConf; Polaris itself vends the S3 endpoint + keys via its config response.
+    final String polarisId = System.getenv("POLARIS_CLIENT_ID");
+    final String polarisSecret = System.getenv("POLARIS_CLIENT_SECRET");
+    final String icebergCatalog = System.getenv().getOrDefault("ICEBERG_CATALOG", "iceberg");
+    if (polarisId != null && polarisSecret != null) {
+      builder.config("spark.sql.catalog." + icebergCatalog + ".credential", polarisId + ":" + polarisSecret);
+    }
+    final SparkSession spark = builder.getOrCreate();
     try {
-      final Dataset<Row> df = spark.read().format(spec.getFormat())
-                                   .load(spec.getPaths().toArray(new String[0]));
+      // source: an Iceberg table (via the Polaris catalog) when spec.table is set, else raw file paths.
+      Dataset<Row> df = spec.getTable() != null && !spec.getTable().isEmpty()
+                        ? spark.table(spec.getTable())
+                        : spark.read().format(spec.getFormat()).load(spec.getPaths().toArray(new String[0]));
+      if (spec.getWhere() != null && !spec.getWhere().isEmpty()) {
+        df = df.where(spec.getWhere());   // optional bound; iceberg prunes partitions
+      }
 
       // Row -> (key=(intervalStart, shard), event map)
       final JavaPairRDD<Tuple2<Long, Integer>, Map<String, Object>> keyed =
