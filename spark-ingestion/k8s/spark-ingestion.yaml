@@ -18,8 +18,11 @@ data:
   ingest-spec.json: |
     {
       "dataSource": "gdp_cred_iceberg",
-      "table": "iceberg.ato.gdp_credential_stealer_source_v2",
-      "where": "timestamp >= timestamp '2024-05-20 00:00:00' AND timestamp < timestamp '2024-05-21 00:00:00'",
+      "source": {
+        "type": "iceberg",
+        "table": "iceberg.ato.gdp_credential_stealer_source_v2",
+        "where": "timestamp >= timestamp '2024-05-20 00:00:00' AND timestamp < timestamp '2024-05-21 00:00:00'"
+      },
       "timestampColumn": "timestamp",
       "dimensions": ["reference_type","stealer_root_path","source_sha256"],
       "metrics": [

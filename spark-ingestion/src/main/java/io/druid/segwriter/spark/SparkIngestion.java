@@ -81,12 +81,19 @@ public final class SparkIngestion
     }
     final SparkSession spark = builder.getOrCreate();
     try {
-      // source: an Iceberg table (via the Polaris catalog) when spec.table is set, else raw file paths.
-      Dataset<Row> df = spec.getTable() != null && !spec.getTable().isEmpty()
-                        ? spark.table(spec.getTable())
-                        : spark.read().format(spec.getFormat()).load(spec.getPaths().toArray(new String[0]));
-      if (spec.getWhere() != null && !spec.getWhere().isEmpty()) {
-        df = df.where(spec.getWhere());   // optional bound; iceberg prunes partitions
+      // read the configured source (file paths or an iceberg table via the Polaris catalog)
+      final io.druid.segwriter.SourceSpec source = spec.getSource();
+      Dataset<Row> df;
+      if (source instanceof io.druid.segwriter.IcebergSource) {
+        df = spark.table(((io.druid.segwriter.IcebergSource) source).getTable());
+      } else if (source instanceof io.druid.segwriter.FileSource) {
+        final io.druid.segwriter.FileSource fs = (io.druid.segwriter.FileSource) source;
+        df = spark.read().format(fs.getFormat()).load(fs.getPaths().toArray(new String[0]));
+      } else {
+        throw new IllegalArgumentException("spec.source is required (type \"file\" or \"iceberg\"); got: " + source);
+      }
+      if (source.getWhere() != null && !source.getWhere().isEmpty()) {
+        df = df.where(source.getWhere());   // optional bound; iceberg prunes partitions
       }
 
       // Row -> (key=(intervalStart, shard), event map)

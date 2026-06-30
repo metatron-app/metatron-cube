@@ -40,14 +40,9 @@ import java.util.Map;
 public class SegmentIngestSpec implements Serializable
 {
   private final String dataSource;
-  // source: either an Iceberg table identifier ("<catalog>.<namespace>.<table>", read via the
-  // Spark Iceberg/Polaris catalog) OR raw file paths. If table is set it takes precedence over paths.
-  private final String table;
-  // optional SQL predicate applied to the source (e.g. "timestamp_trigger >= '2026-04-20T07:00:00'");
-  // lets a table read be bounded (partition pruning) instead of scanning the whole table.
-  private final String where;
-  private final List<String> paths;
-  private final String format;
+  // where the rows come from: {"type":"file",...} or {"type":"iceberg",...}. Consumed by the
+  // spark-ingestion module (which performs the actual Spark read); unused by segment building.
+  private final SourceSpec source;
   private final String timestampColumn;
   private final List<String> dimensions;
   private final AggregatorFactory[] metrics;
@@ -69,10 +64,7 @@ public class SegmentIngestSpec implements Serializable
   @JsonCreator
   public SegmentIngestSpec(
       @JsonProperty("dataSource") String dataSource,
-      @JsonProperty("table") String table,
-      @JsonProperty("where") String where,
-      @JsonProperty("paths") List<String> paths,
-      @JsonProperty("format") String format,
+      @JsonProperty("source") SourceSpec source,
       @JsonProperty("timestampColumn") String timestampColumn,
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("metrics") AggregatorFactory[] metrics,
@@ -90,10 +82,7 @@ public class SegmentIngestSpec implements Serializable
   )
   {
     this.dataSource = dataSource;
-    this.table = table;
-    this.where = where;
-    this.paths = paths;
-    this.format = format == null ? "parquet" : format;
+    this.source = source;
     this.timestampColumn = timestampColumn;
     this.dimensions = dimensions;
     this.metrics = metrics == null ? new AggregatorFactory[0] : metrics;
@@ -113,10 +102,7 @@ public class SegmentIngestSpec implements Serializable
   }
 
   @JsonProperty public String getDataSource() { return dataSource; }
-  @JsonProperty public String getTable() { return table; }
-  @JsonProperty public String getWhere() { return where; }
-  @JsonProperty public List<String> getPaths() { return paths; }
-  @JsonProperty public String getFormat() { return format; }
+  @JsonProperty public SourceSpec getSource() { return source; }
   @JsonProperty public String getTimestampColumn() { return timestampColumn; }
   @JsonProperty public List<String> getDimensions() { return dimensions; }
   @JsonProperty public AggregatorFactory[] getMetrics() { return metrics; }
