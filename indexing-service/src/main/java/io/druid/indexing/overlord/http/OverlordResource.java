@@ -57,6 +57,7 @@ import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.actions.TaskActionHolder;
 import io.druid.indexing.common.task.IndexTask;
+import io.druid.indexing.common.task.NoopTask;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.IndexerMetadataStorageAdapter;
@@ -127,6 +128,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Set;
+import java.util.UUID;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -137,6 +139,10 @@ import java.util.stream.Collectors;
 public class OverlordResource
 {
   private static final Logger log = new Logger(OverlordResource.class);
+
+  // pessimistic publish lock: poll tryLock up to ~60s (120 * 500ms) before giving up with 503
+  private static final int PUBLISH_LOCK_ATTEMPTS = 120;
+  private static final long PUBLISH_LOCK_SLEEP_MS = 500L;
 
   private final TaskMaster taskMaster;
   private final TaskStorageQueryAdapter taskStorageQueryAdapter;
@@ -485,9 +491,11 @@ public class OverlordResource
   }
 
   /**
-   * Publishes externally-built segments (e.g. produced by a Spark job) directly into the metadata
-   * store, without a task or task lock. Only the overlord leader serves this. Callers must use a
-   * distinct segment version per batch (no lock is taken). Body: a JSON array of DataSegment.
+   * Publishes externally-built segments (e.g. produced by a Spark job) into the metadata store. Only
+   * the overlord leader serves this. A pessimistic TimeChunk lock is taken on the datasource's umbrella
+   * interval for the (fast) metadata insert, so the publish cannot race a concurrent publish/compaction
+   * on the same interval; on lock-acquire timeout it returns 503 (the caller should retry). Segments
+   * keep the version assigned by the builder. Body: a JSON array of DataSegment.
    */
   @POST
   @Path("/segments/publish")
@@ -506,15 +514,59 @@ public class OverlordResource
             if (segments == null || segments.isEmpty()) {
               return Response.ok().entity(ImmutableMap.of("published", 0, "requested", 0)).build();
             }
+            // Pessimistic lock: take a TimeChunk lock on the datasource's umbrella interval before
+            // mutating the timeline, so an external publish cannot race a concurrent publish/compaction
+            // on the same interval. The lock is held only for the (fast) metadata insert.
+            final String dataSource = segments.iterator().next().getDataSource();
+            long minStart = Long.MAX_VALUE;
+            long maxEnd = Long.MIN_VALUE;
+            for (DataSegment s : segments) {
+              if (!dataSource.equals(s.getDataSource())) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                               .entity(ImmutableMap.of("error", "all segments must share one dataSource")).build();
+              }
+              minStart = Math.min(minStart, s.getInterval().getStartMillis());
+              maxEnd = Math.max(maxEnd, s.getInterval().getEndMillis());
+            }
+            final Interval umbrella = new Interval(minStart, maxEnd);
+            final String taskId = "spark_publish_" + UUID.randomUUID();
+            final Task lockTask = new NoopTask(taskId, taskId, dataSource);  // groupId==id; locks on dataSource
+            lockbox.add(lockTask);
             try {
+              TaskLock lock = null;
+              for (int i = 0; i < PUBLISH_LOCK_ATTEMPTS && lock == null; i++) {
+                final Optional<TaskLock> acquired = lockbox.tryLock(lockTask, umbrella);
+                if (acquired.isPresent()) {
+                  lock = acquired.get();
+                } else {
+                  Thread.sleep(PUBLISH_LOCK_SLEEP_MS);
+                }
+              }
+              if (lock == null) {
+                log.warn("Could not acquire lock for [%s]%s after %d attempts", dataSource, umbrella, PUBLISH_LOCK_ATTEMPTS);
+                return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                               .entity(ImmutableMap.of("error", "could not acquire lock for " + dataSource + umbrella))
+                               .build();
+              }
               final Set<DataSegment> published = indexerMetadataStorageAdapter.announceHistoricalSegments(segments);
-              return Response.ok().entity(
-                  ImmutableMap.of("published", published.size(), "requested", segments.size())
-              ).build();
+              return Response.ok().entity(ImmutableMap.of(
+                  "published", published.size(),
+                  "requested", segments.size(),
+                  "dataSource", dataSource,
+                  "interval", umbrella.toString(),
+                  "lockVersion", lock.getVersion()
+              )).build();
+            }
+            catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              return Response.serverError().entity(ImmutableMap.of("error", "interrupted while acquiring lock")).build();
             }
             catch (Exception e) {
               log.warn(e, "Failed to publish [%d] segments", segments.size());
               return Response.serverError().entity(ImmutableMap.of("error", String.valueOf(e.getMessage()))).build();
+            }
+            finally {
+              lockbox.remove(lockTask);  // releases all locks held by this task + drops it from active tasks
             }
           }
         }
