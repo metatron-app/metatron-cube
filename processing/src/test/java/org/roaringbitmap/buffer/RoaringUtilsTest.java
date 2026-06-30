@@ -68,6 +68,34 @@ public class RoaringUtilsTest
     _test(bitmap, new int[]{0xffff, 0x10000 + 2}, 0xffff, 0x10000, 0x10000 + 1);
   }
 
+  @Test
+  public void testOffsetSkipsFirstContainerEntirely() throws IOException
+  {
+    // first container (key 0) holds only small values; an offset past all of them must skip the
+    // whole container and advance to the next one. Regression for an ArrayIndexOutOfBoundsException
+    // (buffer[consumed - 1] with consumed == 0) in RoaringBatchIteratorV2 when the offset-skip loop
+    // exhausts the first container.
+    MutableRoaringBitmap bitmap = new MutableRoaringBitmap();
+    bitmap.add(0, 1, 3, 5, 9);
+    bitmap.add(0x10000, 0x10000 + 1, 0x10000 + 3);
+    testSkip(new WrappedImmutableRoaringBitmap(bitmap));
+
+    RoaringBitmapFactory factory = new RoaringBitmapFactory();
+    BytesOutputStream out = new BytesOutputStream();
+    bitmap.serialize(out);
+    ByteBuffer buffer = ByteBuffer.wrap(out.toByteArray());
+    testSkip((ExtendedBitmap) factory.mapImmutableBitmap(buffer, buffer.position(), buffer.remaining()));
+  }
+
+  private void testSkip(ExtendedBitmap bitmap)
+  {
+    // offset 100 is past every value in the first container -> skip it entirely (used to crash)
+    _test(bitmap, new int[]{100, 0x10000 + 1}, 0x10000, 0x10000 + 1);
+    _test(bitmap, new int[]{100, 0x10000 + 0xffff}, 0x10000, 0x10000 + 1, 0x10000 + 3);
+    // offset past every value in the only remaining container -> empty, must not crash
+    _test(bitmap, new int[]{0x10000 + 100, 0x10000 + 200});
+  }
+
   private void _test(ExtendedBitmap bitmap, int[] range, int... expected)
   {
     Assert.assertEquals(expected.length, bitmap.cardinality(range));

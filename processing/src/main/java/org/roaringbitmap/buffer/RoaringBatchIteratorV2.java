@@ -52,6 +52,11 @@ public final class RoaringBatchIteratorV2 implements BatchIterator {
     if (iterator.hasNext()) {
       consumed += iterator.next(key, buffer);
       while (key == initKey && offset > 0) {
+        if (consumed == 0) {
+          // the first container was entirely below offset and is now exhausted; stop skipping
+          // and fall through to advance to the next container (whose values are all >= offset).
+          break;
+        }
         if (buffer[consumed - 1] < offset) {
           consumed = iterator.next(key, buffer);
           continue;

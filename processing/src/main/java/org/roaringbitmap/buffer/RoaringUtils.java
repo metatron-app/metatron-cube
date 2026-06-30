@@ -99,7 +99,9 @@ public class RoaringUtils
 
   public static BatchIterator getBatchIterator(ImmutableRoaringBitmap bitmap, int offset)
   {
-    return new RoaringBatchIteratorV2(getContainerPointer(bitmap, offset), lowbits(offset));
+    // pass the FULL offset: the batch iterator's skip loop compares it against buffer values, which
+    // are full ids (key | lowbits). Passing only lowbits under-skips whenever offset >= 0x10000.
+    return new RoaringBatchIteratorV2(getContainerPointer(bitmap, offset), offset);
   }
 
   public static int cardinality(ImmutableRoaringBitmap bitmap, int[] range)
