@@ -73,11 +73,20 @@ public final class SparkIngestion
     // Inject the Polaris OAuth2 client credential into the iceberg catalog from env, so it never lives
     // in the (declarative) sparkConf/YAML. The rest of the catalog config (uri, warehouse, realm header,
     // io-impl) stays in sparkConf; Polaris itself vends the S3 endpoint + keys via its config response.
+    final String icebergCatalog = System.getenv().getOrDefault("ICEBERG_CATALOG", "iceberg");
     final String polarisId = System.getenv("POLARIS_CLIENT_ID");
     final String polarisSecret = System.getenv("POLARIS_CLIENT_SECRET");
-    final String icebergCatalog = System.getenv().getOrDefault("ICEBERG_CATALOG", "iceberg");
     if (polarisId != null && polarisSecret != null) {
       builder.config("spark.sql.catalog." + icebergCatalog + ".credential", polarisId + ":" + polarisSecret);
+    }
+    // The source S3 store (where the iceberg data files live) can differ from the deep-storage S3 used
+    // to push segments (the AWS_* env). When the catalog doesn't vend creds, set its S3FileIO creds here
+    // from dedicated env, keeping them separate from AWS_* (deep storage).
+    final String s3Id = System.getenv("ICEBERG_S3_ACCESS_KEY_ID");
+    final String s3Secret = System.getenv("ICEBERG_S3_SECRET_ACCESS_KEY");
+    if (s3Id != null && s3Secret != null) {
+      builder.config("spark.sql.catalog." + icebergCatalog + ".s3.access-key-id", s3Id);
+      builder.config("spark.sql.catalog." + icebergCatalog + ".s3.secret-access-key", s3Secret);
     }
     final SparkSession spark = builder.getOrCreate();
     try {
