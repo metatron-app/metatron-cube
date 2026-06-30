@@ -31,6 +31,10 @@ spec:
           image: nas2.s2dev.net:5050/adp/metatron-cube:2021.3
           imagePullPolicy: Always
           args: ["coordinator"]
+          # coordinator Xmx 512m + embedded overlord forks local peons (Xmx 512m each) -> leave headroom.
+          resources:
+            requests: { cpu: "500m", memory: "1536Mi" }
+            limits:   { cpu: "2",    memory: "3Gi" }
           env:
             - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
             - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
@@ -74,6 +78,10 @@ spec:
           image: nas2.s2dev.net:5050/adp/metatron-cube:2021.3
           imagePullPolicy: Always
           args: ["broker"]
+          # Xmx 1g + direct 1g (processing/merge buffers) + result-merge heap + overhead.
+          resources:
+            requests: { cpu: "500m", memory: "2Gi" }
+            limits:   { cpu: "2",    memory: "3Gi" }
           env:
             - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
             - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
@@ -116,6 +124,11 @@ spec:
           image: nas2.s2dev.net:5050/adp/metatron-cube:2021.3
           imagePullPolicy: Always
           args: ["historical"]
+          # mem = Xmx 1g + direct 1g + segment mmap (page cache) + overhead. cpu bursts above
+          # numThreads(2) for http/merge/GC. Raise these if you bump processing.numThreads.
+          resources:
+            requests: { cpu: "1", memory: "3Gi" }
+            limits:   { cpu: "4", memory: "5Gi" }
           env:
             - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
             - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
