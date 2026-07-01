@@ -75,15 +75,17 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     int segments = 0;
     int missingRules = 0;
     int notAssignedCount = 0;
+    final SegmentReplicantLookup replicantLookup = params.getSegmentReplicantLookup();
     for (Map.Entry<String, Iterable<DataSegment>> entry : getTargetSegments(params).entrySet()) {
       List<Rule> rules = databaseRuleManager.getRulesWithDefault(entry.getKey());
-      boolean assigned = false;
-      boolean foundMatchingRule = false;
       for (DataSegment segment : entry.getValue()) {
         segments++;
+        // reset per segment (these were hoisted out of the loop, corrupting the counts below)
+        boolean assigned = false;
+        boolean foundMatchingRule = false;
         for (Rule rule : rules) {
           if (rule.appliesTo(segment, now)) {
-            assigned |= rule.run(coordinator, params, segment);
+            assigned = rule.run(coordinator, params, segment);
             foundMatchingRule = true;
             break;
           }
@@ -94,7 +96,10 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
             segmentsWithMissingRules.add(segment.getIdentifier());
           }
           missingRules++;
-        } else if (!assigned) {
+        } else if (!assigned && replicantLookup.getTotalReplicants(segment.getIdentifier()) == 0) {
+          // LoadRule.run() returns false both when the segment is already satisfied AND when it
+          // couldn't be placed. Only the latter is a problem, so only count segments that are not
+          // served or queued anywhere (getTotalReplicants counts LOADED + LOADING).
           notAssignedCount++;
         }
         if (segments % TIMEOUT_CHECK_INTERVAL == 0 && (params.isStopNow() || params.hasPollinIntervalElapsed(now.getMillis()))) {
