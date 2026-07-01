@@ -194,18 +194,6 @@ public class SizeBalancerStrategy implements BalancerStrategy
         deficit.sortOn(units, true);
         excessive.sortOn(units, false);
 
-        if (LOG.isInfoEnabled()) {
-          StringBuilder sb = new StringBuilder();
-          for (int x = 0; x < serverCount; x++) {
-            sb.append(String.format(" [%d]%s=%.1fGB/u%d", x, holders[x].getServer().getHost(), totalSegmentSizePerDs[x] / 1e9, units[x]));
-          }
-          LOG.info(
-              "[size-balance] %s avgSize=%.1fMB deficitTh=%d excessiveTh=%.1f |%s | budget=%d excessive=%d deficit=%d",
-              dataSourceName, avgSize / 1e6, deficitThreshold, excessiveThreshold, sb,
-              segmentsToMove - balanced, excessive.size(), deficit.size()
-          );
-        }
-
         int counter = Math.max(1, excessive.size() >> 2);
         int remain = deficit.size();
         for (int x = 0; remain > 0 && x < excessive.size() && balanced < segmentsToMove && !params.isStopNow(); x++) {
