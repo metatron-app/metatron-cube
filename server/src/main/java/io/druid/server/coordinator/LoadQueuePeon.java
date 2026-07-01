@@ -384,9 +384,20 @@ public class LoadQueuePeon
       }
       segmentsToLoad.clear();
 
+      // Abandon in-flight tasks too. The server is gone, so their znode-deletion acks will never arrive and
+      // their scheduled timeout cleanups (up to druid.coordinator.load.timeout, default 15m) would otherwise
+      // linger on the shared executor. finalize() fires the callbacks and cancels those futures.
+      for (SegmentHolder holder : inProcessing.values()) {
+        holder.finalize(null, false);
+      }
+      inProcessing.clear();
+
       queuedSize.set(0L);
       assignFailCount.set(0);
       assignSuccessCount.set(0);
+    }
+    synchronized (failQueue) {
+      failQueue.clear();   // already finalized on the way in; just drop them
     }
   }
 
