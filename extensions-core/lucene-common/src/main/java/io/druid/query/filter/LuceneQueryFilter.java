@@ -39,7 +39,9 @@ import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.lucene.TextIndexingStrategy;
 import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser;
 import org.apache.lucene.queryparser.flexible.standard.config.PointsConfig;
+import org.apache.lucene.search.MatchNoDocsQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.util.QueryBuilder;
 
 import java.util.Map;
 import java.util.Objects;
@@ -52,13 +54,16 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
 {
   public static LuceneQueryFilter of(String field, String expression, String scoreField)
   {
-    return new LuceneQueryFilter(field, null, expression, null, scoreField, 0);
+    return new LuceneQueryFilter(field, null, expression, null, scoreField, 0, false);
   }
 
   private final String analyzer;
   private final String expression;
   private final Map<String, String> types;
   private final int limit;   // cap matches to the top `limit` docs per segment (0 = unlimited)
+  // treat `expression` as a literal keyword (analyze + phrase) instead of query-parser syntax, so
+  // keyword chars like @ : . _ never trip the parser or collapse into a match-all/OR query.
+  private final boolean literal;
 
   @JsonCreator
   public LuceneQueryFilter(
@@ -67,7 +72,8 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
       @JsonProperty("expression") String expression,
       @JsonProperty("types") Map<String, String> types,
       @JsonProperty("scoreField") String scoreField,
-      @JsonProperty("limit") Integer limit
+      @JsonProperty("limit") Integer limit,
+      @JsonProperty("literal") Boolean literal
   )
   {
     super(field, scoreField);
@@ -75,6 +81,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
     this.expression = Preconditions.checkNotNull(expression, "expression can not be null");
     this.types = types == null ? ImmutableMap.of() : types;
     this.limit = limit == null ? 0 : limit;
+    this.literal = literal != null && literal;
   }
 
   @JsonProperty
@@ -103,6 +110,13 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
     return limit;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+  public boolean isLiteral()
+  {
+    return literal;
+  }
+
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
@@ -112,7 +126,8 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
                   .append(expression).sp()
                   .append(types).sp()
                   .append(scoreField).sp()
-                  .append(limit);
+                  .append(limit).sp()
+                  .append(literal);
   }
 
   @Override
@@ -122,13 +137,13 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneQueryFilter(replaced, analyzer, expression, types, scoreField, limit);
+    return new LuceneQueryFilter(replaced, analyzer, expression, types, scoreField, limit, literal);
   }
 
   @Override
   protected Object[] params()
   {
-    return new Object[]{field, analyzer, expression, types, scoreField, limit};
+    return new Object[]{field, analyzer, expression, types, scoreField, limit, literal};
   }
 
   @Override
@@ -146,16 +161,25 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
             Lucenes.findLuceneField(field, column, TextIndexingStrategy.TYPE_NAME, JsonIndexingStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
-        StandardQueryParser parser = new StandardQueryParser(Lucenes.createAnalyzer(analyzer));
-        parser.setAllowLeadingWildcard(true);   // permit *term* substring queries
-        Map<String, PointsConfig> configMap = Lucenes.asPointConfig(types);
-        if (!configMap.isEmpty()) {
-          parser.setPointsConfigMap(configMap);
-        }
-
         LuceneIndex lucene = column.getExternalIndex(LuceneIndex.class).get();
         try {
-          Query query = parser.parse(expression, luceneField.getKey());
+          final Query query;
+          if (literal) {
+            // Analyze the keyword and build a phrase (single token -> TermQuery), bypassing the query
+            // parser: keyword chars are never interpreted as syntax, and a keyword that analyzes to no
+            // tokens yields MatchNoDocs rather than a match-all.
+            Query phrase = new QueryBuilder(Lucenes.createAnalyzer(analyzer))
+                .createPhraseQuery(luceneField.getKey(), expression);
+            query = phrase == null ? new MatchNoDocsQuery() : phrase;
+          } else {
+            StandardQueryParser parser = new StandardQueryParser(Lucenes.createAnalyzer(analyzer));
+            parser.setAllowLeadingWildcard(true);   // permit *term* substring queries
+            Map<String, PointsConfig> configMap = Lucenes.asPointConfig(types);
+            if (!configMap.isEmpty()) {
+              parser.setPointsConfigMap(configMap);
+            }
+            query = parser.parse(expression, luceneField.getKey());
+          }
           return lucene.filterFor(query, context, scoreField, limit);
         }
         catch (Exception e) {
@@ -181,13 +205,14 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
            (types.isEmpty() ? "" : ", types=" + types) +
            (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            (limit == 0 ? "" : ", limit=" + limit) +
+           (literal ? ", literal=true" : "") +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, analyzer, expression, types, scoreField, limit);
+    return Objects.hash(field, analyzer, expression, types, scoreField, limit, literal);
   }
 
   @Override
@@ -218,6 +243,9 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
       return false;
     }
     if (limit != that.limit) {
+      return false;
+    }
+    if (literal != that.literal) {
       return false;
     }
 
