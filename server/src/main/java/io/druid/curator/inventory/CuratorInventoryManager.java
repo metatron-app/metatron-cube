@@ -33,6 +33,7 @@ import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.curator.utils.ZKPaths;
+import org.apache.zookeeper.KeeperException;
 
 import java.io.IOException;
 import java.util.Set;
@@ -172,7 +173,11 @@ public class CuratorInventoryManager<ContainerClass, InventoryClass>
   {
     try {
       return curatorFramework.getData().decompressed().forPath(path);
-    } catch(Exception ex) {
+    } catch (KeeperException.NoNodeException ex) {
+      // The node was removed between the cache event and this read; benign race, just skip it quietly.
+      log.info("Node %s no longer exists, ignoring", path);
+      return null;
+    } catch (Exception ex) {
       log.warn(ex, "Exception while getting data for node %s", path);
       return null;
     }
