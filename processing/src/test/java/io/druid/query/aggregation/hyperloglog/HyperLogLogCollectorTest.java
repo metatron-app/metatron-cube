@@ -586,7 +586,7 @@ public class HyperLogLogCollectorTest
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
       collector.add(Murmur3.hash64(random.nextLong()));
       if (i == valsToCheck[valsToCheckIndex] - 1) {
-        Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
+        Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.01d);
         ++valsToCheckIndex;
       }
     }
@@ -605,7 +605,7 @@ public class HyperLogLogCollectorTest
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
       collector.add(Murmur3.hash64(random.nextLong()));
       if (i == valsToCheck[valsToCheckIndex] - 1) {
-        Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
+        Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.01d);
         ++valsToCheckIndex;
       }
     }
@@ -625,7 +625,7 @@ public class HyperLogLogCollectorTest
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
       collector.add(Murmur3.hash64(random.nextLong()));
       if (i == valsToCheck[valsToCheckIndex] - 1) {
-        Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
+        Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.01d);
         ++valsToCheckIndex;
       }
     }

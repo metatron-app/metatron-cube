@@ -294,7 +294,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
 
   public List<IntTagged<Comparator>> toComparator(OrderedLimitSpec orderings)
   {
-    return toComparator(getLimitOrdering(orderings));
+    return toComparator(orderings.getColumns());
   }
 
   public List<IntTagged<Comparator>> toComparator(List<OrderByColumnSpec> orderings)
@@ -334,15 +334,6 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       comparatorMap.put(aggregator.getName(), aggregator.getComparator());
     }
     return comparatorMap;
-  }
-
-  public List<OrderByColumnSpec> getLimitOrdering(OrderedLimitSpec limiting)
-  {
-    List<OrderByColumnSpec> ordering = limiting.getColumns();
-    if (GuavaUtils.isNullOrEmpty(ordering)) {
-      ordering = DimensionSpecs.asOrderByColumnSpec(getDimensions());
-    }
-    return ordering;
   }
 
   @Override
