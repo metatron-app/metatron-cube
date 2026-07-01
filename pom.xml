@@ -941,6 +941,7 @@
                             --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
                             --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED
                             --add-exports=java.base/sun.nio.ch=ALL-UNNAMED
+                            --add-exports=java.base/sun.util.calendar=ALL-UNNAMED
                         </argLine>
                         <!-- our tests are very verbose, let's keep the volume down -->
                         <redirectTestOutputToFile>true</redirectTestOutputToFile>
