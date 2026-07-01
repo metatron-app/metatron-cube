@@ -242,7 +242,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
   public abstract ValueDesc type();
 
   @Override
-  public BitmapHolder filterFor(Range<T> range, FilterContext context, String attachment)
+  public BitmapHolder filterFor(Range<T> range, FilterContext context, String attachment, int limit)
   {
     if (range.isEmpty()) {
       return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());

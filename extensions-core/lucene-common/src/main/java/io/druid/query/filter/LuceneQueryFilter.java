@@ -52,12 +52,13 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
 {
   public static LuceneQueryFilter of(String field, String expression, String scoreField)
   {
-    return new LuceneQueryFilter(field, null, expression, null, scoreField);
+    return new LuceneQueryFilter(field, null, expression, null, scoreField, 0);
   }
 
   private final String analyzer;
   private final String expression;
   private final Map<String, String> types;
+  private final int limit;   // cap matches to the top `limit` docs per segment (0 = unlimited)
 
   @JsonCreator
   public LuceneQueryFilter(
@@ -65,13 +66,15 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
       @JsonProperty("analyzer") String analyzer,
       @JsonProperty("expression") String expression,
       @JsonProperty("types") Map<String, String> types,
-      @JsonProperty("scoreField") String scoreField
+      @JsonProperty("scoreField") String scoreField,
+      @JsonProperty("limit") Integer limit
   )
   {
     super(field, scoreField);
     this.analyzer = Objects.toString(analyzer, "standard");
     this.expression = Preconditions.checkNotNull(expression, "expression can not be null");
     this.types = types == null ? ImmutableMap.of() : types;
+    this.limit = limit == null ? 0 : limit;
   }
 
   @JsonProperty
@@ -93,6 +96,13 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
     return types;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+  public int getLimit()
+  {
+    return limit;
+  }
+
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
@@ -101,7 +111,8 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
                   .append(analyzer).sp()
                   .append(expression).sp()
                   .append(types).sp()
-                  .append(scoreField);
+                  .append(scoreField).sp()
+                  .append(limit);
   }
 
   @Override
@@ -111,13 +122,13 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneQueryFilter(replaced, analyzer, expression, types, scoreField);
+    return new LuceneQueryFilter(replaced, analyzer, expression, types, scoreField, limit);
   }
 
   @Override
   protected Object[] params()
   {
-    return new Object[]{field, analyzer, expression, types, scoreField};
+    return new Object[]{field, analyzer, expression, types, scoreField, limit};
   }
 
   @Override
@@ -144,7 +155,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
         LuceneIndex lucene = column.getExternalIndex(LuceneIndex.class).get();
         try {
           Query query = parser.parse(expression, luceneField.getKey());
-          return lucene.filterFor(query, context, scoreField);
+          return lucene.filterFor(query, context, scoreField, limit);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -168,13 +179,14 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
            ", expression='" + expression + '\'' +
            (types.isEmpty() ? "" : ", types=" + types) +
            (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
+           (limit == 0 ? "" : ", limit=" + limit) +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, analyzer, expression, types, scoreField);
+    return Objects.hash(field, analyzer, expression, types, scoreField, limit);
   }
 
   @Override
@@ -202,6 +214,9 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
       return false;
     }
     if (!Objects.equals(scoreField, that.scoreField)) {
+      return false;
+    }
+    if (limit != that.limit) {
       return false;
     }
 

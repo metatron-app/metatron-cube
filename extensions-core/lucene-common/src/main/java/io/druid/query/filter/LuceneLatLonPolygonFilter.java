@@ -127,7 +127,7 @@ public class LuceneLatLonPolygonFilter extends LuceneSelector implements DimFilt
         Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
 
         Query query = LatLonPoint.newPolygonQuery(fieldName, polygons);
-        return lucene.filterFor(query, context, scoreField);
+        return lucene.filterFor(query, context, scoreField, 0);
       }
 
       @Override

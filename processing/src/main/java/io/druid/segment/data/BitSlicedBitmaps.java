@@ -179,7 +179,7 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final BitmapHolder filterFor(Range<Float> query, FilterContext context, String attachment)
+    public final BitmapHolder filterFor(Range<Float> query, FilterContext context, String attachment, int limit)
     {
       if (query.isEmpty() ||
           query.hasLowerBound() && query.lowerEndpoint().isNaN() ||
@@ -211,7 +211,7 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final BitmapHolder filterFor(Range<Double> query, FilterContext context, String attachment)
+    public final BitmapHolder filterFor(Range<Double> query, FilterContext context, String attachment, int limit)
     {
       if (query.isEmpty() ||
           query.hasLowerBound() && query.lowerEndpoint().isNaN() ||
@@ -243,7 +243,7 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final BitmapHolder filterFor(Range<Long> query, FilterContext context, String attachment)
+    public final BitmapHolder filterFor(Range<Long> query, FilterContext context, String attachment, int limit)
     {
       if (query.isEmpty()) {
         return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
@@ -270,7 +270,7 @@ public class BitSlicedBitmaps
     StringBuilder b = new StringBuilder();
     IntIterator it = bitmap.iterator();
     while (it.hasNext()) {
-      if (b.length() > 0) {
+      if (!b.isEmpty()) {
         b.append(',');
       }
       b.append(it.next());

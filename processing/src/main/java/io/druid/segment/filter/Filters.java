@@ -1218,7 +1218,7 @@ public class Filters
       }
 
       @Override
-      public BitmapHolder filterFor(Range query, FilterContext context, String attachment)
+      public BitmapHolder filterFor(Range query, FilterContext context, String attachment, int limit)
       {
         return toDimFilter(dimension, query).toFilter(TypeResolver.STRING).getBitmapIndex(context);
       }
@@ -1247,7 +1247,7 @@ public class Filters
       }
 
       @Override
-      public BitmapHolder filterFor(Range<Comparable> range, FilterContext context, String attachment)
+      public BitmapHolder filterFor(Range<Comparable> range, FilterContext context, String attachment, int limit)
       {
         return BitmapHolder.exact(scanForRange(column, range, context));
       }

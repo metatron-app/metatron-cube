@@ -263,7 +263,7 @@ public class H3IndexingSpec implements SecondaryIndexingSpec
                     }
 
                     @Override
-                    public BitmapHolder filterFor(H3Query query, FilterContext context, String attachment)
+                    public BitmapHolder filterFor(H3Query query, FilterContext context, String attachment, int limit)
                     {
                       BitmapFactory factory = context.bitmapFactory();
                       if (query instanceof H3PointDistanceFilter) {

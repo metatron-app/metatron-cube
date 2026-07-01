@@ -109,7 +109,7 @@ public class LuceneGeoJsonPolygonFilter extends LuceneSelector implements DimFil
 
         try {
           Query query = LatLonPoint.newPolygonQuery(fieldName, Polygon.fromGeoJSON(geoJson));
-          return lucene.filterFor(query, context, scoreField);
+          return lucene.filterFor(query, context, scoreField, 0);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

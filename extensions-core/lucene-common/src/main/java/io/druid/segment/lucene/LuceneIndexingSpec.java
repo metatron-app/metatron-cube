@@ -27,7 +27,6 @@ import com.google.common.base.Preconditions;
 import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.CloseQuietly;
@@ -81,7 +80,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
   )
   {
     this.textAnalyzer = textAnalyzer;
-    this.strategies = strategies == null ? ImmutableList.<LuceneIndexingStrategy>of() : strategies;
+    this.strategies = strategies == null ? ImmutableList.of() : strategies;
     this.indexOnly = indexOnly;
   }
 
@@ -155,7 +154,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
       private IndexWriter writer;
 
       @Override
-      public void open(IOPeon ioPeon) throws IOException
+      public void open(IOPeon ioPeon)
       {
         writer = Lucenes.buildRamWriter(ioPeon.makeOutputFile(columnName + ".lucene"), textAnalyzer, replaced);
       }
@@ -266,10 +265,9 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
 
           // Normal columns: the base value column (read before this part) already set numRows — use it,
           // no extra IO. Index-only columns have no base column, so derive numRows from the lucene index
-          // (maxDoc == numRows: one doc per row) — costs one reader-open at column load.
+          // (maxDoc == numRows: one doc per row) — costs one reader-open at a column load.
           final int fromBase = builder.getNumRows();
           final int numRows = fromBase >= 0 ? fromBase : Lucenes.maxDoc(bufferToUse.asReadOnlyBuffer());
-          final BitmapFactory factory = serdeFactory.getBitmapFactory();
 
           builder.addSecondaryIndex(
               new ExternalIndexProvider<LuceneIndex>()
@@ -301,9 +299,10 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                 @Override
                 public LuceneIndex get()
                 {
-                  final DirectoryReader reader = Lucenes.readFrom(bufferToUse.asReadOnlyBuffer());
                   return new LuceneIndex()
                   {
+                    final DirectoryReader reader = Lucenes.readFrom(bufferToUse.asReadOnlyBuffer());
+
                     @Override
                     public void close() throws IOException
                     {
@@ -311,9 +310,15 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                     }
 
                     @Override
-                    public BitmapHolder filterFor(Query query, FilterContext context, String attachment)
+                    public BitmapHolder filterFor(Query query, FilterContext context, String attachment, int limit)
                     {
-                      return BitmapHolder.exact(Lucenes.toBitmap(query(query), context, attachment));   // really?
+                      int effective = Math.min(Math.max(0, limit), numRows);
+                      try {
+                        TopDocs docs = createIndexSearcher(reader).search(query, effective);   // top `limit` by score
+                        return BitmapHolder.exact(Lucenes.toBitmap(docs, context, attachment));
+                      } catch (IOException e) {
+                        throw Throwables.propagate(e);
+                      }
                     }
 
                     @Override
@@ -321,8 +326,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                     {
                       try {
                         return createIndexSearcher(reader).search(query, numRows);
-                      }
-                      catch (IOException e) {
+                      } catch (IOException e) {
                         throw Throwables.propagate(e);
                       }
                     }

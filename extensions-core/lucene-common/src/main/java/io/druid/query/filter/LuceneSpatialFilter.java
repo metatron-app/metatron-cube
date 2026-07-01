@@ -175,7 +175,7 @@ public class LuceneSpatialFilter extends LuceneSelector implements DimFilter.Log
         try {
           SpatialPrefixTree grid = new GeohashPrefixTree(ctx, GeohashUtils.MAX_PRECISION);
           SpatialStrategy strategy = new RecursivePrefixTreeStrategy(grid, fieldName);
-          return lucene.filterFor(strategy.makeQuery(makeSpatialArgs(ctx)), context, scoreField);
+          return lucene.filterFor(strategy.makeQuery(makeSpatialArgs(ctx)), context, scoreField, 0);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

@@ -174,7 +174,7 @@ public class LucenePointFilter extends LuceneSelector
         Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
 
         Query query = LucenePointFilter.this.query.toQuery(fieldName, latitudes, longitudes, radiusMeters);
-        return lucene.filterFor(query, context, scoreField);
+        return lucene.filterFor(query, context, scoreField, 0);
       }
 
       @Override

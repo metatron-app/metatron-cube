@@ -36,10 +36,19 @@ public interface SecondaryIndex<T> extends Closeable
 {
   default BitmapHolder filterFor(T query, FilterContext context)
   {
-    return filterFor(query, context, null);
+    return filterFor(query, context, null, 0);
   }
 
-  BitmapHolder filterFor(T query, FilterContext context, String attachment);
+  default BitmapHolder filterFor(T query, FilterContext context, String attachment)
+  {
+    return filterFor(query, context, attachment, 0);
+  }
+
+  // `limit` is a best-effort, per-index cap on the number of matched rows: an implementation may
+  // return the top `limit` matches (e.g. by score) to bound the work of a broad query, but is free
+  // to ignore it, and downstream grouping/merging can still change the final row count either way.
+  // So it bounds cost, not results. limit <= 0 means unlimited (all matches).
+  BitmapHolder filterFor(T query, FilterContext context, String attachment, int limit);
 
   default BitmapHolder eq(String column, Comparable constant, FilterContext context)
   {
