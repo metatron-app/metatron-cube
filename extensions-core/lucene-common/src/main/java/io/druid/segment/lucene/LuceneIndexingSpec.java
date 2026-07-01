@@ -312,7 +312,8 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                     @Override
                     public BitmapHolder filterFor(Query query, FilterContext context, String attachment, int limit)
                     {
-                      int effective = Math.min(Math.max(0, limit), numRows);
+                      // limit <= 0 means unlimited -> all rows (numRows); Lucene needs numHits > 0.
+                      int effective = limit > 0 ? Math.min(limit, numRows) : numRows;
                       try {
                         TopDocs docs = createIndexSearcher(reader).search(query, effective);   // top `limit` by score
                         return BitmapHolder.exact(Lucenes.toBitmap(docs, context, attachment));
