@@ -82,6 +82,12 @@
         </dependency>
         <dependency>
             <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analysis-icu</artifactId>
+            <version>${lucene.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-backward-codecs</artifactId>
             <version>${lucene.version}</version>
             <scope>provided</scope>

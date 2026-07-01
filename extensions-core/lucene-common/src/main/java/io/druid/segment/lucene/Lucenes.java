@@ -49,7 +49,10 @@ import org.apache.lucene.analysis.CharArraySet;
 import org.apache.lucene.analysis.LowerCaseFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.cjk.CJKBigramFilter;
 import org.apache.lucene.analysis.core.StopFilter;
+import org.apache.lucene.analysis.icu.ICUFoldingFilter;
+import org.apache.lucene.analysis.icu.segmentation.ICUTokenizer;
 import org.apache.lucene.analysis.ngram.NGramTokenFilter;
 import org.apache.lucene.analysis.pattern.PatternTokenizer;
 import org.apache.lucene.analysis.ar.ArabicAnalyzer;
@@ -619,10 +622,13 @@ public class Lucenes
       case "unicode_whitespace": return new UnicodeWhitespaceAnalyzer();
       case "keyword": return new KeywordAnalyzer();
       // split on runs of non-alphanumeric (nid.naver.com -> nid, naver, com; keeps digits), so a bare
-      // keyword like "naver" matches domain-embedded tokens. Drops CRED_STOP_WORDS noise.
+      // keyword like "naver" matches domain-embedded tokens. ICU-folded, drops CRED_STOP_WORDS noise.
       case "delimiter": return delimiterAnalyzer(0, 0);
       // delimiter + n-grams of each token -> substring matching within a token (like LIKE '%kw%').
       case "ngram": return delimiterAnalyzer(2, 4);
+      // ICU word segmentation + CJK bigrams (Korean/CJK) + ICU folding (NFKC normalize, case-fold,
+      // accent-fold). Best for the mixed-language free text; ~ the reference ES "standard" analyzer.
+      case "icu": return icuAnalyzer();
       case "dutch": return new DutchAnalyzer();
       case "hungarian": return new HungarianAnalyzer();
       case "bulgarian": return new BulgarianAnalyzer();
@@ -672,8 +678,10 @@ public class Lucenes
 
   private static final java.util.regex.Pattern NON_ALPHANUM = java.util.regex.Pattern.compile("[^\\p{L}\\p{N}]+");
 
-  // Tokenizes on runs of non-alphanumeric characters, lower-cases, and drops CRED_STOP_WORDS. When
-  // maxGram > 0, additionally emits n-grams [minGram, maxGram] of each token for substring matching.
+  // Tokenizes on runs of non-alphanumeric characters, ICU-folds (NFKC normalize + case/accent fold),
+  // and drops CRED_STOP_WORDS. When maxGram > 0, additionally emits n-grams [minGram, maxGram] of each
+  // token for substring matching. Note: PatternTokenizer doesn't set CJK token types, so this does NOT
+  // bigram CJK — use "icu" for Korean/CJK-heavy text.
   private static Analyzer delimiterAnalyzer(final int minGram, final int maxGram)
   {
     return new Analyzer()
@@ -682,11 +690,29 @@ public class Lucenes
       protected TokenStreamComponents createComponents(String fieldName)
       {
         final Tokenizer source = new PatternTokenizer(NON_ALPHANUM, -1);
-        TokenStream stream = new LowerCaseFilter(source);
+        TokenStream stream = new ICUFoldingFilter(source);
         stream = new StopFilter(stream, CRED_STOP_WORDS);
         if (maxGram > 0) {
           stream = new NGramTokenFilter(stream, minGram, maxGram, false);
         }
+        return new TokenStreamComponents(source, stream);
+      }
+    };
+  }
+
+  // ICU word segmentation (script-aware, keeps CJK as words) -> CJK bigrams -> ICU folding -> stop words.
+  // Approximates the reference ES "standard" analyzer (icu_tokenizer + cjk_bigram + icu_folding).
+  private static Analyzer icuAnalyzer()
+  {
+    return new Analyzer()
+    {
+      @Override
+      protected TokenStreamComponents createComponents(String fieldName)
+      {
+        final Tokenizer source = new ICUTokenizer();
+        TokenStream stream = new CJKBigramFilter(source);
+        stream = new ICUFoldingFilter(stream);
+        stream = new StopFilter(stream, CRED_STOP_WORDS);
         return new TokenStreamComponents(source, stream);
       }
     };

@@ -93,6 +93,13 @@
             <artifactId>jts-core</artifactId>
             <version>1.16.0</version>
         </dependency>
+        <!-- ICU analyzers (icu_tokenizer/folding) used by Lucenes.createAnalyzer("icu"); provided in
+             lucene-common, so pull it at compile scope here to bundle it into the shaded Spark jar. -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analysis-icu</artifactId>
+            <version>10.5.0</version>
+        </dependency>
 
         <dependency>
             <groupId>junit</groupId>
