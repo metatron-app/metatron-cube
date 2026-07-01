@@ -107,9 +107,10 @@ data:
     druid.port=8081
     druid.coordinator.startDelay=PT30S
     druid.coordinator.period=PT30S
-    # simple balancer, modified to balance by segment SIZE (bytes/server), so query load is even.
-    # (cost/diskNormalized minimize a time-adjacency cost and don't equalize bytes on equal-disk nodes.)
-    druid.coordinator.balancer.type=simple
+    # "size": balance by segment SIZE (bytes/server) so query load is even across historicals — right
+    # for a full-search datasource. ("simple" balances segment COUNT; cost/diskNormalized minimize a
+    # time-adjacency cost and don't equalize bytes on equal-disk nodes.)
+    druid.coordinator.balancer.type=size
 
     # coordinator-as-overlord: run the overlord embedded here (serves /druid/indexer/* on :8081)
     # with the forking task runner, so no separate overlord or middleManager is needed.

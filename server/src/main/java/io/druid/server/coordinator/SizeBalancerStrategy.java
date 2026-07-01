@@ -46,9 +46,9 @@ import java.util.stream.IntStream;
 /**
  * don't bother tier, capacity, etc. just simple balancing of segments.
  */
-public class SimpleBalancerStrategy implements BalancerStrategy
+public class SizeBalancerStrategy implements BalancerStrategy
 {
-  private static final Logger LOG = new Logger(SimpleBalancerStrategy.class);
+  private static final Logger LOG = new Logger(SizeBalancerStrategy.class);
 
   private static final Granularity DEFAULT_OFFSET_PERIOD = Granularities.DAY;
   private static final int DEFAULT_INIT_GROUPING = 96;
@@ -62,7 +62,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
   private final float tolerance;
   private final Random random = new Random();
 
-  public SimpleBalancerStrategy(Period offsetPeriod, Integer initialGrouping, Float baselineRatio, Float tolerance)
+  public SizeBalancerStrategy(Period offsetPeriod, Integer initialGrouping, Float baselineRatio, Float tolerance)
   {
     this.offset = offsetPeriod == null ? DEFAULT_OFFSET_PERIOD : new PeriodGranularity(offsetPeriod, null, null);
     this.initialGrouping = initialGrouping == null || initialGrouping <= 0 ? DEFAULT_INIT_GROUPING : initialGrouping;
@@ -102,8 +102,10 @@ public class SimpleBalancerStrategy implements BalancerStrategy
     final int serverCount = holders.length;
     final int baseLine = (int) (baselineRatio * numTotalSegments / serverCount);
 
-    // per DS, incremental
-    final int[] totalSegmentsPerDs = new int[serverCount];
+    // per DS, incremental. Track BYTES per server and express them in average-segment-size `units`,
+    // so the count-based deficit/excessive matching below balances total SIZE, not segment count.
+    final long[] totalSegmentSizePerDs = new long[serverCount];
+    final int[] units = new int[serverCount];
 
     // per group
     final IntList deficit = new IntList();
@@ -131,11 +133,14 @@ public class SimpleBalancerStrategy implements BalancerStrategy
       if (allSegmentsInDS.isEmpty()) {
         continue;
       }
-      Collections.sort(allSegmentsInDS, Ordering.from(DataSegment.TIME_DESCENDING).onResultOf(IntTagged::value));
-      Arrays.fill(totalSegmentsPerDs, 0);
+      Arrays.fill(totalSegmentSizePerDs, 0);
 
       final int numSegmentsInDS = allSegmentsInDS.size();
-      final int firstGroupSize = Math.max(serverCount, numSegmentsInDS / initialGrouping);
+      // Balance SIZE globally in a single pass: for a full-search datasource every segment is queried
+      // equally, so segment count and time order are irrelevant — only bytes-per-server matter. The
+      // original time-sliced incremental grouping (for spreading a few recent real-time segments)
+      // misreads per-slice deficits and oscillates on size, so process all segments at once.
+      final int firstGroupSize = numSegmentsInDS;
 
       int i = 0;
       while (segmentsToMove - balanced > 0 && i < numSegmentsInDS) {
@@ -149,12 +154,21 @@ public class SimpleBalancerStrategy implements BalancerStrategy
         for (; i < limit; i++) {
           IntTagged<DataSegment> pair = allSegmentsInDS.get(i);
           totalSegmentsPerGroup[pair.tag].add(pair.value);
-          totalSegmentsPerDs[pair.tag]++;
+          totalSegmentSizePerDs[pair.tag] += pair.value.getSize();
         }
-        final int deficitThreshold = i / serverCount;   // casting induces `excessive` rather than `deficits`
-        final float excessiveThreshold = deficitThreshold + tolerance * i / serverCount;
+        long totalSizeSoFar = 0;
         for (int x = 0; x < serverCount; x++) {
-          int count = totalSegmentsPerDs[x];
+          totalSizeSoFar += totalSegmentSizePerDs[x];
+        }
+        final long avgSize = Math.max(1L, totalSizeSoFar / i);   // avg size of the segments processed so far
+        for (int x = 0; x < serverCount; x++) {
+          units[x] = (int) (totalSegmentSizePerDs[x] / avgSize);
+        }
+        final int totalUnits = (int) (totalSizeSoFar / avgSize);   // ~= i
+        final int deficitThreshold = totalUnits / serverCount;   // casting induces `excessive` rather than `deficits`
+        final float excessiveThreshold = deficitThreshold + tolerance * totalUnits / serverCount;
+        for (int x = 0; x < serverCount; x++) {
+          int count = units[x];
           if (count < deficitThreshold && !holders[x].isDecommissioned()) {
             for (; count < deficitThreshold; count++) {
               deficit.add(x);
@@ -168,8 +182,8 @@ public class SimpleBalancerStrategy implements BalancerStrategy
         if (excessive.isEmpty()) {
           continue;
         }
-        deficit.sortOn(totalSegmentsPerDs, true);
-        excessive.sortOn(totalSegmentsPerDs, false);
+        deficit.sortOn(units, true);
+        excessive.sortOn(units, false);
 
         int counter = Math.max(1, excessive.size() >> 2);
         int remain = deficit.size();
@@ -179,9 +193,9 @@ public class SimpleBalancerStrategy implements BalancerStrategy
           if (deficit.isEmpty() && counter-- > 0) {
             IntStream.range(0, holders.length)
                      .filter(to -> totalSegments[to] <= baseLine)
-                     .filter(to -> totalSegmentsPerDs[from] - totalSegmentsPerDs[to] > 1)
+                     .filter(to -> units[from] - units[to] > 1)
                      .forEach(deficit);
-            deficit.sortOn(totalSegmentsPerDs, true);
+            deficit.sortOn(units, true);
             assigned = !deficit.isEmpty();
           }
           for (int y = 0; remain > 0 && y < deficit.size(); y++) {
@@ -197,8 +211,10 @@ public class SimpleBalancerStrategy implements BalancerStrategy
             if (balancer.moveSegment(segment, holders[from], holders[to])) {
               balanced++;
               totalSegmentsPerGroup[from].set(index, null);
-              totalSegmentsPerDs[from]--;
-              totalSegmentsPerDs[to]++;
+              totalSegmentSizePerDs[from] -= segment.getSize();
+              totalSegmentSizePerDs[to] += segment.getSize();
+              units[from] = (int) (totalSegmentSizePerDs[from] / avgSize);
+              units[to] = (int) (totalSegmentSizePerDs[to] / avgSize);
               totalSegments[from]--;
               totalSegments[to]++;
               deficit.set(y, -1);

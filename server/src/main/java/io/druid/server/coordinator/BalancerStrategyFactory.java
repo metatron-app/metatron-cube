@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
     @JsonSubTypes.Type(name = "cachingCost", value = CachingCostBalancerStrategyFactory.class),
     @JsonSubTypes.Type(name = "random", value = RandomBalancerStrategyFactory.class),
     @JsonSubTypes.Type(name = "simple", value = SimpleBalancerStrategyFactory.class),
+    @JsonSubTypes.Type(name = "size", value = SizeBalancerStrategyFactory.class),
 })
 public interface BalancerStrategyFactory
 {
