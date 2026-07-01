@@ -133,11 +133,14 @@ public class SimpleBalancerStrategy implements BalancerStrategy
       if (allSegmentsInDS.isEmpty()) {
         continue;
       }
-      Collections.sort(allSegmentsInDS, Ordering.from(DataSegment.TIME_DESCENDING).onResultOf(IntTagged::value));
       Arrays.fill(totalSegmentSizePerDs, 0);
 
       final int numSegmentsInDS = allSegmentsInDS.size();
-      final int firstGroupSize = Math.max(serverCount, numSegmentsInDS / initialGrouping);
+      // Balance SIZE globally in a single pass: for a full-search datasource every segment is queried
+      // equally, so segment count and time order are irrelevant — only bytes-per-server matter. The
+      // original time-sliced incremental grouping (for spreading a few recent real-time segments)
+      // misreads per-slice deficits and oscillates on size, so process all segments at once.
+      final int firstGroupSize = numSegmentsInDS;
 
       int i = 0;
       while (segmentsToMove - balanced > 0 && i < numSegmentsInDS) {

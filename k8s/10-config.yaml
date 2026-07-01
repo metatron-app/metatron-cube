@@ -107,8 +107,8 @@ data:
     druid.port=8081
     druid.coordinator.startDelay=PT30S
     druid.coordinator.period=PT30S
-    # spread new segment loads across all historicals instead of piling onto the lowest-cost one
-    # (the cost strategy loads one server at a time on a cold cluster).
+    # simple balancer, modified to balance by segment SIZE (bytes/server), so query load is even.
+    # (cost/diskNormalized minimize a time-adjacency cost and don't equalize bytes on equal-disk nodes.)
     druid.coordinator.balancer.type=simple
 
     # coordinator-as-overlord: run the overlord embedded here (serves /druid/indexer/* on :8081)
