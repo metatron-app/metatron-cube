@@ -44,7 +44,7 @@ data:
         {"type":"relay","name":"raw","columnName":"raw","typeName":"string"}
       ],
       "secondaryIndexing": {
-        "raw": { "type": "lucene10", "indexOnly": true, "strategies": [{"type":"text","fieldName":"raw"}] }
+        "raw": { "type": "lucene10", "indexOnly": true, "textAnalyzer": "delimiter", "strategies": [{"type":"text","fieldName":"raw"}] }
       },
       "segmentGranularity": "HOUR",
       "queryGranularity": "NONE",
