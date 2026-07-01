@@ -124,9 +124,18 @@ public class SizeBalancerStrategy implements BalancerStrategy
         ImmutableDruidDataSource dataSource = holders[i].getServer().getDataSource(dataSourceName);
         if (dataSource != null) {
           for (DataSegment segment : dataSource.getSegments()) {
+            // exclude segments already queued to leave this server (a move in progress) — they count
+            // toward their destination below, not here, so we see the expected post-move distribution.
             if (segment.getInterval().getEndMillis() <= start && !holders[i].isDroppingSegment(segment)) {
               allSegmentsInDS.add(IntTagged.of(i, segment));
             }
+          }
+        }
+        // count segments queued to load onto this server (a move already decided) as if present, so we
+        // don't keep piling more onto a server that is still receiving an earlier batch (avoids thrash).
+        for (DataSegment segment : holders[i].getPeon().getSegmentsToLoad()) {
+          if (dataSourceName.equals(segment.getDataSource()) && segment.getInterval().getEndMillis() <= start) {
+            allSegmentsInDS.add(IntTagged.of(i, segment));
           }
         }
       }
@@ -185,9 +194,21 @@ public class SizeBalancerStrategy implements BalancerStrategy
         deficit.sortOn(units, true);
         excessive.sortOn(units, false);
 
+        if (LOG.isInfoEnabled()) {
+          StringBuilder sb = new StringBuilder();
+          for (int x = 0; x < serverCount; x++) {
+            sb.append(String.format(" [%d]%s=%.1fGB/u%d", x, holders[x].getServer().getHost(), totalSegmentSizePerDs[x] / 1e9, units[x]));
+          }
+          LOG.info(
+              "[size-balance] %s avgSize=%.1fMB deficitTh=%d excessiveTh=%.1f |%s | budget=%d excessive=%d deficit=%d",
+              dataSourceName, avgSize / 1e6, deficitThreshold, excessiveThreshold, sb,
+              segmentsToMove - balanced, excessive.size(), deficit.size()
+          );
+        }
+
         int counter = Math.max(1, excessive.size() >> 2);
         int remain = deficit.size();
-        for (int x = 0; remain > 0 && x < excessive.size() && !params.isStopNow(); x++) {
+        for (int x = 0; remain > 0 && x < excessive.size() && balanced < segmentsToMove && !params.isStopNow(); x++) {
           final int from = excessive.get(x);
           boolean assigned = false;
           if (deficit.isEmpty() && counter-- > 0) {
@@ -198,7 +219,7 @@ public class SizeBalancerStrategy implements BalancerStrategy
             deficit.sortOn(units, true);
             assigned = !deficit.isEmpty();
           }
-          for (int y = 0; remain > 0 && y < deficit.size(); y++) {
+          for (int y = 0; remain > 0 && y < deficit.size() && balanced < segmentsToMove; y++) {
             final int to = deficit.get(y);
             if (to < 0 || from == to) {
               continue;

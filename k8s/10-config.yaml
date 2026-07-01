@@ -110,7 +110,7 @@ data:
     # "size": balance by segment SIZE (bytes/server) so query load is even across historicals — right
     # for a full-search datasource. ("simple" balances segment COUNT; cost/diskNormalized minimize a
     # time-adjacency cost and don't equalize bytes on equal-disk nodes.)
-    druid.coordinator.balancer.type=size
+    druid.coordinator.balancer.strategy=size
 
     # coordinator-as-overlord: run the overlord embedded here (serves /druid/indexer/* on :8081)
     # with the forking task runner, so no separate overlord or middleManager is needed.
