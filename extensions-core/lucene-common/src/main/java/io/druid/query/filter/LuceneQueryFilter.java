@@ -147,6 +147,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
         StandardQueryParser parser = new StandardQueryParser(Lucenes.createAnalyzer(analyzer));
+        parser.setAllowLeadingWildcard(true);   // permit *term* substring queries
         Map<String, PointsConfig> configMap = Lucenes.asPointConfig(types);
         if (!configMap.isEmpty()) {
           parser.setPointsConfigMap(configMap);

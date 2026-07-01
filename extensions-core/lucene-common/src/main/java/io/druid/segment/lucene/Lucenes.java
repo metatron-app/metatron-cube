@@ -45,6 +45,13 @@ import io.druid.segment.column.Column;
 import io.druid.segment.filter.FilterContext;
 import it.unimi.dsi.fastutil.ints.Int2FloatRBTreeMap;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.CharArraySet;
+import org.apache.lucene.analysis.LowerCaseFilter;
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.analysis.core.StopFilter;
+import org.apache.lucene.analysis.ngram.NGramTokenFilter;
+import org.apache.lucene.analysis.pattern.PatternTokenizer;
 import org.apache.lucene.analysis.ar.ArabicAnalyzer;
 import org.apache.lucene.analysis.bg.BulgarianAnalyzer;
 import org.apache.lucene.analysis.br.BrazilianAnalyzer;
@@ -611,6 +618,11 @@ public class Lucenes
       case "whitespace": return new WhitespaceAnalyzer();
       case "unicode_whitespace": return new UnicodeWhitespaceAnalyzer();
       case "keyword": return new KeywordAnalyzer();
+      // split on runs of non-alphanumeric (nid.naver.com -> nid, naver, com; keeps digits), so a bare
+      // keyword like "naver" matches domain-embedded tokens. Drops CRED_STOP_WORDS noise.
+      case "delimiter": return delimiterAnalyzer(0, 0);
+      // delimiter + n-grams of each token -> substring matching within a token (like LIKE '%kw%').
+      case "ngram": return delimiterAnalyzer(2, 4);
       case "dutch": return new DutchAnalyzer();
       case "hungarian": return new HungarianAnalyzer();
       case "bulgarian": return new BulgarianAnalyzer();
@@ -652,6 +664,34 @@ public class Lucenes
     }
   }
 
+  // Noise tokens that are near-ubiquitous in credential-dump text (field labels, URL scheme, TLD):
+  // dropped from the index so they don't bloat it or match everything.
+  private static final CharArraySet CRED_STOP_WORDS = new CharArraySet(
+      java.util.Arrays.asList("url", "user", "pass", "soft", "http", "https", "www", "profile", "com"), true
+  );
+
+  private static final java.util.regex.Pattern NON_ALPHANUM = java.util.regex.Pattern.compile("[^\\p{L}\\p{N}]+");
+
+  // Tokenizes on runs of non-alphanumeric characters, lower-cases, and drops CRED_STOP_WORDS. When
+  // maxGram > 0, additionally emits n-grams [minGram, maxGram] of each token for substring matching.
+  private static Analyzer delimiterAnalyzer(final int minGram, final int maxGram)
+  {
+    return new Analyzer()
+    {
+      @Override
+      protected TokenStreamComponents createComponents(String fieldName)
+      {
+        final Tokenizer source = new PatternTokenizer(NON_ALPHANUM, -1);
+        TokenStream stream = new LowerCaseFilter(source);
+        stream = new StopFilter(stream, CRED_STOP_WORDS);
+        if (maxGram > 0) {
+          stream = new NGramTokenFilter(stream, minGram, maxGram, false);
+        }
+        return new TokenStreamComponents(source, stream);
+      }
+    };
+  }
+
   public static Polygon[] toLucenePolygons(SpatialContext context, ShapeFormat format, String shapeString)
       throws IOException, ParseException
   {
@@ -664,8 +704,7 @@ public class Lucenes
       if (geometry instanceof org.locationtech.jts.geom.Polygon) {
         return new Polygon[]{toLucenePolygon((org.locationtech.jts.geom.Polygon) geometry)};
       }
-      if (geometry instanceof org.locationtech.jts.geom.MultiPolygon) {
-        MultiPolygon multiPolygon = (MultiPolygon) geometry;
+      if (geometry instanceof MultiPolygon multiPolygon) {
         Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
         for (int i = 0; i < polygons.length; i++) {
           polygons[i] = toLucenePolygon((org.locationtech.jts.geom.Polygon) multiPolygon.getGeometryN(i));
