@@ -28,6 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.IOUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.TypeUtils;
@@ -316,7 +317,15 @@ public class RelayAggregatorFactory extends AggregatorFactory implements TypeRes
   @Override
   public Comparator getComparator()
   {
-    throw new UnsupportedOperationException("getComparator");
+    // A relay just passes a value through, so order by its declared type when known (long -> Long.compare,
+    // string -> natural, ...). Untyped (bare first/last) or complex relays fall back to natural ordering.
+    // Crucially this no longer throws: takeTopN builds a comparator for every aggregator up front, so a
+    // relay-family agg (first/last/minOf) must not break a query that never actually orders by it.
+    final ValueDesc type = typeName == null ? null : ValueDesc.of(typeName);
+    if (type != null && type.isPrimitive()) {
+      return type.comparator();
+    }
+    return GuavaUtils.nullFirstNatural();
   }
 
   @Override
