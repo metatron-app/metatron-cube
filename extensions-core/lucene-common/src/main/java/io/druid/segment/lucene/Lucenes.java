@@ -53,6 +53,7 @@ import org.apache.lucene.analysis.cjk.CJKBigramFilter;
 import org.apache.lucene.analysis.core.StopFilter;
 import org.apache.lucene.analysis.icu.ICUFoldingFilter;
 import org.apache.lucene.analysis.icu.segmentation.ICUTokenizer;
+import org.apache.lucene.analysis.miscellaneous.LengthFilter;
 import org.apache.lucene.analysis.ngram.NGramTokenFilter;
 import org.apache.lucene.analysis.pattern.PatternTokenizer;
 import org.apache.lucene.analysis.ar.ArabicAnalyzer;
@@ -677,6 +678,7 @@ public class Lucenes
   );
 
   private static final java.util.regex.Pattern NON_ALPHANUM = java.util.regex.Pattern.compile("[^\\p{L}\\p{N}]+");
+  private static final int MAX_TOKEN_LEN = 255;   // matches StandardTokenizer's default; keeps terms < 32766 bytes
 
   // Tokenizes on runs of non-alphanumeric characters, ICU-folds (NFKC normalize + case/accent fold),
   // and drops CRED_STOP_WORDS. When maxGram > 0, additionally emits n-grams [minGram, maxGram] of each
@@ -690,7 +692,10 @@ public class Lucenes
       protected TokenStreamComponents createComponents(String fieldName)
       {
         final Tokenizer source = new PatternTokenizer(NON_ALPHANUM, -1);
-        TokenStream stream = new ICUFoldingFilter(source);
+        // drop absurdly long tokens (base64/hash blobs) — they aren't useful search terms and would
+        // exceed Lucene's 32766-byte term limit (PatternTokenizer, unlike StandardTokenizer, doesn't cap).
+        TokenStream stream = new LengthFilter(source, 1, MAX_TOKEN_LEN);
+        stream = new ICUFoldingFilter(stream);
         stream = new StopFilter(stream, CRED_STOP_WORDS);
         if (maxGram > 0) {
           stream = new NGramTokenFilter(stream, minGram, maxGram, false);
@@ -711,6 +716,7 @@ public class Lucenes
       {
         final Tokenizer source = new ICUTokenizer();
         TokenStream stream = new CJKBigramFilter(source);
+        stream = new LengthFilter(stream, 1, MAX_TOKEN_LEN);   // guard against immense blob tokens
         stream = new ICUFoldingFilter(stream);
         stream = new StopFilter(stream, CRED_STOP_WORDS);
         return new TokenStreamComponents(source, stream);
