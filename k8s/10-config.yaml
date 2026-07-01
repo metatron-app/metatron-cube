@@ -176,9 +176,9 @@ metadata:
 data:
   jvm.config: |
     -server
-    -Xms512m
-    -Xmx1g
-    -XX:MaxDirectMemorySize=1g
+    -Xms1g
+    -Xmx2g
+    -XX:MaxDirectMemorySize=2g
     -Duser.timezone=UTC
     -Dfile.encoding=UTF-8
     -Djava.io.tmpdir=var/tmp
@@ -186,12 +186,14 @@ data:
   runtime.properties: |
     druid.service=druid/historical
     druid.port=8083
-    druid.server.http.numThreads=10
+    druid.server.http.numThreads=20
     druid.processing.buffer.sizeBytes=67108864
-    druid.processing.numThreads=2
-    druid.processing.numMergeBuffers=2
-    druid.segmentCache.locations=[{"path":"var/druid/segment-cache","maxSize":10000000000}]
-    druid.server.maxSize=10000000000
+    # cores are plentiful: 12 segment-processing threads per historical (x3 nodes = 36 concurrent
+    # scans). direct mem needed >= (numThreads + numMergeBuffers) * buffer.sizeBytes = 16*64MB = 1g < 2g.
+    druid.processing.numThreads=12
+    druid.processing.numMergeBuffers=4
+    druid.segmentCache.locations=[{"path":"var/druid/segment-cache","maxSize":60000000000}]
+    druid.server.maxSize=60000000000
 ---
 apiVersion: v1
 kind: ConfigMap

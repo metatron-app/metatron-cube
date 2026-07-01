@@ -1,0 +1,124 @@
+#
+# FULL Druid indexing of atom_analysis_credential_v2 (~2.53B rows, Polaris "ato" warehouse).
+# Index-only full-text index on `raw` so a keyword search extracts the matching unique
+# file_ids fast (measured: groupBy file_id over a lucene match ~350ms on the broker).
+#
+# Layout = "aligned" (shuffle-free): the iceberg table is partitioned by hour(timestamp_trigger)
+# x bucket[16](source_sha256), so each Spark input partition is already one segment's worth of
+# rows. We set the Druid timestampColumn to `timestamp_trigger` (the partition key) and
+# segmentGranularity HOUR so they line up -> mapPartitions builds one segment per partition with
+# NO groupByKey shuffle. preserve-data-grouping=true keeps Spark from COMBINING partitions into a
+# single task (which would break the hour-rolling assumption that rows arrive grouped by hour).
+#
+# Estimate: ~2.53B rows / ~16k rows/s/core. 20 exec x 4 core = 80 cores -> ~30-60 min incl. publish.
+# Produces ~1 segment per source data file (~10.7k files -> ~10.7k segments, ~235k rows each).
+# Dial executor.instances down for a slower/cheaper run.
+#
+# Two distinct S3 stores are in play:
+#   - source read : s3.s2dev.net (iceberg data files) -> catalog s3 creds via ICEBERG_S3_* env
+#   - deep storage: seaweed       (druid segments)    -> AWS_* env (svc-adp-iceberg)
+#
+# Prereqs: secrets swd-iceberg-credentials (deep storage) + polaris-prod-credentials (polaris.polaris
+# auth + source S3) in adp-dev; spark RBAC (k8s/40-spark-rbac.yaml); Druid coordinator reachable.
+#
+# To index a sub-range instead of the whole table (safer first run), uncomment the "where" line.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atom-full-ingest-spec
+  namespace: adp-dev
+data:
+  ingest-spec.json: |
+    {
+      "dataSource": "atom_credential",
+      "source": {
+        "type": "iceberg",
+        "table": "iceberg.atom.atom_analysis_credential_v2"
+      },
+      "layout": "aligned",
+      "timestampColumn": "timestamp_trigger",
+      "dimensions": ["file_id","source_sha256","file_sha256"],
+      "metrics": [
+        {"type":"count","name":"count"},
+        {"type":"relay","name":"raw","columnName":"raw","typeName":"string"}
+      ],
+      "secondaryIndexing": {
+        "raw": { "type": "lucene10", "indexOnly": true, "strategies": [{"type":"text","fieldName":"raw"}] }
+      },
+      "segmentGranularity": "HOUR",
+      "queryGranularity": "NONE",
+      "rollup": false,
+      "numShards": 1,
+      "bucket": "tmp-decompress",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true,
+      "publishUrl": "http://coordinator:8081/druid/indexer/v1/segments/publish"
+    }
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: atom-full-ingestion
+  namespace: adp-dev
+spec:
+  type: Java
+  mode: cluster
+  image: "nas2.s2dev.net:5050/adp/spark-druid-ingestion:3.5.1"
+  imagePullPolicy: Always
+  mainClass: io.druid.segwriter.spark.SparkIngestion
+  mainApplicationFile: "local:///opt/spark/jars/druid-spark-ingestion-spark.jar"
+  arguments:
+    - "/opt/spark/spec/ingest-spec.json"
+  sparkVersion: "3.5.1"
+  sparkConf:
+    # Iceberg via the operational Polaris (polaris.polaris, single-realm -> no realm header).
+    # Polaris here does NOT vend S3 creds, so the catalog S3 creds come from ICEBERG_S3_* env
+    # (set programmatically by SparkIngestion), separate from AWS_* (deep storage).
+    "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+    "spark.sql.catalog.iceberg": "org.apache.iceberg.spark.SparkCatalog"
+    "spark.sql.catalog.iceberg.catalog-impl": "org.apache.iceberg.rest.RESTCatalog"
+    "spark.sql.catalog.iceberg.uri": "http://polaris.polaris.svc:8181/api/catalog"
+    "spark.sql.catalog.iceberg.warehouse": "ato"
+    "spark.sql.catalog.iceberg.scope": "PRINCIPAL_ROLE:ALL"
+    "spark.sql.catalog.iceberg.io-impl": "org.apache.iceberg.aws.s3.S3FileIO"
+    "spark.sql.catalog.iceberg.s3.endpoint": "http://s3.s2dev.net:8080"
+    "spark.sql.catalog.iceberg.s3.path-style-access": "true"
+    # aligned layout REQUIRES this: keep one Spark task per (hour,bucket) partition group.
+    # Without it Spark may combine multiple partitions into one task, breaking hour-rolling.
+    "spark.sql.iceberg.planning.preserve-data-grouping": "true"
+    "spark.driver.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+    "spark.executor.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+  driver:
+    cores: 2
+    memory: "4g"                  # collects ~10.7k segment descriptors, then one batch publish
+    serviceAccount: spark
+    env: &creds
+      - name: AWS_ACCESS_KEY_ID            # deep storage (seaweed)
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+      - name: POLARIS_CLIENT_ID            # polaris.polaris auth
+        valueFrom: { secretKeyRef: { name: polaris-prod-credentials, key: polaris-client-id } }
+      - name: POLARIS_CLIENT_SECRET
+        valueFrom: { secretKeyRef: { name: polaris-prod-credentials, key: polaris-client-secret } }
+      - name: ICEBERG_S3_ACCESS_KEY_ID     # source read (s3.s2dev.net)
+        valueFrom: { secretKeyRef: { name: polaris-prod-credentials, key: source-s3-access-key } }
+      - name: ICEBERG_S3_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: polaris-prod-credentials, key: source-s3-secret-key } }
+    volumeMounts:
+      - { name: ingest-spec, mountPath: /opt/spark/spec }
+  executor:
+    instances: 20                 # 20 x 4 = 80 cores; lower for a slower/cheaper run
+    cores: 4
+    memory: "16g"                 # ~4g/core: holds one (hour,bucket) file's lucene index at a time
+    memoryOverhead: "4g"          # off-heap headroom for the lucene writer / direct buffers
+    env: *creds
+    volumeMounts:
+      - { name: ingest-spec, mountPath: /opt/spark/spec }
+  volumes:
+    - name: ingest-spec
+      configMap: { name: atom-full-ingest-spec }
+  restartPolicy:
+    type: Never

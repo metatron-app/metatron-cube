@@ -113,7 +113,7 @@ kind: StatefulSet
 metadata: { name: historical, namespace: adp-dev }
 spec:
   serviceName: historical
-  replicas: 1
+  replicas: 3
   selector: { matchLabels: { app: druid, role: historical } }
   template:
     metadata: { labels: { app: druid, role: historical } }
@@ -124,11 +124,12 @@ spec:
           image: nas2.s2dev.net:5050/adp/metatron-cube:2021.3
           imagePullPolicy: Always
           args: ["historical"]
-          # mem = Xmx 1g + direct 1g + segment mmap (page cache) + overhead. cpu bursts above
-          # numThreads(2) for http/merge/GC. Raise these if you bump processing.numThreads.
+          # mem = Xmx 2g + direct 2g + segment mmap page cache (reclaimable) + overhead. More memory
+          # = more hot segment pages cached = faster scans. cpu sized for numThreads(12) + http/merge/GC
+          # (cores are plentiful, so don't throttle the processing pool).
           resources:
-            requests: { cpu: "1", memory: "3Gi" }
-            limits:   { cpu: "4", memory: "5Gi" }
+            requests: { cpu: "6",  memory: "6Gi" }
+            limits:   { cpu: "16", memory: "16Gi" }
           env:
             - { name: POD_IP, valueFrom: { fieldRef: { fieldPath: status.podIP } } }
             - { name: DRUID_JAVA_OPTS, value: "-Ddruid.host=$(POD_IP)" }
@@ -148,7 +149,7 @@ spec:
     - metadata: { name: var }
       spec:
         accessModes: ["ReadWriteOnce"]
-        resources: { requests: { storage: 20Gi } }   # segment cache (maxSize 10Gi in config)
+        resources: { requests: { storage: 40Gi } }   # segment cache (maxSize 32GB in config)
 # (no middleManager: the embedded overlord forks peons in the coordinator process.
 #  To distribute tasks instead, set druid.indexer.runner.type=remote in the coordinator
 #  config and add a middleManager StatefulSet here.)
