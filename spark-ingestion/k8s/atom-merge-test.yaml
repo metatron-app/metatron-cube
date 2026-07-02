@@ -1,0 +1,72 @@
+#
+# One-off test of the index-only lucene physical merge (SparkMerge): merge 3 time-disjoint single-shard
+# atom_credential segments (2026-04-30 19:00-22:00, one shard each) into a NEW datasource so the original
+# is untouched. Proves the addIndexes concat path on real cluster data.
+#
+# Deep storage (seaweed) creds via AWS_* (svc-adp-iceberg). Coordinator reachable for segment metadata +
+# bulk publish. Runs the merge on the Spark driver (no distribution needed for 3 segments).
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atom-merge-spec
+  namespace: adp-dev
+data:
+  merge-spec.json: |
+    {
+      "dataSource": "atom_credential_mergetest",
+      "sourceDataSource": "atom_credential",
+      "coordinatorUrl": "http://coordinator:8081",
+      "interval": "2026-04-30T19:00:00.000Z/2026-04-30T22:00:00.000Z",
+      "dimensions": ["file_id","source_sha256","file_sha256"],
+      "secondaryIndexing": {
+        "raw": { "type": "lucene10", "indexOnly": true, "textAnalyzer": "delimiter", "strategies": [{"type":"text","fieldName":"raw"}] }
+      },
+      "bucket": "tmp-decompress",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true,
+      "publishUrl": "http://coordinator:8081/druid/indexer/v1/segments/publish"
+    }
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: atom-merge-test
+  namespace: adp-dev
+spec:
+  type: Java
+  mode: cluster
+  image: "nas2.s2dev.net:5050/adp/spark-druid-ingestion:3.5.1"
+  imagePullPolicy: Always
+  mainClass: io.druid.segwriter.spark.SparkMerge
+  mainApplicationFile: "local:///opt/spark/jars/druid-spark-ingestion-spark.jar"
+  arguments:
+    - "/opt/spark/spec/merge-spec.json"
+  sparkVersion: "3.5.1"
+  sparkConf:
+    "spark.driver.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+    "spark.executor.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+  driver:
+    cores: 2
+    memory: "8g"                  # the merge (addIndexes + forceMerge) runs on the driver
+    serviceAccount: spark
+    env: &creds
+      - name: AWS_ACCESS_KEY_ID            # deep storage (seaweed): pull sources + push merged
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+    volumeMounts:
+      - { name: merge-spec, mountPath: /opt/spark/spec }
+  executor:
+    instances: 1
+    cores: 1
+    memory: "2g"
+    env: *creds
+    volumeMounts:
+      - { name: merge-spec, mountPath: /opt/spark/spec }
+  volumes:
+    - name: merge-spec
+      configMap: { name: atom-merge-spec }
+  restartPolicy:
+    type: Never
