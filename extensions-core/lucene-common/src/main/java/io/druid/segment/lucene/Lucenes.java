@@ -103,12 +103,15 @@ import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.geo.Polygon;
+import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.NoMergeScheduler;
+import org.apache.lucene.index.SlowCodecReaderWrapper;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.flexible.standard.config.PointsConfig;
 import org.apache.lucene.search.Query;
@@ -175,6 +178,42 @@ public class Lucenes
     for (LuceneIndexingStrategy strategy : strategies) {
       config = strategy.configure(config);
     }
+    try {
+      return new IndexWriter(new MMapDirectory(file.toPath()), config);
+    }
+    catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  // Physically merge existing lucene indexes (no re-analysis): addIndexes the source readers in order,
+  // then forceMerge(1) into a single segment. Preserves document order (no index sort / no deletions), so
+  // docID stays == the merged row ordinal for a concat/time-disjoint merge. Required for index-only columns
+  // whose original text is gone and therefore cannot be re-indexed. `sources` MUST be in merged-row order.
+  public static IndexWriter mergeTo(File file, List<DirectoryReader> sources) throws IOException
+  {
+    final IndexWriter writer = buildMergeWriter(file);
+    final List<CodecReader> readers = Lists.newArrayList();
+    for (DirectoryReader source : sources) {
+      for (LeafReaderContext leaf : source.leaves()) {
+        readers.add(SlowCodecReaderWrapper.wrap(leaf.reader()));
+      }
+    }
+    writer.addIndexes(readers.toArray(new CodecReader[0]));
+    writer.forceMerge(1);   // one segment: dedups term dicts, keeps doc order
+    writer.commit();
+    return writer;
+  }
+
+  // Like buildRamWriter but with the DEFAULT merge policy so forceMerge(1) actually merges (buildRamWriter
+  // uses NoMergePolicy). No index sort, no deletions -> merged docIDs stay in addIndexes order.
+  private static IndexWriter buildMergeWriter(File file)
+  {
+    IndexWriterConfig config = new IndexWriterConfig();
+    config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    config.setRAMBufferSizeMB(256);
+    config.setUseCompoundFile(false);
+    config.setCommitOnClose(true);
     try {
       return new IndexWriter(new MMapDirectory(file.toPath()), config);
     }

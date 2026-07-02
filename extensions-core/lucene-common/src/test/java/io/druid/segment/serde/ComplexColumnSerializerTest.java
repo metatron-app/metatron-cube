@@ -24,6 +24,7 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.segment.MetricColumnSerializer;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.LuceneIndex;
@@ -109,6 +110,55 @@ public class ComplexColumnSerializerTest
     QueryParser parser = new QueryParser("test-lucene", Lucenes.createAnalyzer("standard"));
     Query query = parser.parse("\"navis\"");
     assertResult(luceneIndex, query, 0, 2);
+  }
+
+  // Physically merge two lucene columns and assert docID == merged-row identity survives the concat: segB's
+  // rows must land at the merged offsets (after segA's rows), i.e. addIndexes order == row order.
+  @Test
+  public void testLuceneMerge() throws Exception
+  {
+    // segA: rows 0,1 | segB: rows 0,1 -> merged rows 0,1,2,3
+    Column segA = buildLuceneColumn("segA", "navis manse", "hello world");
+    Column segB = buildLuceneColumn("segB", "banzai navis", "goodbye");
+
+    LuceneIndexingSpec spec = LuceneIndexingSpec.of(null, new TextIndexingStrategy("text"));
+    MetricColumnSerializer merger = spec.merger("segMerged", ValueDesc.STRING, Arrays.asList(segA, segB));
+    Assert.assertNotNull(merger);
+    merger.open(ioPeon);
+    merger.serialize(0, null);   // no-op: merged from the source indexes
+    merger.close();
+
+    ColumnDescriptor descriptor = merger.buildDescriptor(ioPeon, new ColumnDescriptor.Builder()).build();
+    ByteBuffer payload = serialize(descriptor);
+    Assert.assertEquals(descriptor.numBytes(), payload.remaining());
+
+    Column merged = descriptor.read("merged", payload, factory);
+    LuceneIndex luceneIndex = merged.getExternalIndex(LuceneIndex.class).get();
+    Assert.assertNotNull(luceneIndex);
+
+    QueryParser parser = new QueryParser("text", Lucenes.createAnalyzer("standard"));
+    assertResult(luceneIndex, parser.parse("\"navis\""), 0, 2);   // segA row0 + segB row0 (offset by 2)
+    assertResult(luceneIndex, parser.parse("\"banzai\""), 2);      // only segB row0
+    assertResult(luceneIndex, parser.parse("\"goodbye\""), 3);     // only segB row1
+    assertResult(luceneIndex, parser.parse("\"manse\""), 0);       // only segA row0
+  }
+
+  private Column buildLuceneColumn(String columnName, String... rows) throws Exception
+  {
+    ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
+        columnName,
+        StringMetricSerde.INSTANCE,
+        null,
+        LuceneIndexingSpec.of(null, new TextIndexingStrategy("text")),
+        null
+    );
+    serializer.open(ioPeon);
+    for (int i = 0; i < rows.length; i++) {
+      serializer.serialize(i, rows[i]);
+    }
+    serializer.close();
+    ColumnDescriptor descriptor = serializer.buildDescriptor(ioPeon, new ColumnDescriptor.Builder()).build();
+    return descriptor.read(columnName, serialize(descriptor), factory);
   }
 
   private ByteBuffer serialize(ColumnDescriptor descriptor) throws IOException

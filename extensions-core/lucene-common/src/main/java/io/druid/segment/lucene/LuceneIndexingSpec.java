@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
@@ -33,6 +34,7 @@ import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.MetricColumnSerializer;
 import io.druid.segment.SecondaryIndexingSpec;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.LuceneIndex;
@@ -198,6 +200,65 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
     };
   }
 
+  // Merge existing lucene indexes physically (addIndexes + forceMerge), instead of re-indexing from rows.
+  // Mandatory for index-only columns (original text is gone). Returns null when the sources are not lucene
+  // indexes (e.g. fresh ingestion) so the caller falls back to the row-based serializer(). Callers MUST pass
+  // `sources` already ordered to match the merged row order (see IndexMergerV9's time-disjoint guard), so the
+  // docID == row-ordinal identity survives.
+  @Override
+  public MetricColumnSerializer merger(String columnName, ValueDesc type, List<Column> sources)
+  {
+    final List<LuceneIndex> indexes = Lists.newArrayList();
+    for (Column source : sources) {
+      final ExternalIndexProvider<LuceneIndex> provider =
+          source == null ? null : source.getExternalIndex(LuceneIndex.class);
+      if (provider == null) {
+        return null;   // not a lucene index -> let the caller build from rows
+      }
+      indexes.add(provider.get());
+    }
+    if (GuavaUtils.isNullOrEmpty(strategies)) {
+      return MetricColumnSerializer.DUMMY;
+    }
+    return new MetricColumnSerializer()
+    {
+      private IndexWriter writer;
+
+      @Override
+      public void open(IOPeon ioPeon) throws IOException
+      {
+        final List<DirectoryReader> readers = GuavaUtils.transform(indexes, LuceneIndex::getReader);
+        writer = Lucenes.mergeTo(ioPeon.makeOutputFile(columnName + ".lucene"), readers);
+      }
+
+      @Override
+      public void serialize(int rowNum, Object obj)
+      {
+        // no-op: documents come from the source indexes, not the (absent) per-row values
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        for (LuceneIndex index : indexes) {
+          CloseQuietly.close(index);
+        }
+      }
+
+      @Override
+      public ColumnDescriptor.Builder buildDescriptor(IOPeon ioPeon, ColumnDescriptor.Builder builder)
+      {
+        // index-only: no base value column, only the merged secondary index (mirror ComplexColumnSerializer)
+        builder.setValueType(type.isString() ? ValueDesc.STRING : type);
+        if (writer.getDocStats().numDocs > 0) {
+          builder.addSerde(getSerde(writer))
+                 .addDescriptor(descriptor(columnName));
+        }
+        return builder;
+      }
+    };
+  }
+
   protected ColumnPartSerde getSerde(IndexWriter writer)
   {
     return new SerDe(writer);
@@ -336,6 +397,12 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                     public IndexSearcher searcher()
                     {
                       return createIndexSearcher(reader);
+                    }
+
+                    @Override
+                    public DirectoryReader getReader()
+                    {
+                      return reader;
                     }
                   };
                 }

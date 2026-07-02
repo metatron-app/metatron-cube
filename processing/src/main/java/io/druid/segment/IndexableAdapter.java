@@ -24,6 +24,7 @@ import io.druid.common.guava.Sequence;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.parsers.CloseableIterable;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
@@ -60,6 +61,10 @@ public interface IndexableAdapter
   Iterable<Rowboat> getRows(List<String> dimensions, List<String> metrics);
 
   InvertedIndexProvider getInvertedIndex(String dimension);
+
+  // Source column, exposed so a merge can reach a metric's secondary index (e.g. lucene) for physical merge.
+  // Null when the adapter has no persisted column (e.g. in-memory incremental index) -> merge falls back.
+  default Column getColumn(String column) {return null;}
 
   ValueDesc getMetricType(String metric);
 

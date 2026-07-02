@@ -272,6 +272,12 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
+  public Column getColumn(String column)
+  {
+    return input.getColumn(column);
+  }
+
+  @Override
   public InvertedIndexProvider getInvertedIndex(String dimension)
   {
     final Column column = input.getColumn(dimension);

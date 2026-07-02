@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.Lucenes;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
@@ -37,6 +38,9 @@ public interface LuceneIndex extends SecondaryIndex<Query>
   TopDocs query(Query query);
 
   IndexSearcher searcher();
+
+  // Underlying reader, exposed so a segment merge can physically combine indexes via addIndexes.
+  DirectoryReader getReader();
 
   @Override
   default BitmapHolder compare(String op, boolean withNot, String column, Comparable constant, FilterContext context)

@@ -94,6 +94,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -183,7 +184,7 @@ public class IndexMergerV9 extends IndexMerger
       }
       values.forEach(v -> closer.register((CloseableIterable) v));
 
-      final MetricColumnSerializer[] metWriters = setupMetricsWriters(ioPeon, metrics, metricTypes, values, indexSpec);
+      final MetricColumnSerializer[] metWriters = setupMetricsWriters(ioPeon, metrics, metricTypes, values, indexSpec, adapters);
       final MutableBitmap[] nullRowsList = new MutableBitmap[dimensions.size()];
       for (int i = 0; i < dimensions.size(); ++i) {
         nullRowsList[i] = bitmapFactory.makeEmptyMutableBitmap();
@@ -334,7 +335,7 @@ public class IndexMergerV9 extends IndexMerger
           MetricColumnSerializer[] cubeMetricWriters = new MetricColumnSerializer[aggregators.size()];
           for (int i = 0; i < cubeMetricWriters.length; i++) {
             AggregatorFactory aggregator = aggregators.get(i);
-            cubeMetricWriters[i] = setupMetricsWriter(aggregator.getName(), aggregator.getOutputType(), null, indexer);
+            cubeMetricWriters[i] = setupMetricsWriter(aggregator.getName(), aggregator.getOutputType(), null, indexer, null);
             cubeMetrics.add(aggregator.getName());
             cubeMetricTypes.add(aggregator.getOutputType());
           }
@@ -863,13 +864,14 @@ public class IndexMergerV9 extends IndexMerger
       final List<String> metrics,
       final List<ValueDesc> metricTypes,
       final List<Iterable<Object>> values,
-      final IndexSpec indexSpec
+      final IndexSpec indexSpec,
+      final List<IndexableAdapter> adapters
   ) throws IOException
   {
     final MetricColumnSerializer[] metWriters = new MetricColumnSerializer[metrics.size()];
     for (int i = 0; i < metWriters.length; i++) {
       String metric = metrics.get(i);
-      metWriters[i] = setupMetricsWriter(metric, metricTypes.get(i), values.get(i), indexSpec);
+      metWriters[i] = setupMetricsWriter(metric, metricTypes.get(i), values.get(i), indexSpec, adapters);
     }
     for (MetricColumnSerializer writer : metWriters) {
       writer.open(ioPeon);
@@ -877,13 +879,23 @@ public class IndexMergerV9 extends IndexMerger
     return metWriters;
   }
 
-  private MetricColumnSerializer setupMetricsWriter(String metric, ValueDesc type, Iterable<Object> values, IndexSpec indexSpec) throws IOException
+  private MetricColumnSerializer setupMetricsWriter(String metric, ValueDesc type, Iterable<Object> values, IndexSpec indexSpec, List<IndexableAdapter> adapters) throws IOException
   {
     final BitmapSerdeFactory bitmap = indexSpec.getBitmapSerdeFactory();
     final SecondaryIndexingSpec secondary = indexSpec.getSecondaryIndexingSpec(metric);
     final CompressionStrategy compression = indexSpec.getCompressionStrategy(metric);
     final CompressionStrategy metCompression = compression != null ? compression : indexSpec.getMetricCompressionStrategy();
     final boolean allowNullForNumbers = indexSpec.isAllowNullForNumbers();
+
+    // Index-only secondary index: the base value column is gone, so the index cannot be rebuilt from rows.
+    // Physically merge the source segments' indexes instead. Returns null for fresh ingestion (no source
+    // index) -> fall through to the normal row-based serializer.
+    if (secondary != null && secondary.isIndexOnly()) {
+      final MetricColumnSerializer merged = mergeIndexOnly(metric, type, secondary, adapters);
+      if (merged != null) {
+        return merged;
+      }
+    }
 
     switch (type.type()) {
       case BOOLEAN:
@@ -898,10 +910,10 @@ public class IndexMergerV9 extends IndexMerger
         return ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, values, secondary, compression);
       case COMPLEX:
         if (type.isStruct()) {
-          return StructColumnSerializer.create(metric, type, values, secondary, (n, t, v) -> setupMetricsWriter(n, t, v, indexSpec));
+          return StructColumnSerializer.create(metric, type, values, secondary, (n, t, v) -> setupMetricsWriter(n, t, v, indexSpec, null));
         }
         if (type.isNestedArray()) {
-          return ArrayColumnSerializer.create(metric, type, (n, t, v) -> setupMetricsWriter(n, t, v, indexSpec));
+          return ArrayColumnSerializer.create(metric, type, (n, t, v) -> setupMetricsWriter(n, t, v, indexSpec, null));
         }
         if (type.isMap()) {
           return MapColumnSerializer.create(metric, type, compression, bitmap);
@@ -916,6 +928,41 @@ public class IndexMergerV9 extends IndexMerger
       default:
         throw new ISE("Unknown type[%s]", type);
     }
+  }
+
+  // Physically merge an index-only secondary index (e.g. lucene) from the source segments, since it cannot be
+  // rebuilt from rows. Returns null when the sources carry no such index (fresh ingestion / persist) so the
+  // caller builds normally. Guards the concat invariant: docID == row ordinal survives only if the merged rows
+  // are the sources concatenated in order, which holds iff the segments are time-disjoint.
+  private MetricColumnSerializer mergeIndexOnly(
+      String metric, ValueDesc type, SecondaryIndexingSpec secondary, List<IndexableAdapter> adapters
+  )
+  {
+    if (adapters == null || adapters.isEmpty()) {
+      return null;
+    }
+    for (IndexableAdapter adapter : adapters) {
+      final Column column = adapter.getColumn(metric);
+      if (column == null || column.getExternalIndexKeys().isEmpty()) {
+        return null;   // no persisted secondary index on some source -> not a physical merge
+      }
+    }
+    final List<IndexableAdapter> ordered = Lists.newArrayList(adapters);
+    ordered.sort(Comparator.comparingLong(a -> a.getInterval().getStartMillis()));
+    for (int i = 1; i < ordered.size(); i++) {
+      if (ordered.get(i - 1).getInterval().overlaps(ordered.get(i).getInterval())) {
+        throw new ISE(
+            "index-only secondary index merge on column[%s] requires time-disjoint segments; "
+            + "sharded/overlapping merge is not supported", metric
+        );
+      }
+    }
+    final List<Column> sources = Lists.transform(ordered, a -> a.getColumn(metric));
+    final MetricColumnSerializer merger = secondary.merger(metric, type, sources);
+    if (merger == null) {
+      throw new ISE("cannot merge index-only column[%s]: indexing spec has no merge support", metric);
+    }
+    return merger;
   }
 
   // heuristic
