@@ -1,0 +1,69 @@
+#
+# Test of SparkCompact on a sharded day: 2026-06-19 (~20 segments, up to 11 shards/hour) -> a NEW datasource
+# so atom_credential is untouched. Balanced bin-pack -> up to 11 evenly-sized full-day segments, each a
+# time-disjoint concat merge (index-only lucene via addIndexes). Groups merge in parallel on the executors.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atom-compact-spec
+  namespace: adp-dev
+data:
+  compact-spec.json: |
+    {
+      "dataSource": "atom_credential_compacttest",
+      "sourceDataSource": "atom_credential",
+      "coordinatorUrl": "http://coordinator:8081",
+      "interval": "2026-06-19T00:00:00.000Z/2026-06-20T00:00:00.000Z",
+      "dimensions": ["file_id","source_sha256","file_sha256"],
+      "secondaryIndexing": {
+        "raw": { "type": "lucene10", "indexOnly": true, "textAnalyzer": "delimiter", "strategies": [{"type":"text","fieldName":"raw"}] }
+      },
+      "bucket": "tmp-decompress",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true,
+      "publishUrl": "http://coordinator:8081/druid/indexer/v1/segments/publish"
+    }
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: atom-compact-test
+  namespace: adp-dev
+spec:
+  type: Java
+  mode: cluster
+  image: "nas2.s2dev.net:5050/adp/spark-druid-ingestion:3.5.1"
+  imagePullPolicy: Always
+  mainClass: io.druid.segwriter.spark.SparkCompact
+  mainApplicationFile: "local:///opt/spark/jars/druid-spark-ingestion-spark.jar"
+  arguments:
+    - "/opt/spark/spec/compact-spec.json"
+  sparkVersion: "3.5.1"
+  sparkConf:
+    "spark.driver.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+    "spark.executor.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+  driver:
+    cores: 2
+    memory: "4g"
+    serviceAccount: spark
+    env: &creds
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+    volumeMounts:
+      - { name: compact-spec, mountPath: /opt/spark/spec }
+  executor:
+    instances: 4                  # groups merge in parallel (4 x 2 = 8 concurrent)
+    cores: 2
+    memory: "6g"                  # each task holds one group's lucene merge
+    env: *creds
+    volumeMounts:
+      - { name: compact-spec, mountPath: /opt/spark/spec }
+  volumes:
+    - name: compact-spec
+      configMap: { name: atom-compact-spec }
+  restartPolicy:
+    type: Never

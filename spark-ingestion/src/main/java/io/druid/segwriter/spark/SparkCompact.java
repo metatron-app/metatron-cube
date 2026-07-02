@@ -79,6 +79,7 @@ public final class SparkCompact
     final String sourceDataSource = spec.get("sourceDataSource").asText();
     final String coordinatorUrl = spec.get("coordinatorUrl").asText();
     final Interval interval = new Interval(spec.get("interval").asText());
+    final String intervalStr = interval.toString();   // all outputs claim the whole compaction interval
     final String endpoint = spec.get("endpoint").asText();
     final String bucket = spec.get("bucket").asText();
     final String baseKey = spec.get("baseKey").asText();
@@ -161,13 +162,11 @@ public final class SparkCompact
         final S3DataSegmentPuller puller = new S3DataSegmentPuller(s3);
         final File work = Files.createTempDir();
         final List<QueryableIndex> indexes = new ArrayList<>();
-        Interval merged = null;
         for (String segJson : group) {
           final DataSegment source = m.readValue(segJson, DataSegment.class);
           final File dir = new File(work, "src-" + source.getShardSpec().getPartitionNum());
           puller.getSegmentFiles(source, dir);
           indexes.add(indexIO.loadIndex(dir));
-          merged = merged == null ? source.getInterval() : span(merged, source.getInterval());
         }
         final IndexSpec indexSpec = toIndexSpec(m, secondaryIndexingJson);
         final AggregatorFactory[] metricAggs = indexes.get(0).getMetadata() == null
@@ -183,8 +182,11 @@ public final class SparkCompact
         for (QueryableIndex qi : indexes) {
           rows += qi.getNumRows();
         }
+        // Every output shard claims the whole compaction interval so the N shards form one valid partition
+        // set (a group's data only covers part of it; the shards together cover it all). Mismatched per-group
+        // intervals at one version would break the timeline and never load.
         final DataSegment template = new DataSegment(
-            targetDataSource, merged, version, new LinkedHashMap<>(), dimensions, metricNames,
+            targetDataSource, new Interval(intervalStr), version, new LinkedHashMap<>(), dimensions, metricNames,
             LinearShardSpec.of(shard), SegmentUtils.getVersionFromDir(mergedDir), 0L, rows
         );
         final DataSegment pushed = DataSegmentPushers.s3(bucket, baseKey, disableAcl, accessKey, secretKey, endpoint, null)
@@ -223,11 +225,6 @@ public final class SparkCompact
         e -> secondary.put(e.getKey(), mapper.convertValue(e.getValue(), SecondaryIndexingSpec.class))
     );
     return new IndexSpec(null, null, null, null, secondary, null, false, null);
-  }
-
-  private static Interval span(Interval a, Interval b)
-  {
-    return new Interval(Math.min(a.getStartMillis(), b.getStartMillis()), Math.max(a.getEndMillis(), b.getEndMillis()));
   }
 
   private static String httpGet(String url) throws Exception
