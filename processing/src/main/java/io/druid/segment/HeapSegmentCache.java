@@ -103,6 +103,24 @@ public final class HeapSegmentCache implements Closeable
     return new Handle(id, entry.index);
   }
 
+  /**
+   * Load-on-miss and return the heap-resident index WITHOUT pinning — for a {@link LazySegment}'s materializer,
+   * which is called per query access. Marks the entry most-recently-used so a fresh load is not the immediate
+   * eviction victim. (Eviction of a segment mid-query is prevented properly by tying a pin to the query
+   * ref-count — the deferred concurrency-hardening step; single-access flows are safe via LRU recency.)
+   */
+  public synchronized QueryableIndex getOrLoad(String id, Fetcher fetcher) throws IOException
+  {
+    Entry entry = entries.get(id);
+    if (entry == null) {
+      try (Handle h = acquire(id, fetcher)) {   // acquire loads+pins; close() unpins, leaving it MRU + resident
+        return h.index();
+      }
+    }
+    entries.get(id);   // touch for LRU recency (access-order)
+    return entry.index;
+  }
+
   private static void deleteQuietly(File dir)
   {
     final File[] files = dir.listFiles();
