@@ -44,6 +44,19 @@ public class SmooshedFileMapper implements Closeable
 {
   public static SmooshedFileMapper load(File baseDir) throws IOException
   {
+    return load(baseDir, false);
+  }
+
+  // Read the smoosh chunk files fully into HEAP ByteBuffers instead of memory-mapping them. Lets a segment be
+  // queried purely from heap (no file/mmap backing) — the column readers are ByteBuffer-agnostic. For small or
+  // transient segments only (heap/GC pressure); large segments should stay mmap'd.
+  public static SmooshedFileMapper loadHeap(File baseDir) throws IOException
+  {
+    return load(baseDir, true);
+  }
+
+  private static SmooshedFileMapper load(File baseDir, boolean heap) throws IOException
+  {
     File metaFile = FileSmoosher.metaFile(baseDir);
 
     BufferedReader in = null;
@@ -82,7 +95,7 @@ public class SmooshedFileMapper implements Closeable
         );
       }
 
-      return new SmooshedFileMapper(baseDir, outFiles, internalFiles);
+      return new SmooshedFileMapper(baseDir, outFiles, internalFiles, heap);
     }
     finally {
       Closeables.close(in, false);
@@ -92,13 +105,21 @@ public class SmooshedFileMapper implements Closeable
   private final File baseDir;
   private final List<File> outFiles;
   private final Map<String, Metadata> internalFiles;
-  private final List<MappedByteBuffer> buffersList = Lists.newArrayList();
+  private final boolean heap;
+  // MappedByteBuffer when mmap'd, plain heap ByteBuffer when heap-loaded (both are ByteBuffer)
+  private final List<ByteBuffer> buffersList = Lists.newArrayList();
 
   SmooshedFileMapper(File baseDir, List<File> outFiles, Map<String, Metadata> internalFiles)
+  {
+    this(baseDir, outFiles, internalFiles, false);
+  }
+
+  SmooshedFileMapper(File baseDir, List<File> outFiles, Map<String, Metadata> internalFiles, boolean heap)
   {
     this.baseDir = baseDir;
     this.outFiles = outFiles;
     this.internalFiles = internalFiles;
+    this.heap = heap;
   }
 
   public File getBaseDir()
@@ -133,11 +154,12 @@ public class SmooshedFileMapper implements Closeable
     while (buffersList.size() <= fileNum) {
       buffersList.add(null);
     }
-    MappedByteBuffer mappedBuffer = buffersList.get(fileNum);
-    if (mappedBuffer == null) {
-      buffersList.set(fileNum, mappedBuffer = Files.map(outFiles.get(fileNum)));
+    ByteBuffer buffer = buffersList.get(fileNum);
+    if (buffer == null) {
+      buffer = heap ? ByteBuffer.wrap(Files.toByteArray(outFiles.get(fileNum))) : Files.map(outFiles.get(fileNum));
+      buffersList.set(fileNum, buffer);
     }
-    return metadata.slice(mappedBuffer);
+    return metadata.slice(buffer);
   }
 
   private static final String TIME_COLUMN = "__time";
@@ -146,8 +168,8 @@ public class SmooshedFileMapper implements Closeable
   // hack for lazy mapping of index file
   public ByteBuffer mapFile(String name, boolean readOnly) throws IOException
   {
-    if (!readOnly) {
-      return mapFile(name);
+    if (heap || !readOnly) {
+      return mapFile(name);   // heap mode reads everything into heap ByteBuffers
     }
     final Metadata metadata = internalFiles.get(name);
     if (metadata == null) {
@@ -191,12 +213,12 @@ public class SmooshedFileMapper implements Closeable
   public void close()
   {
     Throwable thrown = null;
-    for (MappedByteBuffer mappedByteBuffer : buffersList) {
-      if (mappedByteBuffer == null) {
-        continue;
+    for (ByteBuffer buffer : buffersList) {
+      if (!(buffer instanceof MappedByteBuffer)) {
+        continue;   // heap buffers need no unmap; nulls skipped
       }
       try {
-        ByteBufferUtils.unmap(mappedByteBuffer);
+        ByteBufferUtils.unmap((MappedByteBuffer) buffer);
       }
       catch (Throwable t) {
         if (thrown == null) {

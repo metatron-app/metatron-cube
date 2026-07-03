@@ -254,6 +254,13 @@ public class IndexIO
     return getIndexLoader(inDir).load(inDir, mapper, readOnly);
   }
 
+  // Load with a caller-supplied smoosh mapper (e.g. SmooshedFileMapper.loadHeap) so the segment is served from
+  // heap ByteBuffers rather than mmapped files. V9 only.
+  public QueryableIndex loadIndex(File inDir, boolean readOnly, SmooshedFileMapper smooshMapper) throws IOException
+  {
+    return getIndexLoader(inDir).load(inDir, mapper, readOnly, smooshMapper);
+  }
+
   public DataSegment decorateMeta(DataSegment segment, File directory) throws IOException
   {
     try (QueryableIndex index = loadIndex(directory, true)) {
@@ -905,6 +912,14 @@ public class IndexIO
   {
     QueryableIndex load(File inDir, ObjectMapper mapper, boolean readOnly) throws IOException;
 
+    // Load using a caller-supplied smoosh mapper (e.g. a heap-backed one) instead of mmapping inDir.
+    // Default ignores it and mmaps as usual; only V9 honors it.
+    default QueryableIndex load(File inDir, ObjectMapper mapper, boolean readOnly, SmooshedFileMapper smooshMapper)
+        throws IOException
+    {
+      return load(inDir, mapper, readOnly);
+    }
+
     default File deleteColumns(File inDir, File outDir, String... columns) throws IOException
     {
       throw new UOE("not supports 'deleteColumns'");
@@ -1027,6 +1042,13 @@ public class IndexIO
     @Override
     public QueryableIndex load(File inDir, ObjectMapper mapper, boolean readOnly) throws IOException
     {
+      return load(inDir, mapper, readOnly, null);
+    }
+
+    @Override
+    public QueryableIndex load(File inDir, ObjectMapper mapper, boolean readOnly, SmooshedFileMapper smooshMapper)
+        throws IOException
+    {
       log.debug("Mapping v9 index[%s]", inDir);
       long startTime = System.currentTimeMillis();
 
@@ -1035,7 +1057,7 @@ public class IndexIO
         throw new IllegalArgumentException(String.format("Expected version[9], got[%s]", theVersion));
       }
 
-      final SmooshedFileMapper smooshedFiles = Smoosh.map(inDir);
+      final SmooshedFileMapper smooshedFiles = smooshMapper != null ? smooshMapper : Smoosh.map(inDir);
 
       final ByteBuffer indexBuffer = smooshedFiles.mapFile("index.drd", readOnly);
 
