@@ -142,26 +142,27 @@ public class SmooshedFileMapper implements Closeable
     if (metaBytes == null) {
       throw new ISE("index.zip has no meta.smoosh");
     }
-    final Map<String, Metadata> internalFiles = Maps.newTreeMap();
-    int numChunks;
-    try (BufferedReader in = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(metaBytes), Charsets.UTF_8))) {
-      final String[] header = in.readLine().split(",");
-      if (!"v1".equals(header[0]) || header.length != 3) {
-        throw new ISE("bad meta.smoosh header[%s]", (Object) header);
-      }
-      numChunks = Integer.parseInt(header[2]);
-      String line;
-      while ((line = in.readLine()) != null) {
-        final String[] s = line.split(",");
-        internalFiles.put(s[0], new Metadata(Integer.parseInt(s[1]), Integer.parseInt(s[2]), Integer.parseInt(s[3])));
-      }
-    }
-    final List<ByteBuffer> chunks = Lists.newArrayListWithCapacity(numChunks);
-    for (int i = 0; i < numChunks; i++) {
+    final ParsedMeta meta = parseMeta(metaBytes);
+    final List<ByteBuffer> chunks = Lists.newArrayListWithCapacity(meta.numChunks);
+    for (int i = 0; i < meta.numChunks; i++) {
       final byte[] chunk = files.get(FileSmoosher.chunkFile(new File(""), i).getName());
       chunks.add(ByteBuffer.wrap(Preconditions.checkNotNull(chunk, "missing chunk %s", i)));
     }
-    return fromMemory(internalFiles, chunks, files.get("version.bin"));
+    return fromMemory(meta.internalFiles, chunks, files.get("version.bin"));
+  }
+
+  /**
+   * Build a mapper that serves each entry by RANGE-fetching its bytes on demand (header-first, no whole download).
+   * Pass the small {@code meta.smoosh} bytes + {@code version.bin} bytes (both cheap to GET) and a
+   * {@link RangeFetcher} over the chunk objects. Pair with {@code IndexIO.loadIndex(null, false, mapper)}: at load
+   * only index.drd/metadata.drd ranges are fetched; each column's range is fetched on first getColumn().
+   */
+  public static SmooshedFileMapper fromRange(byte[] metaSmooshBytes, byte[] version, RangeFetcher fetcher) throws IOException
+  {
+    final ParsedMeta meta = parseMeta(metaSmooshBytes);
+    final SmooshedFileMapper mapper = new SmooshedFileMapper(null, Arrays.asList(new File[meta.numChunks]), meta.internalFiles, true, version);
+    mapper.rangeFetcher = fetcher;
+    return mapper;
   }
 
   private static SmooshedFileMapper fromMemory(Map<String, Metadata> internalFiles, List<ByteBuffer> chunks, byte[] version)
@@ -171,13 +172,54 @@ public class SmooshedFileMapper implements Closeable
     return mapper;
   }
 
+  private static ParsedMeta parseMeta(byte[] metaBytes) throws IOException
+  {
+    final Map<String, Metadata> internalFiles = Maps.newTreeMap();
+    try (BufferedReader in = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(metaBytes), Charsets.UTF_8))) {
+      final String[] header = in.readLine().split(",");
+      if (!"v1".equals(header[0]) || header.length != 3) {
+        throw new ISE("bad meta.smoosh header[%s]", (Object) header);
+      }
+      final int numChunks = Integer.parseInt(header[2]);
+      String line;
+      while ((line = in.readLine()) != null) {
+        final String[] s = line.split(",");
+        internalFiles.put(s[0], new Metadata(Integer.parseInt(s[1]), Integer.parseInt(s[2]), Integer.parseInt(s[3])));
+      }
+      return new ParsedMeta(numChunks, internalFiles);
+    }
+  }
+
+  private static final class ParsedMeta
+  {
+    private final int numChunks;
+    private final Map<String, Metadata> internalFiles;
+
+    private ParsedMeta(int numChunks, Map<String, Metadata> internalFiles)
+    {
+      this.numChunks = numChunks;
+      this.internalFiles = internalFiles;
+    }
+  }
+
   private final File baseDir;
   private final List<File> outFiles;
   private final Map<String, Metadata> internalFiles;
   private final boolean heap;
   private final byte[] versionBytes;   // non-null only for in-memory mappers (no version.bin file to read)
+  private RangeFetcher rangeFetcher;   // non-null for range-backed mappers: mapFile fetches each entry's bytes
   // MappedByteBuffer when mmap'd, plain heap ByteBuffer when heap-loaded (both are ByteBuffer)
   private final List<ByteBuffer> buffersList = Lists.newArrayList();
+
+  /**
+   * Fetches an exact byte range of a smoosh chunk on demand (e.g. an S3 GET with a Range header). Lets a segment
+   * be served header-first: only the small index.drd/metadata.drd ranges at load, then a column's range on first
+   * access — the whole segment is never downloaded.
+   */
+  public interface RangeFetcher
+  {
+    ByteBuffer fetch(int fileNum, long offset, int length) throws IOException;
+  }
 
   SmooshedFileMapper(File baseDir, List<File> outFiles, Map<String, Metadata> internalFiles)
   {
@@ -232,6 +274,9 @@ public class SmooshedFileMapper implements Closeable
 
   private ByteBuffer mapFile(Metadata metadata) throws IOException
   {
+    if (rangeFetcher != null) {
+      return rangeFetcher.fetch(metadata.getFileNum(), metadata.getStartOffset(), metadata.getLength());
+    }
     final int fileNum = metadata.getFileNum();
     while (buffersList.size() <= fileNum) {
       buffersList.add(null);
