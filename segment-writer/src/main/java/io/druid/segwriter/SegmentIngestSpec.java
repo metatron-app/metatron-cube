@@ -57,6 +57,10 @@ public class SegmentIngestSpec implements Serializable
   private final int numShards;
   private final String bucket;
   private final String baseKey;
+  // deep-storage container: "s3_zip" (default, one index.zip) or "s3_smoosh" (unzipped header + chunk objects,
+  // range-readable). Picks which pusher SegmentIngestor builds; the loadSpec type is stamped accordingly so old
+  // and new segments coexist. New (empty) buckets should use "s3_smoosh".
+  private final String storageType;
   private final String endpoint;
   private final String region;
   private final boolean disableAcl;
@@ -80,6 +84,7 @@ public class SegmentIngestSpec implements Serializable
       @JsonProperty("numShards") Integer numShards,
       @JsonProperty("bucket") String bucket,
       @JsonProperty("baseKey") String baseKey,
+      @JsonProperty("storageType") String storageType,
       @JsonProperty("endpoint") String endpoint,
       @JsonProperty("region") String region,
       @JsonProperty("disableAcl") Boolean disableAcl,
@@ -99,6 +104,7 @@ public class SegmentIngestSpec implements Serializable
     this.numShards = numShards == null ? 1 : numShards;
     this.bucket = bucket;
     this.baseKey = baseKey == null ? "druid/segments" : baseKey;
+    this.storageType = storageType == null ? "s3_zip" : storageType;
     this.endpoint = endpoint;
     this.region = region;
     this.disableAcl = disableAcl == null ? true : disableAcl;
@@ -120,6 +126,7 @@ public class SegmentIngestSpec implements Serializable
   @JsonProperty public int getNumShards() { return numShards; }
   @JsonProperty public String getBucket() { return bucket; }
   @JsonProperty public String getBaseKey() { return baseKey; }
+  @JsonProperty public String getStorageType() { return storageType; }
   @JsonProperty public String getEndpoint() { return endpoint; }
   @JsonProperty public String getRegion() { return region; }
   @JsonProperty public boolean isDisableAcl() { return disableAcl; }

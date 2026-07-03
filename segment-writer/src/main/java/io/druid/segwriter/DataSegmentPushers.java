@@ -23,6 +23,7 @@ import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.storage.s3.S3Clients;
 import io.druid.storage.s3.S3DataSegmentPusher;
 import io.druid.storage.s3.S3DataSegmentPusherConfig;
+import io.druid.storage.s3.S3SmooshDataSegmentPusher;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.File;
@@ -58,6 +59,28 @@ public final class DataSegmentPushers
     config.setBaseKey(baseKey);
     config.setDisableAcl(disableAcl);
     return new S3DataSegmentPusher(client, config, Json.mapper());
+  }
+
+  /**
+   * aws-sdk v2 pusher for the unzipped {@code s3_smoosh} container (separate header + chunk objects, no zip).
+   * Same params/credentials as {@link #s3}; differs only in the deep-storage layout it writes.
+   */
+  public static DataSegmentPusher s3Smoosh(
+      String bucket,
+      String baseKey,
+      boolean disableAcl,
+      String accessKey,
+      String secretKey,
+      String endpoint,
+      String region
+  )
+  {
+    final S3Client client = S3Clients.create(accessKey, secretKey, endpoint, region);
+    final S3DataSegmentPusherConfig config = new S3DataSegmentPusherConfig();
+    config.setBucket(bucket);
+    config.setBaseKey(baseKey);
+    config.setDisableAcl(disableAcl);
+    return new S3SmooshDataSegmentPusher(client, config, Json.mapper());
   }
 
   /** Local-filesystem pusher (tests / local runs). */

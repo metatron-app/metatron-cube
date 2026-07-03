@@ -47,7 +47,8 @@ public final class SegmentIngestor
   /** S3 pusher for this spec; credentials come from the default chain (AWS_* env). */
   public static DataSegmentPusher pusher(SegmentIngestSpec spec)
   {
-    return DataSegmentPushers.s3(
+    final boolean smoosh = "s3_smoosh".equals(spec.getStorageType());
+    return (smoosh ? DataSegmentPushers.s3Smoosh(
         spec.getBucket(),
         spec.getBaseKey(),
         spec.isDisableAcl(),
@@ -55,7 +56,15 @@ public final class SegmentIngestor
         null,                 // secretKey
         spec.getEndpoint(),
         spec.getRegion()
-    );
+    ) : DataSegmentPushers.s3(
+        spec.getBucket(),
+        spec.getBaseKey(),
+        spec.isDisableAcl(),
+        null,                 // accessKey: default credential chain (env)
+        null,                 // secretKey
+        spec.getEndpoint(),
+        spec.getRegion()
+    ));
   }
 
   /** The segment interval a timestamp (epoch millis) falls into, per the spec's segmentGranularity. */
