@@ -69,7 +69,9 @@ import io.druid.query.StorageHandler;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.segment.LazySegment;
 import io.druid.segment.QueryableIndex;
+import io.druid.segment.RangePrefetch;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
@@ -533,7 +535,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     final QueryToolChest<T> toolChest = factory.getToolchest();
     final SpecificSegmentSpec segmentSpec = segment.asSpec();
 
-    return reporter.accumulate(
+    final QueryRunner<T> built = reporter.accumulate(
         new SpecificSegmentQueryRunner<T>(
             new MetricsEmittingQueryRunner<T>(
                 emitter,
@@ -570,6 +572,38 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
             segmentSpec
         )
     );
+
+    // Range-served (header-first) segment: prefetch the query's referenced columns in parallel before the scan,
+    // so N cold column range-GETs overlap instead of running one at a time on the query's critical path. No-op
+    // for mmap segments (LazySegment is only produced by the range-serve loader).
+    final LazySegment lazy = asLazySegment(segment);
+    if (lazy == null) {
+      return built;
+    }
+    return (query, responseContext) -> {
+      try {
+        RangePrefetch.warm(lazy.asQueryableIndex(false), query.estimatedInitialColumns());
+      }
+      catch (Throwable t) {
+        log.debug("range-prefetch skipped for [%s]: %s", segment.getIdentifier(), t.toString());
+      }
+      return built.run(query, responseContext);
+    };
+  }
+
+  /**
+   * The LazySegment (range-served) inside a segment's wrapper chain, or null. Unlike {@code Segments.unwrap},
+   * this does NOT throw when absent — the common (mmap) case must be a cheap null, not an exception.
+   */
+  private static LazySegment asLazySegment(Segment segment)
+  {
+    for (Segment s = segment; s != null; ) {
+      if (s instanceof LazySegment) {
+        return (LazySegment) s;
+      }
+      s = (s instanceof Segment.Delegated) ? ((Segment.Delegated) s).getDelegated() : null;
+    }
+    return null;
   }
 
   @Override
