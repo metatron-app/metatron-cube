@@ -54,6 +54,14 @@ public class SegmentLoaderConfig
   @JsonProperty("reportFileNotFoundIntervalMillis")
   private int reportFileNotFoundIntervalMillis = 0;
 
+  // How to serve a segment whose LoadSpec is range-capable (e.g. s3_smoosh):
+  //   "download" (default) - pull the whole segment to a local dir and mmap it (legacy behaviour)
+  //   "range"              - header-first: keep nothing on local disk, fetch column byte-ranges from deep
+  //                          storage on first query (see RangeLoadSpec / SmooshedFileMapper.fromHeader).
+  // Left as a string (not a boolean) so it can grow into a richer policy (per-datasource/tier/size) later.
+  @JsonProperty("loadMode")
+  private String loadMode = "download";
+
   @JsonProperty
   private File infoDir = null;
 
@@ -85,6 +93,17 @@ public class SegmentLoaderConfig
   public int getReportFileNotFoundIntervalMillis()
   {
     return reportFileNotFoundIntervalMillis;
+  }
+
+  public String getLoadMode()
+  {
+    return loadMode;
+  }
+
+  /** true when range-capable segments should be served header-first (no local download). */
+  public boolean isRangeServe()
+  {
+    return "range".equalsIgnoreCase(loadMode);
   }
 
   public int getNumLoadingThreads()

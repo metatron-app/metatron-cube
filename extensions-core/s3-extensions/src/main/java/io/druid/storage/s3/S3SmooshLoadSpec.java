@@ -24,14 +24,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import io.druid.segment.loading.LoadSpec;
+import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
+import io.druid.segment.loading.RangeLoadSpec;
 import io.druid.segment.loading.SegmentLoadingException;
 
 import java.io.File;
+import java.io.IOException;
 
 /** LoadSpec for the unzipped {@code s3_smoosh} container (separate header + chunk objects under a prefix). */
 @JsonTypeName("s3_smoosh")
-public class S3SmooshLoadSpec implements LoadSpec
+public class S3SmooshLoadSpec implements RangeLoadSpec
 {
   @JsonProperty(S3SmooshDataSegmentPuller.BUCKET)
   private final String bucket;
@@ -56,5 +58,19 @@ public class S3SmooshLoadSpec implements LoadSpec
   public LoadSpecResult loadSegment(File outDir) throws SegmentLoadingException
   {
     return new LoadSpecResult(puller.getSegmentFiles(bucket, prefix, outDir).size());
+  }
+
+  // --- RangeLoadSpec: header-first / column-range serving (druid.segmentCache.loadMode=range) ---
+
+  @Override
+  public byte[] header() throws IOException
+  {
+    return puller.header(bucket, prefix);
+  }
+
+  @Override
+  public SmooshedFileMapper.RangeFetcher rangeFetcher()
+  {
+    return puller.rangeFetcher(bucket, prefix);
   }
 }

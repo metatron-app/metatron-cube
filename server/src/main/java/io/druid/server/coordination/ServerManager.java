@@ -233,9 +233,11 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
         dataSourceCounts.addTo(dataSource, 1);
       }
     }
-    final QueryableIndex index = adapter.asQueryableIndex(false);
-    if (index != null) {
-      return segment.withNumRows(index.getNumRows());
+    // Use the row count without forcing a load: a LazySegment answers this from its descriptor, so a
+    // range-served (header-first) segment is NOT materialized at load time — only on the first query.
+    final int numRows = adapter.getNumRows();
+    if (numRows >= 0) {
+      return segment.withNumRows(numRows);
     }
     return segment;
   }

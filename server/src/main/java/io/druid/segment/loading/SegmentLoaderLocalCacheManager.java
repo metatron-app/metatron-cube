@@ -20,12 +20,17 @@
 package io.druid.segment.loading;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.segment.IndexIO;
+import io.druid.segment.LazySegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
@@ -48,6 +53,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   private final QueryableIndexFactory factory;
   private final SegmentLoaderConfig config;
   private final ObjectMapper jsonMapper;
+  private final IndexIO indexIO;   // only used by the range-serve (header-first) path
 
   private final List<StorageLocation> locations;
 
@@ -55,12 +61,14 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   public SegmentLoaderLocalCacheManager(
       QueryableIndexFactory factory,
       @Nullable SegmentLoaderConfig config,
-      @Json ObjectMapper mapper
+      @Json ObjectMapper mapper,
+      IndexIO indexIO
   )
   {
     this.factory = factory;
     this.config = config == null ? new SegmentLoaderConfig() : config;
     this.jsonMapper = mapper;
+    this.indexIO = indexIO;
 
     this.locations = Lists.newArrayList();
     for (StorageLocationConfig locationConfig : this.config.getLocations()) {
@@ -68,9 +76,19 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     }
   }
 
+  // back-compat for callers (tests) that don't need the range-serve path
+  public SegmentLoaderLocalCacheManager(
+      QueryableIndexFactory factory,
+      @Nullable SegmentLoaderConfig config,
+      @Json ObjectMapper mapper
+  )
+  {
+    this(factory, config, mapper, null);
+  }
+
   public SegmentLoaderLocalCacheManager withConfig(SegmentLoaderConfig config)
   {
-    return new SegmentLoaderLocalCacheManager(factory, config, jsonMapper);
+    return new SegmentLoaderLocalCacheManager(factory, config, jsonMapper, indexIO);
   }
 
   @Override
@@ -110,10 +128,38 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   @Override
   public Segment getSegment(DataSegment segment) throws SegmentLoadingException
   {
+    if (config.isRangeServe() && indexIO != null) {
+      // Materialize the LoadSpec early (only in range mode) to see whether it can range-serve.
+      final LoadSpec loadSpec = jsonMapper.convertValue(segment.getLoadSpec(), LoadSpec.class);
+      if (loadSpec instanceof RangeLoadSpec) {
+        log.info("Range-serving segment[%s] header-first (no local download)", segment.getIdentifier());
+        return rangeSegment(segment, (RangeLoadSpec) loadSpec);
+      }
+      // otherwise (e.g. an s3_zip segment) fall through to the normal download path
+    }
+
     final File segmentFiles = getSegmentFiles(segment);
     final QueryableIndex index = factory.factorize(segmentFiles);
 
     return new QueryableIndexSegment(index, segment);
+  }
+
+  /**
+   * Header-first, disk-less load: return a {@link LazySegment} whose QueryableIndex is built (once, memoized)
+   * from the header bundle + a range-fetch mapper. Nothing is fetched until the first query touches the segment;
+   * columns are then range-read from deep storage on demand, and each column is memoized for the segment's life.
+   */
+  private Segment rangeSegment(final DataSegment segment, final RangeLoadSpec spec)
+  {
+    final Supplier<QueryableIndex> loader = Suppliers.memoize(() -> {
+      try {
+        return indexIO.loadIndex(null, false, SmooshedFileMapper.fromHeader(spec.header(), spec.rangeFetcher()));
+      }
+      catch (IOException e) {
+        throw new RuntimeException("range load failed for segment[" + segment.getIdentifier() + "]", e);
+      }
+    });
+    return new LazySegment(segment, loader);
   }
 
   @Override
