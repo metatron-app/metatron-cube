@@ -26,6 +26,8 @@ import io.druid.java.util.common.FileUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.MapUtils;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.segment.ContainerHeader;
 import io.druid.segment.loading.DataSegmentPuller;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.timeline.DataSegment;
@@ -49,6 +51,8 @@ import java.util.Map;
  */
 public class S3SmooshDataSegmentPuller implements DataSegmentPuller
 {
+  private static final Logger log = new Logger(S3SmooshDataSegmentPuller.class);
+
   static final String BUCKET = "bucket";
   static final String PREFIX = "prefix";
 
@@ -77,12 +81,22 @@ public class S3SmooshDataSegmentPuller implements DataSegmentPuller
     }
     try {
       // header -> reconstruct the two top-level files a v9 dir needs (index.drd/metadata.drd stay inside the chunk)
-      final Map<String, byte[]> parts = SmooshedFileMapper.unpackHeader(getObject(bucket, prefix + "/header"));
+      final byte[] headerBytes = getObject(bucket, prefix + "/header");
       final File version = new File(outDir, "version.bin");
       final File meta = new File(outDir, "meta.smoosh");
-      Files.write(parts.get("version.bin"), version);
-      Files.write(parts.get("meta.smoosh"), meta);
-      final int chunks = SmooshedFileMapper.chunkCount(parts.get("meta.smoosh"));
+      final byte[] versionBin;
+      final byte[] metaSmoosh;
+      if (ContainerHeader.isV2(headerBytes)) {                          // readable v2 header
+        versionBin = ContainerHeader.versionBin(headerBytes);
+        metaSmoosh = ContainerHeader.metaSmoosh(headerBytes);
+      } else {                                                          // legacy v1 packed header
+        final Map<String, byte[]> parts = SmooshedFileMapper.unpackHeader(headerBytes);
+        versionBin = parts.get("version.bin");
+        metaSmoosh = parts.get("meta.smoosh");
+      }
+      Files.write(versionBin, version);
+      Files.write(metaSmoosh, meta);
+      final int chunks = SmooshedFileMapper.chunkCount(metaSmoosh);
       final File[] written = new File[chunks + 2];
       written[0] = version;
       written[1] = meta;
@@ -102,7 +116,9 @@ public class S3SmooshDataSegmentPuller implements DataSegmentPuller
   /** The header bundle bytes for a segment (one small GET) — for header-first / range serving. */
   public byte[] header(String bucket, String prefix) throws IOException
   {
-    return getObject(bucket, prefix + "/header");
+    final byte[] header = getObject(bucket, prefix + "/header");
+    log.info("[s3_smoosh] header GET prefix[%s] len[%d]", prefix, header.length);
+    return header;
   }
 
   /** A {@link SmooshedFileMapper.RangeFetcher} that GETs exactly the requested byte range of a chunk object. */
@@ -111,6 +127,7 @@ public class S3SmooshDataSegmentPuller implements DataSegmentPuller
     return (fileNum, offset, length) -> {
       final String key = prefix + "/" + SmooshedFileMapper.chunkName(fileNum);
       final String range = "bytes=" + offset + "-" + (offset + length - 1);
+      log.info("[s3_smoosh] range GET prefix[%s] chunk[%d] offset[%d] len[%d]", prefix, fileNum, offset, length);
       try (ResponseInputStream<GetObjectResponse> in =
                s3Client.getObject(GetObjectRequest.builder().bucket(bucket).key(key).range(range).build())) {
         return ByteBuffer.wrap(ByteStreams.toByteArray(in));

@@ -23,8 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.druid.java.util.common.Throwables;
-import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.segment.ContainerHeader;
 import io.druid.segment.SegmentUtils;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.timeline.DataSegment;
@@ -84,7 +84,7 @@ public class S3SmooshDataSegmentPusher implements DataSegmentPusher
       return S3Utils.retryS3Operation(() -> {
         long total = 0;
 
-        final byte[] header = SmooshedFileMapper.writeHeader(indexFilesDir);
+        final byte[] header = ContainerHeader.write(indexFilesDir, jsonMapper);
         putBytes(bucket, prefix + "/header", header);
         total += header.length;
 

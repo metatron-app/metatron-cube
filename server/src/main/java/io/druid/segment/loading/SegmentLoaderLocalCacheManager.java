@@ -29,6 +29,7 @@ import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.segment.ContainerHeader;
 import io.druid.segment.IndexIO;
 import io.druid.segment.LazySegment;
 import io.druid.segment.QueryableIndex;
@@ -153,7 +154,12 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   {
     final Supplier<QueryableIndex> loader = Suppliers.memoize(() -> {
       try {
-        return indexIO.loadIndex(null, false, SmooshedFileMapper.fromHeader(spec.header(), spec.rangeFetcher()));
+        final byte[] header = spec.header();
+        // v2: fully-readable header carries capabilities -> only queried columns are fetched.
+        // v1: legacy packed header (version.bin+meta.smoosh+index.drd+metadata.drd) via the v9 loader.
+        return ContainerHeader.isV2(header)
+               ? ContainerHeader.load(header, spec.rangeFetcher(), jsonMapper)
+               : indexIO.loadIndex(null, false, SmooshedFileMapper.fromHeader(header, spec.rangeFetcher()));
       }
       catch (IOException e) {
         throw new RuntimeException("range load failed for segment[" + segment.getIdentifier() + "]", e);
