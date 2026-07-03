@@ -43,6 +43,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.UOE;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSource;
@@ -465,7 +466,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
         );
         return QueryRunners.finalizeAndPostProcessing(
             toolChest.mergeResults(
-                factory.mergeRunners(resolved, exec, runners, optimizer)
+                localizeDirect(factory.mergeRunners(resolved, exec, runners, optimizer))
             ),
             toolChest,
             objectMapper
@@ -490,6 +491,21 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       }
     }
     return QueryRunners.runWith(resolved, reporter.report(runner));
+  }
+
+  /**
+   * A directly-queried historical (:8083, not routed through the broker) receives a query with {@code #brokerSide}
+   * defaulting to true, so {@code toolChest.mergeResults} takes the broker branch (a final CompactRow merge). But
+   * the local segment merge ({@code mergeRunners}) with finalize=true emits MapBasedRow, which the Compact-expecting
+   * merge then can't cast (ClassCastException). Mirror what the broker does for its data nodes: feed the LOCAL merge
+   * the localized query ({@code toLocalQuery()} -> brokerSide/finalize off, so it emits unfinalized CompactRow) while
+   * the outer mergeResults keeps the original and does the final compact-merge + finalize. Broker-routed queries are
+   * already localized (brokerSide=false), so they pass through unchanged.
+   */
+  private static <T> QueryRunner<T> localizeDirect(final QueryRunner<T> localMerge)
+  {
+    return (query, responseContext) ->
+        localMerge.run(BaseQuery.isBrokerSide(query) ? query.toLocalQuery() : query, responseContext);
   }
 
   private <T> QueryRunner<T> toConcatRunner(
