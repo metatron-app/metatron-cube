@@ -15,26 +15,33 @@
 package io.druid.java.util.common.io.smoosh;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import io.druid.java.util.common.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 import io.druid.java.util.common.ByteBufferUtils;
 import io.druid.java.util.common.ISE;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Class that works in conjunction with FileSmoosher.  This class knows how to map in a set of files smooshed
@@ -117,10 +124,58 @@ public class SmooshedFileMapper implements Closeable
     }
   }
 
+  /**
+   * Build a purely in-memory (heap) mapper straight from the bytes of a segment's {@code index.zip} — no temp
+   * files, no disk. Unzips in memory, parses meta.smoosh, and holds each chunk as a heap ByteBuffer. Pair with
+   * {@code IndexIO.loadIndex(null, false, mapper)} (the mapper carries version.bin so no file read is needed).
+   */
+  public static SmooshedFileMapper loadHeapFromZip(byte[] indexZip) throws IOException
+  {
+    final Map<String, byte[]> files = Maps.newHashMap();
+    try (ZipInputStream zin = new ZipInputStream(new ByteArrayInputStream(indexZip))) {
+      ZipEntry entry;
+      while ((entry = zin.getNextEntry()) != null) {
+        files.put(entry.getName(), ByteStreams.toByteArray(zin));
+      }
+    }
+    final byte[] metaBytes = files.get(FileSmoosher.metaFile(new File("")).getName());
+    if (metaBytes == null) {
+      throw new ISE("index.zip has no meta.smoosh");
+    }
+    final Map<String, Metadata> internalFiles = Maps.newTreeMap();
+    int numChunks;
+    try (BufferedReader in = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(metaBytes), Charsets.UTF_8))) {
+      final String[] header = in.readLine().split(",");
+      if (!"v1".equals(header[0]) || header.length != 3) {
+        throw new ISE("bad meta.smoosh header[%s]", (Object) header);
+      }
+      numChunks = Integer.parseInt(header[2]);
+      String line;
+      while ((line = in.readLine()) != null) {
+        final String[] s = line.split(",");
+        internalFiles.put(s[0], new Metadata(Integer.parseInt(s[1]), Integer.parseInt(s[2]), Integer.parseInt(s[3])));
+      }
+    }
+    final List<ByteBuffer> chunks = Lists.newArrayListWithCapacity(numChunks);
+    for (int i = 0; i < numChunks; i++) {
+      final byte[] chunk = files.get(FileSmoosher.chunkFile(new File(""), i).getName());
+      chunks.add(ByteBuffer.wrap(Preconditions.checkNotNull(chunk, "missing chunk %s", i)));
+    }
+    return fromMemory(internalFiles, chunks, files.get("version.bin"));
+  }
+
+  private static SmooshedFileMapper fromMemory(Map<String, Metadata> internalFiles, List<ByteBuffer> chunks, byte[] version)
+  {
+    final SmooshedFileMapper mapper = new SmooshedFileMapper(null, Arrays.asList(new File[chunks.size()]), internalFiles, true, version);
+    mapper.buffersList.addAll(chunks);   // pre-populated -> mapFile never touches a file
+    return mapper;
+  }
+
   private final File baseDir;
   private final List<File> outFiles;
   private final Map<String, Metadata> internalFiles;
   private final boolean heap;
+  private final byte[] versionBytes;   // non-null only for in-memory mappers (no version.bin file to read)
   // MappedByteBuffer when mmap'd, plain heap ByteBuffer when heap-loaded (both are ByteBuffer)
   private final List<ByteBuffer> buffersList = Lists.newArrayList();
 
@@ -131,10 +186,22 @@ public class SmooshedFileMapper implements Closeable
 
   SmooshedFileMapper(File baseDir, List<File> outFiles, Map<String, Metadata> internalFiles, boolean heap)
   {
+    this(baseDir, outFiles, internalFiles, heap, null);
+  }
+
+  SmooshedFileMapper(File baseDir, List<File> outFiles, Map<String, Metadata> internalFiles, boolean heap, byte[] versionBytes)
+  {
     this.baseDir = baseDir;
     this.outFiles = outFiles;
     this.internalFiles = internalFiles;
     this.heap = heap;
+    this.versionBytes = versionBytes;
+  }
+
+  /** version.bin content for in-memory mappers (so a loader need not read it from disk); null for file mappers. */
+  public byte[] getVersion()
+  {
+    return versionBytes;
   }
 
   public File getBaseDir()

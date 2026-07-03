@@ -254,11 +254,16 @@ public class IndexIO
     return getIndexLoader(inDir).load(inDir, mapper, readOnly);
   }
 
-  // Load with a caller-supplied smoosh mapper (e.g. SmooshedFileMapper.loadHeap) so the segment is served from
-  // heap ByteBuffers rather than mmapped files. V9 only.
+  // Load with a caller-supplied smoosh mapper (e.g. SmooshedFileMapper.loadHeap / loadHeapFromZip) so the
+  // segment is served from heap ByteBuffers rather than mmapped files. V9 only. inDir may be null when the mapper
+  // is fully in-memory (it carries version.bin), in which case the loader is selected from the mapper's version.
   public QueryableIndex loadIndex(File inDir, boolean readOnly, SmooshedFileMapper smooshMapper) throws IOException
   {
-    return getIndexLoader(inDir).load(inDir, mapper, readOnly, smooshMapper);
+    final int version = smooshMapper != null && smooshMapper.getVersion() != null
+                        ? Ints.fromByteArray(smooshMapper.getVersion())
+                        : SegmentUtils.getVersionFromDir(inDir);
+    final IndexLoader loader = Preconditions.checkNotNull(indexLoaders.get(version), "Unknown index version[%s]", version);
+    return loader.load(inDir, mapper, readOnly, smooshMapper);
   }
 
   public DataSegment decorateMeta(DataSegment segment, File directory) throws IOException
@@ -1052,7 +1057,11 @@ public class IndexIO
       log.debug("Mapping v9 index[%s]", inDir);
       long startTime = System.currentTimeMillis();
 
-      final int theVersion = Ints.fromByteArray(Files.toByteArray(new File(inDir, "version.bin")));
+      // an in-memory mapper carries version.bin; otherwise read it from the dir
+      final byte[] versionBytes = smooshMapper != null && smooshMapper.getVersion() != null
+                                  ? smooshMapper.getVersion()
+                                  : Files.toByteArray(new File(inDir, "version.bin"));
+      final int theVersion = Ints.fromByteArray(versionBytes);
       if (theVersion != V9_VERSION) {
         throw new IllegalArgumentException(String.format("Expected version[9], got[%s]", theVersion));
       }

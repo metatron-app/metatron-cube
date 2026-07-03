@@ -121,6 +121,28 @@ public final class HeapSegmentCache implements Closeable
     return entry.index;
   }
 
+  /**
+   * Fully in-memory load-on-miss: the fetcher returns the segment's {@code index.zip} BYTES (e.g. a straight S3
+   * GET), which are unzipped and heap-loaded with NO temp file at all (see
+   * {@link SmooshedFileMapper#loadHeapFromZip}). No pin — for a {@link LazySegment} materializer.
+   */
+  public synchronized QueryableIndex getOrLoad(String id, BytesFetcher fetcher) throws IOException
+  {
+    Entry entry = entries.get(id);
+    if (entry == null) {
+      final byte[] zip = fetcher.fetch();
+      final long bytes = zip.length;   // ~uncompressed footprint (segment zips are stored uncompressed)
+      evictToFit(bytes);
+      final QueryableIndex index = indexIO.loadIndex(null, false, SmooshedFileMapper.loadHeapFromZip(zip));
+      entry = new Entry(index, bytes);
+      entries.put(id, entry);
+      usedBytes += bytes;
+      log.debug("loaded [%s] into heap from bytes (%,d); used=%,d/%,d", id, bytes, usedBytes, maxBytes);
+      return index;
+    }
+    return entry.index;
+  }
+
   private static void deleteQuietly(File dir)
   {
     final File[] files = dir.listFiles();
@@ -202,6 +224,12 @@ public final class HeapSegmentCache implements Closeable
   public interface Fetcher
   {
     File fetch() throws IOException;
+  }
+
+  /** Produces the segment's index.zip BYTES on a cache miss (e.g. an S3 GET) — for the no-temp-file heap path. */
+  public interface BytesFetcher
+  {
+    byte[] fetch() throws IOException;
   }
 
   private static final class Entry
