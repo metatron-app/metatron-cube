@@ -33,7 +33,6 @@ import io.druid.collections.IntList;
 import io.druid.collections.String2IntMap;
 import io.druid.collections.String2LongMap;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
@@ -70,7 +69,6 @@ import io.druid.query.TableDataSource;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.LazySegment;
-import io.druid.segment.QueryableIndex;
 import io.druid.segment.RangePrefetch;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
@@ -92,7 +90,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -180,7 +177,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
    *
    * @param segment segment to load
    *
-   * @return true if the segment was newly loaded, false if it was already loaded
+   * @return loaded segment
    *
    * @throws SegmentLoadingException if the segment cannot be loaded
    */
@@ -325,9 +322,6 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       throw new ISE("Unknown query type[%s].", query.getClass());
     }
 
-    final QueryToolChest<T> toolChest = factory.getToolchest();
-    final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
-
     DataSource dataSource = query.getDataSource();
     if (!(dataSource instanceof TableDataSource)) {
       throw new UOE("data source type '%s' unsupported", dataSource.getClass());
@@ -342,7 +336,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
 
     Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments =
         GuavaUtils.explode(
-            Iterables.filter(GuavaUtils.explode(intervals, i -> timeline.lookup(i)), Predicates.notNull()),
+            Iterables.filter(GuavaUtils.explode(intervals, timeline::lookup), Predicates.notNull()),
             holder -> Iterables.transform(
                 holder.getObject(),
                 chunk -> Pair.of(
@@ -446,7 +440,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       if (target != null) {
         targets.add(Segments.withLimit(segment.rhs, segment.lhs));
       } else {
-        missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<T>(segment.lhs));
+        missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<>(segment.lhs));
       }
     }
     if (query.isDescending()) {
@@ -459,15 +453,15 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     final Supplier<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
     final QueryToolChest<T> toolChest = factory.getToolchest();
-    final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<T>(toolChest, emitter);
+    final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<>(toolChest, emitter);
 
-    final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
+    final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<>()
     {
       @Override
-      public QueryRunner<T> apply(Iterable<Segment> segments)
+      public QueryRunner<T> apply(Iterable<Segment> targets)
       {
         Iterable<QueryRunner<T>> runners = Iterables.transform(
-            segments, s -> buildAndDecorateQueryRunner(s, factory, optimizer, reporter)
+            targets, s -> buildAndDecorateQueryRunner(s, factory, optimizer, reporter)
         );
         return QueryRunners.finalizeAndPostProcessing(
             toolChest.mergeResults(
@@ -504,24 +498,20 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   )
   {
     if (queries.size() == 1) {
-      return QueryRunners.runWith(queries.get(0), runner);
+      return QueryRunners.runWith(queries.getFirst(), runner);
     }
-    return new QueryRunner<T>()
+    return (resolved, responseContext) ->
     {
-      @Override
-      public Sequence<T> run(Query<T> resolved, final Map<String, Object> responseContext)
-      {
-        // stop streaming if canceled
-        final Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture<>(), "split-runner");
-        queryManager.register(resolved, future);
-        return Sequences.withBaggage(
-            Sequences.interruptible(future, Sequences.concat(
-                resolved.estimatedOutputColumns(),
-                Iterables.transform(queries, query -> runner.run(query, responseContext))
-            )),
-            future
-        );
-      }
+      // stop streaming if canceled
+      final Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture<>(), "split-runner");
+      queryManager.register(resolved, future);
+      return Sequences.withBaggage(
+          Sequences.interruptible(future, Sequences.concat(
+              resolved.estimatedOutputColumns(),
+              Iterables.transform(queries, query -> runner.run(query, responseContext))
+          )),
+          future
+      );
     };
   }
 
@@ -536,24 +526,24 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     final SpecificSegmentSpec segmentSpec = segment.asSpec();
 
     final QueryRunner<T> built = reporter.accumulate(
-        new SpecificSegmentQueryRunner<T>(
-            new MetricsEmittingQueryRunner<T>(
+        new SpecificSegmentQueryRunner<>(
+            new MetricsEmittingQueryRunner<>(
                 emitter,
                 toolChest,
-                new BySegmentQueryRunner<T>(
+                new BySegmentQueryRunner<>(
                     toolChest,
                     segment.getIdentifier(),
                     segment.getInterval().getStart(),
-                    new CachingQueryRunner<T>(
+                    new CachingQueryRunner<>(
                         segment.getIdentifier(),
                         segmentSpec.getDescriptor(),
                         objectMapper,
                         cache,
                         toolChest,
-                        new MetricsEmittingQueryRunner<T>(
+                        new MetricsEmittingQueryRunner<>(
                             emitter,
                             toolChest,
-                            new ReferenceCountingSegmentQueryRunner<T>(
+                            new ReferenceCountingSegmentQueryRunner<>(
                                 factory,
                                 Segments.unwrap(segment, ReferenceCountingSegment.class),
                                 segmentSpec.getDescriptor(),
@@ -576,7 +566,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     // Range-served (header-first) segment: prefetch the query's referenced columns in parallel before the scan,
     // so N cold column range-GETs overlap instead of running one at a time on the query's critical path. No-op
     // for mmap segments (LazySegment is only produced by the range-serve loader).
-    final LazySegment lazy = asLazySegment(segment);
+    final LazySegment lazy = Segments._unwrap(segment, LazySegment.class);
     if (lazy == null) {
       return built;
     }
@@ -589,21 +579,6 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       }
       return built.run(query, responseContext);
     };
-  }
-
-  /**
-   * The LazySegment (range-served) inside a segment's wrapper chain, or null. Unlike {@code Segments.unwrap},
-   * this does NOT throw when absent — the common (mmap) case must be a cheap null, not an exception.
-   */
-  private static LazySegment asLazySegment(Segment segment)
-  {
-    for (Segment s = segment; s != null; ) {
-      if (s instanceof LazySegment) {
-        return (LazySegment) s;
-      }
-      s = (s instanceof Segment.Delegated) ? ((Segment.Delegated) s).getDelegated() : null;
-    }
-    return null;
   }
 
   @Override

@@ -26,6 +26,8 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DictionaryID;
 import io.druid.query.spec.SpecificSegmentSpec;
 
+import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
 public class Segments
@@ -38,16 +40,25 @@ public class Segments
     return new WithLimit(segment, descriptor);
   }
 
+  public static <T extends Segment> T unwrap(@NotNull Segment segment, Class<T> clazz)
+  {
+    T unwrapped =_unwrap(segment, clazz);
+    if (unwrapped == null) {
+      throw new ISE("Cannot find %s from %s", clazz, segment.getClass());
+    }
+    return unwrapped;
+  }
+
   @SuppressWarnings("unchecked")
-  public static <T extends Segment> T unwrap(Segment segment, Class<T> clazz)
+  public static <T extends Segment> @Nullable T _unwrap(@NotNull Segment segment, Class<T> clazz)
   {
     if (clazz.isInstance(segment)) {
       return (T) segment;
     }
     if (segment instanceof Segment.Delegated) {
-      return unwrap(((Segment.Delegated) segment).getDelegated(), clazz);
+      return _unwrap(((Segment.Delegated) segment).getDelegated(), clazz);
     }
-    throw new ISE("Cannot find %s from %s", clazz, segment.getClass());
+    return null;
   }
 
   @SuppressWarnings("unchecked")
@@ -81,7 +92,7 @@ public class Segments
 
   public static boolean isAllIndexedSingleValuedDimensions(List<Segment> segments, List<String> dimensions)
   {
-    if (segments.stream().allMatch(s -> s.isIndexed())) {
+    if (segments.stream().allMatch(Segment::isIndexed)) {
       for (Segment segment : segments) {
         StorageAdapter adapter = segment.asStorageAdapter(false);
         return dimensions.stream().allMatch(
