@@ -129,8 +129,8 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   @Override
   public Segment getSegment(DataSegment segment) throws SegmentLoadingException
   {
-    if (config.isRangeServe() && indexIO != null) {
-      // Materialize the LoadSpec early (only in range mode) to see whether it can range-serve.
+    if (indexIO != null && rangeForSegment(segment)) {
+      // Materialize the LoadSpec early (only for a range-served segment) to see whether it can range-serve.
       final LoadSpec loadSpec = jsonMapper.convertValue(segment.getLoadSpec(), LoadSpec.class);
       if (loadSpec instanceof RangeLoadSpec) {
         log.info("Range-serving segment[%s] header-first (no local download)", segment.getIdentifier());
@@ -143,6 +143,25 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     final QueryableIndex index = factory.factorize(segmentFiles);
 
     return new QueryableIndexSegment(index, segment);
+  }
+
+  /**
+   * Whether this segment should be served header-first / range (off-heap direct buffers) vs downloaded to the
+   * local cache (mmap — RAM when the cache is on tmpfs). Driven by {@code druid.segmentCache.loadMode}:
+   *   download (default) - never range;  range - always range;
+   *   split              - deterministic ~50/50 by identifier, to run BOTH residencies on one node (A/B).
+   * This is the seam a future policy (segment priority + live heap/direct/tmpfs headroom) plugs into.
+   */
+  private boolean rangeForSegment(DataSegment segment)
+  {
+    final String mode = config.getLoadMode();
+    if ("range".equalsIgnoreCase(mode)) {
+      return true;
+    }
+    if ("split".equalsIgnoreCase(mode)) {
+      return (segment.getIdentifier().hashCode() & 1) == 0;
+    }
+    return false;   // "download"
   }
 
   /**

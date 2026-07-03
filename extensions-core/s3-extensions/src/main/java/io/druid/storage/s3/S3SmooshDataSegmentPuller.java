@@ -121,16 +121,25 @@ public class S3SmooshDataSegmentPuller implements DataSegmentPuller
     return header;
   }
 
-  /** A {@link SmooshedFileMapper.RangeFetcher} that GETs exactly the requested byte range of a chunk object. */
+  /**
+   * A {@link SmooshedFileMapper.RangeFetcher} that GETs exactly the requested byte range of a chunk object into a
+   * DIRECT (off-heap) ByteBuffer. Range-served columns are long-lived and can be large; keeping them off the JVM
+   * heap avoids GC pressure at scale (a heap buffer here would pile up as old-gen byte[]). The direct buffer is
+   * freed by its Cleaner when the owning column becomes unreachable (segment drop/evict). Requires the historical's
+   * -XX:MaxDirectMemorySize to cover the resident column set + processing buffers.
+   */
   public SmooshedFileMapper.RangeFetcher rangeFetcher(String bucket, String prefix)
   {
     return (fileNum, offset, length) -> {
       final String key = prefix + "/" + SmooshedFileMapper.chunkName(fileNum);
       final String range = "bytes=" + offset + "-" + (offset + length - 1);
-      log.info("[s3_smoosh] range GET prefix[%s] chunk[%d] offset[%d] len[%d]", prefix, fileNum, offset, length);
+      log.info("[s3_smoosh] range GET prefix[%s] chunk[%d] offset[%d] len[%d] (direct)", prefix, fileNum, offset, length);
       try (ResponseInputStream<GetObjectResponse> in =
                s3Client.getObject(GetObjectRequest.builder().bucket(bucket).key(key).range(range).build())) {
-        return ByteBuffer.wrap(ByteStreams.toByteArray(in));
+        final byte[] bytes = ByteStreams.toByteArray(in);   // transient heap staging (young-gen, freed fast)
+        final ByteBuffer direct = ByteBuffer.allocateDirect(bytes.length);
+        direct.put(bytes).flip();
+        return direct;
       }
     };
   }
