@@ -29,6 +29,7 @@ public abstract class AbstractSegment implements Segment
   protected final DataSegment descriptor;
   protected final int sequence;
   protected volatile long lastAccessTime;
+  protected volatile long accessCount;   // query accesses; feeds the residency heat estimate
 
   protected AbstractSegment(DataSegment descriptor)
   {
@@ -57,6 +58,7 @@ public abstract class AbstractSegment implements Segment
   {
     if (forQuery) {
       lastAccessTime = System.currentTimeMillis();
+      accessCount++;
     }
   }
 
@@ -64,6 +66,12 @@ public abstract class AbstractSegment implements Segment
   public long getLastAccessTime()
   {
     return lastAccessTime;
+  }
+
+  @Override
+  public long getAccessCount()
+  {
+    return accessCount;
   }
 
   public void close() throws IOException {}

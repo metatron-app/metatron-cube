@@ -39,4 +39,18 @@ public interface SegmentLoader
   File getSegmentFiles(DataSegment segment) throws SegmentLoadingException;
 
   void cleanup(DataSegment segment) throws SegmentLoadingException;
+
+  // --- residency (auto loadMode): the ResidencyManager demotes a hot-cache (tmpfs) segment to range on pressure ---
+
+  /** Build the segment header-first / range (off-heap) if it can range-serve, else the normal segment. */
+  default Segment getRangeSegment(DataSegment segment) throws SegmentLoadingException { return getSegment(segment); }
+
+  /** Bytes currently held in the local (tmpfs) cache; -1 if not tracked (residency sizing then disabled). */
+  default long localUsedBytes() { return -1; }
+
+  /** Local (tmpfs) cache budget in bytes; -1 if not tracked. */
+  default long localMaxBytes() { return -1; }
+
+  /** True when loadMode=auto — the ServerManager should run the ResidencyManager (pressure demote). */
+  default boolean residencyManaged() { return false; }
 }

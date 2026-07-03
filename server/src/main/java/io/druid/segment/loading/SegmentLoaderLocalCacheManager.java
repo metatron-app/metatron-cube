@@ -145,6 +145,45 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     return new QueryableIndexSegment(index, segment);
   }
 
+  /** Force the range (off-heap, header-first) residency for a segment — used by the ResidencyManager to demote. */
+  @Override
+  public Segment getRangeSegment(DataSegment segment) throws SegmentLoadingException
+  {
+    if (indexIO != null) {
+      final LoadSpec loadSpec = jsonMapper.convertValue(segment.getLoadSpec(), LoadSpec.class);
+      if (loadSpec instanceof RangeLoadSpec) {
+        return rangeSegment(segment, (RangeLoadSpec) loadSpec);
+      }
+    }
+    return getSegment(segment);   // can't range (e.g. s3_zip) -> normal load
+  }
+
+  @Override
+  public long localUsedBytes()
+  {
+    long used = 0;
+    for (StorageLocation loc : locations) {
+      used += loc.getMaxSize() - loc.available();
+    }
+    return used;
+  }
+
+  @Override
+  public long localMaxBytes()
+  {
+    long max = 0;
+    for (StorageLocation loc : locations) {
+      max += loc.getMaxSize();
+    }
+    return max;
+  }
+
+  @Override
+  public boolean residencyManaged()
+  {
+    return "auto".equalsIgnoreCase(config.getLoadMode());
+  }
+
   /**
    * Whether this segment should be served header-first / range (off-heap direct buffers) vs downloaded to the
    * local cache (mmap — RAM when the cache is on tmpfs). Driven by {@code druid.segmentCache.loadMode}:

@@ -43,6 +43,7 @@ public interface Segment extends SchemaProvider, Closeable
   DataSegment getDescriptor();
   Interval getInterval();
   long getLastAccessTime();
+  default long getAccessCount() {return 0;}
   default boolean isIndexed() {return false;}
   int getNumRows();
 
@@ -127,6 +128,12 @@ public interface Segment extends SchemaProvider, Closeable
     public long getLastAccessTime()
     {
       return segment.getLastAccessTime();
+    }
+
+    @Override
+    public long getAccessCount()
+    {
+      return segment.getAccessCount();
     }
 
     @Override
