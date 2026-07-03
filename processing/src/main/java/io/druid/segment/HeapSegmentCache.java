@@ -76,6 +76,44 @@ public final class HeapSegmentCache implements Closeable
     return new Handle(id, entry.index);
   }
 
+  /**
+   * Like {@link #acquire(String, File)} but the segment's files are produced on demand by {@code fetcher} (e.g.
+   * pulled from deep storage into a temp dir). After the segment is read fully into heap the fetched files are
+   * deleted — heap holds the bytes, so residency stays zero-disk. This is the cold-segment lazy-fetch entry.
+   */
+  public synchronized Handle acquire(String id, Fetcher fetcher) throws IOException
+  {
+    Entry entry = entries.get(id);
+    if (entry == null) {
+      final File dir = fetcher.fetch();
+      try {
+        final long bytes = heapFootprint(dir);
+        evictToFit(bytes);
+        final QueryableIndex index = indexIO.loadIndex(dir, false, SmooshedFileMapper.loadHeap(dir));
+        entry = new Entry(index, bytes);
+        entries.put(id, entry);
+        usedBytes += bytes;
+        log.debug("fetched+loaded [%s] into heap (%,d bytes); used=%,d/%,d", id, bytes, usedBytes, maxBytes);
+      }
+      finally {
+        deleteQuietly(dir);   // heap now holds the bytes (eager loadHeap); drop the fetched files
+      }
+    }
+    entry.refs++;
+    return new Handle(id, entry.index);
+  }
+
+  private static void deleteQuietly(File dir)
+  {
+    final File[] files = dir.listFiles();
+    if (files != null) {
+      for (File f : files) {
+        f.delete();
+      }
+    }
+    dir.delete();
+  }
+
   private void evictToFit(long need)
   {
     if (usedBytes + need <= maxBytes) {
@@ -140,6 +178,12 @@ public final class HeapSegmentCache implements Closeable
     }
     entries.clear();
     usedBytes = 0;
+  }
+
+  /** Produces the segment's files locally on a cache miss (e.g. pulls index from deep storage into a temp dir). */
+  public interface Fetcher
+  {
+    File fetch() throws IOException;
   }
 
   private static final class Entry

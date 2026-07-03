@@ -95,10 +95,25 @@ public class SmooshedFileMapper implements Closeable
         );
       }
 
-      return new SmooshedFileMapper(baseDir, outFiles, internalFiles, heap);
+      final SmooshedFileMapper mapper = new SmooshedFileMapper(baseDir, outFiles, internalFiles, heap);
+      if (heap) {
+        mapper.eagerLoadAll();   // pull every chunk into heap now, so baseDir may be deleted afterwards
+      }
+      return mapper;
     }
     finally {
       Closeables.close(in, false);
+    }
+  }
+
+  // heap mode only: read all chunk files into heap ByteBuffers up front so the source files are no longer needed
+  private void eagerLoadAll() throws IOException
+  {
+    for (int i = 0; i < outFiles.size(); i++) {
+      while (buffersList.size() <= i) {
+        buffersList.add(null);
+      }
+      buffersList.set(i, ByteBuffer.wrap(Files.toByteArray(outFiles.get(i))));
     }
   }
 
