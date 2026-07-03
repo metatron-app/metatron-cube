@@ -149,8 +149,10 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
    * Whether this segment should be served header-first / range (off-heap direct buffers) vs downloaded to the
    * local cache (mmap — RAM when the cache is on tmpfs). Driven by {@code druid.segmentCache.loadMode}:
    *   download (default) - never range;  range - always range;
-   *   split              - deterministic ~50/50 by identifier, to run BOTH residencies on one node (A/B).
-   * This is the seam a future policy (segment priority + live heap/direct/tmpfs headroom) plugs into.
+   *   split              - deterministic ~50/50 by identifier, to run BOTH residencies on one node (A/B);
+   *   auto               - fill the local (tmpfs) cache greedily; overflow goes range (off-heap direct). The
+   *                        residency policy seam — segment priority (recency) + live headroom plug in here.
+   * The caller already gated on range-capability (RangeLoadSpec), so a false here means "download".
    */
   private boolean rangeForSegment(DataSegment segment)
   {
@@ -160,6 +162,18 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     }
     if ("split".equalsIgnoreCase(mode)) {
       return (segment.getIdentifier().hashCode() & 1) == 0;
+    }
+    if ("auto".equalsIgnoreCase(mode)) {
+      // v1: greedy — keep the segment resident in the local cache (tmpfs mmap) while there's room; once the
+      // cache (its maxSize budget) is full, serve the overflow header-first from off-heap direct buffers. This
+      // fills the tmpfs budget and reflects memory pressure automatically. (Recency-optimal placement — evicting
+      // a cold tmpfs segment so a newer one can be resident — is the v2 dynamic-migration upgrade.)
+      for (StorageLocation loc : locations) {
+        if (loc.canHandle(segment.getSize())) {
+          return false;   // room in the tmpfs cache -> download (mmap)
+        }
+      }
+      return true;        // cache full -> range (off-heap direct)
     }
     return false;   // "download"
   }
