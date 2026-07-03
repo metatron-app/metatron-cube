@@ -283,6 +283,28 @@ public class SmooshedFileMapper implements Closeable
     return line;
   }
 
+  /** Split a {@link #writeHeader} bundle back into name -> bytes (used by a puller to reconstruct a segment dir). */
+  public static Map<String, byte[]> unpackHeader(byte[] header) throws IOException
+  {
+    final Map<String, byte[]> out = new LinkedHashMap<>();
+    for (Map.Entry<String, ByteBuffer> e : unpack(header).entrySet()) {
+      out.put(e.getKey(), toBytes(e.getValue()));
+    }
+    return out;
+  }
+
+  /** Number of chunk (NNNNN.smoosh) files a segment has, from its meta.smoosh bytes. */
+  public static int chunkCount(byte[] metaSmooshBytes) throws IOException
+  {
+    return parseMeta(metaSmooshBytes).numChunks;
+  }
+
+  /** The chunk file name for index {@code i} (e.g. "00000.smoosh"). */
+  public static String chunkName(int i)
+  {
+    return FileSmoosher.chunkFile(new File(""), i).getName();
+  }
+
   private static byte[] toBytes(ByteBuffer buffer)
   {
     final ByteBuffer dup = buffer.duplicate();

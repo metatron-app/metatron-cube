@@ -64,6 +64,7 @@ public class S3StorageDruidModule implements DruidModule
           public void setupModule(SetupContext context)
           {
             context.registerSubtypes(S3LoadSpec.class);
+            context.registerSubtypes(S3SmooshLoadSpec.class);
           }
         }
     );
@@ -82,6 +83,9 @@ public class S3StorageDruidModule implements DruidModule
              .to(S3TimestampVersionedDataFinder.class)
              .in(LazySingleton.class);
     Binders.dataSegmentPullerBinder(binder).addBinding(SCHEME).to(S3DataSegmentPuller.class).in(LazySingleton.class);
+    // unzipped smoosh container (coexists with s3_zip); select at write time via druid.storage.type=s3_smoosh
+    Binders.dataSegmentPullerBinder(binder).addBinding("s3_smoosh").to(S3SmooshDataSegmentPuller.class).in(LazySingleton.class);
+    Binders.dataSegmentPusherBinder(binder).addBinding("s3_smoosh").to(S3SmooshDataSegmentPusher.class).in(LazySingleton.class);
     Binders.dataSegmentKillerBinder(binder).addBinding(SCHEME).to(S3DataSegmentKiller.class).in(LazySingleton.class);
     Binders.dataSegmentMoverBinder(binder).addBinding(SCHEME).to(S3DataSegmentMover.class).in(LazySingleton.class);
     Binders.dataSegmentArchiverBinder(binder).addBinding(SCHEME).to(S3DataSegmentArchiver.class).in(LazySingleton.class);
