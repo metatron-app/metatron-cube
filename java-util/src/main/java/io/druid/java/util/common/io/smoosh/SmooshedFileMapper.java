@@ -28,6 +28,7 @@ import io.druid.java.util.common.ISE;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -36,7 +37,9 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -172,6 +175,132 @@ public class SmooshedFileMapper implements Closeable
     return mapper;
   }
 
+  // ---- header bundle: version.bin + meta.smoosh + index.drd + metadata.drd combined into ONE object, so a
+  //      segment's whole front block is read in a single GET at boot; only columns are range-fetched later ----
+
+  /** Bundle a v9 segment dir's front block (version.bin + meta.smoosh + index.drd + metadata.drd) into one blob. */
+  public static byte[] writeHeader(File segmentDir) throws IOException
+  {
+    final LinkedHashMap<String, byte[]> entries = new LinkedHashMap<>();
+    entries.put("version.bin", Files.toByteArray(FileSmoosher.versionFile(segmentDir)));
+    final byte[] meta = Files.toByteArray(FileSmoosher.metaFile(segmentDir));
+    entries.put("meta.smoosh", meta);
+    final ParsedMeta pm = parseMeta(meta);
+    for (String name : new String[]{"index.drd", "metadata.drd"}) {
+      final Metadata md = pm.internalFiles.get(name);
+      if (md != null) {
+        entries.put(name, readRange(FileSmoosher.chunkFile(segmentDir, md.getFileNum()), md.getStartOffset(), md.getLength()));
+      }
+    }
+    return pack(entries);
+  }
+
+  /**
+   * Build a mapper from a {@link #writeHeader} bundle: version/meta/index.drd/metadata.drd are served from the
+   * header (zero fetch); columns are range-fetched from the chunk object(s) via {@code columnFetcher} on first
+   * access. Pair with {@code IndexIO.loadIndex(null, false, mapper)} for a single-GET boot.
+   */
+  public static SmooshedFileMapper fromHeader(byte[] header, RangeFetcher columnFetcher) throws IOException
+  {
+    final Map<String, ByteBuffer> bundle = unpack(header);
+    final byte[] metaBytes = toBytes(bundle.get("meta.smoosh"));
+    final byte[] version = toBytes(bundle.get("version.bin"));
+    final ParsedMeta pm = parseMeta(metaBytes);
+    final SmooshedFileMapper mapper = new SmooshedFileMapper(null, Arrays.asList(new File[pm.numChunks]), pm.internalFiles, true, version);
+    mapper.rangeFetcher = columnFetcher;
+    final Map<String, ByteBuffer> pre = new LinkedHashMap<>();
+    for (String name : new String[]{"index.drd", "metadata.drd"}) {
+      if (bundle.containsKey(name)) {
+        pre.put(name, bundle.get(name));
+      }
+    }
+    mapper.preloaded = pre;
+    return mapper;
+  }
+
+  // Container header format version — versions the CONTAINER (packaging), independent of version.bin (the v9
+  // columnar format, unchanged). Bump if the header layout changes.
+  public static final int HEADER_FORMAT = 1;
+
+  // A READABLE text directory (like meta.smoosh) followed by a blank line and the concatenated binary payloads:
+  //   smoosh-header,v1,<numEntries>
+  //   <name>,<payloadOffset>,<payloadLen>          (offset relative to the byte after the blank line)
+  //   ...
+  //   <blank line>
+  //   <version.bin><meta.smoosh><index.drd><metadata.drd>   (binary)
+  private static byte[] pack(LinkedHashMap<String, byte[]> entries) throws IOException
+  {
+    final StringBuilder dir = new StringBuilder();
+    dir.append("smoosh-header,v").append(HEADER_FORMAT).append(',').append(entries.size()).append('\n');
+    int off = 0;
+    for (Map.Entry<String, byte[]> e : entries.entrySet()) {
+      dir.append(e.getKey()).append(',').append(off).append(',').append(e.getValue().length).append('\n');
+      off += e.getValue().length;
+    }
+    dir.append('\n');   // blank line ends the readable directory; binary payloads follow
+    final ByteArrayOutputStream bout = new ByteArrayOutputStream();
+    bout.write(dir.toString().getBytes(StandardCharsets.UTF_8));
+    for (byte[] payload : entries.values()) {
+      bout.write(payload);
+    }
+    return bout.toByteArray();
+  }
+
+  private static Map<String, ByteBuffer> unpack(byte[] header) throws IOException
+  {
+    final int[] pos = {0};
+    final String[] head = readLine(header, pos).split(",");
+    if (!"smoosh-header".equals(head[0]) || !("v" + HEADER_FORMAT).equals(head[1])) {
+      throw new ISE("unsupported header[%s]", String.join(",", head));
+    }
+    final int n = Integer.parseInt(head[2]);
+    final String[] names = new String[n];
+    final int[] offs = new int[n];
+    final int[] lens = new int[n];
+    for (int i = 0; i < n; i++) {
+      final String[] s = readLine(header, pos).split(",");
+      names[i] = s[0];
+      offs[i] = Integer.parseInt(s[1]);
+      lens[i] = Integer.parseInt(s[2]);
+    }
+    readLine(header, pos);   // blank line -> payloads start here
+    final int payloadStart = pos[0];
+    final Map<String, ByteBuffer> entries = new LinkedHashMap<>();
+    for (int i = 0; i < n; i++) {
+      entries.put(names[i], ByteBuffer.wrap(header, payloadStart + offs[i], lens[i]).slice());
+    }
+    return entries;
+  }
+
+  private static String readLine(byte[] buf, int[] pos)
+  {
+    int i = pos[0];
+    while (i < buf.length && buf[i] != '\n') {
+      i++;
+    }
+    final String line = new String(buf, pos[0], i - pos[0], StandardCharsets.UTF_8);
+    pos[0] = i + 1;   // skip '\n'
+    return line;
+  }
+
+  private static byte[] toBytes(ByteBuffer buffer)
+  {
+    final ByteBuffer dup = buffer.duplicate();
+    final byte[] b = new byte[dup.remaining()];
+    dup.get(b);
+    return b;
+  }
+
+  private static byte[] readRange(File file, long offset, int length) throws IOException
+  {
+    try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+      raf.seek(offset);
+      final byte[] b = new byte[length];
+      raf.readFully(b);
+      return b;
+    }
+  }
+
   private static ParsedMeta parseMeta(byte[] metaBytes) throws IOException
   {
     final Map<String, Metadata> internalFiles = Maps.newTreeMap();
@@ -208,6 +337,7 @@ public class SmooshedFileMapper implements Closeable
   private final boolean heap;
   private final byte[] versionBytes;   // non-null only for in-memory mappers (no version.bin file to read)
   private RangeFetcher rangeFetcher;   // non-null for range-backed mappers: mapFile fetches each entry's bytes
+  private Map<String, ByteBuffer> preloaded;   // entries served from the bundled header (index.drd/metadata.drd)
   // MappedByteBuffer when mmap'd, plain heap ByteBuffer when heap-loaded (both are ByteBuffer)
   private final List<ByteBuffer> buffersList = Lists.newArrayList();
 
@@ -268,6 +398,12 @@ public class SmooshedFileMapper implements Closeable
 
   public ByteBuffer mapFile(String name) throws IOException
   {
+    if (preloaded != null) {
+      final ByteBuffer bundled = preloaded.get(name);
+      if (bundled != null) {
+        return bundled.duplicate();   // served from the header bundle — no fetch
+      }
+    }
     final Metadata metadata = internalFiles.get(name);
     return metadata == null ? null : mapFile(metadata);
   }
