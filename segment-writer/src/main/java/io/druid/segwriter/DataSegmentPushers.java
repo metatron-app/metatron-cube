@@ -80,7 +80,9 @@ public final class DataSegmentPushers
     config.setBucket(bucket);
     config.setBaseKey(baseKey);
     config.setDisableAcl(disableAcl);
-    return new S3SmooshDataSegmentPusher(client, config, Json.mapper());
+    // indexMapper (not mapper): ContainerHeader.write deserializes each column's descriptor to read its
+    // capabilities, so the extension column part serdes (e.g. "lucene10") must be resolvable.
+    return new S3SmooshDataSegmentPusher(client, config, Json.indexMapper());
   }
 
   /** Local-filesystem pusher (tests / local runs). */

@@ -156,7 +156,16 @@ public class ContainerHeader
         return mapper.readValue(SerializerUtils.readString(buf), ColumnDescriptor.class)
                      .read(name, buf, serdeFactory);
       });
-      columns.put(name, DSuppliers.memoize(() -> new LazyCapabilitiesColumn(name, caps, delegate)));
+      // A column carrying an external index (lucene / dictionary-FST) is exposed as a REAL column: the query-time
+      // lucene `specialize` does an extension-classloader swap keyed on the real column's index-key class, which a
+      // capability wrapper would defeat (the swap can't trigger, and the filter can't be rewritten). Plain columns
+      // ARE wrapped so their capabilities/schema come from the header — their payload is fetched only if a query
+      // reads them.
+      if (hasExternalIndex(caps)) {
+        columns.put(name, delegate);
+      } else {
+        columns.put(name, DSuppliers.memoize(() -> new LazyCapabilitiesColumn(name, caps, delegate)));
+      }
     }
 
     return new SimpleQueryableIndex(
@@ -227,6 +236,13 @@ public class ContainerHeader
         .setHasBitSlicedBitmap(bool(f[9]))
         .setHasDictionaryFST(bool(f[10]))
         .setExternalIndices(f.length > 11 && !f[11].isEmpty() ? Arrays.asList(f[11].split(";")) : null);
+  }
+
+  private static boolean hasExternalIndex(ColumnCapabilities c)
+  {
+    return c.hasLuceneIndex()
+           || c.hasDictionaryFST()
+           || (c.getExternalIndices() != null && !c.getExternalIndices().isEmpty());
   }
 
   private static String b(boolean v) { return v ? "1" : "0"; }
