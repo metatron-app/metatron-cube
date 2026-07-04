@@ -1,11 +1,11 @@
 #
-# SparkRepackage: convert existing s3_zip segments of a datasource to the unzipped, range-readable s3_smoosh
-# container IN PLACE (same bucket/prefix), WITHOUT re-indexing — pure download+unzip+re-upload of byte-identical
-# chunks. Safe for the normal cluster: it loads via the metadata DB (not deep-storage descriptor.json), so the
-# descriptor flip is invisible to it; with deleteSource:false the old index.zip is also kept.
+# SparkRepackage: MOVE these datasources' s3_smoosh segments from tmp-decompress -> druid (destBucket), rebuilding
+# the container at the destination and (deleteSource:true) deleting the entire source prefix afterwards. Sources
+# here are already s3_smoosh (an earlier in-place transcode); the job also accepts s3_zip sources and transcodes
+# them on the way. Safe for the normal cluster: it loads via the metadata DB, not the deep-storage descriptor.
 #
-# After this runs, a `standalone` historical pointed at {bucket: tmp-decompress, dataSources: [atom_cred]} will
-# self-load the converted segments in range/auto mode.
+# After this runs the segments live in bucket `druid` alongside atom_cred_smoosh, so a `standalone` historical
+# pointed at {bucket: druid, dataSources: [...]} self-loads them. To convert IN PLACE instead, omit destBucket.
 #
 apiVersion: v1
 kind: ConfigMap
@@ -18,9 +18,11 @@ data:
       "dataSources": ["atom_credential", "gdp_cred_iceberg", "gdp_cred_lucene", "gdp_cred_test"],
       "bucket": "tmp-decompress",
       "baseKey": "druid/segments",
+      "destBucket": "druid",
+      "destBaseKey": "druid/segments",
       "endpoint": "http://seaweed.s2dev.net:8333",
       "disableAcl": true,
-      "deleteSource": false
+      "deleteSource": true
     }
 ---
 apiVersion: sparkoperator.k8s.io/v1beta2
@@ -46,10 +48,12 @@ spec:
     memory: "4g"
     serviceAccount: spark
     env: &creds
+      # druid-deepstore-credentials (svc-adp-druid) reaches BOTH tmp-decompress (read+delete source) and
+      # druid (write dest), so a single key set covers the whole move.
       - name: AWS_ACCESS_KEY_ID
-        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
+        valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
       - name: AWS_SECRET_ACCESS_KEY
-        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+        valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
     volumeMounts:
       - { name: repackage-spec, mountPath: /opt/spark/spec }
   executor:
