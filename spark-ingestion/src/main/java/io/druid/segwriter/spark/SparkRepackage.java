@@ -126,35 +126,53 @@ public final class SparkRepackage
                          + " datasource(s) -> s3_smoosh" + (deleteSource ? " (deleting source index.zip)" : ""));
 
       // 2) per-segment on executors: download+unzip -> s3_smoosh push (same prefix). No coordinator publish
-      //    needed: a standalone historical picks it up from descriptor.json on its next scan.
-      final List<String> done = jsc.parallelize(sources, sources.size()).map(segJson -> {
+      //    needed: a standalone historical picks it up from descriptor.json on its next scan. Each task catches
+      //    its own failure and returns a status row ("OK\t<id>\t<bytes>" / "ERR\t<id>\t<msg>") so one bad segment
+      //    can't abort the whole migration -- the already-converted ones are idempotently skipped on a re-run.
+      final List<String> results = jsc.parallelize(sources, sources.size()).map(segJson -> {
         final ObjectMapper m = Json.indexMapper();
-        final S3Client s3e = S3Clients.create(accessKey, secretKey, endpoint, null);
-        final S3DataSegmentPuller puller = new S3DataSegmentPuller(s3e);
         final DataSegment source = m.readValue(segJson, DataSegment.class);
+        try {
+          final S3Client s3e = S3Clients.create(accessKey, secretKey, endpoint, null);
+          final S3DataSegmentPuller puller = new S3DataSegmentPuller(s3e);
+          final File dir = new File(Files.createTempDir(), "seg");
+          puller.getSegmentFiles(source, dir);   // fetch + unzip index.zip
 
-        final File dir = new File(Files.createTempDir(), "seg");
-        puller.getSegmentFiles(source, dir);   // fetch + unzip index.zip
+          final DataSegment out = DataSegmentPushers
+              .s3Smoosh(bucket, baseKey, disableAcl, accessKey, secretKey, endpoint, null)
+              .push(dir, source);
 
-        final DataSegment out = DataSegmentPushers
-            .s3Smoosh(bucket, baseKey, disableAcl, accessKey, secretKey, endpoint, null)
-            .push(dir, source);
-
-        if (deleteSource && source.getLoadSpec() != null) {
-          final Object zipKey = source.getLoadSpec().get("key");   // s3_zip loadSpec: {type,bucket,key=.../index.zip}
-          if (zipKey != null) {
-            s3e.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(String.valueOf(zipKey)).build());
+          if (deleteSource && source.getLoadSpec() != null) {
+            final Object zipKey = source.getLoadSpec().get("key");   // s3_zip loadSpec: {type,bucket,key=.../index.zip}
+            if (zipKey != null) {
+              s3e.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(String.valueOf(zipKey)).build());
+            }
           }
+          return "OK\t" + source.getIdentifier() + "\t" + out.getSize();
         }
-        return m.writeValueAsString(out);
+        catch (Throwable t) {
+          return "ERR\t" + source.getIdentifier() + "\t" + t;
+        }
       }).collect();
 
       long bytes = 0;
-      for (String j : done) {
-        bytes += mapper.readValue(j, DataSegment.class).getSize();
+      int ok = 0;
+      final List<String> failures = new ArrayList<>();
+      for (String r : results) {
+        final String[] p = r.split("\t", 3);
+        if ("OK".equals(p[0])) {
+          ok++;
+          bytes += Long.parseLong(p[2]);
+        } else {
+          failures.add(p.length > 1 ? p[1] + " -> " + (p.length > 2 ? p[2] : "?") : r);
+        }
       }
-      System.out.println("druid-spark-repackage: converted " + done.size() + " segment(s) across "
-                         + dataSources.size() + " datasource(s) to s3_smoosh (" + bytes + " bytes)");
+      System.out.println("druid-spark-repackage: converted " + ok + "/" + results.size() + " segment(s) across "
+                         + dataSources.size() + " datasource(s) to s3_smoosh (" + bytes + " bytes), "
+                         + failures.size() + " failed");
+      for (String f : failures) {
+        System.out.println("druid-spark-repackage: FAILED " + f);
+      }
     }
     finally {
       spark.stop();
