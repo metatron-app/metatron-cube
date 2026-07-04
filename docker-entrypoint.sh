@@ -50,7 +50,12 @@ fi
 # Java 17+/21 strong encapsulation: this 2016-era code (and libs like the gridkit
 # perfdata JvmMonitor, mapdb, direct-buffer/Cleaner usage) reaches into JDK
 # internals that are no longer open by default. Open/export what Druid needs.
+#
+# jdk.incubator.vector: Lucene uses the (still-incubating in 21) Vector API for
+# SIMD-accelerated vector/similarity math; without this it warns and falls back
+# to scalar. Harmless if unused, but cheap to enable cluster-wide.
 JDK_MODULE_OPTS="\
+--add-modules=jdk.incubator.vector \
 --add-opens=java.base/java.lang=ALL-UNNAMED \
 --add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
 --add-opens=java.base/java.io=ALL-UNNAMED \
