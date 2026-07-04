@@ -60,7 +60,7 @@ public class Main
            .withDescription("Run one of the Druid server types.")
            .withDefaultCommand(Help.class)
            .withCommands(
-               CliCoordinator.class, CliHistorical.class, CliBroker.class,
+               CliCoordinator.class, CliHistorical.class, CliStandaloneHistorical.class, CliBroker.class,
                CliRealtime.class, CliOverlord.class, CliMiddleManager.class,
                CliRouter.class
            );

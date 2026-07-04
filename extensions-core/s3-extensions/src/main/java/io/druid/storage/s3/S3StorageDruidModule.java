@@ -96,6 +96,11 @@ public class S3StorageDruidModule implements DruidModule
     Binders.taskLogsBinder(binder).addBinding("s3").to(S3TaskLogs.class);
     JsonConfigProvider.bind(binder, "druid.indexer.logs", S3TaskLogsConfig.class);
     binder.bind(S3TaskLogs.class).in(LazySingleton.class);
+
+    // standalone historical: scan deep storage for segment descriptors (no coordinator / metadata DB). Bound
+    // always (LazySingleton — only instantiated when CliStandaloneHistorical injects it via StandaloneSegmentLoader).
+    JsonConfigProvider.bind(binder, "druid.standalone", S3StandaloneScanConfig.class);
+    binder.bind(io.druid.segment.loading.SegmentScanner.class).to(S3SegmentScanner.class).in(LazySingleton.class);
   }
 
   @Provides
