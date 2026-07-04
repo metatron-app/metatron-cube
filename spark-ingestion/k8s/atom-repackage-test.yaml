@@ -57,7 +57,7 @@ spec:
     volumeMounts:
       - { name: repackage-spec, mountPath: /opt/spark/spec }
   executor:
-    instances: 4                  # one task per segment; download+unzip+re-upload is I/O-bound
+    instances: 6                  # one task per segment; download+unzip+re-upload is I/O-bound
     cores: 2
     memory: "4g"
     env: *creds
