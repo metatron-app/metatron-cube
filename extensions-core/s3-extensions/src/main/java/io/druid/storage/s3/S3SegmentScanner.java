@@ -37,6 +37,12 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Deep-storage (S3) {@link SegmentScanner} for the standalone historical: lists {@code <baseKey>/<datasource>/}
@@ -61,7 +67,8 @@ public class S3SegmentScanner implements SegmentScanner
   @Override
   public List<DataSegment> scan() throws IOException
   {
-    final List<DataSegment> segments = new ArrayList<>();
+    // 1) list descriptor keys (cheap: 1000/page)
+    final List<String> keys = new ArrayList<>();
     for (String dataSource : config.getDataSources()) {
       final String prefix = config.getBaseKey() + "/" + dataSource + "/";
       String token = null;
@@ -74,15 +81,52 @@ public class S3SegmentScanner implements SegmentScanner
         final ListObjectsV2Response resp = s3Client.listObjectsV2(rb.build());
         for (S3Object o : resp.contents()) {
           if (o.key().endsWith("/descriptor.json")) {
-            segments.add(jsonMapper.readValue(getObject(config.getBucket(), o.key()), DataSegment.class));
+            keys.add(o.key());
           }
         }
         token = Boolean.TRUE.equals(resp.isTruncated()) ? resp.nextContinuationToken() : null;
       } while (token != null);
     }
-    log.info("standalone S3 scan: %d descriptor(s) under %d datasource(s) in bucket[%s]",
-             segments.size(), config.getDataSources().size(), config.getBucket());
+
+    // 2) fetch+parse descriptors in parallel — one GET per segment done sequentially makes a large datasource
+    //    (tens of thousands of segments) take minutes to scan at boot; a bounded pool cuts that ~Nx.
+    final long start = System.currentTimeMillis();
+    final int threads = Math.min(64, Math.max(8, keys.size() / 200));
+    final ExecutorService pool = Executors.newFixedThreadPool(threads, daemonFactory());
+    final List<DataSegment> segments = new ArrayList<>(keys.size());
+    try {
+      final List<Future<DataSegment>> futures = new ArrayList<>(keys.size());
+      for (String key : keys) {
+        futures.add(pool.submit(() -> jsonMapper.readValue(getObject(config.getBucket(), key), DataSegment.class)));
+      }
+      for (Future<DataSegment> f : futures) {
+        segments.add(f.get());
+      }
+    }
+    catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException(e);
+    }
+    catch (ExecutionException e) {
+      throw new IOException(e.getCause());
+    }
+    finally {
+      pool.shutdown();
+    }
+    log.info("standalone S3 scan: %d descriptor(s) under %d datasource(s) in bucket[%s] via %d threads in %dms",
+             segments.size(), config.getDataSources().size(), config.getBucket(), threads,
+             System.currentTimeMillis() - start);
     return segments;
+  }
+
+  private static ThreadFactory daemonFactory()
+  {
+    final AtomicInteger n = new AtomicInteger();
+    return r -> {
+      final Thread t = new Thread(r, "segment-scan-" + n.getAndIncrement());
+      t.setDaemon(true);
+      return t;
+    };
   }
 
   private byte[] getObject(String bucket, String key) throws IOException
