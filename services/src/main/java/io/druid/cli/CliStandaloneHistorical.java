@@ -27,6 +27,8 @@ import com.google.inject.name.Names;
 import io.airlift.airline.Command;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.CacheMonitor;
+import io.druid.concurrent.Execs;
+import io.druid.curator.announcement.Announcer;
 import io.druid.guice.CacheModule;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
@@ -50,6 +52,7 @@ import io.druid.server.coordination.ServerManager;
 import io.druid.server.coordination.StandaloneSegmentLoader;
 import io.druid.server.http.HistoricalResource;
 import io.druid.server.http.SegmentListerResource;
+import io.druid.server.initialization.CuratorDiscoveryConfig;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.metrics.MetricsModule;
 import org.apache.curator.framework.CuratorFramework;
@@ -66,12 +69,14 @@ import java.util.List;
  * queries directly at :8083 (no broker needed — see the groupBy direct fix). Configure the scan with
  * {@code druid.standalone.{bucket,baseKey,dataSources}} and set {@code druid.segmentCache.loadMode=auto}.
  *
- * ZK is neutralized by NOT binding ZkCoordinator/CoordinatorClient (their removal drops the only synchronous ZK
- * consumers, so curator/announcer/discovery are never instantiated) plus a non-connecting CuratorFramework as a
- * belt-and-suspenders override, and {@code druid.discovery.curator.path=} (empty) for the NoopServiceDiscovery.
+ * ZK is neutralized in layers: (1) do NOT bind ZkCoordinator/CoordinatorClient — dropping the only synchronous ZK
+ * consumers; (2) a non-connecting {@link CuratorFramework} (never started); (3) {@link CuratorDiscoveryConfig}
+ * overridden so {@code useDiscovery()} returns false → CoordinatorClient (pulled in transitively by
+ * ManagementQueryModule) resolves to NoopServiceDiscovery instead of touching ZK; (4) a no-op {@link Announcer} so
+ * LookupModule's lifecycle-managed announcer doesn't call the non-started curator at boot.
  */
 @Command(
-    name = "standaloneHistorical",
+    name = "standalone",
     description = "Runs a Historical with no coordinator/ZooKeeper/metadata-db — self-loads segments from deep storage"
 )
 public class CliStandaloneHistorical extends ServerRunnable
@@ -114,6 +119,19 @@ public class CliStandaloneHistorical extends ServerRunnable
             Jerseys.addResource(binder, SegmentListerResource.class);
             LifecycleModule.register(binder, QueryResource.class);
 
+            // Force NoopServiceDiscovery: CuratorDiscoveryConfig.useDiscovery() is path != null and the path
+            // defaults to "/druid/discovery", so we can't get null via a property — override the config so
+            // CoordinatorClient (pulled in transitively by ManagementQueryModule) resolves to the no-op selector
+            // instead of touching ZK.
+            binder.bind(CuratorDiscoveryConfig.class).toInstance(new CuratorDiscoveryConfig()
+            {
+              @Override
+              public boolean useDiscovery()
+              {
+                return false;
+              }
+            });
+
             JsonConfigProvider.bind(binder, "druid.historical.cache", CacheConfig.class);
             binder.install(new CacheModule());
             MetricsModule.register(binder, CacheMonitor.class);
@@ -129,6 +147,25 @@ public class CliStandaloneHistorical extends ServerRunnable
                                           .connectString("standalone-no-zk:0")
                                           .retryPolicy(new RetryOneTime(1))
                                           .build();   // NOT started
+          }
+
+          /**
+           * No-op {@link Announcer} so the LookupModule's lifecycle-managed {@code LookupResourceListenerAnnouncer}
+           * doesn't touch the non-started curator at boot ({@code Expected state [STARTED] was [LATENT]}). We bind
+           * no ZkCoordinator, so this is the ONLY ZK announcer in the injector — neutralizing it is safe.
+           */
+          @Provides
+          @LazySingleton
+          public Announcer noopAnnouncer(CuratorFramework curator)
+          {
+            return new Announcer(curator, Execs.singleThreaded("standalone-noop-announcer-%d"))
+            {
+              @Override public void start() {}
+              @Override public void stop() {}
+              @Override public void announce(String path, byte[] bytes) {}
+              @Override public void announce(String path, byte[] bytes, boolean removeParentIfCreated) {}
+              @Override public void unannounce(String path, boolean shuttingDown) {}
+            };
           }
         },
         new LookupModule(),
