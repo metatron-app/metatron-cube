@@ -95,6 +95,7 @@ public final class SparkRepackage
       final List<String> sources = new ArrayList<>();
       for (String dataSource : dataSources) {
         int found = 0;
+        int skipped = 0;
         final String prefix = baseKey + "/" + dataSource + "/";
         String token = null;
         do {
@@ -107,15 +108,22 @@ public final class SparkRepackage
             if (o.key().endsWith("/descriptor.json")) {
               final DataSegment seg = mapper.readValue(getObject(s3, bucket, o.key()), DataSegment.class);
               final Object type = seg.getLoadSpec() == null ? null : seg.getLoadSpec().get("type");
-              if (!"s3_smoosh".equals(type) && (interval == null || interval.contains(seg.getInterval()))) {
+              if (interval != null && !interval.contains(seg.getInterval())) {
+                continue;
+              }
+              if ("s3_zip".equals(type)) {
                 sources.add(mapper.writeValueAsString(seg));
                 found++;
+              } else if (!"s3_smoosh".equals(type)) {
+                // null / other loadSpec: no s3_zip source to transcode (e.g. a broken/legacy descriptor) — skip.
+                skipped++;
               }
             }
           }
           token = Boolean.TRUE.equals(resp.isTruncated()) ? resp.nextContinuationToken() : null;
         } while (token != null);
-        System.out.println("druid-spark-repackage: " + dataSource + " -> " + found + " s3_zip segment(s) to convert");
+        System.out.println("druid-spark-repackage: " + dataSource + " -> " + found + " s3_zip segment(s) to convert"
+                           + (skipped > 0 ? " (" + skipped + " non-s3_zip/loadSpec-less skipped)" : ""));
       }
 
       if (sources.isEmpty()) {
@@ -151,7 +159,12 @@ public final class SparkRepackage
           return "OK\t" + source.getIdentifier() + "\t" + out.getSize();
         }
         catch (Throwable t) {
-          return "ERR\t" + source.getIdentifier() + "\t" + t;
+          final StringBuilder trace = new StringBuilder(String.valueOf(t));
+          final StackTraceElement[] st = t.getStackTrace();
+          for (int i = 0; i < Math.min(6, st.length); i++) {
+            trace.append(" | ").append(st[i]);
+          }
+          return "ERR\t" + source.getIdentifier() + "\t" + trace;
         }
       }).collect();
 
