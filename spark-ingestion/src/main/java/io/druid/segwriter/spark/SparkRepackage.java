@@ -197,7 +197,10 @@ public final class SparkRepackage
             destLs.put("type", "s3_smoosh");
             destLs.put("bucket", destBucket);
             destLs.put("prefix", destPrefix);
-            final DataSegment out = source.withLoadSpec(destLs).withSize(total);
+            // Preserve the source's size field (the v9 dir size) — only the location changes. Recomputing it
+            // from the copied objects would re-introduce the header in the count (the loader would then warn
+            // "different than expected size").
+            final DataSegment out = source.withLoadSpec(destLs);
             putBytes(s3e, destBucket, destPrefix + "/descriptor.json", m.writeValueAsBytes(out));
             outBytes = total;
           } else {

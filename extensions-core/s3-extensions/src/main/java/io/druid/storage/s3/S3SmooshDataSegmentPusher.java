@@ -86,12 +86,17 @@ public class S3SmooshDataSegmentPusher implements DataSegmentPusher
 
         final byte[] header = ContainerHeader.write(indexFilesDir, jsonMapper);
         putBytes(bucket, prefix + "/header", header);
-        total += header.length;
-
+        // The header is NOT counted in the segment size. On load the puller reconstructs a v9 dir
+        // (version.bin + meta.smoosh + chunks) and SegmentLoaderLocalCacheManager compares that dir's size to
+        // segment.getSize(); size must therefore be the v9 dir's size (all files here), not the header bytes,
+        // or every download logs a "different than expected size" warning (off by ~header length).
         for (File f : indexFilesDir.listFiles()) {
-          if (f.isFile() && f.getName().matches("\\d+\\.smoosh")) {   // the raw chunk objects
-            putFile(bucket, prefix + "/" + f.getName(), f);
-            total += f.length();
+          if (!f.isFile()) {
+            continue;
+          }
+          total += f.length();                                        // version.bin + meta.smoosh + chunks
+          if (f.getName().matches("\\d+\\.smoosh")) {
+            putFile(bucket, prefix + "/" + f.getName(), f);            // only the chunks become objects
           }
         }
 
