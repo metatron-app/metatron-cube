@@ -33,16 +33,20 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.SparkSession;
 import org.joda.time.Interval;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -159,35 +163,75 @@ public final class SparkRepackage
           final S3Client s3e = S3Clients.create(accessKey, secretKey, endpoint, null);
           final Map<String, Object> ls = source.getLoadSpec();
           final String type = String.valueOf(ls.get("type"));
+          final long outBytes;
 
-          // Reconstruct a local v9 segment dir from whatever container the source is in (s3_zip -> unzip,
-          // s3_smoosh -> rebuild from header+chunks), then (re)write the s3_smoosh container at the destination.
-          final File dir = new File(Files.createTempDir(), "seg");
-          if ("s3_smoosh".equals(type)) {
-            new S3SmooshDataSegmentPuller(s3e).getSegmentFiles(source, dir);
+          if (move && "s3_smoosh".equals(type)) {
+            // Relocate an already-s3_smoosh segment with SERVER-SIDE copies: the container objects go bucket->bucket
+            // without streaming through the executor, so big segments can't OOM it (reconstruct+re-upload could).
+            // Rewrite descriptor.json's loadSpec to the destination and skip the old index.zip.
+            final String srcPrefix = String.valueOf(ls.get("prefix"));
+            final String destPrefix = destBaseKey + srcPrefix.substring(baseKey.length());
+            long total = 0;
+            String token = null;
+            do {
+              final ListObjectsV2Request.Builder rb =
+                  ListObjectsV2Request.builder().bucket(bucket).prefix(srcPrefix + "/");
+              if (token != null) {
+                rb.continuationToken(token);
+              }
+              final ListObjectsV2Response resp = s3e.listObjectsV2(rb.build());
+              for (S3Object o : resp.contents()) {
+                final String rel = o.key().substring(srcPrefix.length());   // "/header", "/00000.smoosh", ...
+                if (rel.endsWith("/descriptor.json") || rel.endsWith("/index.zip")) {
+                  continue;
+                }
+                s3e.copyObject(CopyObjectRequest.builder()
+                                                .sourceBucket(bucket).sourceKey(o.key())
+                                                .destinationBucket(destBucket).destinationKey(destPrefix + rel)
+                                                .build());
+                total += o.size();
+              }
+              token = Boolean.TRUE.equals(resp.isTruncated()) ? resp.nextContinuationToken() : null;
+            } while (token != null);
+            final Map<String, Object> destLs = new LinkedHashMap<>();
+            destLs.put("type", "s3_smoosh");
+            destLs.put("bucket", destBucket);
+            destLs.put("prefix", destPrefix);
+            final DataSegment out = source.withLoadSpec(destLs).withSize(total);
+            putBytes(s3e, destBucket, destPrefix + "/descriptor.json", m.writeValueAsBytes(out));
+            outBytes = total;
           } else {
-            new S3DataSegmentPuller(s3e).getSegmentFiles(source, dir);   // s3_zip
+            // Transcode: reconstruct a local v9 dir (s3_zip -> unzip; s3_smoosh -> rebuild) then write the
+            // s3_smoosh container at the destination. Used for in-place s3_zip->s3_smoosh and any s3_zip move.
+            final File dir = new File(Files.createTempDir(), "seg");
+            if ("s3_smoosh".equals(type)) {
+              new S3SmooshDataSegmentPuller(s3e).getSegmentFiles(source, dir);
+            } else {
+              new S3DataSegmentPuller(s3e).getSegmentFiles(source, dir);   // s3_zip
+            }
+            outBytes = DataSegmentPushers
+                .s3Smoosh(destBucket, destBaseKey, disableAcl, accessKey, secretKey, endpoint, null)
+                .push(dir, source).getSize();
           }
-
-          final DataSegment out = DataSegmentPushers
-              .s3Smoosh(destBucket, destBaseKey, disableAcl, accessKey, secretKey, endpoint, null)
-              .push(dir, source);
 
           if (deleteSource) {
             if (move) {
               // true move: dest is a different location, so drop the ENTIRE source prefix (index.zip + header +
               // chunks + descriptor). Derive the source segment dir from its loadSpec.
-              final String key = String.valueOf(ls.get("key"));      // s3_zip: <prefix>/index.zip
-              final String srcPrefix = "s3_smoosh".equals(type)
-                  ? String.valueOf(ls.get("prefix"))
-                  : key.substring(0, key.lastIndexOf('/'));
+              final String srcPrefix;
+              if ("s3_smoosh".equals(type)) {
+                srcPrefix = String.valueOf(ls.get("prefix"));
+              } else {
+                final String key = String.valueOf(ls.get("key"));   // s3_zip: <prefix>/index.zip
+                srcPrefix = key.substring(0, key.lastIndexOf('/'));
+              }
               deletePrefix(s3e, bucket, srcPrefix);
             } else if ("s3_zip".equals(type) && ls.get("key") != null) {
               // in place: only the now-orphaned index.zip
               s3e.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(String.valueOf(ls.get("key"))).build());
             }
           }
-          return "OK\t" + source.getIdentifier() + "\t" + out.getSize();
+          return "OK\t" + source.getIdentifier() + "\t" + outBytes;
         }
         catch (Throwable t) {
           final StringBuilder trace = new StringBuilder(String.valueOf(t));
@@ -229,6 +273,11 @@ public final class SparkRepackage
              s3.getObject(GetObjectRequest.builder().bucket(bucket).key(key).build())) {
       return ByteStreams.toByteArray(in);
     }
+  }
+
+  private static void putBytes(S3Client s3, String bucket, String key, byte[] bytes)
+  {
+    s3.putObject(PutObjectRequest.builder().bucket(bucket).key(key).build(), RequestBody.fromBytes(bytes));
   }
 
   /** Delete every object under a segment's source prefix (header + chunks + descriptor.json + index.zip). */
