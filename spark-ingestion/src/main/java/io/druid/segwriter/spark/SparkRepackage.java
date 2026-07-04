@@ -70,7 +70,15 @@ public final class SparkRepackage
     final ObjectMapper mapper = Json.indexMapper();
     final JsonNode spec = mapper.readTree(new File(args[0]));
 
-    final String dataSource = spec.get("dataSource").asText();
+    // Accept either a single "dataSource" (string) or "dataSources" (array) — the scan runs per datasource.
+    final List<String> dataSources = new ArrayList<>();
+    if (spec.has("dataSources")) {
+      for (JsonNode d : spec.get("dataSources")) {
+        dataSources.add(d.asText());
+      }
+    } else {
+      dataSources.add(spec.get("dataSource").asText());
+    }
     final String bucket = spec.get("bucket").asText();
     final String baseKey = spec.get("baseKey").asText();
     final String endpoint = spec.get("endpoint").asText();
@@ -85,32 +93,37 @@ public final class SparkRepackage
       // 1) driver: deep-storage descriptor scan -> source s3_zip segments (skip already-converted s3_smoosh)
       final S3Client s3 = S3Clients.create(accessKey, secretKey, endpoint, null);
       final List<String> sources = new ArrayList<>();
-      final String prefix = baseKey + "/" + dataSource + "/";
-      String token = null;
-      do {
-        final ListObjectsV2Request.Builder rb = ListObjectsV2Request.builder().bucket(bucket).prefix(prefix);
-        if (token != null) {
-          rb.continuationToken(token);
-        }
-        final ListObjectsV2Response resp = s3.listObjectsV2(rb.build());
-        for (S3Object o : resp.contents()) {
-          if (o.key().endsWith("/descriptor.json")) {
-            final DataSegment seg = mapper.readValue(getObject(s3, bucket, o.key()), DataSegment.class);
-            final Object type = seg.getLoadSpec() == null ? null : seg.getLoadSpec().get("type");
-            if (!"s3_smoosh".equals(type) && (interval == null || interval.contains(seg.getInterval()))) {
-              sources.add(mapper.writeValueAsString(seg));
+      for (String dataSource : dataSources) {
+        int found = 0;
+        final String prefix = baseKey + "/" + dataSource + "/";
+        String token = null;
+        do {
+          final ListObjectsV2Request.Builder rb = ListObjectsV2Request.builder().bucket(bucket).prefix(prefix);
+          if (token != null) {
+            rb.continuationToken(token);
+          }
+          final ListObjectsV2Response resp = s3.listObjectsV2(rb.build());
+          for (S3Object o : resp.contents()) {
+            if (o.key().endsWith("/descriptor.json")) {
+              final DataSegment seg = mapper.readValue(getObject(s3, bucket, o.key()), DataSegment.class);
+              final Object type = seg.getLoadSpec() == null ? null : seg.getLoadSpec().get("type");
+              if (!"s3_smoosh".equals(type) && (interval == null || interval.contains(seg.getInterval()))) {
+                sources.add(mapper.writeValueAsString(seg));
+                found++;
+              }
             }
           }
-        }
-        token = Boolean.TRUE.equals(resp.isTruncated()) ? resp.nextContinuationToken() : null;
-      } while (token != null);
+          token = Boolean.TRUE.equals(resp.isTruncated()) ? resp.nextContinuationToken() : null;
+        } while (token != null);
+        System.out.println("druid-spark-repackage: " + dataSource + " -> " + found + " s3_zip segment(s) to convert");
+      }
 
       if (sources.isEmpty()) {
-        System.out.println("druid-spark-repackage: no non-s3_smoosh segment for " + dataSource + " -> nothing to do");
+        System.out.println("druid-spark-repackage: no non-s3_smoosh segment in " + dataSources + " -> nothing to do");
         return;
       }
-      System.out.println("druid-spark-repackage: " + sources.size() + " segment(s) of " + dataSource
-                         + " -> s3_smoosh" + (deleteSource ? " (deleting source index.zip)" : ""));
+      System.out.println("druid-spark-repackage: " + sources.size() + " segment(s) across " + dataSources.size()
+                         + " datasource(s) -> s3_smoosh" + (deleteSource ? " (deleting source index.zip)" : ""));
 
       // 2) per-segment on executors: download+unzip -> s3_smoosh push (same prefix). No coordinator publish
       //    needed: a standalone historical picks it up from descriptor.json on its next scan.
@@ -140,8 +153,8 @@ public final class SparkRepackage
       for (String j : done) {
         bytes += mapper.readValue(j, DataSegment.class).getSize();
       }
-      System.out.println("druid-spark-repackage: converted " + done.size() + " segment(s) of " + dataSource
-                         + " to s3_smoosh (" + bytes + " bytes)");
+      System.out.println("druid-spark-repackage: converted " + done.size() + " segment(s) across "
+                         + dataSources.size() + " datasource(s) to s3_smoosh (" + bytes + " bytes)");
     }
     finally {
       spark.stop();
