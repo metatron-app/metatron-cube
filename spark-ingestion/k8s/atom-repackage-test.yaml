@@ -1,0 +1,66 @@
+#
+# SparkRepackage: convert existing s3_zip segments of a datasource to the unzipped, range-readable s3_smoosh
+# container IN PLACE (same bucket/prefix), WITHOUT re-indexing — pure download+unzip+re-upload of byte-identical
+# chunks. Safe for the normal cluster: it loads via the metadata DB (not deep-storage descriptor.json), so the
+# descriptor flip is invisible to it; with deleteSource:false the old index.zip is also kept.
+#
+# After this runs, a `standalone` historical pointed at {bucket: tmp-decompress, dataSources: [atom_cred]} will
+# self-load the converted segments in range/auto mode.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atom-repackage-spec
+  namespace: adp-dev
+data:
+  repackage-spec.json: |
+    {
+      "dataSource": "atom_cred",
+      "bucket": "tmp-decompress",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true,
+      "deleteSource": false
+    }
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: atom-repackage-test
+  namespace: adp-dev
+spec:
+  type: Java
+  mode: cluster
+  image: "nas2.s2dev.net:5050/adp/spark-druid-ingestion:3.5.1"
+  imagePullPolicy: Always
+  mainClass: io.druid.segwriter.spark.SparkRepackage
+  mainApplicationFile: "local:///opt/spark/jars/druid-spark-ingestion-spark.jar"
+  arguments:
+    - "/opt/spark/spec/repackage-spec.json"
+  sparkVersion: "3.5.1"
+  sparkConf:
+    "spark.driver.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+    "spark.executor.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+  driver:
+    cores: 2
+    memory: "4g"
+    serviceAccount: spark
+    env: &creds
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-access-key } }
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: swd-iceberg-credentials, key: s3-secret-key } }
+    volumeMounts:
+      - { name: repackage-spec, mountPath: /opt/spark/spec }
+  executor:
+    instances: 4                  # one task per segment; download+unzip+re-upload is I/O-bound
+    cores: 2
+    memory: "4g"
+    env: *creds
+    volumeMounts:
+      - { name: repackage-spec, mountPath: /opt/spark/spec }
+  volumes:
+    - name: repackage-spec
+      configMap: { name: atom-repackage-spec }
+  restartPolicy:
+    type: Never
