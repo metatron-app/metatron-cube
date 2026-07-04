@@ -139,9 +139,20 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
       // otherwise (e.g. an s3_zip segment) fall through to the normal download path
     }
 
+    return downloadSegment(segment);
+  }
+
+  /** Force the download (tmpfs mmap) residency — used by the ResidencyManager to promote a hot range segment. */
+  @Override
+  public Segment getDownloadedSegment(DataSegment segment) throws SegmentLoadingException
+  {
+    return downloadSegment(segment);
+  }
+
+  private Segment downloadSegment(DataSegment segment) throws SegmentLoadingException
+  {
     final File segmentFiles = getSegmentFiles(segment);
     final QueryableIndex index = factory.factorize(segmentFiles);
-
     return new QueryableIndexSegment(index, segment);
   }
 

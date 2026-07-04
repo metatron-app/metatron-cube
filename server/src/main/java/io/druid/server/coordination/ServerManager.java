@@ -98,7 +98,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  */
-public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalker.DenseSupport
+public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalker.DenseSupport, ResidencyManager.Host
 {
   private static final EmittingLogger log = new EmittingLogger(ServerManager.class);
 
@@ -119,12 +119,8 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   private final ObjectMapper objectMapper;
   private final CacheConfig cacheConfig;
 
-  // ResidencyManager (auto loadMode) — phase 1: pressure demote (tmpfs -> range). Constants for now.
-  private static final double RESIDENCY_HIGH_WM = 0.9;   // demote when local cache used > 90% of budget
-  private static final double RESIDENCY_LOW_WM = 0.8;    // ...until back under 80%
-  private static final int RESIDENCY_MAX_DEMOTE = 8;     // per cycle
-  private static final long RESIDENCY_EVAL_MS = 120_000; // every 2 min
-  private final ScheduledExecutorService residencyExec;
+  // Residency policy (auto loadMode) — reconciles tmpfs<->range; this class supplies the mechanism (Host).
+  private final ResidencyManager residencyManager;
 
   @Inject
   public ServerManager(
@@ -157,16 +153,10 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     queryManager.start(CHECK_INTERVAL);
 
     if (segmentLoader.residencyManaged()) {
-      // loadMode=auto: keep the local (tmpfs) cache under budget by demoting the coldest resident segments to
-      // range (off-heap). Greedy admission fills tmpfs; this evicts the cold tail so it trends to a hot working set.
-      this.residencyExec = Execs.scheduledSingleThreaded("residency-%d");
-      residencyExec.scheduleWithFixedDelay(
-          this::manageResidency, RESIDENCY_EVAL_MS, RESIDENCY_EVAL_MS, TimeUnit.MILLISECONDS
-      );
-      log.info("ResidencyManager started (auto): high=%.2f low=%.2f maxDemote=%d period=%dms",
-               RESIDENCY_HIGH_WM, RESIDENCY_LOW_WM, RESIDENCY_MAX_DEMOTE, RESIDENCY_EVAL_MS);
+      this.residencyManager = new ResidencyManager(this);   // loadMode=auto
+      residencyManager.start();
     } else {
-      this.residencyExec = null;
+      this.residencyManager = null;
     }
   }
 
@@ -317,60 +307,39 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     segmentLoader.cleanup(segment);
   }
 
-  // --- ResidencyManager (auto loadMode) ---
+  // --- ResidencyManager.Host: mechanism (timeline swap + cache sizing) for the residency policy ---
 
-  /** Periodic: if the local (tmpfs) cache is over budget, demote the coldest resident segments to range. */
-  private void manageResidency()
+  @Override
+  public long localUsedBytes()
   {
-    try {
-      final long max = segmentLoader.localMaxBytes();
-      if (max <= 0) {
-        return;
-      }
-      long used = segmentLoader.localUsedBytes();
-      if (used <= RESIDENCY_HIGH_WM * max) {
-        return;
-      }
-      final List<ReferenceCountingSegment> resident = new ArrayList<>();
-      synchronized (lock) {
-        for (VersionedIntervalTimeline<ReferenceCountingSegment> tl : dataSources.values()) {
-          for (ReferenceCountingSegment rcs : tl.getAll()) {
-            final Segment base = rcs.getBaseSegment();
-            if (base != null && !(base instanceof LazySegment)) {
-              resident.add(rcs);   // downloaded (tmpfs mmap); LazySegment is already range
-            }
+    return segmentLoader.localUsedBytes();
+  }
+
+  @Override
+  public long localMaxBytes()
+  {
+    return segmentLoader.localMaxBytes();
+  }
+
+  /** Partition currently-loaded range-capable segments into tmpfs (downloaded) and range (LazySegment). */
+  @Override
+  public void snapshotResident(List<ReferenceCountingSegment> tmpfs, List<ReferenceCountingSegment> range)
+  {
+    synchronized (lock) {
+      for (VersionedIntervalTimeline<ReferenceCountingSegment> tl : dataSources.values()) {
+        for (ReferenceCountingSegment rcs : tl.getAll()) {
+          final Segment base = rcs.getBaseSegment();
+          if (base != null) {
+            (base instanceof LazySegment ? range : tmpfs).add(rcs);
           }
         }
       }
-      resident.sort(Comparator.comparingLong(ServerManager::heatKey));   // coldest first
-      int demoted = 0;
-      for (ReferenceCountingSegment rcs : resident) {
-        if (used <= RESIDENCY_LOW_WM * max || demoted >= RESIDENCY_MAX_DEMOTE) {
-          break;
-        }
-        final DataSegment ds = rcs.getDescriptor();
-        if (demoteToRange(ds)) {
-          used -= ds.getSize();
-          demoted++;
-        }
-      }
-      if (demoted > 0) {
-        log.info("[residency] demoted %d cold segment(s) to range; local cache ~%,d / %,d bytes", demoted, used, max);
-      }
     }
-    catch (Throwable t) {
-      log.warn(t, "[residency] eval failed");
-    }
-  }
-
-  /** Coldness key: least-recently-queried first; a never-queried segment is ranked by its data recency (prior). */
-  private static long heatKey(ReferenceCountingSegment rcs)
-  {
-    return rcs.getAccessCount() > 0 ? rcs.getLastAccessTime() : rcs.getInterval().getEndMillis();
   }
 
   /** Swap a tmpfs-resident segment to a range (off-heap) LazySegment in-place, then free its tmpfs files. */
-  private boolean demoteToRange(final DataSegment segment)
+  @Override
+  public boolean demoteToRange(final DataSegment segment)
   {
     try {
       final Segment ranged = segmentLoader.getRangeSegment(segment);
@@ -399,6 +368,40 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     }
     catch (Throwable t) {
       log.warn(t, "[residency] demote failed for [%s]", segment.getIdentifier());
+      return false;
+    }
+  }
+
+  /** Swap a range (off-heap) segment to a downloaded (tmpfs mmap) one in-place. Caller ensures tmpfs has room. */
+  @Override
+  public boolean promoteToTmpfs(final DataSegment segment)
+  {
+    try {
+      final Segment downloaded = segmentLoader.getDownloadedSegment(segment);   // downloads to the tmpfs cache
+      if (downloaded instanceof LazySegment) {
+        return false;   // couldn't download (unexpected)
+      }
+      final ReferenceCountingSegment newRcs = new ReferenceCountingSegment(downloaded);
+      final ReferenceCountingSegment old;
+      synchronized (lock) {
+        final VersionedIntervalTimeline<ReferenceCountingSegment> tl = dataSources.get(segment.getDataSource());
+        if (tl == null) {
+          return false;
+        }
+        final PartitionChunk<ReferenceCountingSegment> removed = tl.remove(
+            segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(null));
+        old = removed == null ? null : removed.getObject();
+        if (old == null) {
+          return false;   // dropped concurrently
+        }
+        tl.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(newRcs));
+      }
+      old.close();   // old range LazySegment; its direct column buffers are freed by their Cleaner on release
+      log.info("[residency] promoted segment[%s] range -> tmpfs", segment.getIdentifier());
+      return true;
+    }
+    catch (Throwable t) {
+      log.warn(t, "[residency] promote failed for [%s]", segment.getIdentifier());
       return false;
     }
   }

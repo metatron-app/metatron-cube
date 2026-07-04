@@ -45,6 +45,9 @@ public interface SegmentLoader
   /** Build the segment header-first / range (off-heap) if it can range-serve, else the normal segment. */
   default Segment getRangeSegment(DataSegment segment) throws SegmentLoadingException { return getSegment(segment); }
 
+  /** Force the download (tmpfs mmap) residency — used to promote a hot range segment. */
+  default Segment getDownloadedSegment(DataSegment segment) throws SegmentLoadingException { return getSegment(segment); }
+
   /** Bytes currently held in the local (tmpfs) cache; -1 if not tracked (residency sizing then disabled). */
   default long localUsedBytes() { return -1; }
 
