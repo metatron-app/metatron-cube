@@ -1,0 +1,212 @@
+/*
+ * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  SK Telecom licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package io.druid.segment.loading;
+
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import io.druid.concurrent.Execs;
+import io.druid.java.util.common.io.smoosh.SmooshedFileMapper.RangeFetcher;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.segment.QueryableIndex;
+import io.druid.timeline.DataSegment;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Budget + eviction for the direct off-heap memory held by range-served (header-first) segment columns.
+ *
+ * <p>A range segment's {@link QueryableIndex} is memoized for the segment's life (see
+ * {@code SegmentLoaderLocalCacheManager.rangeSegment}), so its fetched column buffers ({@code allocateDirect}) stay
+ * resident until the segment is dropped. A wide scan that touches thousands of range segments therefore accumulates
+ * every touched segment's columns in direct memory with no cap — enough to OOM the container. This tracker bounds
+ * that: it counts each materialized segment's fetched-column bytes and, when the total exceeds the budget, EVICTS
+ * the coldest segments — "evict" = drop the memoized index reference so its direct buffers become unreachable and
+ * are freed by their Cleaner, while the {@code LazySegment} stays in the timeline (still queryable, re-materializes
+ * from deep storage on the next query).
+ *
+ * <p>Two triggers: (1) INLINE, on the column-fetch path, so a single wide query is bounded as its bytes grow —
+ * this is what actually prevents the OOM, since the periodic sweep can't react within one multi-second query; and
+ * (2) a periodic sweep that reconciles the running byte counter against the live set (self-healing any drift from
+ * the rare eviction of a segment with an in-flight lazy fetch) and evicts down to the low watermark.
+ *
+ * <p>Eviction picks coldest-by-last-access; a segment being actively scanned has a just-updated access time, so it
+ * is effectively never chosen. Even if it were, evict only drops the tracker's strong reference — an in-flight
+ * query holds its own reference to the {@link QueryableIndex}, so the buffers live until that query releases them.
+ */
+public class RangeBufferTracker
+{
+  private static final Logger log = new Logger(RangeBufferTracker.class);
+
+  private static final double HIGH_WM = 0.9;    // evict when resident > 90% of budget ...
+  private static final double LOW_WM = 0.8;     // ... down to 80%
+  private static final long SWEEP_MS = 120_000; // periodic reconcile + evict
+
+  private final long budget;
+  private final AtomicLong resident = new AtomicLong();
+  private final Map<String, Materialization> live = new ConcurrentHashMap<>();
+  private final Object evictLock = new Object();
+  private final ScheduledExecutorService sweeper;
+
+  public RangeBufferTracker(long budget)
+  {
+    this.budget = budget;
+    this.sweeper = Execs.scheduledSingleThreaded("range-residency-%d");
+    this.sweeper.scheduleWithFixedDelay(this::sweep, SWEEP_MS, SWEEP_MS, TimeUnit.MILLISECONDS);
+    log.info("RangeBufferTracker started: budget=%,d high=%.2f low=%.2f sweep=%dms", budget, HIGH_WM, LOW_WM, SWEEP_MS);
+  }
+
+  /**
+   * Wrap a range segment's index build into a memoizing, accounted, evictable loader. {@code build} materializes
+   * the index from the fetcher it is handed; {@code rawFetcher} supplies the underlying (uncounted) deep-storage
+   * fetcher. The returned supplier is what a {@code LazySegment} loads from.
+   */
+  public Supplier<QueryableIndex> track(DataSegment segment, Function<RangeFetcher, QueryableIndex> build, Supplier<RangeFetcher> rawFetcher)
+  {
+    final Materialization mat = new Materialization(segment, build, rawFetcher);
+    return mat::get;
+  }
+
+  public long residentBytes()
+  {
+    return resident.get();
+  }
+
+  public long budgetBytes()
+  {
+    return budget;
+  }
+
+  public void stop()
+  {
+    sweeper.shutdownNow();
+  }
+
+  /** Inline back-pressure: called after each column fetch grows the resident total. */
+  private void admit()
+  {
+    if (resident.get() > HIGH_WM * budget) {
+      evictColdestUntil((long) (LOW_WM * budget));
+    }
+  }
+
+  private void sweep()
+  {
+    try {
+      // reconcile the running counter to the true live sum (corrects drift from evicting an in-flight segment)
+      long sum = 0;
+      for (Materialization m : live.values()) {
+        sum += m.bytes.get();
+      }
+      resident.set(sum);
+      if (sum > HIGH_WM * budget) {
+        evictColdestUntil((long) (LOW_WM * budget));
+      }
+    }
+    catch (Throwable t) {
+      log.warn(t, "[range-residency] sweep failed");
+    }
+  }
+
+  private void evictColdestUntil(long target)
+  {
+    synchronized (evictLock) {
+      if (resident.get() <= target) {
+        return;
+      }
+      final List<Materialization> coldest = new ArrayList<>(live.values());
+      coldest.sort(Comparator.comparingLong(m -> m.lastAccess));   // coldest (oldest access) first
+      int evicted = 0;
+      for (Materialization m : coldest) {
+        if (resident.get() <= target) {
+          break;
+        }
+        if (m.evict()) {
+          evicted++;
+        }
+      }
+      if (evicted > 0) {
+        log.info("[range-residency] evicted %d segment(s); direct ~%,d / %,d bytes", evicted, resident.get(), budget);
+      }
+    }
+  }
+
+  /** One range segment's memoized index + its accounted, evictable residency. */
+  private final class Materialization
+  {
+    private final String id;
+    private final Function<RangeFetcher, QueryableIndex> build;
+    private final Supplier<RangeFetcher> rawFetcher;
+    private final AtomicLong bytes = new AtomicLong();
+    private volatile QueryableIndex index;   // strong ref == materialized (buffers resident)
+    private volatile long lastAccess;
+
+    private Materialization(DataSegment segment, Function<RangeFetcher, QueryableIndex> build, Supplier<RangeFetcher> rawFetcher)
+    {
+      this.id = segment.getIdentifier();
+      this.build = build;
+      this.rawFetcher = rawFetcher;
+    }
+
+    private QueryableIndex get()
+    {
+      lastAccess = System.currentTimeMillis();
+      QueryableIndex idx;
+      synchronized (this) {
+        if (index == null) {
+          index = build.apply(counting());   // columns are then fetched lazily through the counting fetcher
+          live.put(id, this);
+        }
+        idx = index;
+      }
+      return idx;   // returned to the query; safe to evict `index` afterwards (the query keeps this strong ref)
+    }
+
+    private synchronized boolean evict()
+    {
+      if (index == null) {
+        return false;
+      }
+      index = null;                                  // unreachable once in-flight queries release -> Cleaner frees
+      resident.addAndGet(-bytes.getAndSet(0));
+      live.remove(id);
+      return true;
+    }
+
+    private RangeFetcher counting()
+    {
+      final RangeFetcher delegate = rawFetcher.get();
+      return (fileNum, offset, length) -> {
+        final java.nio.ByteBuffer buf = delegate.fetch(fileNum, offset, length);
+        final long n = buf == null ? 0 : buf.capacity();
+        bytes.addAndGet(n);
+        resident.addAndGet(n);
+        admit();
+        return buf;
+      };
+    }
+  }
+}

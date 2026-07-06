@@ -62,6 +62,14 @@ public class SegmentLoaderConfig
   @JsonProperty("loadMode")
   private String loadMode = "download";
 
+  // Budget (bytes) for direct off-heap memory held by range-served (header-first) segment columns. When > 0 the
+  // range loader tracks each materialized segment's fetched-column bytes and evicts the coldest (dematerialize:
+  // drop the memoized index so its direct buffers are freed, keeping the segment queryable) to stay under budget
+  // — bounds a wide scan that would otherwise pin every touched segment's columns. <= 0 disables (unbounded,
+  // legacy). Size it under -XX:MaxDirectMemorySize minus the processing-buffer reserve.
+  @JsonProperty("rangeMaxSize")
+  private long rangeMaxSize = 0;
+
   @JsonProperty
   private File infoDir = null;
 
@@ -98,6 +106,11 @@ public class SegmentLoaderConfig
   public String getLoadMode()
   {
     return loadMode;
+  }
+
+  public long getRangeMaxSize()
+  {
+    return rangeMaxSize;
   }
 
   /** true when range-capable segments should be served header-first (no local download). */

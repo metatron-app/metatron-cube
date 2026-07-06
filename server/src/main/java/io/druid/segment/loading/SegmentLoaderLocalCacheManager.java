@@ -20,6 +20,7 @@
 package io.druid.segment.loading;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
@@ -61,6 +62,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   private final SegmentLoaderConfig config;
   private final ObjectMapper jsonMapper;
   private final IndexIO indexIO;   // only used by the range-serve (header-first) path
+  private final RangeBufferTracker rangeTracker;   // null when rangeMaxSize <= 0 (unbounded range residency)
 
   private final List<StorageLocation> locations;
 
@@ -76,6 +78,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     this.config = config == null ? new SegmentLoaderConfig() : config;
     this.jsonMapper = mapper;
     this.indexIO = indexIO;
+    this.rangeTracker = this.config.getRangeMaxSize() > 0 ? new RangeBufferTracker(this.config.getRangeMaxSize()) : null;
 
     this.locations = Lists.newArrayList();
     for (StorageLocationConfig locationConfig : this.config.getLocations()) {
@@ -237,19 +240,24 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
    */
   private Segment rangeSegment(final DataSegment segment, final RangeLoadSpec spec)
   {
-    final Supplier<QueryableIndex> loader = Suppliers.memoize(() -> {
+    // Build the memoized v9 index from a range fetcher. v2: fully-readable header carries capabilities -> only
+    // queried columns are fetched. v1: legacy packed header (version.bin+meta.smoosh+index.drd+metadata.drd).
+    final Function<SmooshedFileMapper.RangeFetcher, QueryableIndex> build = fetcher -> {
       try {
         final byte[] header = spec.header();
-        // v2: fully-readable header carries capabilities -> only queried columns are fetched.
-        // v1: legacy packed header (version.bin+meta.smoosh+index.drd+metadata.drd) via the v9 loader.
         return ContainerHeader.isV2(header)
-               ? ContainerHeader.load(header, spec.rangeFetcher(), jsonMapper)
-               : indexIO.loadIndex(null, false, SmooshedFileMapper.fromHeader(header, spec.rangeFetcher()));
+               ? ContainerHeader.load(header, fetcher, jsonMapper)
+               : indexIO.loadIndex(null, false, SmooshedFileMapper.fromHeader(header, fetcher));
       }
       catch (IOException e) {
         throw new RuntimeException("range load failed for segment[" + segment.getIdentifier() + "]", e);
       }
-    });
+    };
+    // When rangeMaxSize is set, route through the tracker (accounted, evictable direct buffers); else legacy
+    // unbounded memoize.
+    final Supplier<QueryableIndex> loader = rangeTracker != null
+        ? rangeTracker.track(segment, build, spec::rangeFetcher)
+        : Suppliers.memoize(() -> build.apply(spec.rangeFetcher()));
     return new LazySegment(segment, loader);
   }
 
