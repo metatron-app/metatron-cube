@@ -91,16 +91,25 @@ public class S3SegmentScanner implements SegmentScanner
     // 2) fetch+parse descriptors in parallel — one GET per segment done sequentially makes a large datasource
     //    (tens of thousands of segments) take minutes to scan at boot; a bounded pool cuts that ~Nx.
     final long start = System.currentTimeMillis();
-    final int threads = Math.min(64, Math.max(8, keys.size() / 200));
+    final int total = keys.size();
+    final int threads = Math.min(64, Math.max(8, total / 200));
+    log.info("standalone S3 scan: listed %d descriptor(s) in bucket[%s], fetching via %d threads...",
+             total, config.getBucket(), threads);
     final ExecutorService pool = Executors.newFixedThreadPool(threads, daemonFactory());
-    final List<DataSegment> segments = new ArrayList<>(keys.size());
+    final List<DataSegment> segments = new ArrayList<>(total);
+    final int step = Math.max(1, total / 10);   // progress log ~every 10%
     try {
-      final List<Future<DataSegment>> futures = new ArrayList<>(keys.size());
+      final List<Future<DataSegment>> futures = new ArrayList<>(total);
       for (String key : keys) {
         futures.add(pool.submit(() -> jsonMapper.readValue(getObject(config.getBucket(), key), DataSegment.class)));
       }
+      int done = 0;
       for (Future<DataSegment> f : futures) {
         segments.add(f.get());
+        if (++done % step == 0 || done == total) {
+          log.info("standalone S3 scan: fetched %d%% (%d/%d) in %dms",
+                   100 * done / total, done, total, System.currentTimeMillis() - start);
+        }
       }
     }
     catch (InterruptedException e) {

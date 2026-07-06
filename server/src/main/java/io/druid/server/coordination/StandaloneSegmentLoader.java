@@ -60,7 +60,9 @@ public class StandaloneSegmentLoader
   {
     final List<DataSegment> all = scanner.scan();
     final List<DataSegment> visible = nonOvershadowed(all);
-    int loaded = 0;
+    final int total = visible.size();
+    final int step = Math.max(1, total / 10);   // progress log ~every 10%
+    int loaded = 0, processed = 0;
     for (DataSegment segment : visible) {
       try {
         serverManager.loadSegment(segment);
@@ -69,9 +71,12 @@ public class StandaloneSegmentLoader
       catch (Exception e) {
         log.warn(e, "standalone: failed to load segment[%s]", segment.getIdentifier());
       }
+      if (++processed % step == 0 || processed == total) {
+        log.info("standalone: loading %d%% (%d/%d loaded)", 100 * processed / total, loaded, total);
+      }
     }
     log.info("standalone: scanned %d descriptor(s), loaded %d of %d visible segment(s) from deep storage",
-             all.size(), loaded, visible.size());
+             all.size(), loaded, total);
   }
 
   @LifecycleStop

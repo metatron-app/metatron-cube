@@ -549,14 +549,21 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
 
     List<Segment> targets = Lists.newArrayList();
     List<QueryRunner<T>> missingSegments = Lists.newArrayList();
+    int tmpfsCount = 0, rangeCount = 0;   // residency of the segments THIS query touches (range == LazySegment)
     for (Pair<SegmentDescriptor, ReferenceCountingSegment> segment : segments) {
       Segment target = segment.rhs == null ? null : segment.rhs.getBaseSegment();
       if (target != null) {
         targets.add(Segments.withLimit(segment.rhs, segment.lhs));
+        if (target instanceof LazySegment) {
+          rangeCount++;
+        } else {
+          tmpfsCount++;
+        }
       } else {
         missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<>(segment.lhs));
       }
     }
+    final int tmpfsResident = tmpfsCount, rangeResident = rangeCount, missingCount = missingSegments.size();
     if (query.isDescending()) {
       targets = Lists.reverse(targets);
     }
@@ -590,9 +597,9 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         log.info("Split segments into %d groups", splits.size());
-        return QueryRunners.runWith(resolved, reporter.report(
+        return withResidencyLog(QueryRunners.runWith(resolved, reporter.report(
             QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
-        ));
+        )), query, tmpfsResident, rangeResident, missingCount);
       }
     }
 
@@ -600,10 +607,10 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     if (splitable != null) {
       List<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
-        return reporter.report(toConcatRunner(splits, runner));
+        return withResidencyLog(reporter.report(toConcatRunner(splits, runner)), query, tmpfsResident, rangeResident, missingCount);
       }
     }
-    return QueryRunners.runWith(resolved, reporter.report(runner));
+    return withResidencyLog(QueryRunners.runWith(resolved, reporter.report(runner)), query, tmpfsResident, rangeResident, missingCount);
   }
 
   /**
@@ -615,6 +622,23 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
    * the outer mergeResults keeps the original and does the final compact-merge + finalize. Broker-routed queries are
    * already localized (brokerSide=false), so they pass through unchanged.
    */
+  /** Wrap the query's runner so that WHEN THE QUERY FINISHES it logs the residency of the segments it touched. */
+  private <T> QueryRunner<T> withResidencyLog(
+      final QueryRunner<T> runner, final Query<T> query, final int tmpfs, final int range, final int missing
+  )
+  {
+    if (query.getContextBoolean(Query.DISABLE_LOG, false)) {
+      return runner;
+    }
+    return (q, responseContext) -> Sequences.withBaggage(
+        runner.run(q, responseContext),
+        () -> log.info(
+            "[residency] query[%s] touched %d segment(s): %d tmpfs, %d range%s",
+            query.getId(), tmpfs + range, tmpfs, range, missing > 0 ? ", " + missing + " missing" : ""
+        )
+    );
+  }
+
   private static <T> QueryRunner<T> localizeDirect(final QueryRunner<T> localMerge)
   {
     return (query, responseContext) ->
