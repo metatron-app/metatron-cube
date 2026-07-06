@@ -117,7 +117,7 @@ public class S3SmooshDataSegmentPuller implements DataSegmentPuller
   public byte[] header(String bucket, String prefix) throws IOException
   {
     final byte[] header = getObject(bucket, prefix + "/header");
-    log.info("[s3_smoosh] header GET prefix[%s] len[%d]", prefix, header.length);
+    log.debug("[s3_smoosh] header GET prefix[%s] len[%d]", prefix, header.length);
     return header;
   }
 
@@ -133,7 +133,7 @@ public class S3SmooshDataSegmentPuller implements DataSegmentPuller
     return (fileNum, offset, length) -> {
       final String key = prefix + "/" + SmooshedFileMapper.chunkName(fileNum);
       final String range = "bytes=" + offset + "-" + (offset + length - 1);
-      log.info("[s3_smoosh] range GET prefix[%s] chunk[%d] offset[%d] len[%d] (direct)", prefix, fileNum, offset, length);
+      log.debug("[s3_smoosh] range GET prefix[%s] chunk[%d] offset[%d] len[%d] (direct)", prefix, fileNum, offset, length);
       try (ResponseInputStream<GetObjectResponse> in =
                s3Client.getObject(GetObjectRequest.builder().bucket(bucket).key(key).range(range).build())) {
         final byte[] bytes = ByteStreams.toByteArray(in);   // transient heap staging (young-gen, freed fast)
