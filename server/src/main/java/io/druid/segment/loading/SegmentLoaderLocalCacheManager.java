@@ -51,6 +51,12 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
 {
   private static final Logger log = new Logger(SegmentLoaderLocalCacheManager.class);
 
+  // Boot-fill target for loadMode=auto: fill the tmpfs cache only to this fraction of its budget, not to 100%.
+  // Mirrors ResidencyManager.LOW_WM (0.8) — the level the residency policy drains a full cache back down to — so
+  // boot lands where the policy wants to sit instead of overshooting to 100% and then demoting for ~an hour. The
+  // 0.8..0.9 headroom is left for the policy to promote hot range segments into.
+  private static final double AUTO_FILL_TARGET = 0.8;
+
   private final QueryableIndexFactory factory;
   private final SegmentLoaderConfig config;
   private final ObjectMapper jsonMapper;
@@ -214,16 +220,12 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
       return (segment.getIdentifier().hashCode() & 1) == 0;
     }
     if ("auto".equalsIgnoreCase(mode)) {
-      // v1: greedy — keep the segment resident in the local cache (tmpfs mmap) while there's room; once the
-      // cache (its maxSize budget) is full, serve the overflow header-first from off-heap direct buffers. This
-      // fills the tmpfs budget and reflects memory pressure automatically. (Recency-optimal placement — evicting
-      // a cold tmpfs segment so a newer one can be resident — is the v2 dynamic-migration upgrade.)
-      for (StorageLocation loc : locations) {
-        if (loc.canHandle(segment.getSize())) {
-          return false;   // room in the tmpfs cache -> download (mmap)
-        }
-      }
-      return true;        // cache full -> range (off-heap direct)
+      // Greedy up to a FILL TARGET (not 100%): keep the segment resident in the local cache (tmpfs mmap) while the
+      // cache is under AUTO_FILL_TARGET of its budget; overflow serves header-first from off-heap direct buffers.
+      // Stopping at ~80% (the residency low watermark) means boot settles where the policy wants instead of
+      // overshooting to 100% and demoting the excess for ~an hour, and leaves headroom for the policy to promote
+      // hot range segments. (Recency-optimal placement of that headroom is the ResidencyManager's job.)
+      return localUsedBytes() + segment.getSize() > AUTO_FILL_TARGET * localMaxBytes();
     }
     return false;   // "download"
   }
