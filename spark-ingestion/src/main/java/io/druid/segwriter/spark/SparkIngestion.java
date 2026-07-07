@@ -163,6 +163,8 @@ public final class SparkIngestion
                 s, iv, version, shard, maxRows, hourRows, tmp, SegmentIngestor.pusher(s)
             );
             out.add(m.writeValueAsString(seg));
+            org.apache.commons.io.FileUtils.deleteQuietly(tmp);   // free the built segment's scratch — else an
+            // executor building many segments over its lifetime fills the node's ephemeral-storage and gets evicted
           }
           return out.iterator();
         }).collect();
@@ -188,7 +190,9 @@ public final class SparkIngestion
           final DataSegment seg = SegmentIngestor.buildSegment(
               s, iv, version, entry._1()._2(), s.getNumShards(), entry._2().iterator(), tmp, pusher
           );
-          return m.writeValueAsString(seg);
+          final String segJson = m.writeValueAsString(seg);
+          org.apache.commons.io.FileUtils.deleteQuietly(tmp);   // free scratch (see aligned path note)
+          return segJson;
         }).collect();
       }
 
