@@ -1,0 +1,116 @@
+#
+# Re-index atom_credential from the ORIGINAL iceberg source into DAY-granularity s3_smoosh segments,
+# written to the `druid` deep-storage bucket the standalone historical serves. The existing HOUR segments
+# (version 2026-07-01...) are overshadowed by these (version = now, higher) once the standalone rescans.
+#
+# Why re-index (not repackage/merge): the `raw` lucene column is index-only (source text gone from the
+# segments), so hour->day re-bucketing must rebuild the index from the original source.
+#
+# layout=aligned + repartitionByGranularity=true: the source is partitioned HOURLY; repartition by the DAY
+# bucket (+ sort by ts) gathers each day's rows into one partition, and the aligned streamer rolls exactly
+# one segment per day WITHOUT buffering the day in heap. numShards is unused by the aligned path.
+#
+# Two S3 stores:
+#   - source read : s3.s2dev.net (iceberg data)     -> ICEBERG_S3_* / POLARIS_* (polaris-prod-credentials)
+#   - deep storage: seaweed  (bucket `druid`, WRITE) -> AWS_* (druid-deepstore-credentials, svc-adp-druid)
+#
+# publishUrl omitted -> coordinator-free: only descriptor.json is written; the standalone loads by scanning.
+#
+# THIS IS THE VALIDATION RUN: one week (2026-06-15..2026-06-22) -> expect ~7 daily segments (~200MB each).
+# Drop the `where` (or widen it) for the full run.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atom-daily-ingest-spec
+  namespace: adp-dev
+data:
+  ingest-spec.json: |
+    {
+      "dataSource": "atom_credential",
+      "source": {
+        "type": "iceberg",
+        "table": "iceberg.atom.atom_analysis_credential_v2",
+        "where": "timestamp_created >= timestamp '2026-04-20 00:00:00' AND timestamp_created < timestamp '2026-07-02 00:00:00'"
+      },
+      "layout": "aligned",
+      "repartitionByGranularity": true,
+      "timestampColumn": "timestamp_created",
+      "dimensions": ["file_id","source_sha256","file_sha256"],
+      "metrics": [
+        {"type":"count","name":"count"},
+        {"type":"relay","name":"raw","columnName":"raw","typeName":"string"}
+      ],
+      "secondaryIndexing": {
+        "raw": { "type": "lucene10", "indexOnly": true, "strategies": [{"type":"text","fieldName":"raw"}] }
+      },
+      "segmentGranularity": "DAY",
+      "queryGranularity": "NONE",
+      "rollup": false,
+      "numShards": 1,
+      "storageType": "s3_smoosh",
+      "bucket": "druid",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true
+    }
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: atom-daily-reindex
+  namespace: adp-dev
+spec:
+  type: Java
+  mode: cluster
+  image: "nas2.s2dev.net:5050/adp/spark-druid-ingestion:3.5.1"
+  imagePullPolicy: Always
+  mainClass: io.druid.segwriter.spark.SparkIngestion
+  mainApplicationFile: "local:///opt/spark/jars/druid-spark-ingestion-spark.jar"
+  arguments:
+    - "/opt/spark/spec/ingest-spec.json"
+  sparkVersion: "3.5.1"
+  sparkConf:
+    "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+    "spark.sql.catalog.iceberg": "org.apache.iceberg.spark.SparkCatalog"
+    "spark.sql.catalog.iceberg.catalog-impl": "org.apache.iceberg.rest.RESTCatalog"
+    "spark.sql.catalog.iceberg.uri": "http://polaris.polaris.svc:8181/api/catalog"
+    "spark.sql.catalog.iceberg.warehouse": "ato"
+    "spark.sql.catalog.iceberg.scope": "PRINCIPAL_ROLE:ALL"
+    "spark.sql.catalog.iceberg.io-impl": "org.apache.iceberg.aws.s3.S3FileIO"
+    "spark.sql.catalog.iceberg.s3.endpoint": "http://s3.s2dev.net:8080"
+    "spark.sql.catalog.iceberg.s3.path-style-access": "true"
+    "spark.driver.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+    "spark.executor.extraJavaOptions": "--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+  driver:
+    cores: 1
+    memory: "2g"
+    serviceAccount: spark
+    env: &creds
+      - name: AWS_ACCESS_KEY_ID            # deep storage WRITE (bucket `druid` on seaweed)
+        valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+      - name: POLARIS_CLIENT_ID            # polaris.polaris auth
+        valueFrom: { secretKeyRef: { name: polaris-prod-credentials, key: polaris-client-id } }
+      - name: POLARIS_CLIENT_SECRET
+        valueFrom: { secretKeyRef: { name: polaris-prod-credentials, key: polaris-client-secret } }
+      - name: ICEBERG_S3_ACCESS_KEY_ID     # source read (s3.s2dev.net)
+        valueFrom: { secretKeyRef: { name: polaris-prod-credentials, key: source-s3-access-key } }
+      - name: ICEBERG_S3_SECRET_ACCESS_KEY
+        valueFrom: { secretKeyRef: { name: polaris-prod-credentials, key: source-s3-secret-key } }
+    volumeMounts:
+      - { name: ingest-spec, mountPath: /opt/spark/spec }
+  executor:
+    instances: 12            # ~73 day-partitions; cores are plentiful -> high parallelism (~6 waves)
+    cores: 1                 # one day-segment build per executor at a time (each build is memory-heavy)
+    memory: "6g"
+    memoryOverhead: "2g"     # lucene MMapDirectory + off-heap/JRE outside the JVM heap
+    env: *creds
+    volumeMounts:
+      - { name: ingest-spec, mountPath: /opt/spark/spec }
+  volumes:
+    - name: ingest-spec
+      configMap: { name: atom-daily-ingest-spec }
+  restartPolicy:
+    type: Never

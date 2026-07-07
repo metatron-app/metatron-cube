@@ -49,6 +49,12 @@ public final class SegmentPublisher
    */
   public static int publish(String publishUrl, List<DataSegment> segments, ObjectMapper mapper) throws IOException
   {
+    // Coordinator-free (standalone) ingestion: no overlord to publish to. Segment files + descriptor.json are
+    // already in deep storage (the pusher wrote them), and a standalone historical loads them by scanning deep
+    // storage — so a blank publishUrl means "skip the metadata-DB publish".
+    if (publishUrl == null || publishUrl.trim().isEmpty()) {
+      return 0;
+    }
     final byte[] body = mapper.writeValueAsBytes(segments);
     IOException last = null;
     for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {

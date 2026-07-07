@@ -48,6 +48,11 @@ public class SegmentIngestSpec implements Serializable
   // on the timestamp column (e.g. an iceberg table partitioned by hour(ts)); segmentGranularity must
   // match the source partition granularity.
   private final String layout;
+  // Aligned layout only: when true, regroup rows to segmentGranularity before streaming (repartition by the
+  // granularity bucket + sort by timestamp), so a source partitioned FINER than segmentGranularity (e.g. an
+  // hourly iceberg table -> DAY segments) still yields one segment per bucket. Off = the source partitioning
+  // must already match segmentGranularity.
+  private final boolean repartitionByGranularity;
   private final String timestampColumn;
   private final List<String> dimensions;
   private final AggregatorFactory[] metrics;
@@ -89,7 +94,8 @@ public class SegmentIngestSpec implements Serializable
       @JsonProperty("region") String region,
       @JsonProperty("disableAcl") Boolean disableAcl,
       @JsonProperty("publishUrl") String publishUrl,
-      @JsonProperty("secondaryIndexing") Map<String, Map<String, Object>> secondaryIndexing
+      @JsonProperty("secondaryIndexing") Map<String, Map<String, Object>> secondaryIndexing,
+      @JsonProperty("repartitionByGranularity") Boolean repartitionByGranularity
   )
   {
     this.dataSource = dataSource;
@@ -112,6 +118,7 @@ public class SegmentIngestSpec implements Serializable
     this.secondaryIndexing = secondaryIndexing == null
                              ? java.util.Collections.<String, Map<String, Object>>emptyMap()
                              : secondaryIndexing;
+    this.repartitionByGranularity = repartitionByGranularity != null && repartitionByGranularity;
   }
 
   @JsonProperty public String getDataSource() { return dataSource; }
@@ -132,4 +139,5 @@ public class SegmentIngestSpec implements Serializable
   @JsonProperty public boolean isDisableAcl() { return disableAcl; }
   @JsonProperty public String getPublishUrl() { return publishUrl; }
   @JsonProperty public Map<String, Map<String, Object>> getSecondaryIndexing() { return secondaryIndexing; }
+  @JsonProperty public boolean isRepartitionByGranularity() { return repartitionByGranularity; }
 }

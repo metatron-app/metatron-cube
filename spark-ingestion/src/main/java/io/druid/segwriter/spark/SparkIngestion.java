@@ -105,6 +105,17 @@ public final class SparkIngestion
         df = df.where(source.getWhere());   // optional bound; iceberg prunes partitions
       }
 
+      if (spec.isRepartitionByGranularity()) {
+        // Source partitioned FINER than segmentGranularity (e.g. an hourly iceberg table -> DAY segments):
+        // regroup so each Spark partition holds one bucket's rows, letting the aligned streamer roll exactly one
+        // segment per bucket. repartition by the truncated timestamp gathers a bucket's rows into one partition;
+        // sortWithinPartitions makes them contiguous so a bucket is never split into interleaved runs. Streaming
+        // is preserved -- the sort spills to disk, and the writer never buffers a whole bucket in heap.
+        final String truncFmt = spec.getSegmentGranularity().toLowerCase(java.util.Locale.ROOT);
+        final org.apache.spark.sql.Column tsCol = org.apache.spark.sql.functions.col(spec.getTimestampColumn());
+        df = df.repartition(org.apache.spark.sql.functions.date_trunc(truncFmt, tsCol)).sortWithinPartitions(tsCol);
+      }
+
       final List<String> built;
       if ("aligned".equalsIgnoreCase(spec.getLayout())) {
         // shuffle-free: each Spark input partition is already one segment's worth of rows (the source
