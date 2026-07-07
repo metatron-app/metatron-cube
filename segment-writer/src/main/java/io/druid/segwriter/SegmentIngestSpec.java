@@ -53,6 +53,9 @@ public class SegmentIngestSpec implements Serializable
   // hourly iceberg table -> DAY segments) still yields one segment per bucket. Off = the source partitioning
   // must already match segmentGranularity.
   private final boolean repartitionByGranularity;
+  // Aligned layout: split a bucket into shards of at most this many rows (bounds both the on-heap build and the
+  // segment size). <=0 / unset -> Integer.MAX_VALUE (one segment per bucket, no split).
+  private final int maxRowsPerSegment;
   private final String timestampColumn;
   private final List<String> dimensions;
   private final AggregatorFactory[] metrics;
@@ -95,7 +98,8 @@ public class SegmentIngestSpec implements Serializable
       @JsonProperty("disableAcl") Boolean disableAcl,
       @JsonProperty("publishUrl") String publishUrl,
       @JsonProperty("secondaryIndexing") Map<String, Map<String, Object>> secondaryIndexing,
-      @JsonProperty("repartitionByGranularity") Boolean repartitionByGranularity
+      @JsonProperty("repartitionByGranularity") Boolean repartitionByGranularity,
+      @JsonProperty("maxRowsPerSegment") Integer maxRowsPerSegment
   )
   {
     this.dataSource = dataSource;
@@ -119,6 +123,7 @@ public class SegmentIngestSpec implements Serializable
                              ? java.util.Collections.<String, Map<String, Object>>emptyMap()
                              : secondaryIndexing;
     this.repartitionByGranularity = repartitionByGranularity != null && repartitionByGranularity;
+    this.maxRowsPerSegment = maxRowsPerSegment == null || maxRowsPerSegment <= 0 ? Integer.MAX_VALUE : maxRowsPerSegment;
   }
 
   @JsonProperty public String getDataSource() { return dataSource; }
@@ -140,4 +145,5 @@ public class SegmentIngestSpec implements Serializable
   @JsonProperty public String getPublishUrl() { return publishUrl; }
   @JsonProperty public Map<String, Map<String, Object>> getSecondaryIndexing() { return secondaryIndexing; }
   @JsonProperty public boolean isRepartitionByGranularity() { return repartitionByGranularity; }
+  @JsonProperty public int getMaxRowsPerSegment() { return maxRowsPerSegment; }
 }

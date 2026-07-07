@@ -139,25 +139,28 @@ public final class SparkIngestion
           final com.google.common.collect.PeekingIterator<Map<String, Object>> rows =
               com.google.common.collect.Iterators.peekingIterator(events);
           final List<String> out = new ArrayList<>();
+          final int maxRows = s.getMaxRowsPerSegment();   // split a bucket into shards of <= maxRows (bounds build heap + segment size)
           int local = 0;
           while (rows.hasNext()) {
             final long hourStart = SegmentIngestor.bucket(
                 s, ((Number) rows.peek().get(s.getTimestampColumn())).longValue()).getStartMillis();
             final Interval iv = SegmentIngestor.bucket(s, hourStart);
             final int shard = partitionId * 1024 + (local++);   // globally-unique LinearShardSpec id
-            // sub-iterator that yields only this interval's contiguous run, then stops
+            final int[] emitted = {0};   // rows emitted into THIS shard; rows are ts-sorted so each chunk is time-contiguous
+            // sub-iterator: this bucket's contiguous run, capped at maxRows (then the outer loop rolls another shard
+            // for the SAME bucket -> a heavy day splits into <= maxRows shards, all claiming the day interval).
             final java.util.Iterator<Map<String, Object>> hourRows = new java.util.Iterator<Map<String, Object>>()
             {
               @Override public boolean hasNext()
               {
-                return rows.hasNext() && SegmentIngestor.bucket(
+                return emitted[0] < maxRows && rows.hasNext() && SegmentIngestor.bucket(
                     s, ((Number) rows.peek().get(s.getTimestampColumn())).longValue()).getStartMillis() == hourStart;
               }
-              @Override public Map<String, Object> next() { return rows.next(); }
+              @Override public Map<String, Object> next() { emitted[0]++; return rows.next(); }
             };
             final File tmp = Files.createTempDir();
             final DataSegment seg = SegmentIngestor.buildSegment(
-                s, iv, version, shard, Integer.MAX_VALUE, hourRows, tmp, SegmentIngestor.pusher(s)
+                s, iv, version, shard, maxRows, hourRows, tmp, SegmentIngestor.pusher(s)
             );
             out.add(m.writeValueAsString(seg));
           }

@@ -45,6 +45,7 @@ data:
         "raw": { "type": "lucene10", "indexOnly": true, "strategies": [{"type":"text","fieldName":"raw"}] }
       },
       "segmentGranularity": "DAY",
+      "maxRowsPerSegment": 10000000,
       "queryGranularity": "NONE",
       "rollup": false,
       "numShards": 1,
@@ -102,10 +103,10 @@ spec:
     volumeMounts:
       - { name: ingest-spec, mountPath: /opt/spark/spec }
   executor:
-    instances: 12            # ~73 day-partitions; cores are plentiful -> high parallelism (~6 waves)
-    cores: 1                 # one day-segment build per executor at a time (each build is memory-heavy)
-    memory: "6g"
-    memoryOverhead: "2g"     # lucene MMapDirectory + off-heap/JRE outside the JVM heap
+    instances: 8             # fewer but fatter: each day is built in ONE on-heap IncrementalIndex (DruidSegmentWriter)
+    cores: 1                 # one day-segment build per executor at a time
+    memory: "16g"            # a whole day's rows (raw text as on-heap Strings) live in the index until persist
+    memoryOverhead: "4g"     # lucene MMapDirectory + merge + off-heap/JRE outside the JVM heap
     env: *creds
     volumeMounts:
       - { name: ingest-spec, mountPath: /opt/spark/spec }
