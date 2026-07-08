@@ -56,6 +56,11 @@ public class SegmentIngestSpec implements Serializable
   // Aligned layout: split a bucket into shards of at most this many rows (bounds both the on-heap build and the
   // segment size). <=0 / unset -> Integer.MAX_VALUE (one segment per bucket, no split).
   private final int maxRowsPerSegment;
+  // Aligned + repartitionByGranularity: when > 0, regroup with a NARROW coalesce (merge adjacent input partitions,
+  // no wide shuffle) to this many partitions instead of a repartition-by-bucket. Avoids shuffling the whole (large)
+  // dataset to local disk. Size it ~ totalRows/maxRowsPerSegment so each task is about one shard. 0 = use the
+  // repartition-by-bucket path (correct but shuffles everything).
+  private final int coalescePartitions;
   private final String timestampColumn;
   private final List<String> dimensions;
   private final AggregatorFactory[] metrics;
@@ -99,7 +104,8 @@ public class SegmentIngestSpec implements Serializable
       @JsonProperty("publishUrl") String publishUrl,
       @JsonProperty("secondaryIndexing") Map<String, Map<String, Object>> secondaryIndexing,
       @JsonProperty("repartitionByGranularity") Boolean repartitionByGranularity,
-      @JsonProperty("maxRowsPerSegment") Integer maxRowsPerSegment
+      @JsonProperty("maxRowsPerSegment") Integer maxRowsPerSegment,
+      @JsonProperty("coalescePartitions") Integer coalescePartitions
   )
   {
     this.dataSource = dataSource;
@@ -124,6 +130,7 @@ public class SegmentIngestSpec implements Serializable
                              : secondaryIndexing;
     this.repartitionByGranularity = repartitionByGranularity != null && repartitionByGranularity;
     this.maxRowsPerSegment = maxRowsPerSegment == null || maxRowsPerSegment <= 0 ? Integer.MAX_VALUE : maxRowsPerSegment;
+    this.coalescePartitions = coalescePartitions == null ? 0 : coalescePartitions;
   }
 
   @JsonProperty public String getDataSource() { return dataSource; }
@@ -146,4 +153,5 @@ public class SegmentIngestSpec implements Serializable
   @JsonProperty public Map<String, Map<String, Object>> getSecondaryIndexing() { return secondaryIndexing; }
   @JsonProperty public boolean isRepartitionByGranularity() { return repartitionByGranularity; }
   @JsonProperty public int getMaxRowsPerSegment() { return maxRowsPerSegment; }
+  @JsonProperty public int getCoalescePartitions() { return coalescePartitions; }
 }

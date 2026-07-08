@@ -113,7 +113,14 @@ public final class SparkIngestion
         // is preserved -- the sort spills to disk, and the writer never buffers a whole bucket in heap.
         final String truncFmt = spec.getSegmentGranularity().toLowerCase(java.util.Locale.ROOT);
         final org.apache.spark.sql.Column tsCol = org.apache.spark.sql.functions.col(spec.getTimestampColumn());
-        df = df.repartition(org.apache.spark.sql.functions.date_trunc(truncFmt, tsCol)).sortWithinPartitions(tsCol);
+        if (spec.getCoalescePartitions() > 0) {
+          // NARROW regroup: coalesce merges adjacent input partitions with NO wide shuffle (so the whole -- large --
+          // dataset is never spilled to local disk, which OOMs node ephemeral-storage); the local sortWithinPartitions
+          // then makes each task's rows time-contiguous so the aligned streamer rolls clean segments.
+          df = df.coalesce(spec.getCoalescePartitions()).sortWithinPartitions(tsCol);
+        } else {
+          df = df.repartition(org.apache.spark.sql.functions.date_trunc(truncFmt, tsCol)).sortWithinPartitions(tsCol);
+        }
       }
 
       final List<String> built;
