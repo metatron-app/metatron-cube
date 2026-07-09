@@ -47,15 +47,19 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -83,11 +87,20 @@ public final class TrinoIngestion
 
   private static long ms(long nanos) { return nanos / 1_000_000L; }
 
+  // Whether to push the time-sort down to Trino (ORDER BY). true (default): Trino sorts -> rows arrive presorted ->
+  // the OnheapIncrementalIndex APPENDS (fast). false: NO ORDER BY -> Trino just streams a partition-pruned scan
+  // (near-zero memory, no OOM on huge windows) and the index sorts on-heap per shard (slower but Trino-safe).
+  // Set false for the row-dense windows whose ORDER BY (sorting rows that carry the big `raw` payload) OOMs Trino.
+  private static boolean ORDER_BY = true;
+
   public static void main(String[] args) throws Exception
   {
-    // rows arrive ORDER BY timestamp_trigger, so the OnheapIncrementalIndex can append instead of sort-inserting
-    // (set before OnheapIncrementalIndex is first loaded). rollup=false gates it further inside the index.
-    System.setProperty("druid.incrementalIndex.presortedAppend", "true");
+    ORDER_BY = Boolean.parseBoolean(env("TRINO_ORDER_BY", "true"));
+    if (ORDER_BY) {
+      // rows arrive ORDER BY timestamp_trigger, so the OnheapIncrementalIndex can append instead of sort-inserting
+      // (set before OnheapIncrementalIndex is first loaded). rollup=false gates it further inside the index.
+      System.setProperty("druid.incrementalIndex.presortedAppend", "true");
+    }   // else leave presortedAppend unset -> the index uses its normal on-heap sort (input isn't presorted)
     if (args.length < 3) {
       System.err.println("usage: TrinoIngestion <spec.json> <startDate yyyy-MM-dd> <endDate yyyy-MM-dd (exclusive)>");
       System.exit(2);
@@ -106,6 +119,7 @@ public final class TrinoIngestion
     final int maxRows = spec.getMaxRowsPerSegment();
     final int chunkHours = Integer.parseInt(env("CHUNK_HOURS", "4"));
     final int workers = Integer.parseInt(env("WORKERS", "8"));
+    final int pushThreads = Integer.parseInt(env("PUSH_THREADS", String.valueOf(workers)));
 
     // columns to SELECT: timestamp + dimensions + every metric's source column(s). (count has none.)
     final LinkedHashSet<String> colSet = new LinkedHashSet<>();
@@ -128,24 +142,50 @@ public final class TrinoIngestion
     final String version = new DateTime().toString();   // one version for the whole run; > the HOUR segments' version
     final DataSegmentPusher pusher = SegmentIngestor.pusher(spec);
 
-    // split [start, end) into fixed time-chunks; each chunk = one parallel task = one segment interval
+    // Chunk list. Default: split [start, end) into fixed CHUNK_HOURS windows (each = one parallel task = one
+    // segment interval). Override: CHUNKS_FILE = a file with one "yyyy-MM-dd HH:mm:ss" (UTC) chunk-START per line
+    // -> process EXACTLY those windows (each CHUNK_HOURS wide). Used to re-run only the windows a prior run missed
+    // (e.g. chunks whose Trino query was killed by a cluster OOM) without rebuilding the whole range.
     final long startMs = start.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
     final long endMs = end.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
     final long chunkMs = chunkHours * 3_600_000L;
     final List<long[]> chunks = new ArrayList<>();
-    for (long c0 = startMs; c0 < endMs; c0 += chunkMs) {
-      chunks.add(new long[]{c0, Math.min(c0 + chunkMs, endMs)});
+    final String chunksFile = System.getenv("CHUNKS_FILE");
+    if (chunksFile != null && !chunksFile.isEmpty()) {
+      for (String line : java.nio.file.Files.readAllLines(Paths.get(chunksFile))) {
+        final String s = line.trim();
+        if (s.isEmpty() || s.startsWith("#")) {
+          continue;
+        }
+        final long c0 = ZonedDateTime.of(java.time.LocalDateTime.parse(s.replace(' ', 'T')), ZoneOffset.UTC)
+                                     .toInstant().toEpochMilli();
+        chunks.add(new long[]{c0, c0 + chunkMs});
+      }
+      System.out.println("trino-ingestion: CHUNKS_FILE=" + chunksFile + " -> " + chunks.size() + " explicit window(s)");
+    } else {
+      for (long c0 = startMs; c0 < endMs; c0 += chunkMs) {
+        chunks.add(new long[]{c0, Math.min(c0 + chunkMs, endMs)});
+      }
     }
     final int nChunks = chunks.size();
 
     System.out.println("trino-ingestion: url=" + jdbcUrl + " table=" + table + " tsCol=" + tsCol
                        + " range=[" + start + "," + end + ") chunkHours=" + chunkHours + " chunks=" + nChunks
-                       + " workers=" + workers + " maxRows=" + maxRows + " version=" + version);
+                       + " workers=" + workers + " maxRows=" + maxRows + " orderBy=" + ORDER_BY + " version=" + version);
 
     final AtomicInteger totalSegs = new AtomicInteger();
     final AtomicLong totalRows = new AtomicLong();
     final AtomicInteger doneChunks = new AtomicInteger();
     final long wallStart = System.nanoTime();
+
+    // async push: workers persist (fetch+build+lucene, CPU-bound) and hand the finished v9 dir to a separate push
+    // pool, then move on to the next shard/chunk -> the (slow, seaweed-bound) S3 upload of shard N overlaps the
+    // persist of shard N+1. Bounded queue + CallerRunsPolicy: if pushes fall behind, the worker runs the push
+    // inline (backpressure) so persisted-but-unpushed tmp dirs can't pile up and fill the pod's disk.
+    final ThreadPoolExecutor pushPool = new ThreadPoolExecutor(
+        pushThreads, pushThreads, 0L, TimeUnit.MILLISECONDS,
+        new ArrayBlockingQueue<>(Math.max(1, workers)), new ThreadPoolExecutor.CallerRunsPolicy());
+    final List<Future<?>> pushFutures = Collections.synchronizedList(new ArrayList<>());
 
     // across-chunk MT: W workers each run whole chunks (own Trino connection); while one chunk persists
     // (CPU: lucene) another fetches (I/O) -> fetch+build+persist overlap across chunks.
@@ -154,14 +194,19 @@ public final class TrinoIngestion
     for (final long[] c : chunks) {
       futures.add(pool.submit(() -> {
         processChunk(c[0], c[1], spec, jdbcUrl, props, table, colList, cols, tsCol, maxRows, version,
-                     pusher, totalSegs, totalRows, doneChunks, nChunks);
+                     pusher, pushPool, pushFutures, totalSegs, totalRows, doneChunks, nChunks);
         return null;
       }));
     }
     pool.shutdown();
     for (Future<?> f : futures) {
-      f.get();   // surface any chunk failure (aborts the run)
+      f.get();   // surface any chunk (persist) failure (aborts the run)
     }
+    pushPool.shutdown();
+    for (Future<?> f : pushFutures) {
+      f.get();   // await + surface any async push failure
+    }
+    pushPool.awaitTermination(1, TimeUnit.MINUTES);
 
     final long wallMs = ms(System.nanoTime() - wallStart);
     final long fetchMs = ms(FETCH_NANOS.get());
@@ -179,11 +224,46 @@ public final class TrinoIngestion
   private static final DateTimeFormatter TS_FMT =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneOffset.UTC);
 
-  /** Process one time-chunk on its own Trino connection: query -> build shards (interval = the chunk) -> push. */
+  private static final int MAX_RETRIES = Integer.parseInt(System.getenv().getOrDefault("CHUNK_MAX_RETRIES", "6"));
+
+  /**
+   * Process one time-chunk, retrying on a TRANSIENT Trino failure (chiefly "cluster is out of memory" — the
+   * concurrent ORDER BY sorts can OOM the Trino cluster; Trino itself says "try again in a few minutes"). Each
+   * attempt is idempotent: same version + shard numbers -> re-pushed objects overwrite; global counters are only
+   * bumped on the ONE successful attempt (a failed attempt accumulates into locals that are discarded).
+   */
   private static void processChunk(
       long c0, long c1, SegmentIngestSpec spec, String jdbcUrl, Properties props, String table,
       String colList, List<String> cols, String tsCol, int maxRows, String version,
-      DataSegmentPusher pusher, AtomicInteger totalSegs, AtomicLong totalRows, AtomicInteger doneChunks, int nChunks
+      DataSegmentPusher pusher, ExecutorService pushPool, List<Future<?>> pushFutures,
+      AtomicInteger totalSegs, AtomicLong totalRows, AtomicInteger doneChunks, int nChunks
+  ) throws Exception
+  {
+    final String c0s = TS_FMT.format(Instant.ofEpochMilli(c0));
+    for (int attempt = 1; ; attempt++) {
+      try {
+        processChunkOnce(c0, c1, spec, jdbcUrl, props, table, colList, cols, tsCol, maxRows, version,
+                         pusher, pushPool, pushFutures, totalSegs, totalRows, doneChunks, nChunks);
+        return;
+      }
+      catch (Exception e) {
+        if (attempt > MAX_RETRIES || !isTransientTrino(e)) {
+          throw e;
+        }
+        final long backoffMs = 60_000L * attempt;   // Trino asked to wait "a few minutes"; linear backoff
+        System.out.println("[chunk " + c0s + "] transient Trino failure (attempt " + attempt + "/" + MAX_RETRIES
+                           + "), retrying in " + (backoffMs / 1000) + "s: " + rootMessage(e));
+        Thread.sleep(backoffMs);
+      }
+    }
+  }
+
+  /** A single attempt: own Trino connection -> query -> persist shards (interval = the chunk) -> async push. */
+  private static void processChunkOnce(
+      long c0, long c1, SegmentIngestSpec spec, String jdbcUrl, Properties props, String table,
+      String colList, List<String> cols, String tsCol, int maxRows, String version,
+      DataSegmentPusher pusher, ExecutorService pushPool, List<Future<?>> pushFutures,
+      AtomicInteger totalSegs, AtomicLong totalRows, AtomicInteger doneChunks, int nChunks
   ) throws Exception
   {
     final String c0s = TS_FMT.format(Instant.ofEpochMilli(c0));
@@ -191,15 +271,17 @@ public final class TrinoIngestion
     final String sql = "SELECT " + colList + " FROM " + table
                        + " WHERE " + tsCol + " >= TIMESTAMP '" + c0s + " UTC'"
                        + " AND " + tsCol + " < TIMESTAMP '" + c1s + " UTC'"
-                       + " ORDER BY " + tsCol + " ASC";
+                       + (ORDER_BY ? " ORDER BY " + tsCol + " ASC" : "");   // no ORDER BY -> Trino won't sort (OOM-safe)
     final Interval iv = new Interval(c0, c1);
+    // local tallies: only folded into the global counters on success, so a retried attempt can't double-count
+    int localSegs = 0;
+    long chunkRows = 0;
     try (Connection conn = DriverManager.getConnection(jdbcUrl, props);
          Statement stmt = conn.createStatement()) {
       stmt.setFetchSize(10_000);
       try (ResultSet rs = stmt.executeQuery(sql)) {
         final PeekingIterator<Map<String, Object>> rows = Iterators.peekingIterator(rowIterator(rs, cols, tsCol));
         int shard = 0;
-        long chunkRows = 0;
         while (rows.hasNext()) {
           final int[] emitted = {0};   // ordered by ts, so each maxRows shard is time-contiguous
           final Iterator<Map<String, Object>> shardIt = new Iterator<Map<String, Object>>()
@@ -208,23 +290,72 @@ public final class TrinoIngestion
             @Override public Map<String, Object> next() { emitted[0]++; return rows.next(); }
           };
           final File tmp = Files.createTempDir();
+          boolean handedOff = false;
           try {
-            final DataSegment seg = SegmentIngestor.buildSegment(spec, iv, version, shard, 2, shardIt, tmp, pusher);
-            totalSegs.incrementAndGet();
-            totalRows.addAndGet(seg.getNumRows());
-            chunkRows += seg.getNumRows();
-            System.out.println("  built " + seg.getIdentifier() + " rows=" + seg.getNumRows() + " size=" + seg.getSize());
+            // persist on this worker thread (CPU-bound: v9 columns + lucene)...
+            final DruidSegmentWriter.Persisted p =
+                SegmentIngestor.persistSegment(spec, iv, version, shard, 2, shardIt, tmp);
+            final long segRows = p.template.getNumRows();
+            localSegs++;
+            chunkRows += segRows;
+            System.out.println("  persisted " + p.template.getIdentifier() + " rows=" + segRows + " -> push");
+            // ...then hand the finished dir to the push pool and move on (overlap S3 upload with next persist).
+            pushFutures.add(pushPool.submit(() -> {
+              try {
+                final long tPush = System.nanoTime();
+                final DataSegment seg = pusher.push(p.dir, p.template);
+                DruidSegmentWriter.Prof.pushNanos.addAndGet(System.nanoTime() - tPush);
+                System.out.println("  pushed " + seg.getIdentifier() + " size=" + seg.getSize());
+                return null;
+              }
+              finally {
+                FileUtils.deleteQuietly(tmp);   // free scratch only after the push has read it
+              }
+            }));
+            handedOff = true;
           }
           finally {
-            FileUtils.deleteQuietly(tmp);   // free the built segment's scratch (else the pod fills up)
+            if (!handedOff) {
+              FileUtils.deleteQuietly(tmp);   // persist failed before hand-off: clean up here
+            }
           }
           shard++;
         }
+        totalSegs.addAndGet(localSegs);
+        totalRows.addAndGet(chunkRows);
         final int done = doneChunks.incrementAndGet();
         System.out.println("[chunk " + done + "/" + nChunks + " " + c0s + "] " + shard + " shard(s), " + chunkRows
                            + " rows (running: " + totalSegs.get() + " segs, " + totalRows.get() + " rows)");
       }
     }
+  }
+
+  /** True if the failure is a transient Trino cluster condition worth retrying (out-of-memory / try again). */
+  private static boolean isTransientTrino(Throwable e)
+  {
+    for (Throwable t = e; t != null; t = t.getCause()) {
+      final String m = t.getMessage();
+      if (m != null) {
+        final String lm = m.toLowerCase(java.util.Locale.ROOT);
+        if (lm.contains("out of memory") || lm.contains("try again")
+            || lm.contains("exceeded") && lm.contains("memory")) {
+          return true;
+        }
+      }
+      if (t.getCause() == t) {
+        break;
+      }
+    }
+    return false;
+  }
+
+  private static String rootMessage(Throwable e)
+  {
+    Throwable t = e;
+    while (t.getCause() != null && t.getCause() != t) {
+      t = t.getCause();
+    }
+    return t.getMessage();
   }
 
   /** One-shot iterator over a ResultSet -> row maps (timestamp column normalized to epoch-millis Long). */

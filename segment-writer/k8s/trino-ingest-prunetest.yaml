@@ -1,15 +1,16 @@
-# Full re-index of atom_credential via across-chunk MT (TrinoIngestion).
-# Splits 2026-04-20..2026-07-09 into CHUNK_HOURS windows, WORKERS build them in parallel (each: own Trino
-# connection -> query the window ORDER BY timestamp_trigger -> build s3_smoosh segment(s) -> push to bucket `druid`).
+# Small isolated slice for validating query-time segment pruning: 1 day into a SEPARATE datasource
+# `atom_cred_prune` (own prefix under bucket druid), built by image :4 (new ContainerHeader -> segments carry the
+# `dicts` header sub-ranges). TRINO_ORDER_BY=false -> Trino scans in bucket(source_sha256) order, so each segment
+# holds few distinct source_sha256 -> a source_sha256 filter prunes most segments. Delete the prefix to clean up.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: trino-ingest-spec
+  name: trino-prune-spec
   namespace: adp-dev
 data:
   spec.json: |
     {
-      "dataSource": "atom_credential",
+      "dataSource": "atom_cred_prune",
       "timestampColumn": "timestamp_trigger",
       "dimensions": ["file_id","source_sha256","file_sha256"],
       "metrics": [
@@ -33,7 +34,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: trino-ingest-full
+  name: trino-ingest-prunetest
   namespace: adp-dev
 spec:
   backoffLimit: 0
@@ -42,29 +43,24 @@ spec:
       restartPolicy: Never
       containers:
         - name: ingester
-          image: nas2.s2dev.net:5050/adp/trino-ingester:2
+          image: nas2.s2dev.net:5050/adp/trino-ingester:4
           imagePullPolicy: Always
           command: ["java"]
           args:
-            - "-Xmx16g"
+            - "-Xmx12g"
             - "--add-opens=java.base/java.lang=ALL-UNNAMED"
             - "--add-opens=java.base/java.nio=ALL-UNNAMED"
             - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
             - "--add-opens=java.base/java.util=ALL-UNNAMED"
             - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
             - "--add-modules=jdk.incubator.vector"
-            - "-Ddruid.incrementalIndex.presortedAppend=true"
-            # multipart push: split objects >16MB into 16MB parts uploaded concurrently on a shared 8-thread pool
-            # (seaweed writes ~6MB/s per stream but reads ~600MB/s -> parallel parts beat a single slow PUT).
             - "-Ddruid.s3.multipart.thresholdBytes=16777216"
-            - "-Ddruid.s3.multipart.partBytes=16777216"
-            - "-Ddruid.s3.multipart.poolSize=8"
             - "-cp"
             - "/app/ingester.jar"
             - "io.druid.segwriter.trino.TrinoIngestion"
             - "/spec/spec.json"
-            - "2026-04-20"
-            - "2026-07-09"
+            - "2026-06-15"
+            - "2026-06-16"
           env:
             - name: TRINO_HOST
               value: "trino.op.s2dev.net:443"
@@ -77,20 +73,20 @@ spec:
             - name: CHUNK_HOURS
               value: "4"
             - name: WORKERS
-              value: "6"
-            # async push: workers persist then hand the v9 dir to this many push threads and move on, so the S3
-            # upload of shard N overlaps the persist of shard N+1. Bounded queue + CallerRuns backpressures disk.
+              value: "2"
             - name: PUSH_THREADS
-              value: "6"
+              value: "2"
+            - name: TRINO_ORDER_BY
+              value: "false"
             - name: AWS_ACCESS_KEY_ID
               valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
           resources:
-            requests: { cpu: "6", memory: "18Gi" }
-            limits: { cpu: "8", memory: "20Gi" }
+            requests: { cpu: "3", memory: "10Gi" }
+            limits: { cpu: "4", memory: "14Gi" }
           volumeMounts:
             - { name: spec, mountPath: /spec }
       volumes:
         - name: spec
-          configMap: { name: trino-ingest-spec }
+          configMap: { name: trino-prune-spec }

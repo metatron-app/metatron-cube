@@ -1,0 +1,111 @@
+# Re-run ONLY the 27 chunk windows the full run (trino-ingest-full) missed when a Trino cluster OOM killed it at
+# 453/480. Same spec/version-independent output -> fills the gaps; each interval is then served by its highest
+# version on a standalone rescan. Lower WORKERS=3 (half the concurrent ORDER BY sort load on Trino) + per-chunk
+# retry (CHUNK_MAX_RETRIES) so a transient Trino OOM no longer aborts the run. Image :2 = multipart + async push.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-ingest-missing-chunks
+  namespace: adp-dev
+data:
+  chunks.txt: |
+    2026-04-28 04:00:00
+    2026-05-19 04:00:00
+    2026-05-21 08:00:00
+    2026-05-21 12:00:00
+    2026-05-21 20:00:00
+    2026-05-22 00:00:00
+    2026-05-22 04:00:00
+    2026-05-22 08:00:00
+    2026-05-22 12:00:00
+    2026-05-22 16:00:00
+    2026-05-22 20:00:00
+    2026-05-23 00:00:00
+    2026-05-23 04:00:00
+    2026-05-23 08:00:00
+    2026-05-23 12:00:00
+    2026-05-23 16:00:00
+    2026-05-24 00:00:00
+    2026-05-27 00:00:00
+    2026-05-27 04:00:00
+    2026-05-27 08:00:00
+    2026-05-27 12:00:00
+    2026-05-27 16:00:00
+    2026-05-27 20:00:00
+    2026-05-28 00:00:00
+    2026-05-28 04:00:00
+    2026-05-28 08:00:00
+    2026-07-02 04:00:00
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-ingest-missing
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:3
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx16g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-Ddruid.incrementalIndex.presortedAppend=true"
+            - "-Ddruid.s3.multipart.thresholdBytes=16777216"
+            - "-Ddruid.s3.multipart.partBytes=16777216"
+            - "-Ddruid.s3.multipart.poolSize=8"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-04-20"
+            - "2026-07-09"
+          env:
+            - name: TRINO_HOST
+              value: "trino.op.s2dev.net:443"
+            - name: TRINO_CATALOG
+              value: "iceberg_prod"
+            - name: TRINO_USER
+              value: "ulp-parse-sink"
+            - name: TRINO_TABLE
+              value: "iceberg.atom.atom_analysis_credential_v2"
+            - name: CHUNK_HOURS
+              value: "4"
+            # false: NO ORDER BY in Trino -> Trino streams a partition-pruned scan (no sort, no cluster OOM on the
+            # row-dense windows); Druid sorts on-heap per 2M-row shard instead. The row-dense 05-22/05-23 windows
+            # OOM'd Trino's distributed ORDER BY even at WORKERS=3 with retries, so sort in Druid here.
+            - name: TRINO_ORDER_BY
+              value: "false"
+            - name: WORKERS
+              value: "3"
+            - name: PUSH_THREADS
+              value: "3"
+            - name: CHUNK_MAX_RETRIES
+              value: "8"
+            - name: CHUNKS_FILE
+              value: "/chunks/chunks.txt"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "4", memory: "12Gi" }
+            limits: { cpu: "6", memory: "20Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+            - { name: chunks, mountPath: /chunks }
+      volumes:
+        - name: spec
+          configMap: { name: trino-ingest-spec }
+        - name: chunks
+          configMap: { name: trino-ingest-missing-chunks }
