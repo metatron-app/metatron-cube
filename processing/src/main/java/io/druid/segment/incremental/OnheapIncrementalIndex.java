@@ -39,7 +39,16 @@ import java.util.function.Function;
  */
 public class OnheapIncrementalIndex extends IncrementalIndex
 {
-  private final NavigableMap<TimeAndDims, Object[]> facts;
+  // Opt-in (system property, gated on !rollup below): when the input rows are already sorted by time, skip the
+  // sorted TreeMap and just APPEND into an insertion-order LinkedHashMap. rollup=false already gives every row a
+  // unique key (NoRollup indexer) and TimeAndDims uses identity hashCode/equals, so the map never merges — it is
+  // a pure O(1) append, and persist consumes it in insertion (= time) order. Removes the (dims-comparing) TreeMap
+  // insert that dominates the build. Only safe for a persist-only, pre-time-sorted, rollup=false build.
+  public static final boolean APPEND_PROP = "true".equalsIgnoreCase(System.getProperty("druid.incrementalIndex.presortedAppend"));
+
+  private final boolean append;
+  private final NavigableMap<TimeAndDims, Object[]> facts;       // sorted mode
+  private final Map<TimeAndDims, Object[]> appendFacts;          // append mode (insertion-order)
   private final Function<TimeAndDims, Object[]> populator;
 
   private final int[] estimableIndices;
@@ -55,10 +64,16 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   {
     super(indexSchema, deserializeComplexMetrics, reportParseExceptions, estimate, maxRowCount);
 
-    if (indexSchema.isNoQuery()) {
+    this.append = APPEND_PROP && !indexSchema.isRollup();
+    if (append) {
+      this.facts = null;
+      this.appendFacts = new java.util.LinkedHashMap<>();
+    } else if (indexSchema.isNoQuery()) {
       this.facts = new TreeMap<>(dimsComparator());
+      this.appendFacts = null;
     } else {
       this.facts = new ConcurrentSkipListMap<>(dimsComparator());
+      this.appendFacts = null;
     }
     this.populator = new Function<TimeAndDims, Object[]>()
     {
@@ -151,6 +166,22 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   @Override
   public Map<TimeAndDims, Object[]> getRangeOf(long from, long to, Boolean timeDescending)
   {
+    if (append) {
+      // insertion order == time order (input is pre-sorted). persist asks for the full range; a sub-range
+      // (queries — not used on this build path) is a linear, order-preserving filter.
+      if (from <= io.druid.java.util.common.JodaUtils.MIN_INSTANT
+          && to >= io.druid.java.util.common.JodaUtils.MAX_INSTANT
+          && (timeDescending == null || !timeDescending)) {
+        return appendFacts;   // full range (persist path)
+      }
+      final Map<TimeAndDims, Object[]> out = new java.util.LinkedHashMap<>();
+      for (final Map.Entry<TimeAndDims, Object[]> e : appendFacts.entrySet()) {
+        if (e.getKey().timestamp >= from && e.getKey().timestamp < to) {
+          out.put(e.getKey(), e.getValue());
+        }
+      }
+      return out;
+    }
     return getFacts(facts, from, to, timeDescending);
   }
 
@@ -158,7 +189,10 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   @SuppressWarnings("unchecked")
   protected final void addToFacts(TimeAndDims key) throws IndexSizeExceededException
   {
-    final Object[] current = facts.computeIfAbsent(key, populator);
+    final long _t0 = System.nanoTime();
+    final Object[] current = (append ? appendFacts : facts).computeIfAbsent(key, populator);
+    final long _t1 = System.nanoTime();
+    Prof.factsPutNanos.addAndGet(_t1 - _t0);   // the sorted TreeMap insert (the "sort")
     for (int i = 0; i < aggregators.length; i++) {
       try {
         current[i] = aggregators[i].aggregate(current[i]);
@@ -171,6 +205,16 @@ public class OnheapIncrementalIndex extends IncrementalIndex
         LOG.debug(e, "Encountered parse error, skipping aggregator[%s].", aggregators[i]);
       }
     }
+    Prof.aggNanos.addAndGet(System.nanoTime() - _t1);   // aggregators (count + raw relay store)
+  }
+
+  /** Profiling: split the add() cost into the sorted facts-put vs the aggregators. dict-encode = add - these. */
+  public static final class Prof
+  {
+    public static final java.util.concurrent.atomic.AtomicLong factsPutNanos = new java.util.concurrent.atomic.AtomicLong();
+    public static final java.util.concurrent.atomic.AtomicLong aggNanos = new java.util.concurrent.atomic.AtomicLong();
+
+    private Prof() {}
   }
 
   @Override
@@ -179,7 +223,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   {
     long estimation = super.estimatedOccupation();
     if (estimableIndices.length > 0) {
-      for (final Object[] array : facts.values()) {
+      for (final Object[] array : (append ? appendFacts : facts).values()) {
         for (int index : estimableIndices) {
           estimation += ((Aggregator.Estimable) aggregators[index]).estimateOccupation(array[index]);
         }
@@ -202,6 +246,6 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   public void close()
   {
     super.close();
-    facts.clear();
+    (append ? appendFacts : facts).clear();
   }
 }

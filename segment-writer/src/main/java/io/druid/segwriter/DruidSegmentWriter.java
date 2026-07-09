@@ -95,6 +95,7 @@ public final class DruidSegmentWriter
 
     final File persisted;
     final int numRows;
+    final long tStart = System.nanoTime();
     try (IncrementalIndex index = new OnheapIncrementalIndex(schema, true, Integer.MAX_VALUE)) {
       for (Map<String, Object> row : rows) {
         final Object ts = row.get(spec.getTimestampColumn());
@@ -105,6 +106,9 @@ public final class DruidSegmentWriter
         }
         index.add(new MapBasedInputRow(((Number) ts).longValue(), spec.getDimensions(), row));
       }
+      // accumulate = pulling rows from the source iterator (e.g. a Trino fetch) + index.add (the sorted TreeMap insert)
+      final long tAccumulated = System.nanoTime();
+      Prof.accumulateNanos.addAndGet(tAccumulated - tStart);
       numRows = index.size();   // post-rollup row count for the segment metadata
       persisted = merger.persist(
           index,
@@ -112,6 +116,8 @@ public final class DruidSegmentWriter
           new File(tmpDir, "seg-" + UUID.randomUUID()),
           indexSpec
       );
+      // persist = the v9 columnar write incl. building the lucene index for secondary-indexed columns
+      Prof.persistNanos.addAndGet(System.nanoTime() - tAccumulated);
     }
 
     final List<String> metricNames = new ArrayList<>();
@@ -131,6 +137,19 @@ public final class DruidSegmentWriter
         0L,                                     // size filled by the pusher
         numRows
     );
-    return pusher.push(persisted, template);
+    final long tPush = System.nanoTime();
+    final DataSegment result = pusher.push(persisted, template);   // S3 upload of the segment files
+    Prof.pushNanos.addAndGet(System.nanoTime() - tPush);
+    return result;
+  }
+
+  /** Cumulative phase timings across all segment builds in this JVM (nanos). Read/reset by a driver for profiling. */
+  public static final class Prof
+  {
+    public static final java.util.concurrent.atomic.AtomicLong accumulateNanos = new java.util.concurrent.atomic.AtomicLong();
+    public static final java.util.concurrent.atomic.AtomicLong persistNanos = new java.util.concurrent.atomic.AtomicLong();
+    public static final java.util.concurrent.atomic.AtomicLong pushNanos = new java.util.concurrent.atomic.AtomicLong();
+
+    private Prof() {}
   }
 }

@@ -1,0 +1,8 @@
+# Minimal runner for TrinoIngestion (single-process, Spark-free daily re-index).
+# The shaded jar carries all deps (trino-jdbc, lucene10, druid-processing, s3). Java 21.
+#   mvn -f segment-writer/pom.xml -DskipTests package
+#   docker buildx build --platform linux/amd64 --provenance=false -f segment-writer/Dockerfile.trino \
+#       -t nas2.s2dev.net:5050/adp/trino-ingester:1 segment-writer/ --push
+FROM eclipse-temurin:21-jre
+COPY target/druid-segment-writer-*-spark.jar /app/ingester.jar
+WORKDIR /app

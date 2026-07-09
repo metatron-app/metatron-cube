@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-ingest-spec
+  namespace: adp-dev
+data:
+  spec.json: |
+    {
+      "dataSource": "atom_credential",
+      "timestampColumn": "timestamp_trigger",
+      "dimensions": ["file_id","source_sha256","file_sha256"],
+      "metrics": [
+        {"type":"count","name":"count"},
+        {"type":"relay","name":"raw","columnName":"raw","typeName":"string"}
+      ],
+      "secondaryIndexing": {
+        "raw": { "type": "lucene10", "indexOnly": true, "strategies": [{"type":"text","fieldName":"raw"}] }
+      },
+      "segmentGranularity": "DAY",
+      "maxRowsPerSegment": 10000000,
+      "queryGranularity": "NONE",
+      "rollup": false,
+      "noQuery" : true,
+      "dimensionFixed": true,
+      "storageType": "s3_smoosh",
+      "bucket": "druid",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-ingest-test
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:1
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx12g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-06-15"
+            - "2026-06-16"
+          env:
+            - name: TRINO_HOST
+              value: "trino.op.s2dev.net:443"
+            - name: TRINO_CATALOG
+              value: "iceberg_prod"
+            - name: TRINO_USER
+              value: "ulp-parse-sink"
+            - name: TRINO_TABLE
+              value: "iceberg.atom.atom_analysis_credential_v2"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "2", memory: "14Gi" }
+            limits: { cpu: "4", memory: "16Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+      volumes:
+        - name: spec
+          configMap: { name: trino-ingest-spec }
