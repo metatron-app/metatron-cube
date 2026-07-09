@@ -79,6 +79,40 @@ public final class DruidSegmentWriter
       IndexSpec indexSpec
   ) throws IOException
   {
+    final Persisted p = persist(spec, interval, version, shardSpec, rows, tmpDir, indexSpec);
+    final long tPush = System.nanoTime();
+    final DataSegment result = pusher.push(p.dir, p.template);   // S3 upload of the segment files
+    Prof.pushNanos.addAndGet(System.nanoTime() - tPush);
+    return result;
+  }
+
+  /** A persisted (but not yet pushed) segment: the on-disk v9 dir + a template DataSegment (loadSpec/size unfilled). */
+  public static final class Persisted
+  {
+    public final File dir;
+    public final DataSegment template;
+
+    public Persisted(File dir, DataSegment template)
+    {
+      this.dir = dir;
+      this.template = template;
+    }
+  }
+
+  /**
+   * Accumulate + persist only (no push), so callers can push asynchronously (overlap S3 upload with the next
+   * chunk's fetch/persist). Same body as {@link #write} minus the terminal {@code pusher.push}.
+   */
+  public static Persisted persist(
+      SegmentSpec spec,
+      Interval interval,
+      String version,
+      ShardSpec shardSpec,
+      Iterable<Map<String, Object>> rows,
+      File tmpDir,
+      IndexSpec indexSpec
+  ) throws IOException
+  {
     // indexMapper knows the lucene column part serde subtypes, so secondary-indexed columns
     // round-trip through IndexMergerV9/IndexIO (write + read-back).
     final ObjectMapper mapper = Json.indexMapper();
@@ -137,10 +171,7 @@ public final class DruidSegmentWriter
         0L,                                     // size filled by the pusher
         numRows
     );
-    final long tPush = System.nanoTime();
-    final DataSegment result = pusher.push(persisted, template);   // S3 upload of the segment files
-    Prof.pushNanos.addAndGet(System.nanoTime() - tPush);
-    return result;
+    return new Persisted(persisted, template);
   }
 
   /** Cumulative phase timings across all segment builds in this JVM (nanos). Read/reset by a driver for profiling. */

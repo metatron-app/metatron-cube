@@ -85,6 +85,24 @@ public final class SegmentIngestor
       DataSegmentPusher pusher
   ) throws IOException
   {
+    final DruidSegmentWriter.Persisted p = persistSegment(spec, interval, version, shardNum, numShards, rows, tmpDir);
+    return pusher.push(p.dir, p.template);
+  }
+
+  /**
+   * Accumulate + persist one segment (no push) for a single (interval, shard) partition. The caller pushes
+   * {@code result.dir}/{@code result.template} via {@link DataSegmentPusher} — possibly asynchronously.
+   */
+  public static DruidSegmentWriter.Persisted persistSegment(
+      SegmentIngestSpec spec,
+      Interval interval,
+      String version,
+      int shardNum,
+      int numShards,
+      Iterator<Map<String, Object>> rows,
+      File tmpDir
+  ) throws IOException
+  {
     // build secondary indexes (e.g. lucene text) from the raw spec. secondaryIndexing is applied
     // to METRIC columns during merge (IndexMergerV9.setupMetricsWriter), so each indexed column
     // must be declared as a metric (e.g. a {"type":"relay",...,"typeName":"string"} passthrough),
@@ -111,6 +129,6 @@ public final class SegmentIngestor
 
     final ShardSpec shardSpec = numShards <= 1 ? NoneShardSpec.instance() : new LinearShardSpec(shardNum);
     // stream the rows straight into the writer (it iterates exactly once) — no intermediate copy
-    return DruidSegmentWriter.write(segmentSpec, interval, version, shardSpec, () -> rows, pusher, tmpDir, indexSpec);
+    return DruidSegmentWriter.persist(segmentSpec, interval, version, shardSpec, () -> rows, tmpDir, indexSpec);
   }
 }
