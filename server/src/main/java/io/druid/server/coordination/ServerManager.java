@@ -74,8 +74,10 @@ import io.druid.segment.RangePrefetch;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
+import io.druid.query.filter.DimFilter;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
+import io.druid.segment.loading.SegmentPruneIndex;
 import io.druid.server.ForwardHandler;
 import io.druid.server.QueryManager;
 import io.druid.timeline.DataSegment;
@@ -547,12 +549,21 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       splitable = (QueryRunnerFactory.Splitable<T>) factory;
     }
 
+    // Segment pruning: if enabled, skip any segment whose resident value index proves the query's filter can't
+    // match it — before its columns are ever range-fetched from deep storage.
+    final SegmentPruneIndex pruneIndex = segmentLoader.pruneIndex();
+    final DimFilter pruneFilter = query instanceof Query.FilterSupport ? ((Query.FilterSupport<?>) query).getFilter() : null;
+
     List<Segment> targets = Lists.newArrayList();
     List<QueryRunner<T>> missingSegments = Lists.newArrayList();
-    int tmpfsCount = 0, rangeCount = 0;   // residency of the segments THIS query touches (range == LazySegment)
+    int tmpfsCount = 0, rangeCount = 0, prunedCount = 0;   // residency of the segments THIS query touches (range == LazySegment)
     for (Pair<SegmentDescriptor, ReferenceCountingSegment> segment : segments) {
       Segment target = segment.rhs == null ? null : segment.rhs.getBaseSegment();
       if (target != null) {
+        if (pruneIndex != null && pruneFilter != null && pruneIndex.canSkip(target.getIdentifier(), pruneFilter)) {
+          prunedCount++;   // filter provably can't match -> no column fetch for this segment
+          continue;
+        }
         targets.add(Segments.withLimit(segment.rhs, segment.lhs));
         if (target instanceof LazySegment) {
           rangeCount++;
@@ -564,6 +575,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       }
     }
     final int tmpfsResident = tmpfsCount, rangeResident = rangeCount, missingCount = missingSegments.size();
+    final int prunedResident = prunedCount;
     if (query.isDescending()) {
       targets = Lists.reverse(targets);
     }
@@ -599,7 +611,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
         log.info("Split segments into %d groups", splits.size());
         return withResidencyLog(QueryRunners.runWith(resolved, reporter.report(
             QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
-        )), query, tmpfsResident, rangeResident, missingCount);
+        )), query, tmpfsResident, rangeResident, missingCount, prunedResident);
       }
     }
 
@@ -607,10 +619,10 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     if (splitable != null) {
       List<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
-        return withResidencyLog(reporter.report(toConcatRunner(splits, runner)), query, tmpfsResident, rangeResident, missingCount);
+        return withResidencyLog(reporter.report(toConcatRunner(splits, runner)), query, tmpfsResident, rangeResident, missingCount, prunedResident);
       }
     }
-    return withResidencyLog(QueryRunners.runWith(resolved, reporter.report(runner)), query, tmpfsResident, rangeResident, missingCount);
+    return withResidencyLog(QueryRunners.runWith(resolved, reporter.report(runner)), query, tmpfsResident, rangeResident, missingCount, prunedResident);
   }
 
   /**
@@ -624,7 +636,8 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
    */
   /** Wrap the query's runner so that WHEN THE QUERY FINISHES it logs the residency of the segments it touched. */
   private <T> QueryRunner<T> withResidencyLog(
-      final QueryRunner<T> runner, final Query<T> query, final int tmpfs, final int range, final int missing
+      final QueryRunner<T> runner, final Query<T> query, final int tmpfs, final int range, final int missing,
+      final int pruned
   )
   {
     if (query.getContextBoolean(Query.DISABLE_LOG, false)) {
@@ -633,8 +646,9 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     return (q, responseContext) -> Sequences.withBaggage(
         runner.run(q, responseContext),
         () -> log.info(
-            "[residency] query[%s] touched %d segment(s): %d tmpfs, %d range%s",
-            query.getId(), tmpfs + range, tmpfs, range, missing > 0 ? ", " + missing + " missing" : ""
+            "[residency] query[%s] touched %d segment(s): %d tmpfs, %d range%s%s",
+            query.getId(), tmpfs + range, tmpfs, range, missing > 0 ? ", " + missing + " missing" : "",
+            pruned > 0 ? ", " + pruned + " pruned" : ""
         )
     );
   }

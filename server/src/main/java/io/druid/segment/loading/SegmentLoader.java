@@ -56,4 +56,10 @@ public interface SegmentLoader
 
   /** True when loadMode=auto — the ServerManager should run the ResidencyManager (pressure demote). */
   default boolean residencyManaged() { return false; }
+
+  /**
+   * The resident per-segment value index for query-time segment pruning, or null when pruning is disabled. The
+   * ServerManager consults it to skip segments a query's filter provably can't match, before any column fetch.
+   */
+  default SegmentPruneIndex pruneIndex() { return null; }
 }

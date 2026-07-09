@@ -63,6 +63,9 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   private final ObjectMapper jsonMapper;
   private final IndexIO indexIO;   // only used by the range-serve (header-first) path
   private final RangeBufferTracker rangeTracker;   // null when rangeMaxSize <= 0 (unbounded range residency)
+  // Query-time segment pruning: null unless druid.segmentCache.pruneColumns is set. Built eagerly per range
+  // segment (dict-only fetch) so a query can skip segments its filter can't match without touching their columns.
+  private final SegmentPruneIndex pruneIndex = SegmentPruneIndex.fromSpec(System.getProperty("druid.segmentCache.pruneColumns"));
 
   private final List<StorageLocation> locations;
 
@@ -253,12 +256,29 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
         throw new RuntimeException("range load failed for segment[" + segment.getIdentifier() + "]", e);
       }
     };
+    // Eagerly build the prune-index value sets (dict-only fetch) so pruning works from the first query, before any
+    // column is materialized. Best-effort: never fails the load. Costs one header + one dict ranged GET per segment.
+    if (pruneIndex != null && !pruneIndex.has(segment.getIdentifier())) {
+      try {
+        pruneIndex.index(segment, spec.header(), spec.rangeFetcher());
+      }
+      catch (Exception e) {
+        log.warn(e, "prune-index build skipped for segment[%s]", segment.getIdentifier());
+      }
+    }
+
     // When rangeMaxSize is set, route through the tracker (accounted, evictable direct buffers); else legacy
     // unbounded memoize.
     final Supplier<QueryableIndex> loader = rangeTracker != null
         ? rangeTracker.track(segment, build, spec::rangeFetcher)
         : Suppliers.memoize(() -> build.apply(spec.rangeFetcher()));
     return new LazySegment(segment, loader);
+  }
+
+  @Override
+  public SegmentPruneIndex pruneIndex()
+  {
+    return pruneIndex;
   }
 
   @Override
