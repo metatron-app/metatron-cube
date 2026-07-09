@@ -31,11 +31,24 @@ import io.druid.timeline.DataSegment;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Pusher for the unzipped {@code s3_smoosh} container: instead of one {@code index.zip}, upload the segment's
@@ -46,6 +59,19 @@ import java.io.IOException;
 public class S3SmooshDataSegmentPusher implements DataSegmentPusher
 {
   private static final EmittingLogger log = new EmittingLogger(S3SmooshDataSegmentPusher.class);
+
+  // Multipart upload for large chunks: a single putObject is one stream and seaweed's write path is slow per
+  // stream (~6MB/s) even though it reads at ~600MB/s. Split a big object into parts uploaded concurrently on a
+  // SHARED bounded pool (caps total concurrent part-writes to seaweed regardless of caller parallelism). <=0
+  // threshold disables (single putObject). Tunables via system properties.
+  private static final long MP_THRESHOLD = Long.getLong("druid.s3.multipart.thresholdBytes", 16L * 1024 * 1024);
+  private static final int MP_PART = Math.toIntExact(Long.getLong("druid.s3.multipart.partBytes", 16L * 1024 * 1024));
+  private static final ExecutorService MP_POOL =
+      Executors.newFixedThreadPool(Integer.getInteger("druid.s3.multipart.poolSize", 8), r -> {
+        final Thread t = new Thread(r, "s3-multipart");
+        t.setDaemon(true);
+        return t;
+      });
 
   private final S3Client s3Client;
   private final S3DataSegmentPusherConfig config;
@@ -80,8 +106,9 @@ public class S3SmooshDataSegmentPusher implements DataSegmentPusher
     final String prefix = zipPath.substring(0, zipPath.lastIndexOf('/'));
     final String bucket = config.getBucket();
     log.info("Copying segment[%s] to S3 (smoosh) at prefix[%s]", inSegment.getIdentifier(), prefix);
+    final long pushStart = System.nanoTime();
     try {
-      return S3Utils.retryS3Operation(() -> {
+      final DataSegment result = S3Utils.retryS3Operation(() -> {
         long total = 0;
 
         final byte[] header = ContainerHeader.write(indexFilesDir, jsonMapper);
@@ -108,6 +135,10 @@ public class S3SmooshDataSegmentPusher implements DataSegmentPusher
         putBytes(bucket, prefix + "/descriptor.json", jsonMapper.writeValueAsBytes(outSegment));
         return outSegment;
       });
+      final long ms = (System.nanoTime() - pushStart) / 1_000_000L;
+      log.info("Pushed segment[%s] %,dB in %dms (%.1f MB/s)", inSegment.getIdentifier(), result.getSize(), ms,
+               result.getSize() / 1.048576e3 / Math.max(1, ms));
+      return result;
     }
     catch (SdkException e) {
       throw new IOException(e);
@@ -124,7 +155,65 @@ public class S3SmooshDataSegmentPusher implements DataSegmentPusher
 
   private void putFile(String bucket, String key, File file)
   {
-    s3Client.putObject(builder(bucket, key).build(), RequestBody.fromFile(file.toPath()));
+    final long len = file.length();
+    if (MP_THRESHOLD <= 0 || len <= MP_THRESHOLD) {
+      s3Client.putObject(builder(bucket, key).build(), RequestBody.fromFile(file.toPath()));
+      return;
+    }
+    multipartUpload(bucket, key, file, len);
+  }
+
+  /** Upload a large file as parallel multipart parts on the shared pool (faster than one slow single-stream PUT). */
+  private void multipartUpload(String bucket, String key, File file, long len)
+  {
+    final CreateMultipartUploadResponse init =
+        s3Client.createMultipartUpload(applyAcl(CreateMultipartUploadRequest.builder().bucket(bucket).key(key)).build());
+    final String uploadId = init.uploadId();
+    try {
+      final int nParts = (int) ((len + MP_PART - 1) / MP_PART);
+      final List<Future<CompletedPart>> futs = new ArrayList<>(nParts);
+      for (int i = 0; i < nParts; i++) {
+        final int partNum = i + 1;
+        final long off = (long) i * MP_PART;
+        final int partLen = (int) Math.min(MP_PART, len - off);
+        futs.add(MP_POOL.submit(() -> {
+          final byte[] buf = new byte[partLen];
+          try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+            raf.seek(off);
+            raf.readFully(buf);
+          }
+          final UploadPartRequest upr = UploadPartRequest.builder()
+              .bucket(bucket).key(key).uploadId(uploadId).partNumber(partNum).build();
+          final String etag = s3Client.uploadPart(upr, RequestBody.fromBytes(buf)).eTag();
+          return CompletedPart.builder().partNumber(partNum).eTag(etag).build();
+        }));
+      }
+      final List<CompletedPart> parts = new ArrayList<>(nParts);
+      for (Future<CompletedPart> f : futs) {
+        parts.add(f.get());
+      }
+      s3Client.completeMultipartUpload(CompleteMultipartUploadRequest.builder()
+          .bucket(bucket).key(key).uploadId(uploadId)
+          .multipartUpload(CompletedMultipartUpload.builder().parts(parts).build()).build());
+    }
+    catch (Exception e) {
+      try {
+        s3Client.abortMultipartUpload(AbortMultipartUploadRequest.builder()
+            .bucket(bucket).key(key).uploadId(uploadId).build());
+      }
+      catch (Exception ignored) {
+        // best-effort cleanup of the aborted upload
+      }
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private CreateMultipartUploadRequest.Builder applyAcl(CreateMultipartUploadRequest.Builder b)
+  {
+    if (!config.getDisableAcl()) {
+      b.acl(ObjectCannedACL.BUCKET_OWNER_FULL_CONTROL);
+    }
+    return b;
   }
 
   private PutObjectRequest.Builder builder(String bucket, String key)
