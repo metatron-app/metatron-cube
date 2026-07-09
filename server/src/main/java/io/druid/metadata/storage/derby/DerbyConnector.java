@@ -43,7 +43,12 @@ public class DerbyConnector extends SQLMetadataConnector
 
     final BasicDataSource datasource = getDatasource();
     datasource.setDriverClassLoader(getClass().getClassLoader());
-    datasource.setDriverClassName("org.apache.derby.jdbc.ClientDriver");
+    // An embedded URI (jdbc:derby:<path>, no //host) needs the EmbeddedDriver — a self-contained, DB-server-free
+    // metadata store (e.g. the coordinator-free standalone historical, which has no external postgres/derby-net).
+    // A network URI (jdbc:derby://host:port/db) keeps the ClientDriver.
+    final String uri = config.get().getConnectURI();
+    final boolean embedded = uri != null && uri.startsWith("jdbc:derby:") && !uri.startsWith("jdbc:derby://");
+    datasource.setDriverClassName(embedded ? "org.apache.derby.jdbc.EmbeddedDriver" : "org.apache.derby.jdbc.ClientDriver");
 
     this.dbi = new DBI(datasource);
 
