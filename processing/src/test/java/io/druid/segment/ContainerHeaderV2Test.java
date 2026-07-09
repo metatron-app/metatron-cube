@@ -115,6 +115,55 @@ public class ContainerHeaderV2Test
     }
   }
 
+  @Test
+  public void testHeaderDictRangesFetchDictionaryOnly() throws Exception
+  {
+    final ObjectMapper mapper = TestHelper.getTestObjectMapper();
+    final File dir = persistSegment();
+    final byte[] header = ContainerHeader.write(dir, mapper);
+
+    // the header carries a dict sub-range for the plain dict-encoded dim, but NOT for the metrics/time
+    final java.util.Map<String, long[]> ranges = ContainerHeader.dictRanges(header);
+    Assert.assertTrue("dim has a dict range", ranges.containsKey("dim"));
+    Assert.assertFalse("metric val is not dict-encoded", ranges.containsKey("val"));
+    Assert.assertFalse("metric cnt is not dict-encoded", ranges.containsKey("cnt"));
+
+    final AtomicInteger fetches = new AtomicInteger();
+    final SmooshedFileMapper.RangeFetcher fetcher = (fileNum, offset, len) -> {
+      fetches.incrementAndGet();
+      try (RandomAccessFile raf = new RandomAccessFile(new File(dir, String.format("%05d.smoosh", fileNum)), "r")) {
+        raf.seek(offset);
+        final byte[] b = new byte[len];
+        raf.readFully(b);
+        return ByteBuffer.wrap(b);
+      }
+    };
+
+    // fetch JUST the dict range (one small ranged read) and enumerate -> the column's distinct values
+    final long[] r = ranges.get("dim");
+    final ByteBuffer dictBuf = fetcher.fetch((int) r[0], r[1], (int) r[2]);
+    final io.druid.segment.data.Dictionary<String> dict =
+        io.druid.segment.serde.DictionaryEncodedColumnPartSerde.readDictionary(dictBuf);
+    Assert.assertEquals("one ranged read for the dict only", 1, fetches.get());
+
+    final List<String> values = new ArrayList<>();
+    for (int i = 0; i < dict.size(); i++) {
+      values.add(dict.get(i));
+    }
+    // rows were a,b,c,a -> sorted distinct dictionary [a,b,c]
+    Assert.assertEquals(Arrays.asList("a", "b", "c"), values);
+
+    // and the dict bytes we fetched match the same column's dictionary from a full mmap load
+    try (QueryableIndex mmap = TestHelper.getTestIndexIO().loadIndex(dir)) {
+      final io.druid.segment.data.Dictionary<String> full = mmap.getColumn("dim").getDictionary();
+      final List<String> fullValues = new ArrayList<>();
+      for (int i = 0; i < full.size(); i++) {
+        fullValues.add(full.get(i));
+      }
+      Assert.assertEquals(fullValues, values);
+    }
+  }
+
   private File persistSegment() throws Exception
   {
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()

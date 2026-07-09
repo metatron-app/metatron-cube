@@ -128,6 +128,53 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     }
   }
 
+  /**
+   * The dictionary sub-range within a dictionary-encoded column blob, so a range reader can fetch JUST the
+   * dictionary (the sorted distinct values) without pulling the encoded ints / bitmaps. The buffer must be
+   * positioned at this part-serde's start (i.e. right after the column's {@link ColumnDescriptor} JSON). Returns
+   * {@code [offset, length]} of the dictionary relative to that start (the exact bytes {@code readDictionary}
+   * consumes: the dict version byte + its {@link GenericIndexed}), or {@code null} for a no-dictionary column.
+   * The buffer position is restored on return (non-destructive).
+   */
+  public static int[] dictionaryRange(ByteBuffer buffer)
+  {
+    final int base = buffer.position();
+    try {
+      final VERSION rVersion = VERSION.fromByte(buffer.get());
+      final int rFlags;
+      if (rVersion.compareTo(VERSION.LEGACY_COMPRESSED) < 0) {
+        rFlags = rVersion.equals(VERSION.LEGACY_MULTI_VALUE) ? Feature.MULTI_VALUE.set(NO_FLAGS, true) : NO_FLAGS;
+      } else {
+        rFlags = buffer.getInt();
+      }
+      if (Feature.NO_DICTIONARY.isSet(rFlags)) {
+        return null;
+      }
+      final int dictStart = buffer.position();
+      buffer.get();   // dict version byte (== GenericIndexed.version), same as readDictionary
+      GenericIndexed.readIndex(buffer, ObjectStrategy.STRING_STRATEGY);   // advances past the dictionary
+      return new int[]{dictStart - base, buffer.position() - dictStart};
+    }
+    finally {
+      buffer.position(base);
+    }
+  }
+
+  /**
+   * Reconstruct the {@link Dictionary} from JUST the dictionary sub-range bytes (as located by
+   * {@link #dictionaryRange}) — the sorted distinct values, with no encoded ints or bitmaps. Mirrors the private
+   * {@code readDictionary}. Used by a range reader to enumerate a column's distinct values (e.g. to build an
+   * in-memory per-segment value set / bloom) from a small ranged fetch.
+   */
+  public static Dictionary<String> readDictionary(ByteBuffer dictBuffer)
+  {
+    final byte version = dictBuffer.get();
+    if (version == GenericIndexed.version) {
+      return Dictionary.asProvider(GenericIndexed.readIndex(dictBuffer, ObjectStrategy.STRING_STRATEGY)).get();
+    }
+    throw new IAE("Unknown dictionary version[%s]", version);
+  }
+
   @JsonCreator
   public static DictionaryEncodedColumnPartSerde createDeserializer(
       @Nullable @JsonProperty("bitmapSerdeFactory") BitmapSerdeFactory bitmapSerdeFactory,

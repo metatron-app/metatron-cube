@@ -37,6 +37,7 @@ import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ListIndexed;
+import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
 import org.joda.time.Interval;
 
 import java.io.ByteArrayOutputStream;
@@ -108,11 +109,31 @@ public class ContainerHeader
       sb.append("columns,").append(String.join(",", colNames)).append('\n');
       sb.append("dimensions,").append(String.join(",", dimNames)).append('\n');
       sb.append("caps,").append(allForCaps.size()).append('\n');
+      // dict sub-ranges: for plain dictionary-encoded columns, the absolute (fileNum,offset,length) of the
+      // dictionary within the chunk objects, so a range reader can fetch JUST the distinct values (e.g. to build
+      // an in-memory per-segment value set / bloom for segment pruning) without pulling the encoded ints/bitmaps.
+      final List<String> dictRows = Lists.newArrayList();
       for (String name : allForCaps) {
         final ByteBuffer buf = smoosh.mapFile(name);
+        final int colStart = buf.position();                       // column blob start in the buffer's index space
         final ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(buf), ColumnDescriptor.class);
+        final int partStart = buf.position();                      // first part-serde (after the descriptor JSON)
         final ColumnCapabilities caps = desc.read(name, buf, serdeFactory).getCapabilities();
         sb.append(capsRow(name, caps)).append('\n');
+        if (caps.isDictionaryEncoded() && !hasExternalIndex(caps)) {
+          final ByteBuffer dbuf = buf.duplicate();
+          dbuf.position(partStart);
+          final int[] r = DictionaryEncodedColumnPartSerde.dictionaryRange(dbuf);   // [offset-in-part, length]
+          if (r != null) {
+            final io.druid.java.util.common.io.smoosh.Metadata md = smoosh.getInternalFiles().get(name);
+            final long absOffset = md.getStartOffset() + (partStart - colStart) + r[0];
+            dictRows.add(name + ',' + md.getFileNum() + ',' + absOffset + ',' + r[1]);
+          }
+        }
+      }
+      sb.append("dicts,").append(dictRows.size()).append('\n');
+      for (String row : dictRows) {
+        sb.append(row).append('\n');
       }
       sb.append("meta\n");
 
@@ -265,7 +286,18 @@ public class ContainerHeader
     List<String> columns = Collections.emptyList();
     List<String> dimensions = Collections.emptyList();
     final Map<String, ColumnCapabilities> caps = new LinkedHashMap<>();
+    final Map<String, long[]> dictRanges = new LinkedHashMap<>();   // column -> {fileNum, offset, length}
     byte[] metaSmoosh;
+  }
+
+  /**
+   * Per-column dictionary sub-ranges carried in the header: {@code column -> {fileNum, absoluteOffset, length}}
+   * into the chunk objects. Empty for headers written before this section existed (backward compatible). A range
+   * reader fetches {@code fetcher.fetch((int)r[0], r[1], (int)r[2])} then {@link DictionaryEncodedColumnPartSerde#readDictionary}.
+   */
+  public static Map<String, long[]> dictRanges(byte[] header) throws IOException
+  {
+    return parse(header).dictRanges;
   }
 
   private static Parsed parse(byte[] header) throws IOException
@@ -300,6 +332,12 @@ public class ContainerHeader
         for (int i = 0; i < capCount; i++) {
           final String[] f = line(header, pos).split(",", -1);
           p.caps.put(f[0], parseCaps(f));
+        }
+      } else if ("dicts".equals(key)) {
+        final int dictCount = Integer.parseInt(val.trim());
+        for (int i = 0; i < dictCount; i++) {
+          final String[] f = line(header, pos).split(",");
+          p.dictRanges.put(f[0], new long[]{Long.parseLong(f[1]), Long.parseLong(f[2]), Long.parseLong(f[3])});
         }
       } else if ("meta".equals(key)) {
         p.metaSmoosh = Arrays.copyOfRange(header, pos[0], header.length);
