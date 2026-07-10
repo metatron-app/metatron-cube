@@ -37,10 +37,21 @@ public class ReferenceCountingSegment extends Segment.Delegated
   private static final EmittingLogger log = new EmittingLogger(ReferenceCountingSegment.class);
 
   private int numReferences;
+  private Runnable onIdle;   // run when the last query reference is released (numReferences returns to 0)
 
   public ReferenceCountingSegment(Segment segment)
   {
     super(Preconditions.checkNotNull(segment));
+  }
+
+  /**
+   * Callback for when this segment's in-flight query references drain to zero — i.e. no query is currently reading
+   * it, so a range loader may safely (and deterministically) free its off-heap column buffers. Fired under this
+   * segment's lock, which serializes against {@link #increment()}, so a new query can't start mid-free.
+   */
+  public synchronized void setOnIdle(Runnable onIdle)
+  {
+    this.onIdle = onIdle;
   }
 
   @Override
@@ -143,6 +154,8 @@ public class ReferenceCountingSegment extends Segment.Delegated
       catch (Exception e) {
         log.error("Unable to close queryable index %s", getIdentifier());
       }
+    } else if (numReferences == 0 && onIdle != null) {
+      onIdle.run();   // last query released this segment — the range loader may now free its column buffers
     }
   }
 

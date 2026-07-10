@@ -22,12 +22,14 @@ package io.druid.segment.loading;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import io.druid.concurrent.Execs;
+import io.druid.java.util.common.ByteBufferUtils;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper.RangeFetcher;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.QueryableIndex;
 import io.druid.timeline.DataSegment;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -63,10 +65,14 @@ public class RangeBufferTracker
 
   private static final double HIGH_WM = 0.9;    // evict when resident > 90% of budget ...
   private static final double LOW_WM = 0.8;     // ... down to 80%
+  private static final double KEEP_WM = 0.5;    // below this, keep an idle segment's buffers (warm cache); at or
+                                                // above it, free them deterministically the moment a query releases
   private static final long SWEEP_MS = 120_000; // periodic reconcile + evict
 
   private final long budget;
   private final AtomicLong resident = new AtomicLong();
+  private final AtomicLong idleFrees = new AtomicLong();        // segments freed deterministically on query-release
+  private final AtomicLong idleFreedBytes = new AtomicLong();
   private final Map<String, Materialization> live = new ConcurrentHashMap<>();
   private final Object evictLock = new Object();
   private final ScheduledExecutorService sweeper;
@@ -88,6 +94,24 @@ public class RangeBufferTracker
   {
     final Materialization mat = new Materialization(segment, build, rawFetcher);
     return mat::get;
+  }
+
+  /**
+   * A range segment's last in-flight query reference was released (see {@code ReferenceCountingSegment} wiring in
+   * {@code ServerManager}), so freeing its column buffers now can't race a reader. Adaptive: under memory pressure
+   * (resident at/above {@link #KEEP_WM} of budget) free them DETERMINISTICALLY (don't wait for the Cleaner — that
+   * GC lag is what let concurrent-fetch bursts overshoot MaxDirectMemory); with headroom, keep them memoized as a
+   * warm cache so the next query needn't re-fetch from deep storage.
+   */
+  public void onIdle(String segmentId)
+  {
+    if (resident.get() < KEEP_WM * budget) {
+      return;
+    }
+    final Materialization m = live.get(segmentId);
+    if (m != null) {
+      m.release();
+    }
   }
 
   public long residentBytes()
@@ -122,6 +146,11 @@ public class RangeBufferTracker
         sum += m.bytes.get();
       }
       resident.set(sum);
+      final long frees = idleFrees.getAndSet(0);
+      if (frees > 0) {
+        log.info("[range-residency] freed %d idle segment(s) (~%,d bytes) deterministically on release; resident ~%,d / %,d",
+                 frees, idleFreedBytes.getAndSet(0), sum, budget);
+      }
       if (sum > HIGH_WM * budget) {
         evictColdestUntil((long) (LOW_WM * budget));
       }
@@ -161,6 +190,7 @@ public class RangeBufferTracker
     private final Function<RangeFetcher, QueryableIndex> build;
     private final Supplier<RangeFetcher> rawFetcher;
     private final AtomicLong bytes = new AtomicLong();
+    private final List<java.nio.ByteBuffer> buffers = Collections.synchronizedList(new ArrayList<>());  // for explicit free
     private volatile QueryableIndex index;   // strong ref == materialized (buffers resident)
     private volatile long lastAccess;
 
@@ -196,12 +226,40 @@ public class RangeBufferTracker
       return true;
     }
 
+    /**
+     * Deterministic free: drop the memoized index AND explicitly free its column buffers now (via
+     * {@link ByteBufferUtils#free}) instead of leaving them to the Cleaner. Only safe when no query holds the index —
+     * callers gate on the segment's query ref-count being zero (see {@link RangeBufferTracker#onIdle}). Synchronized
+     * against {@link #get()} so a re-materializing query can't observe half-freed state.
+     */
+    private synchronized void release()
+    {
+      if (index == null) {
+        return;
+      }
+      index = null;
+      final long freed = bytes.getAndSet(0);
+      resident.addAndGet(-freed);
+      live.remove(id);
+      synchronized (buffers) {
+        for (java.nio.ByteBuffer b : buffers) {
+          ByteBufferUtils.free(b);
+        }
+        buffers.clear();
+      }
+      idleFrees.incrementAndGet();
+      idleFreedBytes.addAndGet(freed);
+    }
+
     private RangeFetcher counting()
     {
       final RangeFetcher delegate = rawFetcher.get();
       return (fileNum, offset, length) -> {
         final java.nio.ByteBuffer buf = delegate.fetch(fileNum, offset, length);
         final long n = buf == null ? 0 : buf.capacity();
+        if (buf != null) {
+          buffers.add(buf);   // retained so release() can free it deterministically
+        }
         bytes.addAndGet(n);
         resident.addAndGet(n);
         admit();

@@ -62,4 +62,11 @@ public interface SegmentLoader
    * ServerManager consults it to skip segments a query's filter provably can't match, before any column fetch.
    */
   default SegmentPruneIndex pruneIndex() { return null; }
+
+  /**
+   * The budget/eviction tracker for range-served off-heap column buffers, or null when range residency isn't
+   * bounded. The ServerManager notifies it when a segment's query references drain to zero so it can free the
+   * segment's buffers deterministically under memory pressure.
+   */
+  default RangeBufferTracker rangeTracker() { return null; }
 }

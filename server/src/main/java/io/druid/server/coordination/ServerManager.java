@@ -75,6 +75,7 @@ import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.query.filter.DimFilter;
+import io.druid.segment.loading.RangeBufferTracker;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.segment.loading.SegmentPruneIndex;
@@ -240,7 +241,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       loadedIntervals.add(
           segment.getInterval(),
           segment.getVersion(),
-          segment.getShardSpecWithDefault().createChunk(new ReferenceCountingSegment(adapter))
+          segment.getShardSpecWithDefault().createChunk(withIdleFree(new ReferenceCountingSegment(adapter), segment))
       );
       synchronized (dataSourceSizes) {
         dataSourceSizes.addTo(dataSource, segment.getSize());
@@ -256,6 +257,22 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       return segment.withNumRows(numRows);
     }
     return segment;
+  }
+
+  /**
+   * Wire a range segment's idle callback to the range-buffer tracker: when this segment's last query reference is
+   * released, the tracker frees its off-heap column buffers deterministically (under memory pressure) instead of
+   * leaving them for the Cleaner. No-op when range residency isn't bounded (tracker null) or the segment is a
+   * downloaded/tmpfs one the tracker doesn't manage.
+   */
+  private ReferenceCountingSegment withIdleFree(ReferenceCountingSegment rcs, DataSegment segment)
+  {
+    final RangeBufferTracker tracker = segmentLoader.rangeTracker();
+    if (tracker != null) {
+      final String id = segment.getIdentifier();
+      rcs.setOnIdle(() -> tracker.onIdle(id));
+    }
+    return rcs;
   }
 
   public void dropSegment(final DataSegment segment) throws SegmentLoadingException
@@ -348,7 +365,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       if (!(ranged instanceof LazySegment)) {
         return false;   // not range-capable (e.g. s3_zip) — leave it downloaded
       }
-      final ReferenceCountingSegment newRcs = new ReferenceCountingSegment(ranged);
+      final ReferenceCountingSegment newRcs = withIdleFree(new ReferenceCountingSegment(ranged), segment);
       final ReferenceCountingSegment old;
       synchronized (lock) {
         final VersionedIntervalTimeline<ReferenceCountingSegment> tl = dataSources.get(segment.getDataSource());

@@ -282,6 +282,12 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   }
 
   @Override
+  public RangeBufferTracker rangeTracker()
+  {
+    return rangeTracker;
+  }
+
+  @Override
   public File getSegmentFiles(DataSegment segment) throws SegmentLoadingException
   {
     final String relativePath = DataSegmentPusherUtil.getStorageDir(segment);
