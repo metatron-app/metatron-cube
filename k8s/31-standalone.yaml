@@ -1,0 +1,112 @@
+# Standalone historical (CliStandaloneHistorical): serves segments straight from S3 deep storage with NO
+# coordinator / ZooKeeper / metadata DB / broker. It scans `druid.standalone.{bucket,baseKey,dataSources}` for
+# descriptor.json at boot, overshadow-filters, and range-serves at :8083. Independent of the 30-druid.yaml cluster.
+#
+# Image: nas2.s2dev.net:5050/adp/metatron-cube:prune  (a tag built off this branch; rebuild via cluster-build-deploy
+# and repoint if the tag moves). Currently pointed at the re-indexed atom_credential in bucket `druid`.
+#
+# Self-contained: its own trimmed _common (NO postgres/zk extension — the standalone neutralizes both and uses an
+# embedded Derby metadata store) + role conf. loadMode=range: nothing is loaded to disk; columns are range-fetched
+# on demand into off-heap direct buffers, budgeted+evicted by druid.segmentCache.rangeMaxSize with deterministic
+# free-on-release above druid.segmentCache.rangeKeepRatio.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: standalone-common
+  namespace: adp-dev
+data:
+  common.runtime.properties: |
+    druid.extensions.loadList=["druid-s3-extensions", "druid-lucene-common", "druid-lucene10-extensions", "druid-histogram", "druid-datasketches", "druid-lookups-cached-global"]
+    druid.storage.type=s3
+    druid.storage.bucket=druid
+    druid.storage.baseKey=druid/segments
+    druid.storage.disableAcl=true
+    druid.s3.endpoint=http://seaweed.s2dev.net:8333
+    druid.metadata.storage.type=derby
+    druid.metadata.storage.connector.connectURI=jdbc:derby:var/druid/metadata;create=true
+    druid.monitoring.monitors=[]
+    druid.emitter=noop
+    druid.emitter.druidName=metatron
+    druid.startup.logging.logProperties=true
+  log4j2.xml: |
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <Configuration status="WARN">
+        <Appenders>
+            <Console name="Console" target="SYSTEM_OUT">
+                <PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/>
+            </Console>
+        </Appenders>
+        <Loggers>
+            <Root level="info">
+                <AppenderRef ref="Console"/>
+            </Root>
+        </Loggers>
+    </Configuration>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: standalone-atomcred-conf
+  namespace: adp-dev
+data:
+  runtime.properties: |
+    druid.service=druid/historical
+    druid.port=8083
+    druid.server.http.numThreads=20
+    druid.processing.buffer.sizeBytes=67108864
+    druid.processing.numThreads=8
+    druid.processing.numMergeBuffers=4
+    druid.segmentCache.locations=[{"path":"var/druid/segment-cache","maxSize":100000000000}]
+    druid.server.maxSize=100000000000
+    druid.segmentCache.loadMode=range
+    druid.segmentCache.rangeMaxSize=24000000000
+    druid.segmentCache.rangeKeepRatio=0.5
+    druid.standalone.bucket=druid
+    druid.standalone.baseKey=druid/segments
+    druid.standalone.dataSources=["atom_credential"]
+  jvm.config: |
+    -server
+    -Xms4g
+    -Xmx6g
+    -XX:MaxDirectMemorySize=32g
+    -Duser.timezone=UTC
+    -Dfile.encoding=UTF-8
+    -Djava.io.tmpdir=var/tmp
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standalone-atomcred
+  namespace: adp-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: standalone-atomcred }
+  template:
+    metadata:
+      labels: { app: standalone-atomcred }
+    spec:
+      containers:
+        - name: standalone
+          image: nas2.s2dev.net:5050/adp/metatron-cube:prune
+          imagePullPolicy: Always
+          args: ["standalone"]
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          ports:
+            - { containerPort: 8083 }
+          resources:
+            requests: { cpu: "4", memory: "16Gi" }
+            limits: { cpu: "8", memory: "40Gi" }
+          volumeMounts:
+            - { name: common, mountPath: /opt/druid/conf/druid/_common }
+            - { name: role, mountPath: /opt/druid/conf/druid/standalone }
+      volumes:
+        - name: common
+          configMap: { name: standalone-common }
+        - name: role
+          configMap: { name: standalone-atomcred-conf }
