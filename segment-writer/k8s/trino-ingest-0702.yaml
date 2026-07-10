@@ -1,0 +1,78 @@
+# Rebuild ONLY the corrupt run3 window 2026-07-02 04:00-08:00 (append-over-unsorted bug), correctly, with image :5
+# (presortedAppend forced to match TRINO_ORDER_BY). New version overshadows the corrupt v05:59 segment. Bridges the
+# two clean run1 ranges (05-28 12:00..07-02 04:00 and 07-02 08:00..07-09) into ~6 weeks of contiguous valid data.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-ingest-0702-chunks
+  namespace: adp-dev
+data:
+  chunks.txt: |
+    2026-07-02 04:00:00
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-ingest-0702
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:5
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx16g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-Ddruid.s3.multipart.thresholdBytes=16777216"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-04-20"
+            - "2026-07-09"
+          env:
+            - name: TRINO_HOST
+              value: "trino.op.s2dev.net:443"
+            - name: TRINO_CATALOG
+              value: "iceberg_prod"
+            - name: TRINO_USER
+              value: "ulp-parse-sink"
+            - name: TRINO_TABLE
+              value: "iceberg.atom.atom_analysis_credential_v2"
+            - name: CHUNK_HOURS
+              value: "4"
+            - name: WORKERS
+              value: "1"
+            - name: PUSH_THREADS
+              value: "2"
+            - name: TRINO_ORDER_BY
+              value: "false"
+            - name: CHUNK_MAX_RETRIES
+              value: "8"
+            - name: CHUNKS_FILE
+              value: "/chunks/chunks.txt"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "3", memory: "12Gi" }
+            limits: { cpu: "6", memory: "20Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+            - { name: chunks, mountPath: /chunks }
+      volumes:
+        - name: spec
+          configMap: { name: trino-ingest-spec }
+        - name: chunks
+          configMap: { name: trino-ingest-0702-chunks }
