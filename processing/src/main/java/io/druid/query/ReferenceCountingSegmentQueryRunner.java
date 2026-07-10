@@ -62,7 +62,9 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
       QueryRunner<T> runner = factory.createRunner(adapter, optimizer);
       return Sequences.withBaggage(runner.run(query, responseContext), closeable);
     }
-    catch (Exception e) {
+    catch (Throwable e) {
+      // Throwable, not Exception: an OutOfMemoryError while building the run must still decrement the segment ref,
+      // else numReferences stays > 0 forever -> the range loader's idle-free never fires -> off-heap buffers leak.
       CloseQuietly.close(closeable);
       throw QueryException.wrapIfNeeded(e);
     }

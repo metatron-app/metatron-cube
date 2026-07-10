@@ -227,8 +227,14 @@ public class RangeBufferTracker
       if (index == null) {
         return false;
       }
-      index = null;                                  // unreachable once in-flight queries release -> Cleaner frees
+      index = null;
       resident.addAndGet(-bytes.getAndSet(0));
+      // MUST drop the retained buffer refs too, else this Materialization (reachable via the LazySegment loader)
+      // keeps the direct ByteBuffers strongly reachable forever -> their Cleaner never runs -> the off-heap memory
+      // is never reclaimed even under pressure (allocations then OOM). Clear (not free): an in-flight query still
+      // holds the QueryableIndex, so the Cleaner frees only once it's truly unreachable — safe here (unlike the
+      // release() explicit free, which is gated on zero query refs).
+      buffers.clear();
       live.remove(id);
       return true;
     }
