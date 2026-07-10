@@ -60,7 +60,9 @@ spec:
             - "--add-opens=java.base/java.util=ALL-UNNAMED"
             - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
             - "--add-modules=jdk.incubator.vector"
-            - "-Ddruid.incrementalIndex.presortedAppend=true"
+            # NO presortedAppend here: this run uses TRINO_ORDER_BY=false (unsorted scan), so the index MUST
+            # sort on-heap. TrinoIngestion forces the property to match TRINO_ORDER_BY regardless, but keep the
+            # arg out so the intent is clear (append over unsorted input builds a non-monotonic-__time segment).
             - "-Ddruid.s3.multipart.thresholdBytes=16777216"
             - "-Ddruid.s3.multipart.partBytes=16777216"
             - "-Ddruid.s3.multipart.poolSize=8"

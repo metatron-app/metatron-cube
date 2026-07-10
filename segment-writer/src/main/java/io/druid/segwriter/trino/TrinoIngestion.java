@@ -96,11 +96,11 @@ public final class TrinoIngestion
   public static void main(String[] args) throws Exception
   {
     ORDER_BY = Boolean.parseBoolean(env("TRINO_ORDER_BY", "true"));
-    if (ORDER_BY) {
-      // rows arrive ORDER BY timestamp_trigger, so the OnheapIncrementalIndex can append instead of sort-inserting
-      // (set before OnheapIncrementalIndex is first loaded). rollup=false gates it further inside the index.
-      System.setProperty("druid.incrementalIndex.presortedAppend", "true");
-    }   // else leave presortedAppend unset -> the index uses its normal on-heap sort (input isn't presorted)
+    // presorted APPEND is ONLY valid when rows arrive time-sorted (ORDER BY). Force the property to match ORDER_BY
+    // (set before OnheapIncrementalIndex is first loaded) — do NOT merely leave it, or a stale
+    // -Ddruid.incrementalIndex.presortedAppend=true JVM arg would put the index in append mode over UNSORTED input,
+    // producing a segment with a non-monotonic __time (inverted interval -> "end must be >= start" at query time).
+    System.setProperty("druid.incrementalIndex.presortedAppend", String.valueOf(ORDER_BY));
     if (args.length < 3) {
       System.err.println("usage: TrinoIngestion <spec.json> <startDate yyyy-MM-dd> <endDate yyyy-MM-dd (exclusive)>");
       System.exit(2);
