@@ -39,6 +39,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <properties>
+        <trino.jdbc.version>435</trino.jdbc.version>
+    </properties>
+
     <dependencies>
         <!-- compile scope: these are bundled into the shaded jar -->
         <dependency>
@@ -104,7 +108,9 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-jdbc</artifactId>
-            <version>435</version>
+            <!-- 435 = last Java-21 client (default). Override -Dtrino.jdbc.version=466+ (needs a Java 22+ build/runtime)
+                 to get the spooling protocol (TRINO_ENCODING=json / json+zstd / json+lz4; arrow is not JDBC-decodable). -->
+            <version>${trino.jdbc.version}</version>
         </dependency>
 
         <dependency>

@@ -3,6 +3,8 @@
 #   mvn -f segment-writer/pom.xml -DskipTests package
 #   docker buildx build --platform linux/amd64 --provenance=false -f segment-writer/Dockerfile.trino \
 #       -t nas2.s2dev.net:5050/adp/trino-ingester:1 segment-writer/ --push
-FROM eclipse-temurin:21-jre
+# JRE=eclipse-temurin:21-jre (default) for the jdbc-435 build; override to a Java 22+ JRE for a jdbc-466+ (spooling) jar.
+ARG JRE=eclipse-temurin:21-jre
+FROM ${JRE}
 COPY target/druid-segment-writer-*-spark.jar /app/ingester.jar
 WORKDIR /app

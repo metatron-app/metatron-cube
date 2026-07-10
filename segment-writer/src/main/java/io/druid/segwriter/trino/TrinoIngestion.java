@@ -92,6 +92,8 @@ public final class TrinoIngestion
   // (near-zero memory, no OOM on huge windows) and the index sorts on-heap per shard (slower but Trino-safe).
   // Set false for the row-dense windows whose ORDER BY (sorting rows that carry the big `raw` payload) OOMs Trino.
   private static boolean ORDER_BY = true;
+  // benchmark: drain the ResultSet only (no segment build) to isolate Trino fetch throughput (default vs spooling)
+  private static final boolean FETCH_ONLY = "true".equalsIgnoreCase(System.getenv("FETCH_ONLY"));
 
   public static void main(String[] args) throws Exception
   {
@@ -101,6 +103,12 @@ public final class TrinoIngestion
     // -Ddruid.incrementalIndex.presortedAppend=true JVM arg would put the index in append mode over UNSORTED input,
     // producing a segment with a non-monotonic __time (inverted interval -> "end must be >= start" at query time).
     System.setProperty("druid.incrementalIndex.presortedAppend", String.valueOf(ORDER_BY));
+    // INDEX_SORT=list -> sort-once-at-persist (append into an insertion-order map, TimSort at persist) instead of
+    // the per-row TreeMap insert. Only for the unsorted (no ORDER BY) path; a benchmark toggle.
+    if (!ORDER_BY && "list".equalsIgnoreCase(System.getenv("INDEX_SORT"))) {
+      System.setProperty("druid.incrementalIndex.sortOnPersist", "true");
+      System.out.println("trino-ingestion: index sort = list (sort-on-persist)");
+    }
     if (args.length < 3) {
       System.err.println("usage: TrinoIngestion <spec.json> <startDate yyyy-MM-dd> <endDate yyyy-MM-dd (exclusive)>");
       System.exit(2);
@@ -138,6 +146,13 @@ public final class TrinoIngestion
                            + (host.endsWith(":443") ? "?SSL=true" : "");
     final Properties props = new Properties();
     props.setProperty("user", user);
+    // opt-in Trino spooling protocol (needs trino-jdbc 466+): e.g. "json+zstd" or "arrow" — workers write result
+    // pages to spool storage (S3) that the client reads directly (compressed, parallel, bypassing the coordinator).
+    final String encoding = System.getenv("TRINO_ENCODING");
+    if (encoding != null && !encoding.isEmpty()) {
+      props.setProperty("encoding", encoding);
+      System.out.println("trino-ingestion: spooling encoding=" + encoding);
+    }
 
     final String version = new DateTime().toString();   // one version for the whole run; > the HOUR segments' version
     final DataSegmentPusher pusher = SegmentIngestor.pusher(spec);
@@ -281,6 +296,22 @@ public final class TrinoIngestion
       stmt.setFetchSize(10_000);
       try (ResultSet rs = stmt.executeQuery(sql)) {
         final PeekingIterator<Map<String, Object>> rows = Iterators.peekingIterator(rowIterator(rs, cols, tsCol));
+        if (FETCH_ONLY) {
+          // benchmark mode: drain the ResultSet (reads every column incl. the big `raw` payload) with NO
+          // index/persist/push, to isolate the Trino fetch throughput (default vs spooling protocol).
+          final long t0 = System.nanoTime();
+          long n = 0;
+          while (rows.hasNext()) {
+            rows.next();
+            n++;
+          }
+          final long ms = (System.nanoTime() - t0) / 1_000_000L;
+          System.out.println("[fetch-only " + c0s + "] " + n + " rows in " + ms + "ms ("
+                             + (n * 1000L / Math.max(1, ms)) + " rows/s)");
+          totalRows.addAndGet(n);
+          doneChunks.incrementAndGet();
+          return;
+        }
         int shard = 0;
         while (rows.hasNext()) {
           final int[] emitted = {0};   // ordered by ts, so each maxRows shard is time-contiguous
