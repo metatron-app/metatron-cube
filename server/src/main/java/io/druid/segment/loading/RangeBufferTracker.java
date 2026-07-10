@@ -65,11 +65,11 @@ public class RangeBufferTracker
 
   private static final double HIGH_WM = 0.9;    // evict when resident > 90% of budget ...
   private static final double LOW_WM = 0.8;     // ... down to 80%
-  private static final double KEEP_WM = 0.5;    // below this, keep an idle segment's buffers (warm cache); at or
-                                                // above it, free them deterministically the moment a query releases
   private static final long SWEEP_MS = 120_000; // periodic reconcile + evict
 
   private final long budget;
+  private final double keepWm;                  // below this fraction of budget, keep idle buffers (warm cache);
+                                                // at or above, free them deterministically on query release
   private final AtomicLong resident = new AtomicLong();
   private final AtomicLong idleFrees = new AtomicLong();        // segments freed deterministically on query-release
   private final AtomicLong idleFreedBytes = new AtomicLong();
@@ -79,10 +79,17 @@ public class RangeBufferTracker
 
   public RangeBufferTracker(long budget)
   {
+    this(budget, 0.5);
+  }
+
+  public RangeBufferTracker(long budget, double keepRatio)
+  {
     this.budget = budget;
+    this.keepWm = Math.max(0.0, Math.min(1.0, keepRatio));
     this.sweeper = Execs.scheduledSingleThreaded("range-residency-%d");
     this.sweeper.scheduleWithFixedDelay(this::sweep, SWEEP_MS, SWEEP_MS, TimeUnit.MILLISECONDS);
-    log.info("RangeBufferTracker started: budget=%,d high=%.2f low=%.2f sweep=%dms", budget, HIGH_WM, LOW_WM, SWEEP_MS);
+    log.info("RangeBufferTracker started: budget=%,d high=%.2f low=%.2f keep=%.2f sweep=%dms",
+             budget, HIGH_WM, LOW_WM, keepWm, SWEEP_MS);
   }
 
   /**
@@ -99,13 +106,13 @@ public class RangeBufferTracker
   /**
    * A range segment's last in-flight query reference was released (see {@code ReferenceCountingSegment} wiring in
    * {@code ServerManager}), so freeing its column buffers now can't race a reader. Adaptive: under memory pressure
-   * (resident at/above {@link #KEEP_WM} of budget) free them DETERMINISTICALLY (don't wait for the Cleaner — that
-   * GC lag is what let concurrent-fetch bursts overshoot MaxDirectMemory); with headroom, keep them memoized as a
-   * warm cache so the next query needn't re-fetch from deep storage.
+   * (resident at/above {@code keepWm} of budget) free them DETERMINISTICALLY (don't wait for the Cleaner — that GC
+   * lag is what let concurrent-fetch bursts overshoot MaxDirectMemory); with headroom, keep them memoized as a warm
+   * cache so the next query needn't re-fetch from deep storage.
    */
   public void onIdle(String segmentId)
   {
-    if (resident.get() < KEEP_WM * budget) {
+    if (resident.get() < keepWm * budget) {
       return;
     }
     final Materialization m = live.get(segmentId);

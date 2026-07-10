@@ -70,6 +70,12 @@ public class SegmentLoaderConfig
   @JsonProperty("rangeMaxSize")
   private long rangeMaxSize = 0;
 
+  // range residency: below this fraction of rangeMaxSize, an idle segment's fetched column buffers are KEPT (warm
+  // cache); at or above it, they are freed deterministically the moment a query releases the segment (no Cleaner
+  // lag). 1.0 = never free on release (legacy lazy behavior); 0.0 = always free on release (no cache).
+  @JsonProperty("rangeKeepRatio")
+  private double rangeKeepRatio = 0.5;
+
   @JsonProperty
   private File infoDir = null;
 
@@ -111,6 +117,11 @@ public class SegmentLoaderConfig
   public long getRangeMaxSize()
   {
     return rangeMaxSize;
+  }
+
+  public double getRangeKeepRatio()
+  {
+    return rangeKeepRatio;
   }
 
   /** true when range-capable segments should be served header-first (no local download). */
