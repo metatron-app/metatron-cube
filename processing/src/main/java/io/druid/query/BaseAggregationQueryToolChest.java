@@ -72,7 +72,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
           Sequence<Row> sequence = runner.run(aggregation, responseContext);
           if (BaseQuery.isBySegment(aggregation)) {
             Function function = BySegmentResultValue.applyAll(
-                Functions.compose(toPostAggregator(aggregation, false), aggregation.compactToMap(sequence.columns())));
+                Functions.compose(toPostAggregator(aggregation, false), aggregation.compactToMap(compactColumns(sequence, aggregation, false))));
             return Sequences.map(sequence, function);
           }
           boolean finalize = BaseQuery.isFinalize(query);
@@ -85,7 +85,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
               sequence = Sequences.filter(sequence, predicate);
             }
           }
-          sequence = postAggregation(aggregation, Sequences.map(sequence, aggregation.compactToMap(sequence.columns())));
+          sequence = postAggregation(aggregation, Sequences.map(sequence, aggregation.compactToMap(compactColumns(sequence, aggregation, finalize))));
           return sequence;
         }
         Sequence<Row> sequence = runner.run(aggregation, responseContext);
@@ -95,6 +95,15 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         return sequence;
       }
     };
+  }
+
+  // Column names for compactToMap. sequence.columns() can be null on some merge paths (e.g. a limitSpec carrying a
+  // segmentLimit/nodeLimit drops the propagated columns), which would NPE in compactToMap; fall back to the query's
+  // post-merge signature — exactly the compact-row order [time, dims, aggregators].
+  private static List<String> compactColumns(Sequence<Row> sequence, BaseAggregationQuery aggregation, boolean finalize)
+  {
+    final List<String> columns = sequence.columns();
+    return columns != null ? columns : Queries.postMergeSignature(aggregation, finalize).getColumnNames();
   }
 
   protected abstract Comparator<Row> getMergeOrdering(final T aggregation);
