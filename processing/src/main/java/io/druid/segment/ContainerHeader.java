@@ -30,6 +30,7 @@ import io.druid.data.ValueType;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.LazyCapabilitiesColumn;
@@ -75,6 +76,11 @@ import java.util.Map;
 public class ContainerHeader
 {
   public static final String MAGIC = "smoosh-header,v2";
+
+  // Head range-fetched for a range-served lucene index-only column: must cover the descriptor JSON + the lucene
+  // file-offset table (a name + two ints per index file, ~tens of files). 256KB is generous; mapFileHead clamps to
+  // the column length, so smaller columns fetch whole.
+  private static final int LUCENE_HEAD_BYTES = 256 * 1024;
 
   /** Build the readable v2 header from a persisted v9 segment dir (called at push time; the dir is local). */
   public static byte[] write(File segmentDir, ObjectMapper mapper) throws IOException
@@ -173,6 +179,18 @@ public class ContainerHeader
       final String name = e.getKey();
       final ColumnCapabilities caps = e.getValue();
       final Supplier<Column> delegate = DSuppliers.memoize(() -> {
+        // Range-serve a lucene index WITHOUT downloading it: fetch only the column head (descriptor + the index
+        // file-offset table) and let the lucene reader range-read each index file on demand (term-dict block + a
+        // term's postings, tens of KB) rather than the whole ~tens-of-MB index. Only safe when the lucene index IS
+        // the entire payload — an index-only column, i.e. a single part; a base value column would need its own
+        // bytes not present in the head, so those (and non-lucene external indexes) fall back to a whole fetch.
+        if (caps.hasLuceneIndex()) {
+          final ByteBuffer head = colMapper.mapFileHead(name, LUCENE_HEAD_BYTES);
+          final ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(head), ColumnDescriptor.class);
+          if (desc.getParts().size() == 1) {
+            return desc.read(new ColumnBuilder(name).setRangeSource(colMapper, name), head, serdeFactory).build();
+          }
+        }
         final ByteBuffer buf = colMapper.mapFile(name);
         return mapper.readValue(SerializerUtils.readString(buf), ColumnDescriptor.class)
                      .read(name, buf, serdeFactory);

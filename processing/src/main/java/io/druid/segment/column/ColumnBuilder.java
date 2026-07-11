@@ -59,9 +59,32 @@ public class ColumnBuilder
   private Map<String, Object> stats;
   private Map<String, String> descs;
 
+  // Range-serving only: when set, this column's payload was NOT fully fetched — only a head (descriptor + index
+  // file-table). A secondary-index deserializer (lucene) uses this mapper to range-read the parts it needs on demand
+  // via SmooshedFileMapper#fetchInColumn(rangeColumn, ...). Null for fully-materialized (heap/mmap/whole-fetch) loads.
+  private io.druid.java.util.common.io.smoosh.SmooshedFileMapper rangeMapper;
+  private String rangeColumn;
+
   public ColumnBuilder(String name)
   {
     this.name = Preconditions.checkNotNull(name, "name must be set");
+  }
+
+  public ColumnBuilder setRangeSource(io.druid.java.util.common.io.smoosh.SmooshedFileMapper mapper, String column)
+  {
+    this.rangeMapper = mapper;
+    this.rangeColumn = column;
+    return this;
+  }
+
+  public io.druid.java.util.common.io.smoosh.SmooshedFileMapper getRangeMapper()
+  {
+    return rangeMapper;
+  }
+
+  public String getRangeColumn()
+  {
+    return rangeColumn;
   }
 
   public String getName()

@@ -321,14 +321,46 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
         @Override
         public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
         {
-          final ByteBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer);
-          final int length = bufferToUse.remaining();
-
-          // Normal columns: the base value column (read before this part) already set numRows — use it,
-          // no extra IO. Index-only columns have no base column, so derive numRows from the lucene index
-          // (maxDoc == numRows: one doc per row) — costs one reader-open at a column load.
-          final int fromBase = builder.getNumRows();
-          final int numRows = fromBase >= 0 ? fromBase : Lucenes.maxDoc(bufferToUse.asReadOnlyBuffer());
+          // Two ways to open the index. WHOLE: the column payload was fully materialized (heap/mmap/whole-fetch) — wrap
+          // it in a buffer-backed reader. RANGE (range-serving): only the column HEAD (descriptor + file-offset table)
+          // was fetched; the reader range-reads each index file on demand (term-dict block + a term's postings, tens
+          // of KB) instead of the whole ~tens-of-MB index. Both feed the same secondary-index provider below.
+          final java.util.function.Supplier<DirectoryReader> readerSupplier;
+          final boolean closeReaderPerUse;   // WHOLE: each get() opens+closes its own; RANGE: one shared memoized reader
+          final long length;
+          final int numRows;
+          final int fromBase = builder.getNumRows();   // set by the base value column (index-only columns: -1)
+          if (builder.getRangeMapper() != null) {
+            final io.druid.java.util.common.io.smoosh.SmooshedFileMapper m = builder.getRangeMapper();
+            final String col = builder.getRangeColumn();
+            length = buffer.getInt();   // payload length prefix; buffer (the head) is now at the index file table
+            final Lucenes.RangeTable table = Lucenes.parseRangeTable(buffer);
+            // Memoize the range reader per column (segment): opening it range-fetches the index structure (.tip term
+            // index + headers/footers), the dominant per-segment cost at scale — so open ONCE and share across the
+            // maxDoc probe, every get(), and every query (warm reuse). Its RangeFetchIndexInputs hold no OS handle, so
+            // it needs no per-query close; it dies with the column when the segment is dropped/evicted.
+            final DirectoryReader[] memo = new DirectoryReader[1];
+            readerSupplier = () -> {
+              if (memo[0] == null) {
+                synchronized (memo) {
+                  if (memo[0] == null) {
+                    memo[0] = Lucenes.rangeReader(table, (o, l) -> m.fetchInColumn(col, o, l));
+                  }
+                }
+              }
+              return memo[0];
+            };
+            closeReaderPerUse = false;
+            numRows = fromBase >= 0 ? fromBase : readerSupplier.get().maxDoc();   // reuses the shared reader
+          } else {
+            final ByteBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer);
+            length = bufferToUse.remaining();
+            readerSupplier = () -> Lucenes.readFrom(bufferToUse.asReadOnlyBuffer());
+            closeReaderPerUse = true;
+            // Normal columns: the base value column (read before this part) already set numRows — no extra IO.
+            // Index-only columns have no base column, so derive numRows from the lucene index (one reader-open).
+            numRows = fromBase >= 0 ? fromBase : Lucenes.maxDoc(bufferToUse.asReadOnlyBuffer());
+          }
 
           builder.addSecondaryIndex(
               new ExternalIndexProvider<LuceneIndex>()
@@ -362,12 +394,14 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                 {
                   return new LuceneIndex()
                   {
-                    final DirectoryReader reader = Lucenes.readFrom(bufferToUse.asReadOnlyBuffer());
+                    final DirectoryReader reader = readerSupplier.get();
 
                     @Override
                     public void close() throws IOException
                     {
-                      reader.close();
+                      if (closeReaderPerUse) {   // range mode shares one memoized reader — don't close it per query
+                        reader.close();
+                      }
                     }
 
                     @Override
@@ -376,7 +410,10 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                       // limit <= 0 means unlimited -> all rows (numRows); Lucene needs numHits > 0.
                       int effective = limit > 0 ? Math.min(limit, numRows) : numRows;
                       try {
+                        final long _t0 = System.nanoTime();
                         TopDocs docs = createIndexSearcher(reader).search(query, effective);   // top `limit` by score
+                        io.druid.java.util.common.RangeProf.searchNanos.addAndGet(System.nanoTime() - _t0);
+                        io.druid.java.util.common.RangeProf.searchCount.incrementAndGet();
                         return BitmapHolder.exact(Lucenes.toBitmap(docs, context, attachment));
                       } catch (IOException e) {
                         throw Throwables.propagate(e);

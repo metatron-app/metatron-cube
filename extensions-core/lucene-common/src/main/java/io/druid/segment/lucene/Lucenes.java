@@ -128,6 +128,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.LuceneIndexInput;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.OutputStreamDataOutput;
+import org.apache.lucene.store.RangeFetchIndexInput;
 import org.apache.lucene.store.SingleInstanceLockFactory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOConsumer;
@@ -511,7 +512,163 @@ public class Lucenes
       }
     };
     try {
-      return DirectoryReader.open(directory);
+      final long _t0 = System.nanoTime();
+      final DirectoryReader reader = DirectoryReader.open(directory);
+      io.druid.java.util.common.RangeProf.openNanos.addAndGet(System.nanoTime() - _t0);
+      io.druid.java.util.common.RangeProf.openCount.incrementAndGet();
+      return reader;
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  // Read-ahead window for a range-served BIG lucene file (term dict / postings), sub-ranged to pull only the term's
+  // block + postings. Sized to amortize per-GET round-trip latency (seaweed ~5ms/GET dominated the first cut — 94k
+  // tiny GETs) while staying tiny vs the whole ~tens-of-MB file: a term's reads cluster, so a coarse window collapses
+  // them into a handful of GETs.
+  private static final int RANGE_BUFFER_SIZE = 256 * 1024;
+
+  // Files at or below this size are fetched WHOLE in a single GET (buffer-backed) instead of sub-ranged: the term
+  // index (.tip FST), field infos, segment info, norms etc. are read (near-)fully anyway, so one coarse GET beats
+  // many latency-bound small ones. Only the genuinely large term-dict/postings files get the range-read treatment.
+  private static final int WHOLE_FILE_THRESHOLD = 4 * 1024 * 1024;
+
+  /**
+   * The lucene file-offset table parsed from a range-served column's head — tiny (a name + two ints per index file),
+   * retained for the segment's life so each query can reopen a {@link DirectoryReader} without re-fetching the head.
+   * {@code datumBase} is the column-relative offset where the concatenated index files begin (after the table).
+   */
+  public static final class RangeTable
+  {
+    private final Map<String, int[]> dataOffsets;
+    private final long datumBase;
+
+    private RangeTable(Map<String, int[]> dataOffsets, long datumBase)
+    {
+      this.dataOffsets = dataOffsets;
+      this.datumBase = datumBase;
+    }
+  }
+
+  /**
+   * Parse the lucene file-offset table from a range-served column's head buffer. {@code head}'s byte 0 is the
+   * enclosing column's byte 0, so its positions ARE column-relative offsets — the post-table datum base is simply
+   * {@code head.position()} once the table is consumed. Cheap and one-time; the returned {@link RangeTable} is reused.
+   */
+  public static RangeTable parseRangeTable(final ByteBuffer head)
+  {
+    final int fileNum = head.getInt();
+    final Map<String, int[]> dataOffsets = Maps.newLinkedHashMap();
+    for (int i = 0; i < fileNum; i++) {
+      String fileName = StringUtils.fromUtf8(head, head.getInt());
+      int[] offsetLength = {head.getInt(), head.getInt()};
+      dataOffsets.put(fileName, offsetLength);
+    }
+    return new RangeTable(dataOffsets, head.position());
+  }
+
+  /**
+   * Range-served twin of {@link #readFrom}: open a {@link DirectoryReader} whose index files are range-read on demand
+   * via {@code source} (each file opened as a {@link RangeFetchIndexInput} over its column-relative extent) instead of
+   * a whole-index buffer, so opening + searching pulls only the term dictionary block + a term's postings.
+   */
+  public static DirectoryReader rangeReader(final RangeTable table, final RangeFetchIndexInput.RangeSource source)
+  {
+    final Map<String, int[]> dataOffsets = table.dataOffsets;
+    final long datumBase = table.datumBase;
+    final BaseDirectory directory = new BaseDirectory(new SingleInstanceLockFactory())
+    {
+      @Override
+      public String[] listAll()
+      {
+        return dataOffsets.keySet().toArray(new String[0]);
+      }
+
+      @Override
+      public void deleteFile(String name)
+      {
+        throw new UnsupportedOperationException("deleteFile");
+      }
+
+      @Override
+      public long fileLength(String name) throws IOException
+      {
+        final int[] offsetLength = dataOffsets.get(name);
+        if (offsetLength == null) {
+          throw new FileNotFoundException(name);
+        }
+        return offsetLength[1];
+      }
+
+      @Override
+      public IndexOutput createOutput(String name, IOContext context)
+      {
+        throw new UnsupportedOperationException("createOutput");
+      }
+
+      @Override
+      public IndexOutput createTempOutput(String prefix, String suffix, IOContext context)
+      {
+        throw new UnsupportedOperationException("createTempOutput");
+      }
+
+      @Override
+      public void sync(Collection<String> names)
+      {
+        throw new UnsupportedOperationException("sync");
+      }
+
+      @Override
+      public void rename(String source1, String dest)
+      {
+        throw new UnsupportedOperationException("rename");
+      }
+
+      @Override
+      public void syncMetaData()
+      {
+        throw new UnsupportedOperationException("syncMetaData");
+      }
+
+      @Override
+      public IndexInput openInput(String name, IOContext context) throws IOException
+      {
+        final int[] offsets = dataOffsets.get(name);
+        if (offsets == null) {
+          throw new FileNotFoundException(name);
+        }
+        final long fileBase = datumBase + offsets[0];
+        final int len = offsets[1];
+        if (len <= WHOLE_FILE_THRESHOLD) {
+          // small file (term index / metadata / norms): one GET, buffer-backed — it's read (near-)fully anyway
+          final ByteBuffer whole = source.fetch(fileBase, len);
+          if (whole == null || whole.remaining() != len) {
+            throw new IOException("short whole-file read of " + name + ": wanted " + len);
+          }
+          return LuceneIndexInput.newInstance("LuceneIndex(name=" + name + ")", whole, len);
+        }
+        // big file (term dict / postings): range-read a term's block + postings on demand
+        return new RangeFetchIndexInput("LuceneIndex(name=" + name + ")", source, fileBase, len, RANGE_BUFFER_SIZE);
+      }
+
+      @Override
+      public Set<String> getPendingDeletions()
+      {
+        return Collections.emptySet();
+      }
+
+      @Override
+      public void close()
+      {
+      }
+    };
+    try {
+      final long _t0 = System.nanoTime();
+      final DirectoryReader reader = DirectoryReader.open(directory);
+      io.druid.java.util.common.RangeProf.openNanos.addAndGet(System.nanoTime() - _t0);
+      io.druid.java.util.common.RangeProf.openCount.incrementAndGet();
+      return reader;
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

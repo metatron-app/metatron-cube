@@ -430,10 +430,60 @@ public class SmooshedFileMapper implements Closeable
     return metadata == null ? null : mapFile(metadata);
   }
 
+  /** True for a range-backed (header-first) mapper: columns are range-fetched on demand, never fully downloaded. */
+  public boolean isRange()
+  {
+    return rangeFetcher != null;
+  }
+
+  /**
+   * Range-fetch only the FIRST {@code len} bytes of a column (clamped to the column length). Used to pull a lucene
+   * column's descriptor JSON + file-offset table without downloading the whole ~tens-of-MB index — the index files
+   * are then range-read on demand via {@link #fetchInColumn}. Returns null if the column is absent; only valid on a
+   * range mapper.
+   */
+  public ByteBuffer mapFileHead(String name, int len) throws IOException
+  {
+    final Metadata metadata = internalFiles.get(name);
+    if (metadata == null) {
+      return null;
+    }
+    final long _t0 = System.nanoTime();
+    final ByteBuffer buf = rangeFetcher.fetch(metadata.getFileNum(), metadata.getStartOffset(), Math.min(len, metadata.getLength()));
+    io.druid.java.util.common.RangeProf.fetchNanos.addAndGet(System.nanoTime() - _t0);
+    io.druid.java.util.common.RangeProf.fetchBytes.addAndGet(buf == null ? 0 : buf.remaining());
+    io.druid.java.util.common.RangeProf.fetchCount.incrementAndGet();
+    return buf;
+  }
+
+  /**
+   * Range-fetch a sub-range of a column, {@code offset} being relative to the column's first byte. Backs the
+   * on-demand reads of a range-served lucene index (term dictionary block + a term's postings) instead of fetching
+   * the whole index extent. Only valid on a range mapper.
+   */
+  public ByteBuffer fetchInColumn(String name, long offset, int length) throws IOException
+  {
+    final Metadata metadata = internalFiles.get(name);
+    if (metadata == null) {
+      return null;
+    }
+    final long _t0 = System.nanoTime();
+    final ByteBuffer buf = rangeFetcher.fetch(metadata.getFileNum(), metadata.getStartOffset() + offset, length);
+    io.druid.java.util.common.RangeProf.fetchNanos.addAndGet(System.nanoTime() - _t0);
+    io.druid.java.util.common.RangeProf.fetchBytes.addAndGet(buf == null ? 0 : buf.remaining());
+    io.druid.java.util.common.RangeProf.fetchCount.incrementAndGet();
+    return buf;
+  }
+
   private ByteBuffer mapFile(Metadata metadata) throws IOException
   {
     if (rangeFetcher != null) {
-      return rangeFetcher.fetch(metadata.getFileNum(), metadata.getStartOffset(), metadata.getLength());
+      final long _t0 = System.nanoTime();
+      final ByteBuffer buf = rangeFetcher.fetch(metadata.getFileNum(), metadata.getStartOffset(), metadata.getLength());
+      io.druid.java.util.common.RangeProf.fetchNanos.addAndGet(System.nanoTime() - _t0);
+      io.druid.java.util.common.RangeProf.fetchBytes.addAndGet(buf == null ? 0 : buf.remaining());
+      io.druid.java.util.common.RangeProf.fetchCount.incrementAndGet();
+      return buf;
     }
     final int fileNum = metadata.getFileNum();
     while (buffersList.size() <= fileNum) {
