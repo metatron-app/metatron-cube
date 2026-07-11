@@ -54,8 +54,9 @@ data:
     druid.port=8083
     druid.server.http.numThreads=20
     druid.processing.buffer.sizeBytes=67108864
-    druid.processing.numThreads=8
-    druid.processing.numMergeBuffers=4
+    druid.processing.numThreads=32
+    druid.processing.numMergeBuffers=8
+    druid.query.maxQueryParallelism=32
     druid.segmentCache.locations=[{"path":"var/druid/segment-cache","maxSize":100000000000}]
     druid.server.maxSize=100000000000
     druid.segmentCache.loadMode=range
@@ -67,7 +68,7 @@ data:
   jvm.config: |
     -server
     -Xms4g
-    -Xmx6g
+    -Xmx8g
     -XX:MaxDirectMemorySize=32g
     -Duser.timezone=UTC
     -Dfile.encoding=UTF-8
@@ -100,8 +101,8 @@ spec:
           ports:
             - { containerPort: 8083 }
           resources:
-            requests: { cpu: "4", memory: "16Gi" }
-            limits: { cpu: "8", memory: "40Gi" }
+            requests: { cpu: "16", memory: "16Gi" }
+            limits: { cpu: "40", memory: "40Gi" }
           volumeMounts:
             - { name: common, mountPath: /opt/druid/conf/druid/_common }
             - { name: role, mountPath: /opt/druid/conf/druid/standalone }
