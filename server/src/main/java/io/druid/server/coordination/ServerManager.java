@@ -662,11 +662,14 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     }
     return (q, responseContext) -> Sequences.withBaggage(
         runner.run(q, responseContext),
-        () -> log.info(
-            "[residency] query[%s] touched %d segment(s): %d tmpfs, %d range%s%s",
-            query.getId(), tmpfs + range, tmpfs, range, missing > 0 ? ", " + missing + " missing" : "",
-            pruned > 0 ? ", " + pruned + " pruned" : ""
-        )
+        () -> {
+          log.info(
+              "[residency] query[%s] touched %d segment(s): %d tmpfs, %d range%s%s",
+              query.getId(), tmpfs + range, tmpfs, range, missing > 0 ? ", " + missing + " missing" : "",
+              pruned > 0 ? ", " + pruned + " pruned" : ""
+          );
+          log.info("[lucene-prof] query[%s] %s", query.getId(), io.druid.java.util.common.RangeProf.snapshotAndReset());
+        }
     );
   }
 
