@@ -66,6 +66,7 @@ data:
     druid.standalone.baseKey=druid/segments
     druid.standalone.dataSources=["atom_credential"]
     druid.standalone.sourceTables={"atom_credential":"iceberg.atom.atom_analysis_credential_v2"}
+    druid.standalone.timeColumns={"atom_credential":"timestamp_trigger"}
   jvm.config: |
     -server
     -Xms4g
@@ -112,3 +113,15 @@ spec:
           configMap: { name: standalone-common }
         - name: role
           configMap: { name: standalone-atomcred-conf }
+---
+# Stable in-cluster address for the Trino connector: http://standalone-atomcred:8083 (same namespace)
+# or http://standalone-atomcred.adp-dev.svc.cluster.local:8083 (cross-namespace). ClusterIP (internal only).
+apiVersion: v1
+kind: Service
+metadata:
+  name: standalone-atomcred
+  namespace: adp-dev
+spec:
+  selector: { app: standalone-atomcred }
+  ports:
+    - { name: http, port: 8083, targetPort: 8083 }

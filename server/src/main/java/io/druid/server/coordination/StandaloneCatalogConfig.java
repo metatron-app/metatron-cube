@@ -34,8 +34,19 @@ public class StandaloneCatalogConfig
   @JsonProperty
   private Map<String, String> sourceTables = Collections.emptyMap();
 
+  // dataSource -> the SOURCE table's timestamp column that became Druid's __time (e.g. atom_credential ->
+  // timestamp_trigger). Dimensions/metrics keep their source names, so only __time needs a mapping; the /schema
+  // endpoint reports it as the __time column's sourceColumn.
+  @JsonProperty
+  private Map<String, String> timeColumns = Collections.emptyMap();
+
   public Map<String, String> getSourceTables()
   {
     return sourceTables;
+  }
+
+  public Map<String, String> getTimeColumns()
+  {
+    return timeColumns;
   }
 }

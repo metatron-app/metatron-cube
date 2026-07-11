@@ -28,6 +28,7 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.server.coordination.ServerManager;
+import io.druid.server.coordination.StandaloneCatalogConfig;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -56,11 +57,13 @@ import java.util.Set;
 public class DataSourceSchemaResource
 {
   private final ServerManager serverManager;
+  private final StandaloneCatalogConfig config;
 
   @Inject
-  public DataSourceSchemaResource(ServerManager serverManager)
+  public DataSourceSchemaResource(ServerManager serverManager, StandaloneCatalogConfig config)
   {
     this.serverManager = serverManager;
+    this.config = config;
   }
 
   @GET
@@ -75,7 +78,7 @@ public class DataSourceSchemaResource
     }
     final Set<String> dimensions = Sets.newHashSet(index.getAvailableDimensions());
     final List<Map<String, Object>> columns = Lists.newArrayList();
-    columns.add(timeColumn());
+    columns.add(timeColumn(config.getTimeColumns().get(dataSourceName)));
     for (String name : index.getColumnNames()) {
       if (Column.TIME_COLUMN_NAME.equals(name)) {
         continue;
@@ -121,11 +124,16 @@ public class DataSourceSchemaResource
     return type == null ? "STRING" : type.typeName().toUpperCase();
   }
 
-  private static Map<String, Object> timeColumn()
+  private static Map<String, Object> timeColumn(String sourceColumn)
   {
     final Map<String, Object> m = Maps.newLinkedHashMap();
     m.put("name", Column.TIME_COLUMN_NAME);
     m.put("type", "LONG");
+    if (sourceColumn != null) {
+      // the source table's timestamp column that became __time (dimensions/metrics keep their source names). A
+      // range predicate on this source column maps to __time -> the query intervals.
+      m.put("sourceColumn", sourceColumn);
+    }
     // a time range predicate is pushed to the query intervals, not to a filter
     m.put("pushdown", ImmutableMap.of("range", ImmutableMap.of("target", "intervals")));
     return m;
