@@ -84,7 +84,10 @@ import io.druid.server.QueryManager;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.SegmentKey;
 import io.druid.timeline.VersionedIntervalTimeline;
+import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
+import io.druid.segment.QueryableIndex;
+import io.druid.java.util.common.JodaUtils;
 import io.druid.timeline.partition.PartitionHolder;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.joda.time.Interval;
@@ -171,6 +174,32 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
   public Map<String, Integer> getDataSourceCounts()
   {
     return dataSourceCounts;
+  }
+
+  /**
+   * A loaded segment's {@link QueryableIndex} for {@code dataSource} (any one — the schema is uniform across a
+   * datasource's segments), or null if nothing is loaded. Range-served segments return a header-first index (its
+   * column capabilities come from the segment header, so a schema read costs no column scan beyond one lucene head).
+   * Backs the {@code /schema} endpoint the Trino connector uses to discover columns + their secondary indexes.
+   */
+  public QueryableIndex getRepresentativeIndex(String dataSource)
+  {
+    synchronized (lock) {
+      final VersionedIntervalTimeline<ReferenceCountingSegment> tl = dataSources.get(dataSource);
+      if (tl == null) {
+        return null;
+      }
+      for (TimelineObjectHolder<ReferenceCountingSegment> holder :
+          tl.lookup(new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT))) {
+        for (PartitionChunk<ReferenceCountingSegment> chunk : holder.getObject()) {
+          final QueryableIndex index = chunk.getObject().asQueryableIndex(false);
+          if (index != null) {
+            return index;
+          }
+        }
+      }
+      return null;
+    }
   }
 
   public boolean isEmpty()
