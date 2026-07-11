@@ -94,11 +94,29 @@ Going 16KB → 256KB (16×) only cut GETs 34% (94,606 → 61,844) while inflatin
 node traversal, seeking to a term's block, seeking to its postings. A seek outside the buffer triggers a fresh GET
 regardless of window size, and a bigger window then over-fetches (fills the whole 256KB for a few needed bytes). So
 the GET reduction came mostly from **fetching small files whole** (one GET per file) and from **memoization**
-(removing the redundant second open's GETs) — *not* from the buffer, which mostly just over-fetched. This suggests
-256KB is likely over-tuned: since warm is search-bound (fetch time isn't the bottleneck), a smaller window (~64KB)
-would probably keep GET count similar while cutting warm bytes and resident memory. Not yet retuned.
+(removing the redundant second open's GETs) — *not* from the buffer, which mostly just over-fetched.
 
-Net: a full-range lucene scan that **never completed** now returns in **6.9s warm / 34s cold**.
+Retuning **256KB → 64KB** confirmed it: **identical GET count** (warm 2,942 → 2,942; cold 34,057 → 34,067) with
+**bytes cut ~4×** (warm 732MB → 183MB; cold 5,862MB → 4,486MB). The window is now `RANGE_BUFFER_SIZE = 64KB`. Wall was
+flat (warm 6.9s → 6.2s) — as expected, since fetch time isn't the bottleneck (see below). 64KB is the keeper: same
+GETs, far less over-fetch and resident memory.
+
+### Adding cores does NOT help — it's I/O-latency-bound, not CPU-bound
+
+Bumping the standalone 8 → 32 processing threads (pod 8 → 40 cores) barely moved wall (cold 34.0s → 32.3s, warm 6.9s
+→ 6.2s) and left summed thread-time essentially unchanged (cold 443s → 419s) — the extra threads went unused. The
+tell: **CPU was near-idle (~10 millicores) during queries.** If the 63s warm thread-time were compute, CPU would peg
+~10 cores; it didn't, so that time is **I/O wait**, and the query fans out to only ~10× concurrency regardless of
+`numThreads`.
+
+Caveat on the prof numbers: the `search` counter wraps `IndexSearcher.search()`, which *lazily* range-reads the
+term's `.tim` block + `.doc` postings **inside** the call — so `search` time includes those nested GETs (it
+double-counts with `fetch`, and is mostly I/O wait, not the term/postings compute its name implies). So the real
+warm bottleneck is the per-term postings-GET round trips, serialized within each segment's search, across only ~10
+concurrent segments. More cores can't help an I/O-bound query that isn't fanning out; the levers are I/O concurrency
+(why only ~10×?), fewer segments, or coalescing the `.tim`+`.doc` reads.
+
+Net: a full-range lucene scan that **never completed** now returns in **6.2s warm / 32s cold** (64KB window).
 
 ## Remaining levers
 

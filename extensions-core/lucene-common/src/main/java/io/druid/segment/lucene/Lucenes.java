@@ -524,10 +524,11 @@ public class Lucenes
   }
 
   // Read-ahead window for a range-served BIG lucene file (term dict / postings), sub-ranged to pull only the term's
-  // block + postings. Sized to amortize per-GET round-trip latency (seaweed ~5ms/GET dominated the first cut — 94k
-  // tiny GETs) while staying tiny vs the whole ~tens-of-MB file: a term's reads cluster, so a coarse window collapses
-  // them into a handful of GETs.
-  private static final int RANGE_BUFFER_SIZE = 256 * 1024;
+  // block + postings. Amortizes per-GET round-trip latency (seaweed ~5ms/GET dominated the first cut — 94k tiny GETs)
+  // while staying tiny vs the whole ~tens-of-MB file. 256KB was over-tuned: lucene's access is largely RANDOM (FST
+  // traversal + seeks), which read-ahead can't coalesce, so a large window mostly just over-fetched (256KB fill for a
+  // few needed bytes -> 9x the bytes for only 34% fewer GETs). 64KB keeps GET count ~the same but cuts over-fetch.
+  private static final int RANGE_BUFFER_SIZE = 64 * 1024;
 
   // Files at or below this size are fetched WHOLE in a single GET (buffer-backed) instead of sub-ranged: the term
   // index (.tip FST), field infos, segment info, norms etc. are read (near-)fully anyway, so one coarse GET beats
