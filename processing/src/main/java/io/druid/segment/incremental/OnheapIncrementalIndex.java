@@ -77,7 +77,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
     this.append = (APPEND_PROP || sortOnPersist) && !indexSchema.isRollup();
     if (append) {
       this.facts = null;
-      this.appendFacts = new java.util.LinkedHashMap<>();
+      this.appendFacts = new AppendList();
     } else if (indexSchema.isNoQuery()) {
       this.facts = new TreeMap<>(dimsComparator());
       this.appendFacts = null;
@@ -288,5 +288,90 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   {
     super.close();
     (append ? appendFacts : facts).clear();
+  }
+
+  /**
+   * Insertion-order storage for append mode (rollup=false, presorted/sort-on-persist), backing the facts as two
+   * parallel growable arrays instead of a {@link LinkedHashMap}. rollup=false gives every row a unique identity key
+   * that never merges, so the map's per-entry node + hash bucket were pure overhead; here {@code computeIfAbsent} is
+   * an O(1) append with no hashing and no {@code Map.Entry} allocation (the dominant map cost per row), and entries
+   * are materialized only transiently while iterating at persist/query — no map is ever reconstructed. Only the
+   * methods the append path actually calls are backed directly ({@code computeIfAbsent}, {@code values}, {@code size},
+   * {@code clear}, {@code entrySet} iteration); the rest come from {@link AbstractMap}. NOT thread-safe (neither was
+   * the append LinkedHashMap — append mode is single-threaded, NoRollup indexer).
+   */
+  private static final class AppendList extends AbstractMap<TimeAndDims, Object[]>
+  {
+    private final ArrayList<TimeAndDims> keys = new ArrayList<>();
+    private final ArrayList<Object[]> vals = new ArrayList<>();
+
+    @Override
+    public Object[] computeIfAbsent(TimeAndDims key, Function<? super TimeAndDims, ? extends Object[]> populator)
+    {
+      final Object[] v = populator.apply(key);   // may throw IndexSizeExceededException (row-count guard)
+      keys.add(key);
+      vals.add(v);
+      return v;
+    }
+
+    @Override
+    public Collection<Object[]> values()
+    {
+      return vals;
+    }
+
+    @Override
+    public int size()
+    {
+      return keys.size();
+    }
+
+    @Override
+    public boolean isEmpty()
+    {
+      return keys.isEmpty();
+    }
+
+    @Override
+    public void clear()
+    {
+      keys.clear();
+      vals.clear();
+    }
+
+    @Override
+    public Set<Entry<TimeAndDims, Object[]>> entrySet()
+    {
+      return new AbstractSet<>()
+      {
+        @Override
+        public int size()
+        {
+          return keys.size();
+        }
+
+        @Override
+        public Iterator<Entry<TimeAndDims, Object[]>> iterator()
+        {
+          return new Iterator<>()
+          {
+            private int i = 0;
+
+            @Override
+            public boolean hasNext()
+            {
+              return i < keys.size();
+            }
+
+            @Override
+            public Entry<TimeAndDims, Object[]> next()
+            {
+              final int idx = i++;   // fresh entry per position; not stored
+              return new SimpleImmutableEntry<>(keys.get(idx), vals.get(idx));
+            }
+          };
+        }
+      };
+    }
   }
 }

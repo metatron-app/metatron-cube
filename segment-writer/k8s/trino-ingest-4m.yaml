@@ -1,0 +1,93 @@
+# One-month ingest at maxRowsPerSegment=4M (2x the full run's 2M) to (a) measure indexing throughput and (b) exercise
+# the List-backed append storage (AppendList) — rollup=false append no longer keeps a LinkedHashMap. Output to a
+# SEPARATE dataSource (atom_cred_4m) so it never touches the served atom_credential. 4M rows/build ~5.4GB heap, so
+# Xmx28g + WORKERS=6 (~32GB peak) with a 40Gi pod.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-ingest-4m-spec
+  namespace: adp-dev
+data:
+  spec.json: |
+    {
+      "dataSource": "atom_cred_4m",
+      "timestampColumn": "timestamp_trigger",
+      "dimensions": ["file_id","source_sha256","file_sha256"],
+      "metrics": [
+        {"type":"count","name":"count"},
+        {"type":"relay","name":"raw","columnName":"raw","typeName":"string"}
+      ],
+      "secondaryIndexing": {
+        "raw": { "type": "lucene10", "indexOnly": true, "strategies": [{"type":"text","fieldName":"raw"}] }
+      },
+      "segmentGranularity": "DAY",
+      "maxRowsPerSegment": 4000000,
+      "queryGranularity": "NONE",
+      "rollup": false,
+      "storageType": "s3_smoosh",
+      "bucket": "druid",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-ingest-4m
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:3
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx28g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-Ddruid.incrementalIndex.presortedAppend=true"
+            - "-Ddruid.s3.multipart.thresholdBytes=16777216"
+            - "-Ddruid.s3.multipart.partBytes=16777216"
+            - "-Ddruid.s3.multipart.poolSize=8"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-04-20"
+            - "2026-04-27"
+          env:
+            - name: TRINO_HOST
+              value: "trino.op.s2dev.net:443"
+            - name: TRINO_CATALOG
+              value: "iceberg_prod"
+            - name: TRINO_USER
+              value: "ulp-parse-sink"
+            - name: TRINO_TABLE
+              value: "iceberg.atom.atom_analysis_credential_v2"
+            - name: CHUNK_HOURS
+              value: "4"
+            - name: WORKERS
+              value: "4"
+            - name: PUSH_THREADS
+              value: "6"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "6", memory: "32Gi" }
+            limits: { cpu: "8", memory: "40Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+      volumes:
+        - name: spec
+          configMap: { name: trino-ingest-4m-spec }
