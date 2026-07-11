@@ -114,10 +114,12 @@ public class CliStandaloneHistorical extends ServerRunnable
 
             binder.bind(NodeTypeConfig.class).toInstance(new NodeTypeConfig("historical"));
             binder.bind(JettyServerInitializer.class).to(QueryJettyServerInitializer.class).in(LazySingleton.class);
+            JsonConfigProvider.bind(binder, "druid.standalone", io.druid.server.coordination.StandaloneCatalogConfig.class);
             Jerseys.addResource(binder, QueryResource.class);
             Jerseys.addResource(binder, HistoricalResource.class);
             Jerseys.addResource(binder, SegmentListerResource.class);
             Jerseys.addResource(binder, io.druid.server.http.DataSourceSchemaResource.class);
+            Jerseys.addResource(binder, io.druid.server.http.CatalogResource.class);
             LifecycleModule.register(binder, QueryResource.class);
 
             // Force NoopServiceDiscovery: CuratorDiscoveryConfig.useDiscovery() is path != null and the path

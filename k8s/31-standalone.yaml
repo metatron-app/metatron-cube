@@ -65,6 +65,7 @@ data:
     druid.standalone.bucket=druid
     druid.standalone.baseKey=druid/segments
     druid.standalone.dataSources=["atom_credential"]
+    druid.standalone.sourceTables={"atom_credential":"iceberg.atom.atom_analysis_credential_v2"}
   jvm.config: |
     -server
     -Xms4g

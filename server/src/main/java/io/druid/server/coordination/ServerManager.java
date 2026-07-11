@@ -176,6 +176,37 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     return dataSourceCounts;
   }
 
+  /** Names of the datasources with at least one loaded segment (backs the {@code /catalog} endpoint). */
+  public java.util.Set<String> getLoadedDataSources()
+  {
+    synchronized (lock) {
+      return new java.util.TreeSet<>(dataSources.keySet());
+    }
+  }
+
+  /** The time span covered by {@code dataSource}'s loaded segments (min start .. max end), or null if none loaded. */
+  public Interval getIndexedInterval(String dataSource)
+  {
+    synchronized (lock) {
+      final VersionedIntervalTimeline<ReferenceCountingSegment> tl = dataSources.get(dataSource);
+      if (tl == null) {
+        return null;
+      }
+      org.joda.time.DateTime min = null, max = null;
+      for (TimelineObjectHolder<ReferenceCountingSegment> holder :
+          tl.lookup(new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT))) {
+        final Interval iv = holder.getInterval();
+        if (min == null || iv.getStart().isBefore(min)) {
+          min = iv.getStart();
+        }
+        if (max == null || iv.getEnd().isAfter(max)) {
+          max = iv.getEnd();
+        }
+      }
+      return min == null ? null : new Interval(min, max);
+    }
+  }
+
   /**
    * A loaded segment's {@link QueryableIndex} for {@code dataSource} (any one — the schema is uniform across a
    * datasource's segments), or null if nothing is loaded. Range-served segments return a header-first index (its
