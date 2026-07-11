@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.java.util.common.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -407,14 +408,22 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                     @Override
                     public BitmapHolder filterFor(Query query, FilterContext context, String attachment, int limit)
                     {
-                      // limit <= 0 means unlimited -> all rows (numRows); Lucene needs numHits > 0.
-                      int effective = limit > 0 ? Math.min(limit, numRows) : numRows;
                       try {
+                        final IndexSearcher searcher = createIndexSearcher(reader);
                         final long _t0 = System.nanoTime();
-                        TopDocs docs = createIndexSearcher(reader).search(query, effective);   // top `limit` by score
+                        final ImmutableBitmap bitmap;
+                        if (limit <= 0 && attachment == null) {
+                          // pure filter/count: collect every match, NO scoring — skips the maxDoc-sized
+                          // TopScoreDocCollector heap + norms that dominated per-segment CPU on a wide filter.
+                          bitmap = Lucenes.collectAll(searcher, query, context);
+                        } else {
+                          // top `limit` by score (or scores requested via attachment): keep the scoring collector.
+                          final int effective = limit > 0 ? Math.min(limit, numRows) : numRows;
+                          bitmap = Lucenes.toBitmap(searcher.search(query, effective), context, attachment);
+                        }
                         io.druid.java.util.common.RangeProf.searchNanos.addAndGet(System.nanoTime() - _t0);
                         io.druid.java.util.common.RangeProf.searchCount.incrementAndGet();
-                        return BitmapHolder.exact(Lucenes.toBitmap(docs, context, attachment));
+                        return BitmapHolder.exact(bitmap);
                       } catch (IOException e) {
                         throw Throwables.propagate(e);
                       }

@@ -114,11 +114,16 @@ import org.apache.lucene.index.NoMergeScheduler;
 import org.apache.lucene.index.SlowCodecReaderWrapper;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.flexible.standard.config.PointsConfig;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.ScoreMode;
+import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.Weight;
 import org.apache.lucene.store.BaseDirectory;
 import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.store.Directory;
@@ -704,6 +709,33 @@ public class Lucenes
     writer.close();
     directory.close();
     return bout.toByteArray();
+  }
+
+  /**
+   * Collect ALL docs matching {@code query} into a bitmap WITHOUT scoring — the filter/count path. Iterates each
+   * segment's {@link Scorer} under {@link ScoreMode#COMPLETE_NO_SCORES}, so lucene skips the score computation, the
+   * norms reads, and (crucially) the maxDoc-sized {@code TopScoreDocCollector} priority queue that
+   * {@code search(query, numRows)} builds and prunes — which profiling showed was the dominant per-segment CPU cost
+   * of a wide filter. Use this whenever no score ranking is needed (unlimited filter, no scoreField).
+   */
+  public static ImmutableBitmap collectAll(IndexSearcher searcher, Query query, FilterContext context)
+      throws IOException
+  {
+    final BitmapFactory factory = context.bitmapFactory();
+    final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+    final Weight weight = searcher.createWeight(searcher.rewrite(query), ScoreMode.COMPLETE_NO_SCORES, 1f);
+    for (LeafReaderContext leaf : searcher.getIndexReader().leaves()) {
+      final Scorer scorer = weight.scorer(leaf);
+      if (scorer == null) {
+        continue;   // no match in this segment
+      }
+      final int base = leaf.docBase;
+      final DocIdSetIterator it = scorer.iterator();
+      for (int doc = it.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = it.nextDoc()) {
+        bitmap.add(base + doc);
+      }
+    }
+    return factory.makeImmutableBitmap(bitmap);
   }
 
   public static ImmutableBitmap toBitmap(TopDocs searched, FilterContext context, String scoreField)
