@@ -75,12 +75,21 @@ public class StreamQueryEngine
       final SessionCache cache
   )
   {
-    return QueryRunnerHelper.makeCursorBasedQueryConcat(
+    final Sequence<Object[]> sequence = QueryRunnerHelper.makeCursorBasedQueryConcat(
         segment,
         query,
         cache,
         processor(query, config, optimizer == null ? null : (MutableInt) optimizer.get())
     );
+    // Per-segment DISTINCT (context "dedup"): emit each projected row once so only distinct values flow up to the
+    // merge — the whole point vs a merge-only dedup, which would stream every matching row (millions for a wide
+    // lucene) across the network first. The merge then dedups again across segments. Set bounded by this segment's
+    // distinct count.
+    if (query.getContextBoolean("dedup", false)) {
+      final java.util.Set<java.util.List<Object>> seen = new java.util.HashSet<>();
+      return Sequences.filter(sequence, row -> seen.add(java.util.Arrays.asList(row.clone())));
+    }
+    return sequence;
   }
 
   public static Function<Cursor, Sequence<Object[]>> processor(

@@ -67,10 +67,22 @@ public class StreamQueryToolChest extends QueryToolChest<Object[]>
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         StreamQuery stream = (StreamQuery) query;
+        // Opt-in DISTINCT over the projected columns (context "dedup"): a set-based filter on the merged stream.
+        // The set is bounded by the limitSpec limit — a pull-based Sequence stops feeding the dedup once `limit`
+        // distinct rows have been emitted (so memory ~ limit, not the whole matching-row count). Used by the Trino
+        // connector to resolve e.g. distinct source_sha256 for a lucene filter WITHOUT the groupBy 500k merge cap.
+        final boolean dedup = query.getContextBoolean("dedup", false);
         if (BaseQuery.isBrokerSide(query)) {
-          return stream.applyLimit(queryRunner.run(query, responseContext));
+          Sequence<Object[]> sequence = queryRunner.run(query, responseContext);
+          if (dedup) {
+            sequence = dedup(sequence);
+          }
+          return stream.applyLimit(sequence);
         }
         Sequence<Object[]> sequence = queryRunner.run(query, responseContext);
+        if (dedup) {
+          sequence = dedup(sequence);
+        }
         LimitSpec limitSpec = stream.getLimitSpec();
         if (limitSpec.hasLimit()) {
           sequence = Sequences.limit(sequence, limitSpec.getLimit());
@@ -78,6 +90,15 @@ public class StreamQueryToolChest extends QueryToolChest<Object[]>
         return sequence;
       }
     };
+  }
+
+  // DISTINCT over the projected row: skip a row whose (copied) value tuple was already emitted. Keyed on the whole
+  // projected Object[], so the connector projects only the key column(s) it wants distinct. row.clone() because some
+  // stream paths reuse the row buffer.
+  private static Sequence<Object[]> dedup(Sequence<Object[]> sequence)
+  {
+    final java.util.Set<java.util.List<Object>> seen = new java.util.HashSet<>();
+    return Sequences.filter(sequence, row -> seen.add(java.util.Arrays.asList(row.clone())));
   }
 
   @Override
