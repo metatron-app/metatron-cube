@@ -62,19 +62,20 @@ Partial-fetch alone traded one bottleneck for another — see the numbers below.
 
 ## Results
 
-Identical query each time: `timeseries` count, `raw:daum.net`, full range, all 1670 range-served segments
-(`numThreads=8`). `cnt=144,481`. Times are summed thread-time; **wall** is the client-observed round trip.
+Identical query each time: `timeseries` count, `raw:daum.net`, full range, all 1670 range-served segments;
+`cnt=144,481` (unchanged across every row — a correctness check). All times are summed thread-time (fetch/open/search
+run on the processing threads); **wall** is the client-observed round trip; `fetch/get` is mean bytes per GET. Rows
+1–5 are `numThreads=8`; the last two are `numThreads=32` + `maxQueryParallelism=32` (see the fan-out section).
 
-All times are summed thread-time (fetch/open/search all run on the processing threads); **wall** is the
-client-observed round trip. `fetch/get` is the mean bytes per GET (`fetch bytes ÷ fetch GETs`).
-
-| version                     | fetch bytes | fetch GETs | fetch/get | fetch | open | search | searched | wall        |
-|-----------------------------|------------:|-----------:|----------:|------:|-----:|-------:|---------:|-------------|
-| whole-index fetch           |   57,723 MB |      2,414 |   24.5 MB |  456s | 2.7s |   (26s) |     1203 | 60s TIMEOUT |
-| partial, 16KB read-ahead    |    1,158 MB |     94,606 |   12.5 KB |  418s | 259s |   191s |     1528 | 60s TIMEOUT |
-| + coalesced (256KB + whole) |   10,495 MB |     61,844 |  173.6 KB |  343s | 300s |   126s |     1670 | 57.4s       |
-| + reader memoize — cold     |    5,862 MB |     34,057 |  176.2 KB |  205s | 158s |    80s |     1670 | 34.0s       |
-| + reader memoize — warm     |      732 MB |      2,932 |  255.7 KB |   18s |   0s |    54s |     1670 | 6.9s        |
+| version                        | fetch bytes | fetch GETs | fetch/get | fetch | open | search | searched | wall        |
+|--------------------------------|------------:|-----------:|----------:|------:|-----:|-------:|---------:|-------------|
+| whole-index fetch              |   57,723 MB |      2,414 |   24.5 MB |  456s | 2.7s |   (26s) |     1203 | 60s TIMEOUT |
+| partial, 16KB read-ahead       |    1,158 MB |     94,606 |   12.5 KB |  418s | 259s |   191s |     1528 | 60s TIMEOUT |
+| + coalesced (256KB + whole)    |   10,495 MB |     61,844 |  173.6 KB |  343s | 300s |   126s |     1670 | 57.4s       |
+| + reader memoize — cold        |    5,862 MB |     34,057 |  176.2 KB |  205s | 158s |    80s |     1670 | 34.0s       |
+| + reader memoize — warm        |      732 MB |      2,932 |  255.7 KB |   18s |   0s |    54s |     1670 | 6.9s        |
+| + 64KB + non-score + par32 — cold |  4,485 MB |     34,046 |  134.9 KB |  236s | 188s |    19s |     1670 | **8.4s**    |
+| + 64KB + non-score + par32 — warm |    182 MB |      2,921 |   63.8 KB |   13s |   0s |    14s |     1670 | **0.58s**   |
 
 Reading the arc:
 
@@ -101,29 +102,46 @@ Retuning **256KB → 64KB** confirmed it: **identical GET count** (warm 2,942 �
 flat (warm 6.9s → 6.2s) — as expected, since fetch time isn't the bottleneck (see below). 64KB is the keeper: same
 GETs, far less over-fetch and resident memory.
 
-### Adding cores does NOT help — it's I/O-latency-bound, not CPU-bound
+### Adding cores didn't help — until two hidden blockers were removed
 
-Bumping the standalone 8 → 32 processing threads (pod 8 → 40 cores) barely moved wall (cold 34.0s → 32.3s, warm 6.9s
-→ 6.2s) and left summed thread-time essentially unchanged (cold 443s → 419s) — the extra threads went unused. The
-tell: **CPU was near-idle (~10 millicores) during queries.** If the 63s warm thread-time were compute, CPU would peg
-~10 cores; it didn't, so that time is **I/O wait**, and the query fans out to only ~10× concurrency regardless of
-`numThreads`.
+First attempt: bumping the standalone 8 → 32 processing threads (pod 8 → 40 cores) barely moved wall (cold 34.0s →
+32.3s, warm 6.9s → 6.2s) and left summed thread-time flat — the extra threads went unused. A thread dump during a
+query showed why: of the 32 processing threads, **only ~8 were active; ~24 were parked in `ThreadPoolExecutor.getTask`
+(empty work queue)**, and the active ones were burning CPU in `TopScoreDocCollector.pruneLeastCompetitiveHitsTo`. Two
+independent blockers:
 
-Caveat on the prof numbers: the `search` counter wraps `IndexSearcher.search()`, which *lazily* range-reads the
-term's `.tim` block + `.doc` postings **inside** the call — so `search` time includes those nested GETs (it
-double-counts with `fetch`, and is mostly I/O wait, not the term/postings compute its name implies). So the real
-warm bottleneck is the per-term postings-GET round trips, serialized within each segment's search, across only ~10
-concurrent segments. More cores can't help an I/O-bound query that isn't fanning out; the levers are I/O concurrency
-(why only ~10×?), fewer segments, or coalescing the `.tim`+`.doc` reads.
+1. **Fan-out capped at 8** — `QueryConfig.maxQueryParallelism` defaults to 8, and `QueryRunners` dispatches at most
+   `min(runners, maxQueryParallelism)` segments concurrently. So `numThreads=32` never mattered; only 8 segments ran
+   at once. Fix: `druid.query.maxQueryParallelism=32` on the standalone.
+2. **Wasted scoring** — `filterFor` called `search(query, numRows)`, building a `TopScoreDocCollector` priority queue
+   sized to the segment's maxDoc (~millions) and *scoring + ranking every match* — pure waste for a filter/count that
+   only needs the matching doc-id bitmap. Fix: when no ranking is needed (unlimited filter, no `scoreField`), collect
+   via a `Scorer` under `ScoreMode.COMPLETE_NO_SCORES` straight into the bitmap (`Lucenes.collectAll`) — no heap, no
+   norms, no scoring. Score-bearing queries (a `scoreField` set, or a `limit>0` top-K) keep the original scoring path.
+   (The near-idle `~10m` CPU that earlier suggested "I/O-bound" was a metrics-server sampling artifact — the thread
+   dump caught the threads mid-scoring; the work was CPU, throttled to ~8 lanes by the fan-out cap.)
 
-Net: a full-range lucene scan that **never completed** now returns in **6.2s warm / 32s cold** (64KB window).
+With both removed, cores finally paid off: **cold 32s → 8.4s, warm 6.2s → 0.58s.** Non-scoring cut warm `search`
+thread-time 54s → 14s; parallelism let it divide across all 32 threads (warm 27s thread-time / 0.58s wall ≈ 46×, cold
+443s / 8.4s ≈ 53× — better than 32× because I/O waits overlap). Same `cnt=144,481`, so the non-scoring collector is
+bit-identical to the scoring one.
+
+Prof caveat: the `search` counter wraps `IndexSearcher` work, which *lazily* range-reads the `.tim` block + `.doc`
+postings **inside** the call — so `search` still nests some GET time (double-counting with `fetch`). It's no longer
+the bottleneck, so this is now immaterial.
+
+Net: a full-range lucene scan that **never completed** now returns in **0.58s warm / 8.4s cold**.
 
 ## Remaining levers
 
-- **Fewer, larger segments** (merge 1670 → hundreds): the per-segment search setup is a multiplier, so this attacks
-  the warm search floor directly.
-- **Non-scoring filter search**: `filterFor` currently `search(query, numRows)` which scores; a count/filter needs
-  no score, so a non-scoring collector would cut the warm search cost.
+- **Cold `open` (42% of the 8.4s cold path)**: the per-segment first touch — range-fetching the `.tip` term index +
+  parsing the index structure — paid once per segment. Warm eliminates it (reader memoized), so it only bites the
+  first query after a (re)deploy or eviction. Prefetching / a smaller `.tip` footprint would help cold.
+- **Fewer, larger segments** (merge 1670 → hundreds): the per-segment open + first-touch fetch is a multiplier, so
+  merging attacks the cold floor directly (and shrinks the warm search setup).
+
+Done here: partial-fetch, GET coalescing, 64KB window, reader memoization, non-scoring filter collector, and lifting
+the `maxQueryParallelism` fan-out cap.
 
 ## Files
 
