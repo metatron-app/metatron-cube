@@ -120,6 +120,7 @@ public class CliStandaloneHistorical extends ServerRunnable
             Jerseys.addResource(binder, SegmentListerResource.class);
             Jerseys.addResource(binder, io.druid.server.http.DataSourceSchemaResource.class);
             Jerseys.addResource(binder, io.druid.server.http.CatalogResource.class);
+            Jerseys.addResource(binder, io.druid.server.http.ResolveResource.class);
             LifecycleModule.register(binder, QueryResource.class);
 
             // Force NoopServiceDiscovery: CuratorDiscoveryConfig.useDiscovery() is path != null and the path
