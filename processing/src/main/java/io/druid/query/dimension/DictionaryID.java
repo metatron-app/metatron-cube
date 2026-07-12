@@ -37,6 +37,7 @@ import org.roaringbitmap.IntIterator;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 import java.util.stream.LongStream;
 
@@ -128,7 +129,21 @@ public interface DictionaryID
     }));
   }
 
-  static LongSupplier keys(DimensionSelector[] selectors, int[] cardinalities, int[] shifts)
+  static IntSupplier ikeys(DimensionSelector[] selectors, int[] shifts)
+  {
+    if (selectors.length == 1) {
+      return () -> selectors[0].getRow().get(0) << shifts[0];
+    }
+    return () -> {
+      int keys = 0;
+      for (int i = 0; i < selectors.length; i++) {
+        keys += selectors[i].getRow().get(0) << shifts[i];
+      }
+      return keys;
+    };
+  }
+
+  static LongSupplier keys(DimensionSelector[] selectors, int[] shifts)
   {
     if (selectors.length == 1) {
       return () -> (long) selectors[0].getRow().get(0) << shifts[0];

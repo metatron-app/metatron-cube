@@ -51,14 +51,14 @@ import io.druid.segment.ScanContext;
 import io.druid.segment.Segment;
 import io.druid.utils.HeapSort;
 import it.unimi.dsi.fastutil.ints.IntComparator;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import org.apache.commons.lang.mutable.MutableInt;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.PriorityQueue;
-import java.util.Queue;
+import java.util.*;
+import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 
 /**
@@ -75,21 +75,39 @@ public class StreamQueryEngine
       final SessionCache cache
   )
   {
-    final Sequence<Object[]> sequence = QueryRunnerHelper.makeCursorBasedQueryConcat(
+    // Per-segment DISTINCT (context "dedup") is applied inside processor() per cursor: the dict-ID fast path for
+    // all-dimension projections, else a naive set fallback. Either way only distinct rows flow up to the merge (which
+    // dedups again across segments), rather than streaming every matching row (millions for a wide lucene) first.
+    return QueryRunnerHelper.makeCursorBasedQueryConcat(
         segment,
         query,
         cache,
         processor(query, config, optimizer == null ? null : (MutableInt) optimizer.get())
     );
-    // Per-segment DISTINCT (context "dedup"): emit each projected row once so only distinct values flow up to the
-    // merge — the whole point vs a merge-only dedup, which would stream every matching row (millions for a wide
-    // lucene) across the network first. The merge then dedups again across segments. Set bounded by this segment's
-    // distinct count.
-    if (query.getContextBoolean("dedup", false)) {
-      final java.util.Set<java.util.List<Object>> seen = new java.util.HashSet<>();
-      return Sequences.filter(sequence, row -> seen.add(java.util.Arrays.asList(row.clone())));
-    }
-    return sequence;
+  }
+
+  // Shared iterator for the dedup fast-path: pull rows from `advance` (which returns null at end) as a Sequence.
+  // Lets the int- and long-keyed dedup paths supply only their advance() logic, not the iterator boilerplate.
+  private static Sequence<Object[]> dedup(List<String> columns, Supplier<Object[]> advance)
+  {
+    return Sequences.once(columns, new Iterator<Object[]>()
+    {
+      private Object[] current = advance.get();
+
+      @Override
+      public boolean hasNext()
+      {
+        return current != null;
+      }
+
+      @Override
+      public Object[] next()
+      {
+        final Object[] result = current;
+        current = advance.get();
+        return result;
+      }
+    });
   }
 
   public static Function<Cursor, Sequence<Object[]>> processor(
@@ -107,6 +125,8 @@ public class StreamQueryEngine
       private final boolean useRawUTF8 = config.useUTF8(query);
       private final String concatString = query.getConcatString();
 
+      private final boolean dedup = query.getContextBoolean("dedup", false);
+
       @Override
       public Sequence<Object[]> apply(Cursor source)
       {
@@ -114,7 +134,7 @@ public class StreamQueryEngine
 
         final ScanContext context = source.scanContext();
         final int numRows = context.awareTargetRows() ? context.count() : context.numRows();
-        final List<String> orderingColumns = Lists.newArrayList(Iterables.transform(orderings, o -> o.getDimension()));
+        final List<String> orderingColumns = Lists.newArrayList(Iterables.transform(orderings, OrderByColumnSpec::getDimension));
 
         boolean optimizeOrdering = !orderingColumns.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings);
         final DimensionSelector[] dimensions = new DimensionSelector[columns.length];
@@ -248,6 +268,52 @@ public class StreamQueryEngine
               query.getColumns(), Iterators.transform(sorted, key -> values.get(key[orders.length]))
           );
         }
+        // dict-ID dedup fast path: pack the dict IDs of the projected dimensions into a key and set-dedup on it.
+        // Non-dimension columns (metric/__time/expression/multi-valued) are null in dimensions[] — filter them out;
+        // they ride along in the emitted row but don't participate in the key (dedup is dimension-only by design).
+        final DimensionSelector[] filtered = Arrays.stream(dimensions).filter(Objects::nonNull).toArray(DimensionSelector[]::new);
+        if (dedup && filtered.length > 0 && orderings.isEmpty()) {
+          final int[] cardinalities = Arrays.stream(filtered).mapToInt(DimensionSelector::getValueCardinality).toArray();
+          final int[] bits = DictionaryID.bitsRequired(cardinalities);
+          if (numRows > 0 && bits != null) {
+            final int keyBits = Arrays.stream(bits).sum();
+            final int[] shifts = DictionaryID.bitsToShifts(bits);
+            final int limit = query.getSimpleLimit();
+            // the dedup key packs the dimensions' dict IDs; take an int set when it fits in 32 bits, else a long set.
+            // only advance() differs (getAsInt vs getAsLong); the iterator boilerplate is shared via dedup().
+            if (keyBits < Integer.SIZE) {
+              final IntSet set = new IntOpenHashSet(numRows);
+              final IntSupplier supplier = DictionaryID.ikeys(filtered, shifts);
+              return dedup(query.getColumns(), () -> {
+                while (!cursor.isDone() && (limit <= 0 || counter.intValue() < limit)) {
+                  if (set.add(supplier.getAsInt())) {
+                    final Object[] value = values(selectors);
+                    counter.increment();
+                    cursor.advance();
+                    return value;
+                  }
+                  cursor.advance();
+                }
+                return null;
+              });
+            } else if (keyBits < Long.SIZE) {
+              final LongSet set = new LongOpenHashSet(numRows);
+              final LongSupplier supplier = DictionaryID.keys(filtered, shifts);
+              return dedup(query.getColumns(), () -> {
+                while (!cursor.isDone() && (limit <= 0 || counter.intValue() < limit)) {
+                  if (set.add(supplier.getAsLong())) {
+                    final Object[] value = values(selectors);
+                    counter.increment();
+                    cursor.advance();
+                    return value;
+                  }
+                  cursor.advance();
+                }
+                return null;
+              });
+            }
+          }
+        }
 
         final int limit = orderings.isEmpty() ? query.getSimpleLimit() : -1;
         Sequence<Object[]> sequence = Sequences.once(
@@ -278,6 +344,10 @@ public class StreamQueryEngine
         if (!orderings.isEmpty()) {
           sequence = LimitSpec.sortLimit(sequence, query.getMergeOrdering(sequence.columns()), -1);
         }
+        // No per-segment dedup here when the dict-ID fast path above didn't apply (no dimension in the projection, or
+        // a >=64-bit key): stream the rows as-is and let the merge-level dedup (StreamQueryToolChest) collapse them.
+        // The merge dedups on MATERIALIZED values, so it is correct even for raw-UTF8 columns — unlike a naive
+        // per-segment set over the reused raw buffers, which mis-collapses by identity.
         return sequence;
       }
     };
@@ -314,7 +384,7 @@ public class StreamQueryEngine
 
   private static IntComparator comparator(Direction direction)
   {
-    return direction == Direction.ASCENDING ? ((l, r) -> Integer.compare(l, r)) : ((l, r) -> Integer.compare(r, l));
+    return direction == Direction.ASCENDING ? (Integer::compare) : ((l, r) -> Integer.compare(r, l));
   }
 
   private static long flip(long a)
@@ -325,7 +395,7 @@ public class StreamQueryEngine
   private static LongSupplier keys(DimensionSelector[] selectors, Direction[] directions, int[] cardinalities, int[] shifts)
   {
     if (Arrays.stream(directions).allMatch(d -> d == Direction.ASCENDING)) {
-      return DictionaryID.keys(selectors, cardinalities, shifts);
+      return DictionaryID.keys(selectors, shifts);
     }
     return () -> {
       long keys = 0;

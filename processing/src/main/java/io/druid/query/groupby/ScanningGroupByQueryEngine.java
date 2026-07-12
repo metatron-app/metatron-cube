@@ -97,7 +97,7 @@ public class ScanningGroupByQueryEngine
 
     if (rowBits < Integer.SIZE && keyBits + rowBits < Long.SIZE) {
       final LongList list = new LongArrayList();
-      final LongSupplier supplier = DictionaryID.keys(selectors, cardinalities, shifts);
+      final LongSupplier supplier = DictionaryID.keys(selectors, shifts);
       for (; !cursor.isDone(); cursor.advance()) {
         list.add((supplier.getAsLong() << rowBits) + cursor.offset());
       }
