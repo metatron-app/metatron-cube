@@ -170,7 +170,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
             // tokens yields MatchNoDocs rather than a match-all.
             Query phrase = new QueryBuilder(Lucenes.createAnalyzer(analyzer))
                 .createPhraseQuery(luceneField.getKey(), expression);
-            query = phrase == null ? new MatchNoDocsQuery() : phrase;
+            query = phrase == null ? new MatchNoDocsQuery(expression) : phrase;
           } else {
             StandardQueryParser parser = new StandardQueryParser(Lucenes.createAnalyzer(analyzer));
             parser.setAllowLeadingWildcard(true);   // permit *term* substring queries
