@@ -184,7 +184,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[]>
       @Override
       protected Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)
       {
-        return StreamQueryEngine.processor((StreamQuery) query, segmentWalker.getConfig(), new MutableInt());
+        return StreamQueryEngine.processor((StreamQuery) query, segmentWalker.getConfig(), new StreamQueryEngine.StreamContext(false));
       }
 
       @Override

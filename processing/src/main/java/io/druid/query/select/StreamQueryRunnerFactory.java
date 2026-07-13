@@ -74,7 +74,11 @@ public class StreamQueryRunnerFactory
       ExecutorService exec
   )
   {
-    return Suppliers.ofInstance(new MutableInt(0));
+    // one StreamContext shared by all of this query's segment runners: the global limit counter, plus a concurrent
+    // DISTINCT set when "dedup" is on (no ordering) so the cross-segment dedup runs in the parallel producers.
+    StreamQuery stream = (StreamQuery) query;
+    boolean parallelDedup = stream.getContextBoolean("dedup", false) && GuavaUtils.isNullOrEmpty(stream.getOrderingSpecs());
+    return Suppliers.ofInstance(new StreamQueryEngine.StreamContext(parallelDedup));
   }
 
   private static final int SPLIT_MIN_ROWS = 8192;

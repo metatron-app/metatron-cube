@@ -75,15 +75,26 @@ public class StreamQueryEngine
       final SessionCache cache
   )
   {
-    // Per-segment DISTINCT (context "dedup") is applied inside processor() per cursor: the dict-ID fast path for
-    // all-dimension projections, else a naive set fallback. Either way only distinct rows flow up to the merge (which
-    // dedups again across segments), rather than streaming every matching row (millions for a wide lucene) first.
-    return QueryRunnerHelper.makeCursorBasedQueryConcat(
-        segment,
-        query,
-        cache,
-        processor(query, config, optimizer == null ? null : (MutableInt) optimizer.get())
-    );
+    // DISTINCT (context "dedup"): the dict-ID fast path in processor() collapses within-segment dupes cheaply, then
+    // checks a query-wide CONCURRENT set (StreamContext.global, shared across the parallel segment runners) to dedup
+    // VALUES across segments right here in the producers — so the cross-segment DISTINCT is W-way parallel instead of a
+    // single-threaded merge. Only distinct rows flow up; the merge just concatenates them.
+    final StreamContext context = optimizer == null ? new StreamContext(false) : (StreamContext) optimizer.get();
+    return QueryRunnerHelper.makeCursorBasedQueryConcat(segment, query, cache, processor(query, config, context));
+  }
+
+  // Shared across a query's parallel segment runners (created once in StreamQueryRunnerFactory.preFactoring): the
+  // global row counter that bounds the limit, and — for parallel DISTINCT — a concurrent set that dedups values across
+  // segments in the producers, removing the single-threaded merge-dedup bottleneck.
+  public static final class StreamContext
+  {
+    public final MutableInt counter = new MutableInt(0);
+    public final Set<Object> global;
+
+    public StreamContext(boolean parallelDedup)
+    {
+      global = parallelDedup ? java.util.concurrent.ConcurrentHashMap.newKeySet() : null;
+    }
   }
 
   // Shared iterator for the dedup fast-path: pull rows from `advance` (which returns null at end) as a Sequence.
@@ -113,9 +124,11 @@ public class StreamQueryEngine
   public static Function<Cursor, Sequence<Object[]>> processor(
       final StreamQuery query,
       final QueryConfig config,
-      final MutableInt counter
+      final StreamContext context
   )
   {
+    final MutableInt counter = context.counter;   // query-wide: bounds the limit across all segment runners
+    final Set<Object> global = context.global;    // query-wide DISTINCT set (null unless parallel dedup)
     return new Function<Cursor, Sequence<Object[]>>()
     {
       private final TableFunctionSpec tableFunction = query.getTableFunction();
@@ -279,6 +292,9 @@ public class StreamQueryEngine
             final int keyBits = Arrays.stream(bits).sum();
             final int[] shifts = DictionaryID.bitsToShifts(bits);
             final int limit = query.getSimpleLimit();
+            // value-equality key over the dedup dimensions (decoded strings, consistent across segments) used to dedup
+            // globally; only computed for rows that survive the per-segment dict-ID set, and only when parallel.
+            final Supplier<Object> globalKey = global == null ? null : globalKey(filtered);
             // the dedup key packs the dimensions' dict IDs; take an int set when it fits in 32 bits, else a long set.
             // only advance() differs (getAsInt vs getAsLong); the iterator boilerplate is shared via dedup().
             if (keyBits < Integer.SIZE) {
@@ -286,7 +302,8 @@ public class StreamQueryEngine
               final IntSupplier supplier = DictionaryID.ikeys(filtered, shifts);
               return dedup(query.getColumns(), () -> {
                 while (!cursor.isDone() && (limit <= 0 || counter.intValue() < limit)) {
-                  if (set.add(supplier.getAsInt())) {
+                  // per-segment dedup first (cheap dict IDs), then the query-wide value dedup across segments
+                  if (set.add(supplier.getAsInt()) && (globalKey == null || global.add(globalKey.get()))) {
                     final Object[] value = values(selectors);
                     counter.increment();
                     cursor.advance();
@@ -301,7 +318,7 @@ public class StreamQueryEngine
               final LongSupplier supplier = DictionaryID.keys(filtered, shifts);
               return dedup(query.getColumns(), () -> {
                 while (!cursor.isDone() && (limit <= 0 || counter.intValue() < limit)) {
-                  if (set.add(supplier.getAsLong())) {
+                  if (set.add(supplier.getAsLong()) && (globalKey == null || global.add(globalKey.get()))) {
                     final Object[] value = values(selectors);
                     counter.increment();
                     cursor.advance();
@@ -360,6 +377,23 @@ public class StreamQueryEngine
       value[i] = selectors[i] == null ? null : selectors[i].get();
     }
     return value;
+  }
+
+  // A value-equality key over the dedup dimensions, decoded to strings so it is consistent ACROSS segments (per-segment
+  // dict IDs differ for the same value; a raw-UTF8 byte[] would compare by identity). Read at the cursor's current row.
+  private static Supplier<Object> globalKey(final DimensionSelector[] dims)
+  {
+    if (dims.length == 1) {
+      final DimensionSelector d = dims[0];
+      return () -> d.lookupName(d.getRow().get(0));
+    }
+    return () -> {
+      final List<Object> key = new ArrayList<>(dims.length);
+      for (DimensionSelector d : dims) {
+        key.add(d.lookupName(d.getRow().get(0)));
+      }
+      return key;
+    };
   }
 
   private static Comparator<int[]> comparator(Direction[] directions)
