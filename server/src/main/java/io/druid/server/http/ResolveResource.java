@@ -20,49 +20,54 @@
 package io.druid.server.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.data.input.Row;
 import io.druid.guice.annotations.Json;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.server.QueryManager;
+import io.druid.server.QueryStats;
+import io.druid.server.RequestLogLine;
+import io.druid.server.log.RequestLogger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The "resolve" endpoint the Trino connector uses Druid as a secondary INDEX: given a filter (typically a lucene
  * query on {@code raw}) it returns the DISTINCT values of a key column (e.g. {@code source_sha256}) for injection as
- * a {@code key IN (...)} predicate on the source table, and/or the {@code __time} span of the matches for iceberg
- * partition pruning. The connector sends intent; the server picks the query shape.
+ * a {@code key IN (...)} predicate on the source table. To also prune the source table's time partitions, ask for the
+ * {@code __time} column alongside the key ({@code "key":["source_sha256","__time"]}): the source is 1:1 on
+ * (source_sha256, timestamp_trigger), so each returned pair carries that key's exact time — no separate time-bounds
+ * aggregation (a second full scan) needed.
  *
  * <pre>POST /druid/v2/resolve
  * { "dataSource":"atom_credential",
  *   "filter":{"type":"lucene.query","field":"raw","expression":"naver*"},
- *   "key":"source_sha256",          // optional: distinct values of this column
+ *   "key":"source_sha256",          // or ["source_sha256","__time"] for (key, time) tuples
  *   "interval":["2026-04-20T00:00:00Z","2026-07-10T00:00:00Z"],  // optional
- *   "limit":100000,                 // optional cap; capped=true if the distinct count reaches it
- *   "timeBounds":true }             // optional (default true): also return min/max __time
- * -> { "dataSource":..., "key":"source_sha256", "count":2046, "capped":false, "values":[...],
- *      "timeBounds":["2026-04-20T04:00:00.000Z","2026-07-09T00:00:00.000Z"] }</pre>
+ *   "limit":100000 }                // optional cap; capped=true if the distinct count reaches it
+ * -> { "dataSource":..., "key":"source_sha256", "count":2046, "capped":false, "values":[...] }</pre>
  *
- * Distinct keys use a parallel, non-scoring select.stream with per-segment dedup (context {@code dedup}); time bounds
- * use a timeseries {@code longMin}/{@code longMax} over {@code __time}. Both keep the fast lucene path and avoid the
- * groupBy 500k merge cap.
+ * Distinct keys use a parallel select.stream with dedup done in the producers (context {@code dedup}): one lucene scan,
+ * W-way parallel DISTINCT, keeps the fast lucene path and avoids the groupBy 500k merge cap.
  */
 @Path("/druid/v2/resolve")
 public class ResolveResource
@@ -73,21 +78,29 @@ public class ResolveResource
 
   private final QuerySegmentWalker walker;
   private final QueryManager queryManager;
+  private final RequestLogger requestLogger;
   private final ObjectMapper mapper;
 
   @Inject
-  public ResolveResource(QuerySegmentWalker walker, QueryManager queryManager, @Json ObjectMapper mapper)
+  public ResolveResource(
+      QuerySegmentWalker walker,
+      QueryManager queryManager,
+      RequestLogger requestLogger,
+      @Json ObjectMapper mapper
+  )
   {
     this.walker = walker;
     this.queryManager = queryManager;
+    this.requestLogger = requestLogger;
     this.mapper = mapper;
   }
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
-  public Response resolve(Map<String, Object> request)
+  public Response resolve(Map<String, Object> request, @Context HttpServletRequest req)
   {
+    final String remoteAddr = req == null ? "" : Strings.nullToEmpty(req.getRemoteAddr());
     final String dataSource = (String) request.get("dataSource");
     if (dataSource == null) {
       return Response.status(Response.Status.BAD_REQUEST)
@@ -97,7 +110,6 @@ public class ResolveResource
     final Object keyObj = request.get("key");
     final List<String> keyColumns = keyColumnsOf(keyObj);   // "source_sha256" or ["source_sha256","__time"]
     final int limit = request.get("limit") instanceof Number ? ((Number) request.get("limit")).intValue() : DEFAULT_LIMIT;
-    final boolean wantTimeBounds = Boolean.TRUE.equals(request.get("timeBounds"));   // opt-in
     final Object interval = request.get("interval");
     final List<String> intervals = Lists.newArrayList(intervalOf(interval));
 
@@ -106,7 +118,7 @@ public class ResolveResource
     // Distinct keys — the core; its failure IS the resolve's failure (nothing useful without them).
     if (keyColumns != null && !keyColumns.isEmpty()) {
       try {
-        final List<Object[]> rows = run(streamQuery(dataSource, intervals, filter, keyColumns, limit));
+        final List<Object[]> rows = run(streamQuery(dataSource, intervals, filter, keyColumns, limit), remoteAddr);
         final boolean scalar = keyColumns.size() == 1;   // single key -> flat values; multiple -> tuples
         final List<Object> values = Lists.newArrayListWithCapacity(rows.size());
         for (Object[] row : rows) {
@@ -120,22 +132,6 @@ public class ResolveResource
       catch (Exception e) {
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                        .entity(ImmutableMap.of("error", String.valueOf(e.getMessage()))).build();
-      }
-    }
-    // Time bounds — best-effort, fully isolated: a failure only omits them (+ a note), never drops the keys.
-    if (wantTimeBounds) {
-      try {
-        final List<Row> rows = run(timeBoundsQuery(dataSource, intervals, filter));
-        if (!rows.isEmpty()) {
-          final Long min = asLong(rows.get(0).getRaw("minTime"));
-          final Long max = asLong(rows.get(0).getRaw("maxTime"));
-          if (min != null && max != null) {
-            out.put("timeBounds", Lists.newArrayList(iso(min), iso(max)));
-          }
-        }
-      }
-      catch (Exception e) {
-        out.put("timeBoundsError", String.valueOf(e.getMessage()));
       }
     }
     return Response.ok(out).build();
@@ -165,60 +161,53 @@ public class ResolveResource
     return q;
   }
 
-  private Map<String, Object> timeBoundsQuery(String ds, List<String> intervals, Object filter)
-  {
-    final Map<String, Object> q = Maps.newLinkedHashMap();
-    q.put("queryType", "timeseries");
-    q.put("dataSource", ds);
-    q.put("intervals", intervals);
-    q.put("granularity", "all");
-    if (filter != null) {
-      q.put("filter", filter);
-    }
-    q.put("aggregations", Lists.newArrayList(
-        ImmutableMap.of("type", "longMin", "name", "minTime", "fieldName", "__time"),
-        ImmutableMap.of("type", "longMax", "name", "maxTime", "fieldName", "__time")
-    ));
-    // finalize=false: longMin/longMax finalize to an OptionalLong which the direct-historical merge chokes on
-    // ("OptionalLong cannot be cast to Number"); the unfinalized value is a plain long we read directly.
-    q.put("context", ImmutableMap.of("timeout", TIMEOUT_MS, "queryId", newId(), "finalize", false));
-    return q;
-  }
-
   @SuppressWarnings("unchecked")
-  private <T> List<T> run(Map<String, Object> queryMap)
+  private <T> List<T> run(Map<String, Object> queryMap, String remoteAddr)
   {
     final Query<T> query = (Query<T>) mapper.convertValue(queryMap, Query.class);
     // Register with the QueryManager so it gets a SessionCache (queries run outside the normal QueryResource path
     // otherwise NPE on QueryWatcher.getSessionCache) + a cancellation handle; unregister when done.
     queryManager.register(query, SettableFuture.create(), null);
+    final long startNs = System.nanoTime();
+    final long startMs = System.currentTimeMillis();
+    Throwable error = null;
+    List<T> rows = null;
     try {
-      final Sequence<T> sequence = query.run(walker, Maps.newHashMap());
-      return Sequences.toList(sequence);
+      rows = Sequences.toList(query.run(walker, Maps.newHashMap()));
+      return rows;
+    }
+    catch (Throwable t) {
+      error = t;
+      throw t;
     }
     finally {
       queryManager.unregister(query, null);
+      // Log to the RequestLogger like the normal query path, since these queries bypass QueryResource/QueryLifecycle.
+      log(query, remoteAddr, startMs, startNs, rows == null ? -1 : rows.size(), error);
+    }
+  }
+
+  private void log(Query<?> query, String remoteAddr, long startMs, long startNs, int rows, Throwable e)
+  {
+    try {
+      final Map<String, Object> stats = Maps.newLinkedHashMap();
+      stats.put("success", e == null);
+      stats.put("query/time", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs));
+      stats.put("query/rows", rows);
+      stats.put("query/bytes", -1);
+      if (e != null) {
+        stats.put("exception", String.valueOf(e));
+      }
+      requestLogger.log(new RequestLogLine(new DateTime(startMs, DateTimeZone.UTC), remoteAddr, query, new QueryStats(stats)));
+    }
+    catch (Exception ignore) {
+      // logging must never break the response
     }
   }
 
   private static String newId()
   {
     return "resolve-" + java.util.UUID.randomUUID();
-  }
-
-  // longMin/longMax return an OptionalLong (empty when no matching rows); also tolerate a plain Number.
-  private static Long asLong(Object v)
-  {
-    if (v instanceof java.util.OptionalLong) {
-      final java.util.OptionalLong o = (java.util.OptionalLong) v;
-      return o.isPresent() ? o.getAsLong() : null;
-    }
-    return v instanceof Number ? ((Number) v).longValue() : null;
-  }
-
-  private static String iso(long millis)
-  {
-    return new DateTime(millis, DateTimeZone.UTC).toString();
   }
 
   private static String intervalOf(Object interval)
