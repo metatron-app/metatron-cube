@@ -671,12 +671,15 @@ public abstract class AggregatorFactory implements Cacheable
         }
         GenericColumn generic = column.getGenericColumn();
         try {
+          // min/max evaluate to an OptionalLong/OptionalDouble (LongStream.min() etc.); unwrap to a plain Number so the
+          // constant value survives the downstream combiner (which casts to Number) — an OptionalLong there fails with
+          // "OptionalLong cannot be cast to Number", notably on a directly-queried historical (no broker to finalize).
           if (generic instanceof LongType) {
-            return AggregatorFactory.constant(this, evaluate(((LongType) generic).stream(context.iterator())));
+            return AggregatorFactory.constant(this, unwrapOptional(evaluate(((LongType) generic).stream(context.iterator()))));
           } else if (generic instanceof FloatType) {
-            return AggregatorFactory.constant(this, evaluate(((FloatType) generic).stream(context.iterator())));
+            return AggregatorFactory.constant(this, unwrapOptional(evaluate(((FloatType) generic).stream(context.iterator()))));
           } else if (generic instanceof DoubleType) {
-            return AggregatorFactory.constant(this, evaluate(((DoubleType) generic).stream(context.iterator())));
+            return AggregatorFactory.constant(this, unwrapOptional(evaluate(((DoubleType) generic).stream(context.iterator()))));
           }
         }
         finally {
@@ -689,6 +692,25 @@ public abstract class AggregatorFactory implements Cacheable
     protected abstract Object evaluate(LongStream stream);
 
     protected abstract Object evaluate(DoubleStream stream);
+
+    // an empty Optional (no rows) -> null; a present one -> its boxed value; anything else (a plain Number from sum
+    // etc.) -> unchanged. Keeps the constant value a Number for the combiner.
+    private static Object unwrapOptional(Object value)
+    {
+      if (value instanceof java.util.OptionalLong) {
+        java.util.OptionalLong o = (java.util.OptionalLong) value;
+        return o.isPresent() ? o.getAsLong() : null;
+      }
+      if (value instanceof java.util.OptionalDouble) {
+        java.util.OptionalDouble o = (java.util.OptionalDouble) value;
+        return o.isPresent() ? o.getAsDouble() : null;
+      }
+      if (value instanceof java.util.OptionalInt) {
+        java.util.OptionalInt o = (java.util.OptionalInt) value;
+        return o.isPresent() ? o.getAsInt() : null;
+      }
+      return value;
+    }
   }
 
   public static PostAggregator asFinalizer(final String outputName, final AggregatorFactory factory)
