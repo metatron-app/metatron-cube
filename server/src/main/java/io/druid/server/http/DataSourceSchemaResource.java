@@ -29,12 +29,15 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.server.coordination.ServerManager;
 import io.druid.server.coordination.StandaloneCatalogConfig;
+import io.druid.server.security.AuthConfig;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.List;
@@ -68,8 +71,13 @@ public class DataSourceSchemaResource
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getSchema(@PathParam("dataSourceName") String dataSourceName)
+  public Response getSchema(@PathParam("dataSourceName") String dataSourceName, @Context HttpServletRequest req)
   {
+    // internal, network-gated endpoint with no per-datasource authz — mark checked so the response filter
+    // (PreResponseAuthorizationCheckFilter) doesn't WARN on every call.
+    if (req != null) {
+      req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    }
     final QueryableIndex index = serverManager.getRepresentativeIndex(dataSourceName);
     if (index == null) {
       return Response.status(Response.Status.NOT_FOUND)

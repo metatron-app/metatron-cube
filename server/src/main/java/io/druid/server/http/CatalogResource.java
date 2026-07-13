@@ -23,12 +23,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.server.coordination.ServerManager;
 import io.druid.server.coordination.StandaloneCatalogConfig;
+import io.druid.server.security.AuthConfig;
 import org.joda.time.Interval;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.Arrays;
@@ -58,8 +61,13 @@ public class CatalogResource
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getCatalog()
+  public Response getCatalog(@Context HttpServletRequest req)
   {
+    // internal, network-gated endpoint with no per-datasource authz — mark checked so the response filter
+    // (PreResponseAuthorizationCheckFilter) doesn't WARN on every call.
+    if (req != null) {
+      req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    }
     final Map<String, String> sourceTables = config.getSourceTables();
     final List<Map<String, Object>> entries = Lists.newArrayList();
     for (String dataSource : serverManager.getLoadedDataSources()) {

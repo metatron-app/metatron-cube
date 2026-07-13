@@ -24,7 +24,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.guice.annotations.Json;
 import com.google.common.util.concurrent.SettableFuture;
@@ -33,7 +32,9 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.server.QueryManager;
 import io.druid.server.QueryStats;
 import io.druid.server.RequestLogLine;
+import io.druid.server.coordination.StandaloneCatalogConfig;
 import io.druid.server.log.RequestLogger;
+import io.druid.server.security.AuthConfig;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -54,14 +55,15 @@ import java.util.concurrent.TimeUnit;
  * The "resolve" endpoint the Trino connector uses Druid as a secondary INDEX: given a filter (typically a lucene
  * query on {@code raw}) it returns the DISTINCT values of a key column (e.g. {@code source_sha256}) for injection as
  * a {@code key IN (...)} predicate on the source table. To also prune the source table's time partitions, ask for the
- * {@code __time} column alongside the key ({@code "key":["source_sha256","__time"]}): the source is 1:1 on
+ * source time column alongside the key ({@code "key":["source_sha256","timestamp_trigger"]}): the source is 1:1 on
  * (source_sha256, timestamp_trigger), so each returned pair carries that key's exact time — no separate time-bounds
- * aggregation (a second full scan) needed.
+ * aggregation (a second full scan) needed. The caller uses SOURCE column names throughout; the server maps the
+ * datasource's source time column (per the timeColumns config) to Druid's {@code __time} internally.
  *
  * <pre>POST /druid/v2/resolve
  * { "dataSource":"atom_credential",
  *   "filter":{"type":"lucene.query","field":"raw","expression":"naver*"},
- *   "key":"source_sha256",          // or ["source_sha256","__time"] for (key, time) tuples
+ *   "key":"source_sha256",          // or ["source_sha256","timestamp_trigger"] for (key, time) tuples
  *   "interval":["2026-04-20T00:00:00Z","2026-07-10T00:00:00Z"],  // optional
  *   "limit":100000 }                // optional cap; capped=true if the distinct count reaches it
  * -> { "dataSource":..., "key":"source_sha256", "count":2046, "capped":false, "values":[...] }</pre>
@@ -79,6 +81,7 @@ public class ResolveResource
   private final QuerySegmentWalker walker;
   private final QueryManager queryManager;
   private final RequestLogger requestLogger;
+  private final StandaloneCatalogConfig catalog;
   private final ObjectMapper mapper;
 
   @Inject
@@ -86,12 +89,14 @@ public class ResolveResource
       QuerySegmentWalker walker,
       QueryManager queryManager,
       RequestLogger requestLogger,
+      StandaloneCatalogConfig catalog,
       @Json ObjectMapper mapper
   )
   {
     this.walker = walker;
     this.queryManager = queryManager;
     this.requestLogger = requestLogger;
+    this.catalog = catalog;
     this.mapper = mapper;
   }
 
@@ -100,6 +105,12 @@ public class ResolveResource
   @Produces(MediaType.APPLICATION_JSON)
   public Response resolve(Map<String, Object> request, @Context HttpServletRequest req)
   {
+    // This endpoint is internal + network-gated and does no per-datasource authorization, so the response filter
+    // (PreResponseAuthorizationCheckFilter) would WARN "Request did not have an authorization check performed" on
+    // every call. Mark the request as authorization-checked to satisfy it.
+    if (req != null) {
+      req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    }
     final String remoteAddr = req == null ? "" : Strings.nullToEmpty(req.getRemoteAddr());
     final String dataSource = (String) request.get("dataSource");
     if (dataSource == null) {
@@ -108,7 +119,7 @@ public class ResolveResource
     }
     final Object filter = request.get("filter");
     final Object keyObj = request.get("key");
-    final List<String> keyColumns = keyColumnsOf(keyObj);   // "source_sha256" or ["source_sha256","__time"]
+    final List<String> keyColumns = keyColumnsOf(keyObj);   // SOURCE column names, e.g. ["source_sha256","timestamp_trigger"]
     final int limit = request.get("limit") instanceof Number ? ((Number) request.get("limit")).intValue() : DEFAULT_LIMIT;
     final Object interval = request.get("interval");
     final List<String> intervals = Lists.newArrayList(intervalOf(interval));
@@ -118,7 +129,10 @@ public class ResolveResource
     // Distinct keys — the core; its failure IS the resolve's failure (nothing useful without them).
     if (keyColumns != null && !keyColumns.isEmpty()) {
       try {
-        final List<Object[]> rows = run(streamQuery(dataSource, intervals, filter, keyColumns, limit), remoteAddr);
+        // The caller speaks in SOURCE column names; the datasource's source time column (from the timeColumns config)
+        // is Druid's __time, so translate it for the internal query. The response echoes the caller's names as-is.
+        final List<String> queryColumns = toInternal(keyColumns, catalog.getTimeColumns().get(dataSource));
+        final List<Object[]> rows = run(streamQuery(dataSource, intervals, filter, queryColumns, limit), remoteAddr);
         final boolean scalar = keyColumns.size() == 1;   // single key -> flat values; multiple -> tuples
         final List<Object> values = Lists.newArrayListWithCapacity(rows.size());
         for (Object[] row : rows) {
@@ -135,6 +149,20 @@ public class ResolveResource
       }
     }
     return Response.ok(out).build();
+  }
+
+  // Map the datasource's source time column -> "__time" for the internal query; other names pass through. "__time" is
+  // also accepted directly (passes through). null timeCol (not configured) -> no translation.
+  private static List<String> toInternal(List<String> columns, String timeCol)
+  {
+    if (timeCol == null) {
+      return columns;
+    }
+    final List<String> out = Lists.newArrayListWithCapacity(columns.size());
+    for (String c : columns) {
+      out.add(timeCol.equals(c) ? "__time" : c);
+    }
+    return out;
   }
 
   @SuppressWarnings("unchecked")
@@ -212,8 +240,7 @@ public class ResolveResource
 
   private static String intervalOf(Object interval)
   {
-    if (interval instanceof List && ((List<?>) interval).size() == 2) {
-      final List<?> iv = (List<?>) interval;
+    if (interval instanceof List<?> iv && iv.size() == 2) {
       return iv.get(0) + "/" + iv.get(1);
     }
     return interval instanceof String ? (String) interval : ETERNITY;
