@@ -102,6 +102,9 @@ public final class DruidSegmentWriter
   /**
    * Accumulate + persist only (no push), so callers can push asynchronously (overlap S3 upload with the next
    * chunk's fetch/persist). Same body as {@link #write} minus the terminal {@code pusher.push}.
+   *
+   * <p>Convenience for the one-thread case: {@link #newIndex} + {@link #addRow} per row + {@link #persistIndex}.
+   * A caller that must keep reading its source while a filled index is written should use those directly.
    */
   public static Persisted persist(
       SegmentSpec spec,
@@ -113,12 +116,34 @@ public final class DruidSegmentWriter
       IndexSpec indexSpec
   ) throws IOException
   {
-    // indexMapper knows the lucene column part serde subtypes, so secondary-indexed columns
-    // round-trip through IndexMergerV9/IndexIO (write + read-back).
-    final ObjectMapper mapper = Json.indexMapper();
-    final IndexIO indexIO = new IndexIO(mapper);
-    final IndexMergerV9 merger = new IndexMergerV9(mapper, indexIO);
+    final long tStart = System.nanoTime();
+    final IncrementalIndex index = newIndex(spec, interval);
+    boolean accumulated = false;
+    try {
+      for (Map<String, Object> row : rows) {
+        addRow(index, spec, row);
+      }
+      // accumulate = pulling rows from the source iterator (e.g. a Trino fetch) + index.add (the sorted TreeMap insert)
+      Prof.accumulateNanos.addAndGet(System.nanoTime() - tStart);
+      accumulated = true;
+    }
+    finally {
+      if (!accumulated) {
+        closeQuietly(index);   // on success persistIndex closes it
+      }
+    }
+    return persistIndex(spec, index, interval, version, shardSpec, tmpDir, indexSpec);
+  }
 
+  /**
+   * Open an empty index for one segment (the accumulate half of {@link #persist}).
+   *
+   * <p>Split out so a caller can keep draining its source on one thread while a previously filled index is written
+   * on another. Fused, the two serialize: the source sits unread for the whole (columns + lucene) write, which for
+   * a network source (Trino) leaves the server-side query stalled with a full output buffer.
+   */
+  public static IncrementalIndex newIndex(SegmentSpec spec, Interval interval)
+  {
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(interval.getStartMillis())
         .withQueryGranularity(spec.getQueryGranularity())
@@ -126,23 +151,45 @@ public final class DruidSegmentWriter
         .withMetrics(spec.getMetrics())
         .withRollup(spec.isRollup())
         .build();
+    return new OnheapIncrementalIndex(schema, true, Integer.MAX_VALUE);
+  }
+
+  /** Add one source row to an index from {@link #newIndex}. */
+  public static void addRow(IncrementalIndex index, SegmentSpec spec, Map<String, Object> row)
+  {
+    final Object ts = row.get(spec.getTimestampColumn());
+    if (!(ts instanceof Number)) {
+      throw new IllegalArgumentException(
+          "row timestamp column [" + spec.getTimestampColumn() + "] must be epoch-millis Number, got: " + ts
+      );
+    }
+    index.add(new MapBasedInputRow(((Number) ts).longValue(), spec.getDimensions(), row));
+  }
+
+  /**
+   * Persist a filled index and close it (the persist half of {@link #persist}): the v9 columnar write, incl. the
+   * lucene index for secondary-indexed columns. The index is closed even if the write fails.
+   */
+  public static Persisted persistIndex(
+      SegmentSpec spec,
+      IncrementalIndex index,
+      Interval interval,
+      String version,
+      ShardSpec shardSpec,
+      File tmpDir,
+      IndexSpec indexSpec
+  ) throws IOException
+  {
+    // indexMapper knows the lucene column part serde subtypes, so secondary-indexed columns
+    // round-trip through IndexMergerV9/IndexIO (write + read-back).
+    final ObjectMapper mapper = Json.indexMapper();
+    final IndexIO indexIO = new IndexIO(mapper);
+    final IndexMergerV9 merger = new IndexMergerV9(mapper, indexIO);
 
     final File persisted;
     final int numRows;
     final long tStart = System.nanoTime();
-    try (IncrementalIndex index = new OnheapIncrementalIndex(schema, true, Integer.MAX_VALUE)) {
-      for (Map<String, Object> row : rows) {
-        final Object ts = row.get(spec.getTimestampColumn());
-        if (!(ts instanceof Number)) {
-          throw new IllegalArgumentException(
-              "row timestamp column [" + spec.getTimestampColumn() + "] must be epoch-millis Number, got: " + ts
-          );
-        }
-        index.add(new MapBasedInputRow(((Number) ts).longValue(), spec.getDimensions(), row));
-      }
-      // accumulate = pulling rows from the source iterator (e.g. a Trino fetch) + index.add (the sorted TreeMap insert)
-      final long tAccumulated = System.nanoTime();
-      Prof.accumulateNanos.addAndGet(tAccumulated - tStart);
+    try (IncrementalIndex toClose = index) {
       numRows = index.size();   // post-rollup row count for the segment metadata
       persisted = merger.persist(
           index,
@@ -150,8 +197,7 @@ public final class DruidSegmentWriter
           new File(tmpDir, "seg-" + UUID.randomUUID()),
           indexSpec
       );
-      // persist = the v9 columnar write incl. building the lucene index for secondary-indexed columns
-      Prof.persistNanos.addAndGet(System.nanoTime() - tAccumulated);
+      Prof.persistNanos.addAndGet(System.nanoTime() - tStart);
     }
 
     final List<String> metricNames = new ArrayList<>();
@@ -172,6 +218,16 @@ public final class DruidSegmentWriter
         numRows
     );
     return new Persisted(persisted, template);
+  }
+
+  private static void closeQuietly(IncrementalIndex index)
+  {
+    try {
+      index.close();
+    }
+    catch (Exception ignored) {
+      // best-effort: we are already unwinding a failure
+    }
   }
 
   /** Cumulative phase timings across all segment builds in this JVM (nanos). Read/reset by a driver for profiling. */

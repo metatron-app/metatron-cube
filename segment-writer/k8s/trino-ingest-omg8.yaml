@@ -1,0 +1,173 @@
+# analysis_omg re-index @ STREAMS=8 — the third point on the scaling curve (1 -> 4 -> 8).
+#
+# Measured so far: FETCH_ONLY scaled 1->4 streams at 3.6x (90% efficiency), and the STREAMS=4 pipeline run held
+# ~298k rows/s (2x the old serialized code's 145k). If that 90% holds, 8 streams lands near 1.8x of 4, NOT 2x.
+# Trino's behaviour at 8 concurrent queries is unmeasured — per-stream throughput did not degrade up to 4.
+#
+# Sizing is from the STREAMS=4 run's REAL numbers, not estimates:
+#   CPU  — that run sat at 10037m of a 12000m limit (84%), i.e. 4 readers (~0.78 core each, measured by FETCH_ONLY)
+#          plus 4 persist threads doing lucene (~7 cores). Doubling everything -> ~20 cores; limit 24 leaves slack.
+#   MEM  — heap swung 23-42GB of Xmx56g but RSS hit 60113Mi of the 64Gi limit (92%!) — metaspace, direct buffers,
+#          lucene and GC structures sit on top of the heap. Doubling live indexes (8+8=16 x 3M rows) -> ~120GB RSS,
+#          so Xmx112g in a 136Gi limit. Nodes are 128 cores / 503GiB at 6-9% CPU usage, so this fits anywhere.
+#
+# PERSIST_THREADS and MAX_INFLIGHT_PERSIST MUST rise with STREAMS: leaving them at 4 starves persist, the reader
+# blocks in inflight.acquire(), and the Trino stream goes idle — exactly the stall this rewrite exists to remove.
+# Watch for the "persist backpressure" line; if it appears, persist is the limit, not read.
+#
+# Image :5 adds per-stream heartbeat lines and the log4j override (IndexMergerV9 -> warn); the :4 run's reader lines
+# were buried 28:1 under merger chatter.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-ingest-omg8-spec
+  namespace: adp-dev
+data:
+  spec.json: |
+    {
+      "dataSource": "analysis_omg",
+      "timestampColumn": "timestamp_trigger",
+      "dimensions": ["source_sha256","file_sha256","grade","parser_type","parse_ok"],
+      "metrics": [
+        {"type":"count","name":"count"},
+        {"type":"relay","name":"line_no","columnName":"line_no","typeName":"long","relayType":"ONLY_ONE"},
+        {"type":"relay","name":"raw","columnName":"raw","typeName":"string","relayType":"ONLY_ONE"}
+      ],
+      "secondaryIndexing": {
+        "raw": { "type": "lucene10", "indexOnly": true, "strategies": [{"type":"text","fieldName":"raw"}] }
+      },
+      "segmentGranularity": "DAY",
+      "maxRowsPerSegment": 3000000,
+      "queryGranularity": "NONE",
+      "rollup": false,
+      "storageType": "s3_smoosh",
+      "bucket": "druid",
+      "baseKey": "druid/segments-omg",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true
+    }
+  # The shaded jar carries common/src/main/resources/log4j2.xml with <Root level="info">, which makes IndexMergerV9
+  # narrate every dictionary/bitmap of every shard: measured 2,676 merger lines vs 96 reader lines in one run (93% of
+  # the log). The reader is the critical path, so it is exactly the thing being drowned. Override via
+  # -Dlog4j.configurationFile — no image rebuild needed. Root stays info; only the merger's per-column chatter drops.
+  log4j2.xml: |
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <Configuration status="WARN">
+      <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+          <PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/>
+        </Console>
+      </Appenders>
+      <Loggers>
+        <Logger name="io.druid.segment.IndexMergerV9" level="warn" additivity="false">
+          <AppenderRef ref="Console"/>
+        </Logger>
+        <Root level="info">
+          <AppenderRef ref="Console"/>
+        </Root>
+      </Loggers>
+    </Configuration>
+  # 42 x 3h windows tiling [2026-06-30 18:00, 2026-07-06 00:00)
+  chunks.txt: |
+    2026-06-30 18:00:00
+    2026-06-30 21:00:00
+    2026-07-01 00:00:00
+    2026-07-01 03:00:00
+    2026-07-01 06:00:00
+    2026-07-01 09:00:00
+    2026-07-01 12:00:00
+    2026-07-01 15:00:00
+    2026-07-01 18:00:00
+    2026-07-01 21:00:00
+    2026-07-02 00:00:00
+    2026-07-02 03:00:00
+    2026-07-02 06:00:00
+    2026-07-02 09:00:00
+    2026-07-02 12:00:00
+    2026-07-02 15:00:00
+    2026-07-02 18:00:00
+    2026-07-02 21:00:00
+    2026-07-03 00:00:00
+    2026-07-03 03:00:00
+    2026-07-03 06:00:00
+    2026-07-03 09:00:00
+    2026-07-03 12:00:00
+    2026-07-03 15:00:00
+    2026-07-03 18:00:00
+    2026-07-03 21:00:00
+    2026-07-04 00:00:00
+    2026-07-04 03:00:00
+    2026-07-04 06:00:00
+    2026-07-04 09:00:00
+    2026-07-04 12:00:00
+    2026-07-04 15:00:00
+    2026-07-04 18:00:00
+    2026-07-04 21:00:00
+    2026-07-05 00:00:00
+    2026-07-05 03:00:00
+    2026-07-05 06:00:00
+    2026-07-05 09:00:00
+    2026-07-05 12:00:00
+    2026-07-05 15:00:00
+    2026-07-05 18:00:00
+    2026-07-05 21:00:00
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-ingest-omg8
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:7
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Dlog4j.configurationFile=/spec/log4j2.xml"
+            - "-Xmx112g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-Ddruid.s3.multipart.thresholdBytes=16777216"
+            - "-Ddruid.s3.multipart.partBytes=16777216"
+            - "-Ddruid.s3.multipart.poolSize=8"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-06-30"     # args are only a parse formality — CHUNKS_FILE defines the actual windows
+            - "2026-07-06"
+          env:
+            - { name: CHUNKS_FILE, value: "/spec/chunks.txt" }
+            - { name: CHUNK_HOURS, value: "3" }
+            - { name: STREAMS, value: "8" }
+            - { name: PERSIST_THREADS, value: "8" }
+            - { name: MAX_INFLIGHT_PERSIST, value: "8" }
+            - { name: PUSH_THREADS, value: "8" }
+            - { name: TRINO_ORDER_BY, value: "false" }
+            - { name: INDEX_SORT, value: "list" }
+            - { name: TRINO_HOST, value: "trino.op.s2dev.net:443" }
+            - { name: TRINO_CATALOG, value: "iceberg_prod" }
+            - { name: TRINO_USER, value: "ulp-parse-sink" }
+            - { name: TRINO_TABLE, value: "iceberg_prod.ato.analysis_omg_v2_emul" }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            # 4 readers ~0.78 core each (measured) + 4 persist threads doing lucene -> 8 is tight, 12 gives headroom
+            requests: { cpu: "16", memory: "112Gi" }
+            limits: { cpu: "24", memory: "136Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+      volumes:
+        - name: spec
+          configMap: { name: trino-ingest-omg8-spec }

@@ -1,0 +1,344 @@
+# FETCH_ONLY A/B: does the Trino spooling protocol make the READ faster?
+#
+# Why this exists: the 2026-07-11 atom_cred_4m run spent, per worker (697s wall, 4 workers), read=309s
+# (next=177 + deser=132) > persist=224s >> index-add=29s. Read is the critical path, so the read protocol is the
+# lever worth measuring — and spooling has never actually been on (no manifest ever set TRINO_ENCODING; the pod env
+# of trino-ingest-4m-dv5gq confirms it). Spooling can only attack `next` (pages funnelled through the single
+# coordinator); `deser` (rs.getObject -> HashMap) is client CPU and cannot move. So the ceiling here is ~177s/worker.
+#
+# FETCH_ONLY=true drains the ResultSet and builds NO segment: no index, no persist, no push, nothing written to deep
+# storage. Both jobs read the SAME single 4h chunk (2026-04-26 16:00, 14,473,045 rows — the densest of the 07-11
+# run) with STREAMS=1, so the only variable is the protocol.
+#
+# Three arms, one variable each:
+#   A trino-fetch-plain      TRINO_ENCODING unset   (plain protocol — what every run so far silently used)
+#   B trino-fetch-spool      json+zstd              (spooling, compressed)
+#   C trino-fetch-spool-json json                   (spooling, uncompressed — zstd is reported to cost more than it saves)
+#
+# Run them ONE AT A TIME — concurrently they contend for the same 8 Trino workers and no number means anything.
+# B and C ship suspended:
+#   kubectl apply -f trino-fetch-ab.yaml
+#   kubectl -n adp-dev wait --for=condition=complete job/trino-fetch-plain --timeout=30m
+#   kubectl -n adp-dev patch job trino-fetch-spool -p '{"spec":{"suspend":false}}'
+#   kubectl -n adp-dev wait --for=condition=complete job/trino-fetch-spool --timeout=30m
+#   kubectl -n adp-dev patch job trino-fetch-spool-json -p '{"spec":{"suspend":false}}'
+#   for j in trino-fetch-plain trino-fetch-spool trino-fetch-spool-json; do
+#     kubectl -n adp-dev logs job/$j | grep -E "trino-jdbc=|DONE"; done
+#
+# Image :4 = first build with trino-jdbc 476 (spooling-capable; the pom default 435 CANNOT spool) on a Java 22 JRE.
+# The startup line `trino-jdbc=476.0 spooling=...` states which protocol is actually live — do not infer it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-fetch-ab-spec
+  namespace: adp-dev
+data:
+  # identical to trino-ingest-4m's spec: FETCH_ONLY only reads it to derive the SELECT column list
+  # (timestamp + dimensions + each metric's source columns), so `raw` is fetched exactly as a real run fetches it.
+  spec.json: |
+    {
+      "dataSource": "atom_cred_fetch_ab",
+      "timestampColumn": "timestamp_trigger",
+      "dimensions": ["file_id","source_sha256","file_sha256"],
+      "metrics": [
+        {"type":"count","name":"count"},
+        {"type":"relay","name":"raw","columnName":"raw","typeName":"string"}
+      ],
+      "segmentGranularity": "DAY",
+      "maxRowsPerSegment": 4000000,
+      "queryGranularity": "NONE",
+      "rollup": false,
+      "storageType": "s3_smoosh",
+      "bucket": "druid",
+      "baseKey": "druid/segments",
+      "endpoint": "http://seaweed.s2dev.net:8333",
+      "disableAcl": true
+    }
+  # one explicit 4h window (CHUNKS_FILE windows are taken verbatim; LPT is skipped for them)
+  chunks.txt: |
+    2026-04-26 16:00:00
+  # four windows for the STREAMS=4 scaling arm — one chunk per stream, or the extra streams just idle
+  chunks4.txt: |
+    2026-04-26 04:00:00
+    2026-04-26 08:00:00
+    2026-04-26 12:00:00
+    2026-04-26 16:00:00
+---
+# A — plain protocol (TRINO_ENCODING unset), the baseline every run so far has silently used
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-fetch-plain
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:4
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx8g"                      # FETCH_ONLY holds no index; row maps are discarded as they are read
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-04-26"
+            - "2026-04-27"
+          env:
+            - { name: FETCH_ONLY, value: "true" }
+            - { name: CHUNKS_FILE, value: "/spec/chunks.txt" }
+            - { name: STREAMS, value: "1" }
+            - { name: CHUNK_HOURS, value: "4" }
+            - { name: TRINO_HOST, value: "trino.op.s2dev.net:443" }
+            - { name: TRINO_CATALOG, value: "iceberg_prod" }
+            - { name: TRINO_USER, value: "ulp-parse-sink" }
+            - { name: TRINO_TABLE, value: "iceberg.atom.atom_analysis_credential_v2" }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "4", memory: "10Gi" }
+            limits: { cpu: "6", memory: "12Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+      volumes:
+        - name: spec
+          configMap: { name: trino-fetch-ab-spec }
+---
+# B — spooling (identical to A except TRINO_ENCODING). Starts suspended so it cannot race A.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-fetch-spool
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  suspend: true
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:4
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx8g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-04-26"
+            - "2026-04-27"
+          env:
+            - { name: TRINO_ENCODING, value: "json+zstd" }   # the ONLY difference from A ("arrow" is not JDBC-decodable)
+            - { name: FETCH_ONLY, value: "true" }
+            - { name: CHUNKS_FILE, value: "/spec/chunks.txt" }
+            - { name: STREAMS, value: "1" }
+            - { name: CHUNK_HOURS, value: "4" }
+            - { name: TRINO_HOST, value: "trino.op.s2dev.net:443" }
+            - { name: TRINO_CATALOG, value: "iceberg_prod" }
+            - { name: TRINO_USER, value: "ulp-parse-sink" }
+            - { name: TRINO_TABLE, value: "iceberg.atom.atom_analysis_credential_v2" }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "4", memory: "10Gi" }
+            limits: { cpu: "6", memory: "12Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+      volumes:
+        - name: spec
+          configMap: { name: trino-fetch-ab-spec }
+---
+# C — spooling, uncompressed. Identical to B except the encoding: isolates whether zstd's CPU cost
+# exceeds the bytes it saves on this payload (`raw` is large but compresses well).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-fetch-spool-json
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  suspend: true
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:4
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx8g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-04-26"
+            - "2026-04-27"
+          env:
+            - { name: TRINO_ENCODING, value: "json" }        # the ONLY difference from B
+            - { name: FETCH_ONLY, value: "true" }
+            - { name: CHUNKS_FILE, value: "/spec/chunks.txt" }
+            - { name: STREAMS, value: "1" }
+            - { name: CHUNK_HOURS, value: "4" }
+            - { name: TRINO_HOST, value: "trino.op.s2dev.net:443" }
+            - { name: TRINO_CATALOG, value: "iceberg_prod" }
+            - { name: TRINO_USER, value: "ulp-parse-sink" }
+            - { name: TRINO_TABLE, value: "iceberg.atom.atom_analysis_credential_v2" }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "4", memory: "10Gi" }
+            limits: { cpu: "6", memory: "12Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+      volumes:
+        - name: spec
+          configMap: { name: trino-fetch-ab-spec }
+---
+# D — scaling arm: does the read scale with STREAMS? A/B/C all ran STREAMS=1 and all landed at ~60k
+# rows/s regardless of protocol, so the per-stream read cost (next + deser) is the critical path and
+# deser is per-stream client CPU. If 4 streams give ~4x aggregate, STREAMS is the lever and no deser
+# micro-optimisation is needed; if it flattens, something shared (pod CPU, Trino, the coordinator) is
+# the real ceiling. Uses the 4-window chunk set — 4 streams over 1 chunk would leave 3 idle.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-fetch-streams4
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  suspend: true
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:4
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx8g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-04-26"
+            - "2026-04-27"
+          env:
+            - { name: TRINO_ENCODING, value: "json" }        # C won by ~2% (noise, but the fastest arm)
+            - { name: FETCH_ONLY, value: "true" }
+            - { name: CHUNKS_FILE, value: "/spec/chunks4.txt" }
+            - { name: STREAMS, value: "4" }
+            - { name: CHUNK_HOURS, value: "4" }
+            - { name: TRINO_HOST, value: "trino.op.s2dev.net:443" }
+            - { name: TRINO_CATALOG, value: "iceberg_prod" }
+            - { name: TRINO_USER, value: "ulp-parse-sink" }
+            - { name: TRINO_TABLE, value: "iceberg.atom.atom_analysis_credential_v2" }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "6", memory: "10Gi" }
+            limits: { cpu: "8", memory: "12Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+      volumes:
+        - name: spec
+          configMap: { name: trino-fetch-ab-spec }
+---
+# E — plain @ STREAMS=4: the missing cell. D is spooling@4, C/A are @1 where spooling showed nothing —
+# but @1 never loads the coordinator, which is the funnel spooling exists to bypass. E vs D is the only
+# comparison that answers whether the real run should set TRINO_ENCODING.
+# (original D note) does the read scale with STREAMS? A/B/C all ran STREAMS=1 and all landed at ~60k
+# rows/s regardless of protocol, so the per-stream read cost (next + deser) is the critical path and
+# deser is per-stream client CPU. If 4 streams give ~4x aggregate, STREAMS is the lever and no deser
+# micro-optimisation is needed; if it flattens, something shared (pod CPU, Trino, the coordinator) is
+# the real ceiling. Uses the 4-window chunk set — 4 streams over 1 chunk would leave 3 idle.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: trino-fetch-plain4
+  namespace: adp-dev
+spec:
+  backoffLimit: 0
+  suspend: true
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ingester
+          image: nas2.s2dev.net:5050/adp/trino-ingester:4
+          imagePullPolicy: Always
+          command: ["java"]
+          args:
+            - "-Xmx8g"
+            - "--add-opens=java.base/java.lang=ALL-UNNAMED"
+            - "--add-opens=java.base/java.nio=ALL-UNNAMED"
+            - "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED"
+            - "--add-opens=java.base/java.util=ALL-UNNAMED"
+            - "--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED"
+            - "--add-modules=jdk.incubator.vector"
+            - "-cp"
+            - "/app/ingester.jar"
+            - "io.druid.segwriter.trino.TrinoIngestion"
+            - "/spec/spec.json"
+            - "2026-04-26"
+            - "2026-04-27"
+          env:
+            - { name: FETCH_ONLY, value: "true" }
+            - { name: CHUNKS_FILE, value: "/spec/chunks4.txt" }
+            - { name: STREAMS, value: "4" }
+            - { name: CHUNK_HOURS, value: "4" }
+            - { name: TRINO_HOST, value: "trino.op.s2dev.net:443" }
+            - { name: TRINO_CATALOG, value: "iceberg_prod" }
+            - { name: TRINO_USER, value: "ulp-parse-sink" }
+            - { name: TRINO_TABLE, value: "iceberg.atom.atom_analysis_credential_v2" }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          resources:
+            requests: { cpu: "6", memory: "10Gi" }
+            limits: { cpu: "8", memory: "12Gi" }
+          volumeMounts:
+            - { name: spec, mountPath: /spec }
+      volumes:
+        - name: spec
+          configMap: { name: trino-fetch-ab-spec }

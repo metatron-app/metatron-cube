@@ -22,6 +22,7 @@ package io.druid.segwriter;
 import io.druid.granularity.Granularity;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.SecondaryIndexingSpec;
+import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
@@ -33,7 +34,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -103,32 +103,65 @@ public final class SegmentIngestor
       File tmpDir
   ) throws IOException
   {
-    // build secondary indexes (e.g. lucene text) from the raw spec. secondaryIndexing is applied
-    // to METRIC columns during merge (IndexMergerV9.setupMetricsWriter), so each indexed column
-    // must be declared as a metric (e.g. a {"type":"relay",...,"typeName":"string"} passthrough),
-    // NOT a dimension — dimension writers ignore secondaryIndexing.
-    final List<String> dimensions = spec.getDimensions();
-    IndexSpec indexSpec = IndexSpec.DEFAULT;
-    final Map<String, Map<String, Object>> rawSecondary = spec.getSecondaryIndexing();
-    if (rawSecondary != null && !rawSecondary.isEmpty()) {
-      final Map<String, SecondaryIndexingSpec> secondary = new LinkedHashMap<>();
-      for (Map.Entry<String, Map<String, Object>> e : rawSecondary.entrySet()) {
-        secondary.put(e.getKey(), Json.indexMapper().convertValue(e.getValue(), SecondaryIndexingSpec.class));
-      }
-      indexSpec = new IndexSpec(null, null, null, null, secondary, null, false, null);
-    }
+    // stream the rows straight into the writer (it iterates exactly once) — no intermediate copy
+    return DruidSegmentWriter.persist(
+        segmentSpec(spec), interval, version, shardSpec(shardNum, numShards), () -> rows, tmpDir, indexSpec(spec)
+    );
+  }
 
-    final SegmentSpec segmentSpec = new SegmentSpec(
+  /**
+   * Persist an index the caller filled itself via {@link DruidSegmentWriter#newIndex}/{@link DruidSegmentWriter#addRow}
+   * (and close it). Lets a reader hand a full index off to another thread and keep draining its source, instead of
+   * going quiet for the whole write as {@link #persistSegment} does.
+   */
+  public static DruidSegmentWriter.Persisted persistIndex(
+      SegmentIngestSpec spec,
+      IncrementalIndex index,
+      Interval interval,
+      String version,
+      int shardNum,
+      int numShards,
+      File tmpDir
+  ) throws IOException
+  {
+    return DruidSegmentWriter.persistIndex(
+        segmentSpec(spec), index, interval, version, shardSpec(shardNum, numShards), tmpDir, indexSpec(spec)
+    );
+  }
+
+  /** The writer-level schema for an ingest spec. */
+  public static SegmentSpec segmentSpec(SegmentIngestSpec spec)
+  {
+    return new SegmentSpec(
         spec.getDataSource(),
-        dimensions,
+        spec.getDimensions(),
         spec.getMetrics(),
         Granularity.fromString(spec.getQueryGranularity()),
         spec.isRollup(),
         spec.getTimestampColumn()
     );
+  }
 
-    final ShardSpec shardSpec = numShards <= 1 ? NoneShardSpec.instance() : new LinearShardSpec(shardNum);
-    // stream the rows straight into the writer (it iterates exactly once) — no intermediate copy
-    return DruidSegmentWriter.persist(segmentSpec, interval, version, shardSpec, () -> rows, tmpDir, indexSpec);
+  /**
+   * Secondary indexes (e.g. lucene text) from the raw spec. secondaryIndexing is applied to METRIC columns during
+   * merge (IndexMergerV9.setupMetricsWriter), so each indexed column must be declared as a metric (e.g. a
+   * {"type":"relay",...,"typeName":"string"} passthrough), NOT a dimension — dimension writers ignore it.
+   */
+  public static IndexSpec indexSpec(SegmentIngestSpec spec)
+  {
+    final Map<String, Map<String, Object>> rawSecondary = spec.getSecondaryIndexing();
+    if (rawSecondary == null || rawSecondary.isEmpty()) {
+      return IndexSpec.DEFAULT;
+    }
+    final Map<String, SecondaryIndexingSpec> secondary = new LinkedHashMap<>();
+    for (Map.Entry<String, Map<String, Object>> e : rawSecondary.entrySet()) {
+      secondary.put(e.getKey(), Json.indexMapper().convertValue(e.getValue(), SecondaryIndexingSpec.class));
+    }
+    return new IndexSpec(null, null, null, null, secondary, null, false, null);
+  }
+
+  private static ShardSpec shardSpec(int shardNum, int numShards)
+  {
+    return numShards <= 1 ? NoneShardSpec.instance() : new LinearShardSpec(shardNum);
   }
 }
