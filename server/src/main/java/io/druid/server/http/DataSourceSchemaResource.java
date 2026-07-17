@@ -59,6 +59,8 @@ import java.util.Set;
 @Path("/druid/v2/datasources/{dataSourceName}/schema")
 public class DataSourceSchemaResource
 {
+  private static final String SCORE_COLUMN = "_score";
+
   private final ServerManager serverManager;
   private final StandaloneCatalogConfig config;
 
@@ -87,6 +89,7 @@ public class DataSourceSchemaResource
     final Set<String> dimensions = Sets.newHashSet(index.getAvailableDimensions());
     final List<Map<String, Object>> columns = Lists.newArrayList();
     columns.add(timeColumn(config.getTimeColumns().get(dataSourceName)));
+    boolean anyLucene = false;
     for (String name : index.getColumnNames()) {
       if (Column.TIME_COLUMN_NAME.equals(name)) {
         continue;
@@ -96,12 +99,21 @@ public class DataSourceSchemaResource
         continue;
       }
       final ColumnCapabilities caps = column.getCapabilities();
-      columns.add(column(name, typeOf(caps, column), caps != null && caps.hasLuceneIndex(), dimensions.contains(name)));
+      final boolean lucene = caps != null && caps.hasLuceneIndex();
+      anyLucene |= lucene;
+      columns.add(column(name, typeOf(caps, column), lucene, dimensions.contains(name)));
+    }
+    if (anyLucene) {
+      // relevance score is available only when a lucene filter is present; expose it as a projectable column.
+      columns.add(scoreColumn());
     }
     final Map<String, Object> out = Maps.newLinkedHashMap();
     out.put("dataSource", dataSourceName);
     out.put("queryTemplate", queryTemplate(dataSourceName));
     out.put("columns", columns);
+    if (anyLucene) {
+      out.put("scoring", scoring());
+    }
     return Response.ok(out).build();
   }
 
@@ -119,8 +131,53 @@ public class DataSourceSchemaResource
     t.put("intervals", "${intervals}");
     t.put("filter", "${filter}");
     t.put("columns", "${columns}");
+    // ${virtualColumns} carries the relevance-score attachment column (see the `scoring` block) when _score is
+    // projected; the connector substitutes [] otherwise.
+    t.put("virtualColumns", "${virtualColumns}");
     t.put("limitSpec", ImmutableMap.of("type", "default", "limit", "${limit}"));
     return t;
+  }
+
+  /**
+   * The relevance-score column, present only when the datasource has a lucene-indexed column. It is not a stored
+   * column — its per-row value is produced by the lucene filter (see {@link #scoring()}), so it exists only in a
+   * query that both carries a lucene filter and opts into scoring.
+   */
+  private static Map<String, Object> scoreColumn()
+  {
+    final Map<String, Object> m = Maps.newLinkedHashMap();
+    m.put("name", SCORE_COLUMN);
+    m.put("type", "DOUBLE");
+    m.put("relevanceScore", true);   // synthetic: only materialized when scoring is enabled on the query
+    return m;
+  }
+
+  /**
+   * How the connector turns a projected/ordered {@code _score} into a scored query. Scoring is NOT pushed as an
+   * ORDER BY — the ordered select.stream path skips the per-segment scoring pass, so {@code _score} would come back
+   * null. Instead the connector, whenever the query references {@code _score}:
+   * <ol>
+   *   <li>adds {@code "scoreField": "_score"} (and optionally {@code "limit": N} = per-segment top-N by score) to the
+   *       {@code lucene.query} filter fragment it already emits for the {@code match} pushdown;</li>
+   *   <li>adds {@code virtualColumn} to the query's {@code virtualColumns} ({@code ${virtualColumns}} in the
+   *       template) and {@code _score} to {@code columns};</li>
+   *   <li>performs any {@code ORDER BY _score} itself (Trino-side) — {@code pushOrdering} is false — since the score
+   *       is materialized per row but not sortable inside the stream.</li>
+   * </ol>
+   */
+  private static Map<String, Object> scoring()
+  {
+    final Map<String, Object> s = Maps.newLinkedHashMap();
+    s.put("column", SCORE_COLUMN);
+    s.put("type", "DOUBLE");
+    s.put("from", "lucene.query");     // scores are produced by this filter type; it must be present in the query
+    s.put("scoreField", SCORE_COLUMN); // add this key to the lucene.query filter fragment to emit the score
+    s.put("limitField", "limit");      // optional cap on that same fragment: per-segment top-N docs by score
+    s.put("virtualColumn", ImmutableMap.of(
+        "type", "$attachment", "outputName", SCORE_COLUMN, "columnType", "FLOAT"
+    ));
+    s.put("pushOrdering", false);      // ORDER BY _score must be done by the connector/Trino, not pushed to Druid
+    return s;
   }
 
   private static String typeOf(ColumnCapabilities caps, Column column)
