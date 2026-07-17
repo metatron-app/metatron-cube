@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.ByteBufferUtils;
+import io.druid.java.util.common.RangeProf;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper.RangeFetcher;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.QueryableIndex;
@@ -70,6 +71,8 @@ public class RangeBufferTracker
   private final long budget;
   private final double keepWm;                  // below this fraction of budget, keep idle buffers (warm cache);
                                                 // at or above, free them deterministically on query release
+  private final RangeDiskCache diskCache;       // WARM (local-disk) tier under this direct-buffer tier; null = off
+  private final int maxLiveIndexes;             // heap cap: max memoized indexes kept (skip re-open on warm); 0 = off
   private final AtomicLong resident = new AtomicLong();
   private final AtomicLong idleFrees = new AtomicLong();        // segments freed deterministically on query-release
   private final AtomicLong idleFreedBytes = new AtomicLong();
@@ -79,17 +82,24 @@ public class RangeBufferTracker
 
   public RangeBufferTracker(long budget)
   {
-    this(budget, 0.5);
+    this(budget, 0.5, null, 0);
   }
 
   public RangeBufferTracker(long budget, double keepRatio)
   {
+    this(budget, keepRatio, null, 0);
+  }
+
+  public RangeBufferTracker(long budget, double keepRatio, RangeDiskCache diskCache, int maxLiveIndexes)
+  {
     this.budget = budget;
     this.keepWm = Math.max(0.0, Math.min(1.0, keepRatio));
+    this.diskCache = diskCache;
+    this.maxLiveIndexes = maxLiveIndexes;
     this.sweeper = Execs.scheduledSingleThreaded("range-residency-%d");
     this.sweeper.scheduleWithFixedDelay(this::sweep, SWEEP_MS, SWEEP_MS, TimeUnit.MILLISECONDS);
-    log.info("RangeBufferTracker started: budget=%,d high=%.2f low=%.2f keep=%.2f sweep=%dms",
-             budget, HIGH_WM, LOW_WM, keepWm, SWEEP_MS);
+    log.info("RangeBufferTracker started: budget=%,d high=%.2f low=%.2f keep=%.2f sweep=%dms diskCache=%s maxLiveIndexes=%d",
+             budget, HIGH_WM, LOW_WM, keepWm, SWEEP_MS, diskCache != null, maxLiveIndexes);
   }
 
   /**
@@ -112,6 +122,11 @@ public class RangeBufferTracker
    */
   public void onIdle(String segmentId)
   {
+    // Free direct buffers deterministically only under memory pressure (resident at/above keepWm of budget); with
+    // headroom, KEEP the memoized index as a warm cache so the next query skips both the fetch AND the
+    // DirectoryReader.open. A disk-served segment adds ~0 to `resident` (its buffers are mmap page cache, not direct),
+    // so it stays memoized here and is instead bounded by the maxLiveIndexes count cap — which is what lets warm
+    // repeats over a disk-cached corpus avoid re-opening every segment.
     if (resident.get() < keepWm * budget) {
       return;
     }
@@ -161,9 +176,37 @@ public class RangeBufferTracker
       if (sum > HIGH_WM * budget) {
         evictColdestUntil((long) (LOW_WM * budget));
       }
+      if (maxLiveIndexes > 0 && live.size() > maxLiveIndexes) {
+        evictColdestByCount((int) (LOW_WM * maxLiveIndexes));
+      }
     }
     catch (Throwable t) {
       log.warn(t, "[range-residency] sweep failed");
+    }
+  }
+
+  /** Heap cap: dematerialize the coldest memoized indexes until at most {@code target} remain. Keeps warm segments
+   *  (recent access) memoized so their queries skip re-open; only the cold tail is dropped. */
+  private void evictColdestByCount(int target)
+  {
+    synchronized (evictLock) {
+      if (live.size() <= target) {
+        return;
+      }
+      final List<Materialization> coldest = new ArrayList<>(live.values());
+      coldest.sort(Comparator.comparingLong(m -> m.lastAccess));   // coldest (oldest access) first
+      int evicted = 0;
+      for (Materialization m : coldest) {
+        if (live.size() <= target) {
+          break;
+        }
+        if (m.evict()) {
+          evicted++;
+        }
+      }
+      if (evicted > 0) {
+        log.info("[range-residency] dropped %d cold index(es) over the %d cap; live ~%d", evicted, maxLiveIndexes, live.size());
+      }
     }
   }
 
@@ -194,6 +237,7 @@ public class RangeBufferTracker
   private final class Materialization
   {
     private final String id;
+    private final String cacheKey;   // getStorageDir(segment): the per-segment disk-cache path (stable across evict)
     private final Function<RangeFetcher, QueryableIndex> build;
     private final Supplier<RangeFetcher> rawFetcher;
     private final AtomicLong bytes = new AtomicLong();
@@ -204,6 +248,7 @@ public class RangeBufferTracker
     private Materialization(DataSegment segment, Function<RangeFetcher, QueryableIndex> build, Supplier<RangeFetcher> rawFetcher)
     {
       this.id = segment.getIdentifier();
+      this.cacheKey = DataSegmentPusherUtil.getStorageDir(segment);
       this.build = build;
       this.rawFetcher = rawFetcher;
     }
@@ -212,12 +257,19 @@ public class RangeBufferTracker
     {
       lastAccess = System.currentTimeMillis();
       QueryableIndex idx;
+      boolean materialized = false;
       synchronized (this) {
         if (index == null) {
           index = build.apply(counting());   // columns are then fetched lazily through the counting fetcher
           live.put(id, this);
+          materialized = true;
         }
         idx = index;
+      }
+      // enforce the heap cap OUTSIDE this Materialization's lock (evict touches other Materializations' locks); only
+      // on a fresh materialize, and never picks this one — its just-set lastAccess makes it the hottest.
+      if (materialized && maxLiveIndexes > 0 && live.size() > maxLiveIndexes) {
+        evictColdestByCount((int) (LOW_WM * maxLiveIndexes));
       }
       return idx;   // returned to the query; safe to evict `index` afterwards (the query keeps this strong ref)
     }
@@ -268,14 +320,36 @@ public class RangeBufferTracker
     {
       final RangeFetcher delegate = rawFetcher.get();
       return (fileNum, offset, length) -> {
-        final java.nio.ByteBuffer buf = delegate.fetch(fileNum, offset, length);
-        final long n = buf == null ? 0 : buf.capacity();
-        if (buf != null) {
-          buffers.add(buf);   // retained so release() can free it deterministically
+        // WARM tier: a disk-cache hit is an mmap'd (page-cache) buffer — serve it WITHOUT counting against the
+        // direct budget or retaining it for explicit free (the OS reclaims page cache; the Cleaner unmaps it when
+        // the query drops the index). This is why a re-materialize after eviction costs ~0 direct memory.
+        if (diskCache != null) {
+          final long tDisk = System.nanoTime();
+          final java.nio.ByteBuffer cached = diskCache.get(cacheKey, fileNum, offset, length);
+          if (cached != null) {
+            RangeProf.fetchDiskNanos.addAndGet(System.nanoTime() - tDisk);
+            RangeProf.fetchDiskBytes.addAndGet(cached.remaining());
+            RangeProf.fetchDiskCount.incrementAndGet();
+            return cached;
+          }
         }
-        bytes.addAndGet(n);
-        resident.addAndGet(n);
-        admit();
+        // miss: fetch from deep storage, write through to the WARM tier, and account it in the HOT (direct) tier
+        final long tS3 = System.nanoTime();
+        final java.nio.ByteBuffer buf = delegate.fetch(fileNum, offset, length);
+        final long s3Nanos = System.nanoTime() - tS3;
+        if (buf != null) {
+          if (diskCache != null) {
+            RangeProf.fetchS3Nanos.addAndGet(s3Nanos);
+            RangeProf.fetchS3Bytes.addAndGet(buf.capacity());
+            RangeProf.fetchS3Count.incrementAndGet();
+            diskCache.put(cacheKey, fileNum, offset, buf);   // does not consume buf (writes a duplicate)
+          }
+          buffers.add(buf);   // retained so release() can free it deterministically
+          final long n = buf.capacity();
+          bytes.addAndGet(n);
+          resident.addAndGet(n);
+          admit();
+        }
         return buf;
       };
     }

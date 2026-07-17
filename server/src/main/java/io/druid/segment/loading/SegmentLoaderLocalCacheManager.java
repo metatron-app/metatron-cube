@@ -81,8 +81,15 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     this.config = config == null ? new SegmentLoaderConfig() : config;
     this.jsonMapper = mapper;
     this.indexIO = indexIO;
+    final RangeDiskCache rangeDiskCache =
+        this.config.getRangeMaxSize() > 0
+        && this.config.getRangeDiskCachePath() != null && !this.config.getRangeDiskCachePath().isEmpty()
+        && this.config.getRangeDiskCacheMaxSize() > 0
+        ? new RangeDiskCache(new File(this.config.getRangeDiskCachePath()), this.config.getRangeDiskCacheMaxSize())
+        : null;
     this.rangeTracker = this.config.getRangeMaxSize() > 0
-        ? new RangeBufferTracker(this.config.getRangeMaxSize(), this.config.getRangeKeepRatio()) : null;
+        ? new RangeBufferTracker(this.config.getRangeMaxSize(), this.config.getRangeKeepRatio(), rangeDiskCache,
+                                 this.config.getRangeMaxLiveIndexes()) : null;
 
     this.locations = Lists.newArrayList();
     for (StorageLocationConfig locationConfig : this.config.getLocations()) {

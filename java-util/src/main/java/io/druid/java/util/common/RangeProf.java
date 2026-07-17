@@ -39,6 +39,17 @@ public final class RangeProf
   public static final AtomicLong fetchBytes = new AtomicLong();
   public static final AtomicLong fetchCount = new AtomicLong();
 
+  // FETCH split by tier (populated only when the range disk-cache is on): a fetch is served either from the local
+  // disk cache (a HIT — mmap, page cache) or from deep storage (a MISS — S3). fetchBytes/Count above are the total
+  // (tier-agnostic, since they wrap the outer fetcher call); disk + s3 below break that down, and the disk-vs-s3
+  // NANOS is the real signal — same bytes, but disk is far faster than S3.
+  public static final AtomicLong fetchDiskNanos = new AtomicLong();
+  public static final AtomicLong fetchDiskBytes = new AtomicLong();
+  public static final AtomicLong fetchDiskCount = new AtomicLong();
+  public static final AtomicLong fetchS3Nanos = new AtomicLong();
+  public static final AtomicLong fetchS3Bytes = new AtomicLong();
+  public static final AtomicLong fetchS3Count = new AtomicLong();
+
   public static final AtomicLong openNanos = new AtomicLong();
   public static final AtomicLong openCount = new AtomicLong();
 
@@ -51,14 +62,23 @@ public final class RangeProf
   public static String snapshotAndReset()
   {
     final long fN = fetchNanos.getAndSet(0), fB = fetchBytes.getAndSet(0), fC = fetchCount.getAndSet(0);
+    final long dN = fetchDiskNanos.getAndSet(0), dB = fetchDiskBytes.getAndSet(0), dC = fetchDiskCount.getAndSet(0);
+    final long s3N = fetchS3Nanos.getAndSet(0), s3B = fetchS3Bytes.getAndSet(0), s3C = fetchS3Count.getAndSet(0);
     final long oN = openNanos.getAndSet(0), oC = openCount.getAndSet(0);
     final long sN = searchNanos.getAndSet(0), sC = searchCount.getAndSet(0);
     final double total = Math.max(1, fN + oN + sN);
-    return StringUtils.safeFormat(
+    final String line = StringUtils.safeFormat(
         "fetch %,dms (%,dMB, %d gets, %.0f%%) | open %,dms (%d, %.0f%%) | search %,dms (%d, %.0f%%)",
         fN / 1_000_000, fB / (1024 * 1024), fC, 100 * fN / total,
         oN / 1_000_000, oC, 100 * oN / total,
         sN / 1_000_000, sC, 100 * sN / total
     );
+    if (dC + s3C > 0) {   // disk cache on: show the hit/miss split (disk vs s3), the nanos being the real signal
+      return line + StringUtils.safeFormat(
+          "  [disk %,dms %,dMB %d gets | s3 %,dms %,dMB %d gets]",
+          dN / 1_000_000, dB / (1024 * 1024), dC, s3N / 1_000_000, s3B / (1024 * 1024), s3C
+      );
+    }
+    return line;
   }
 }

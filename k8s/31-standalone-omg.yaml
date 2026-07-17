@@ -1,0 +1,152 @@
+# Standalone historical for analysis_omg — serves the re-indexed omg segments straight from S3 deep storage
+# (no coordinator/ZK/metadata/broker), scanning druid.standalone.{bucket,baseKey,dataSources} for descriptor.json
+# at boot and range-serving at :8083. Independent of both the 30-druid.yaml cluster AND standalone-atomcred.
+#
+# Cloned from 31-standalone.yaml (atomcred). Differences: its OWN _common (baseKey=druid/segments-omg, so it never
+# touches the shared standalone-common atomcred uses) and its role points at dataSource analysis_omg. Image is the
+# same metatron-cube:prune tag (built off this branch via cluster-build-deploy).
+#
+# loadMode=range: nothing loads to disk; columns range-fetch on demand into off-heap direct buffers, budgeted by
+# druid.segmentCache.rangeMaxSize. Memory is CONCURRENCY-bound, not dataset-size-bound: a query's peak direct is
+# rangeMaxSize (column buffers) + lucene index buffers (numThreads concurrent, NOT tracked by rangeMaxSize) +
+# processing buffers. A 2026-07-16 unbounded full-scan lucene search over all 2279 segments OOM'd at the old 32g
+# direct cap while range buffers sat at only ~19/24g — the ~13g gap was lucene+processing outside the range budget.
+# WARM-CACHE experiment (2026-07-16): raised to 96g direct + rangeMaxSize=80g in a 128Gi pod (12g heap + 96g direct
+# + overhead) to test whether the direct buffers can act as an ES-style page cache. rangeMaxSize is the residency
+# budget (raising the MaxDirectMemorySize cap ALONE is inert — the OOM was already fixed at 48g and range used only
+# ~19g). The tracker frees idle segments on release down to keepRatio*rangeMaxSize = 0.8*80g = 64g resident, so
+# several days' working sets stay warm at once; a REPEAT query on warm segments then skips the S3 fetch that
+# dominates a cold scan. MEASURED 2026-07-16: cold 07-05 lucene search 10.1s (fetch 8.4GB @ ~1GB/s) vs warm 0.15s
+# (fetch 51MB) — a ~60x warm/cold gap. Cold is BANDWIDTH-bound (~1GB/s from seaweed): doubling numThreads to 64 cut
+# cold only ~15% (10.1->8.6s), so it was reverted. The real levers are fetch-less (interval pruning: 4x) and
+# fetch-never (warm cache: 60x), not thread count. keepRatio 0.8 -> 64g resident leaves 96-64=32g cold headroom.
+# Only repeats on WARM segments benefit; a cold or different-interval query is still bandwidth-bound.
+#
+# SPILL-TO-DISK tier (2026-07-17): rangeDiskCachePath=var/range-cache (emptyDir = node disk) + 200g budget adds a
+# WARM disk tier under the direct-buffer tier. First fetch of a column range writes through to a per-segment sparse
+# file; after its direct buffer is evicted, a re-fetch mmaps it from disk (page cache, off the direct budget)
+# instead of re-fetching from S3. Only queried columns are ever written (the fat raw is never localized). Goal: kill
+# range mode's re-fetch-on-eviction penalty and keep FAR more warm than the 64g direct budget (disk >> RAM). Cleared
+# on boot (v1, no cross-restart persistence). Server image rebuilt off this branch (RangeDiskCache).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: standalone-common-omg
+  namespace: adp-dev
+data:
+  common.runtime.properties: |
+    druid.extensions.loadList=["druid-s3-extensions", "druid-lucene-common", "druid-lucene10-extensions", "druid-histogram", "druid-datasketches", "druid-lookups-cached-global"]
+    druid.storage.type=s3
+    druid.storage.bucket=druid
+    druid.storage.baseKey=druid/segments-omg
+    druid.storage.disableAcl=true
+    druid.s3.endpoint=http://seaweed.s2dev.net:8333
+    druid.metadata.storage.type=derby
+    druid.metadata.storage.connector.connectURI=jdbc:derby:var/druid/metadata;create=true
+    druid.monitoring.monitors=[]
+    druid.emitter=noop
+    druid.emitter.druidName=metatron
+    druid.startup.logging.logProperties=true
+  log4j2.xml: |
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <Configuration status="WARN">
+        <Appenders>
+            <Console name="Console" target="SYSTEM_OUT">
+                <PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/>
+            </Console>
+        </Appenders>
+        <Loggers>
+            <Root level="info">
+                <AppenderRef ref="Console"/>
+            </Root>
+        </Loggers>
+    </Configuration>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: standalone-omg-conf
+  namespace: adp-dev
+data:
+  runtime.properties: |
+    druid.service=druid/historical
+    druid.port=8083
+    druid.server.http.numThreads=20
+    druid.processing.buffer.sizeBytes=67108864
+    druid.processing.numThreads=32
+    druid.processing.numMergeBuffers=8
+    druid.query.maxQueryParallelism=32
+    druid.segmentCache.locations=[{"path":"var/druid/segment-cache","maxSize":100000000000}]
+    druid.server.maxSize=100000000000
+    druid.segmentCache.loadMode=range
+    druid.segmentCache.rangeMaxSize=80000000000
+    druid.segmentCache.rangeKeepRatio=0.8
+    druid.segmentCache.rangeDiskCachePath=var/range-cache
+    druid.segmentCache.rangeDiskCacheMaxSize=200000000000
+    druid.standalone.bucket=druid
+    druid.standalone.baseKey=druid/segments-omg
+    druid.standalone.dataSources=["analysis_omg"]
+    druid.standalone.sourceTables={"analysis_omg":"iceberg_prod.ato.analysis_omg_v2_emul"}
+    druid.standalone.timeColumns={"analysis_omg":"timestamp_trigger"}
+  jvm.config: |
+    -server
+    -Xms4g
+    -Xmx12g
+    -XX:MaxDirectMemorySize=96g
+    -Duser.timezone=UTC
+    -Dfile.encoding=UTF-8
+    -Djava.io.tmpdir=var/tmp
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standalone-omg
+  namespace: adp-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: standalone-omg }
+  template:
+    metadata:
+      labels: { app: standalone-omg }
+    spec:
+      containers:
+        - name: standalone
+          image: nas2.s2dev.net:5050/adp/metatron-cube:prune
+          imagePullPolicy: Always
+          args: ["standalone"]
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: druid-deepstore-credentials, key: s3-secret-key } }
+          ports:
+            - { containerPort: 8083 }
+          resources:
+            requests: { cpu: "16", memory: "48Gi", ephemeral-storage: "220Gi" }
+            limits: { cpu: "40", memory: "128Gi", ephemeral-storage: "240Gi" }
+          volumeMounts:
+            - { name: common, mountPath: /opt/druid/conf/druid/_common }
+            - { name: role, mountPath: /opt/druid/conf/druid/standalone }
+            # WARM disk tier (rangeDiskCachePath=var/range-cache, workdir /opt/druid). emptyDir = node disk (real
+            # disk, NOT tmpfs) so mmap'd cache pages live in the OS page cache and never hit the direct budget.
+            - { name: range-cache, mountPath: /opt/druid/var/range-cache }
+      volumes:
+        - name: common
+          configMap: { name: standalone-common-omg }
+        - name: role
+          configMap: { name: standalone-omg-conf }
+        - name: range-cache
+          emptyDir: { sizeLimit: 220Gi }
+---
+# In-cluster address: http://standalone-omg:8083 (same namespace).
+apiVersion: v1
+kind: Service
+metadata:
+  name: standalone-omg
+  namespace: adp-dev
+spec:
+  selector: { app: standalone-omg }
+  ports:
+    - { name: http, port: 8083, targetPort: 8083 }

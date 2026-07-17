@@ -76,6 +76,26 @@ public class SegmentLoaderConfig
   @JsonProperty("rangeKeepRatio")
   private double rangeKeepRatio = 0.5;
 
+  // Optional local-disk WARM tier under the direct-buffer (rangeMaxSize) tier: when rangeDiskCachePath is set and
+  // rangeDiskCacheMaxSize > 0, each fetched column byte-range is written through to a per-segment sparse file on
+  // local disk. A later fetch of the same range (e.g. after its direct buffer was evicted) is mmap'd from disk —
+  // page cache, NOT counted against -XX:MaxDirectMemorySize — instead of re-fetched from deep storage. Only fetched
+  // (queried) columns are ever written, so unlike loadMode=download the fat unqueried columns are never localized.
+  // Path MUST be a real disk volume (not tmpfs, not the pod overlay root). Cleared on boot (no cross-restart reuse).
+  @JsonProperty("rangeDiskCachePath")
+  private String rangeDiskCachePath = null;
+
+  @JsonProperty("rangeDiskCacheMaxSize")
+  private long rangeDiskCacheMaxSize = 0;
+
+  // Cap on the number of range segments kept MEMOIZED (their QueryableIndex held, so a warm query skips the
+  // DirectoryReader.open / header parse). Bounds heap: when live > this, the coldest are dematerialized (re-opened
+  // from disk/deep-storage on next access). Separate from rangeMaxSize, which bounds direct-memory BYTES; this
+  // bounds the heap held by the memoized index objects (a disk-served segment adds ~0 direct bytes, so the byte
+  // budget alone never reclaims it). With a disk cache this is what lets warm repeats skip open.
+  @JsonProperty("rangeMaxLiveIndexes")
+  private int rangeMaxLiveIndexes = 20000;
+
   @JsonProperty
   private File infoDir = null;
 
@@ -122,6 +142,21 @@ public class SegmentLoaderConfig
   public double getRangeKeepRatio()
   {
     return rangeKeepRatio;
+  }
+
+  public String getRangeDiskCachePath()
+  {
+    return rangeDiskCachePath;
+  }
+
+  public long getRangeDiskCacheMaxSize()
+  {
+    return rangeDiskCacheMaxSize;
+  }
+
+  public int getRangeMaxLiveIndexes()
+  {
+    return rangeMaxLiveIndexes;
   }
 
   /** true when range-capable segments should be served header-first (no local download). */
