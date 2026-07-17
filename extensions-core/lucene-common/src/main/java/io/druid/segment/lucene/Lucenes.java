@@ -555,7 +555,9 @@ public class Lucenes
   // while staying tiny vs the whole ~tens-of-MB file. 256KB was over-tuned: lucene's access is largely RANDOM (FST
   // traversal + seeks), which read-ahead can't coalesce, so a large window mostly just over-fetched (256KB fill for a
   // few needed bytes -> 9x the bytes for only 34% fewer GETs). 64KB keeps GET count ~the same but cuts over-fetch.
-  private static final int RANGE_BUFFER_SIZE = 64 * 1024;
+  // Override with -Ddruid.lucene.rangeBufferSize=<bytes> to sweep the read-ahead window without a rebuild; pair with
+  // the RangeProf buffer-fill probe ([buf ...] in [lucene-prof]) to read off GET-count vs over-fetch at each size.
+  private static final int RANGE_BUFFER_SIZE = Integer.getInteger("druid.lucene.rangeBufferSize", 64 * 1024);
 
   // Files at or below this size are fetched WHOLE in a single GET (buffer-backed) instead of sub-ranged: the term
   // index (.tip FST), field infos, segment info, norms etc. are read (near-)fully anyway, so one coarse GET beats

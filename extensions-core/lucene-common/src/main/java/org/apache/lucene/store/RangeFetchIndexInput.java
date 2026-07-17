@@ -19,6 +19,9 @@
 
 package org.apache.lucene.store;
 
+import io.druid.java.util.common.RangeProf;
+import io.druid.java.util.common.logger.Logger;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -34,6 +37,12 @@ import java.nio.ByteBuffer;
  */
 public class RangeFetchIndexInput extends BufferedIndexInput
 {
+  private static final Logger LOG = new Logger(RangeFetchIndexInput.class);
+
+  // Measurement scaffold (see RangeProf buffer-fill probe). Counters are always on (cheap atomics); this gates only
+  // the verbose per-event log that prints every GET/prefetch offset so the two streams can be correlated by hand.
+  private static final boolean PROBE_LOG = Boolean.getBoolean("druid.lucene.rangeProbeLog");
+
   /** Fetches exactly {@code length} bytes at {@code offset} (relative to the enclosing column's first byte). */
   public interface RangeSource
   {
@@ -44,6 +53,11 @@ public class RangeFetchIndexInput extends BufferedIndexInput
   private final long base;     // absolute (column-relative) offset of this input's byte 0
   private final long length;
   private final int bufferSize;
+
+  // Probe state: absolute end of the previous GET on THIS clone. A refill starting exactly here is a contiguous
+  // (sequential) read; anywhere else means a seek happened and the previous buffer was likely under-consumed. Copied
+  // by super.clone() — harmless (a clone just carries a stale hint that self-corrects on its first GET).
+  private long probePrevEnd = -1;
 
   public RangeFetchIndexInput(String resourceDesc, RangeSource source, long base, long length, int bufferSize)
   {
@@ -62,12 +76,47 @@ public class RangeFetchIndexInput extends BufferedIndexInput
       return;
     }
     final long pos = base + getFilePointer();
+    probe(pos, len);
     final ByteBuffer data = source.fetch(pos, len);
     if (data == null || data.remaining() != len) {
       throw new IOException(
           "short range read at " + pos + ": wanted " + len + " got " + (data == null ? -1 : data.remaining()));
     }
     b.put(data);
+  }
+
+  // Classify this GET for the buffer-fill probe: a bulk read past the buffer (DIRECT, the 64K knob is irrelevant) vs a
+  // buffer REFILL, whose contiguity with the previous GET tells over- (seek) vs under-fetch (seq). See RangeProf.
+  private void probe(long pos, int len)
+  {
+    if (len > bufferSize) {
+      RangeProf.bufDirectCount.incrementAndGet();
+      RangeProf.bufDirectBytes.addAndGet(len);
+    } else {
+      RangeProf.bufRefillCount.incrementAndGet();
+      RangeProf.bufRefillBytes.addAndGet(len);
+      if (pos == probePrevEnd) {
+        RangeProf.bufSeqRefills.incrementAndGet();
+      } else {
+        RangeProf.bufSeekRefills.incrementAndGet();
+      }
+    }
+    probePrevEnd = pos + len;
+    if (PROBE_LOG) {
+      LOG.info("[range-probe] read %s off=%d len=%d%s", this, pos, len, len > bufferSize ? " DIRECT" : "");
+    }
+  }
+
+  // Measurement-only override: Lucene's postings/term-dict readers call prefetch(fp, 1) to hint an upcoming read. The
+  // base impl is a no-op; we keep it a no-op (no behavior change) and only record the hint so we can see, against the
+  // read stream above, how often a prefetch precedes its read and whether hints arrive in overlappable batches.
+  @Override
+  public void prefetch(long offset, long length) throws IOException
+  {
+    RangeProf.prefetchCount.incrementAndGet();
+    if (PROBE_LOG) {
+      LOG.info("[range-probe] prefetch %s off=%d len=%d", this, base + offset, length);
+    }
   }
 
   @Override
