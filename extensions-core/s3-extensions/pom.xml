@@ -72,8 +72,13 @@
             </exclusions>
         </dependency>
         <dependency>
+            <!-- Self-contained native HTTP client with a real, bounded connection pool. Replaces
+                 url-connection-client, which has no pooling: under the range-fetch GET storm its
+                 per-destination keep-alive cap (JDK default 5) forced a new socket per request,
+                 exhausting ephemeral ports (EADDRNOTAVAIL). CRT pools+reuses+caps sockets, and
+                 unlike apache/netty it has no classpath conflict with the legacy apache httpclient. -->
             <groupId>software.amazon.awssdk</groupId>
-            <artifactId>url-connection-client</artifactId>
+            <artifactId>aws-crt-client</artifactId>
             <version>2.25.70</version>
         </dependency>
         <dependency>

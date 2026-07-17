@@ -24,7 +24,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
+import software.amazon.awssdk.http.crt.AwsCrtHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -37,6 +37,11 @@ import java.net.URI;
  */
 public class S3Clients
 {
+  // Bounded concurrent connections per client. Caps sockets well below the ephemeral-port ceiling while giving the
+  // 32-way range-fetch parallelism ample headroom; excess demand QUEUES on the pool rather than opening new sockets.
+  private static final int MAX_CONCURRENCY = 128;
+
+
   /**
    * @param accessKey static access key, or null/empty to use the default credential chain
    *                  (env AWS_ACCESS_KEY_ID, profile, instance role, ...)
@@ -56,9 +61,10 @@ public class S3Clients
 
     final S3ClientBuilder builder = S3Client.builder()
         .credentialsProvider(credentials)
-        // Pure-JDK HTTP client: avoids aws-sdk v2's default ApacheHttpClient, which is
-        // incompatible with the legacy apache httpclient version on this project's classpath.
-        .httpClientBuilder(UrlConnectionHttpClient.builder());
+        // CRT HTTP client: a real bounded connection pool (reuses + caps sockets) so the range-fetch GET storm
+        // can't exhaust ephemeral ports. Self-contained native networking => no classpath conflict with the
+        // project's legacy apache httpclient (which is why aws-sdk v2's ApacheHttpClient was avoided).
+        .httpClientBuilder(AwsCrtHttpClient.builder().maxConcurrency(MAX_CONCURRENCY));
 
     builder.region(!Strings.isNullOrEmpty(region) ? Region.of(region) : Region.US_EAST_1);
 
