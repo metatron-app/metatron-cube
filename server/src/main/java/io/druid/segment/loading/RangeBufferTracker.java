@@ -67,6 +67,7 @@ public class RangeBufferTracker
   private static final double HIGH_WM = 0.9;    // evict when resident > 90% of budget ...
   private static final double LOW_WM = 0.8;     // ... down to 80%
   private static final long SWEEP_MS = 120_000; // periodic reconcile + evict
+  private static final long STATUS_MS = 60_000; // periodic status heartbeat (both tiers, one line)
 
   private final long budget;
   private final double keepWm;                  // below this fraction of budget, keep idle buffers (warm cache);
@@ -98,6 +99,7 @@ public class RangeBufferTracker
     this.maxLiveIndexes = maxLiveIndexes;
     this.sweeper = Execs.scheduledSingleThreaded("range-residency-%d");
     this.sweeper.scheduleWithFixedDelay(this::sweep, SWEEP_MS, SWEEP_MS, TimeUnit.MILLISECONDS);
+    this.sweeper.scheduleWithFixedDelay(this::logStatus, STATUS_MS, STATUS_MS, TimeUnit.MILLISECONDS);
     log.info("RangeBufferTracker started: budget=%,d high=%.2f low=%.2f keep=%.2f sweep=%dms diskCache=%s maxLiveIndexes=%d",
              budget, HIGH_WM, LOW_WM, keepWm, SWEEP_MS, diskCache != null, maxLiveIndexes);
   }
@@ -149,6 +151,31 @@ public class RangeBufferTracker
   public void stop()
   {
     sweeper.shutdownNow();
+  }
+
+  /** Periodic heartbeat: one line with both tiers' occupancy so residency can be watched without a query. */
+  private void logStatus()
+  {
+    try {
+      final long direct = resident.get();
+      if (diskCache != null) {
+        log.info("[range-status] direct %,d/%,d (%.1f%%), %,d live index(es)/cap %,d | disk %,d/%,d (%.1f%%), %,d seg(s)",
+                 direct, budget, pct(direct, budget), live.size(), maxLiveIndexes,
+                 diskCache.residentBytes(), diskCache.maxBytes(), pct(diskCache.residentBytes(), diskCache.maxBytes()),
+                 diskCache.segmentCount());
+      } else {
+        log.info("[range-status] direct %,d/%,d (%.1f%%), %,d live index(es)/cap %,d | disk off",
+                 direct, budget, pct(direct, budget), live.size(), maxLiveIndexes);
+      }
+    }
+    catch (Throwable t) {
+      log.warn(t, "[range-status] heartbeat failed");
+    }
+  }
+
+  private static double pct(long used, long total)
+  {
+    return total <= 0 ? 0.0 : 100.0 * used / total;
   }
 
   /** Inline back-pressure: called after each column fetch grows the resident total. */
@@ -333,17 +360,30 @@ public class RangeBufferTracker
             return cached;
           }
         }
-        // miss: fetch from deep storage, write through to the WARM tier, and account it in the HOT (direct) tier
+        // miss: fetch from deep storage into a DIRECT buffer, write it through to the WARM tier, then DEMOTE —
+        // re-serve the just-written range as an mmap (page-cache) buffer and free the direct staging buffer. The
+        // memoized index thus holds page cache, not direct memory, so a held index costs ~0 against the direct
+        // budget. That is what makes keeping indexes memoized (maxLiveIndexes) stable: a cold scan no longer pins
+        // tens of GB of direct buffers in memoized indexes and thrashes eviction/re-fetch. The direct buffer is now
+        // pure transient staging for the S3 fetch, exactly as the tiered design intends.
         final long tS3 = System.nanoTime();
         final java.nio.ByteBuffer buf = delegate.fetch(fileNum, offset, length);
         final long s3Nanos = System.nanoTime() - tS3;
-        if (buf != null) {
-          if (diskCache != null) {
-            RangeProf.fetchS3Nanos.addAndGet(s3Nanos);
-            RangeProf.fetchS3Bytes.addAndGet(buf.capacity());
-            RangeProf.fetchS3Count.incrementAndGet();
-            diskCache.put(cacheKey, fileNum, offset, buf);   // does not consume buf (writes a duplicate)
+        if (buf != null && diskCache != null) {
+          RangeProf.fetchS3Nanos.addAndGet(s3Nanos);
+          RangeProf.fetchS3Bytes.addAndGet(buf.capacity());
+          RangeProf.fetchS3Count.incrementAndGet();
+          diskCache.put(cacheKey, fileNum, offset, buf);   // does not consume buf (writes a duplicate)
+          final java.nio.ByteBuffer demoted = diskCache.get(cacheKey, fileNum, offset, length);
+          if (demoted != null) {
+            // The staging buffer was never handed out, so freeing it now can't race a reader — deterministic free
+            // avoids the Cleaner-lag overshoot that a 32-thread cold-fetch burst would otherwise accumulate.
+            ByteBufferUtils.free(buf);
+            return demoted;
           }
+          // demotion failed (write miss / >2GB region): fall through and retain the direct buffer as before.
+        }
+        if (buf != null) {
           buffers.add(buf);   // retained so release() can free it deterministically
           final long n = buf.capacity();
           bytes.addAndGet(n);

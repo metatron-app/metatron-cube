@@ -150,6 +150,16 @@ public class RangeDiskCache
     return resident.get();
   }
 
+  public long maxBytes()
+  {
+    return maxBytes;
+  }
+
+  public int segmentCount()
+  {
+    return segments.size();
+  }
+
   private void evictColdestUntil(long target, String keepSegKey)
   {
     synchronized (evictLock) {
