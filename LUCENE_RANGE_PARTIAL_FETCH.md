@@ -132,11 +132,47 @@ the bottleneck, so this is now immaterial.
 
 Net: a full-range lucene scan that **never completed** now returns in **0.58s warm / 8.4s cold**.
 
+## Open-phase GET coalescing (A1)
+
+The cold path above is dominated by the **open phase** — the per-segment first touch that range-fetches the metadata /
+term-index files (`.si`/`.fnm`/`.tip`/`.tmd`/norms/`segments_N`) so `DirectoryReader.open` can parse the index. A
+free measurement (RangeProf, no code) quantified it: on `analysis_omg` (2279 range-served segments, all cold from S3)
+an **absent-term** full-range count — which opens every segment but does ~0 real search — pulled **77,039 GETs** in a
+**35.3s** wall; re-run warm (readers memoized, `open=0`) it did only 4,474 GETs. So **open-phase GETs = 77,039 − 4,474
+= 72,565 = 94% of all cold GETs**, ~31.8 GETs/segment, ~8.1MB of small files each. The open thread-time was ~pure S3
+GET latency (FST parse CPU was <2%): cold is **GET-count-bound**, ~253KB/GET at ~13.6ms/GET — the round-trip, not the
+bytes.
+
+Each of those ≤4MB files was its own GET. But `writeTo` concatenates files **gaplessly** in `listAll()` order, so a
+run of adjacent small files is one contiguous byte span. `Lucenes.prefetchSmallFiles` (called at the top of
+`rangeReader`, before `DirectoryReader.open`) collects the small files, sorts by offset, groups **maximal contiguous
+runs** (a gap means a big term-dict/postings file sits between them), and fetches each run in **one GET**, slicing it
+per file into a map the memoized reader keeps for its life. `openInput` serves a small file from that slice (no GET)
+when present, else falls back to a per-file GET; big files stay lazy (`RangeFetchIndexInput`), and no big file is ever
+pulled by a run (they break the run) — so bytes are unchanged.
+
+| version (analysis_omg, 2279 segs, cold) | fetch bytes | fetch GETs | open | wall      |
+|-----------------------------------------|------------:|-----------:|-----:|-----------|
+| baseline (per-file open GETs)           |  18,624 MB  |     77,039 | 1042s | 35.3s     |
+| + A1 open-phase run coalescing          |  18,624 MB  |     35,780 |  164s | **20.9s** |
+
+Reading the arc:
+
+- **GETs 77,039 → 35,780 (−54%), wall 35.3s → 20.9s (−41%), bytes identical** (18,624MB — runs never include a big
+  file, so zero over-fetch). Correctness held: no-filter total `6,702,710,704`; `raw:google` = `1,647,499` identical
+  cold vs warm. (The open thread-time drop 1042s → 164s overstates the win — the prefetch runs *before* the
+  open-timed region, so its fetch shifts from `openNanos` into `fetchNanos`; judge by total wall + GETs.)
+- **Why −54% and not the −94% ceiling**: small files are interleaved with big ones by *alphabetical* `listAll()` name
+  order (`.doc`/`.fdt`/`.tim` between `.fnm`/`.si`/`.tip`), so a segment splits into ~13.7 runs, not 1 (open GETs/seg
+  31.8 → 13.7). Collapsing to a single GET/segment needs **A2** — have `writeTo` emit all small meta/term-index files
+  first and contiguous (+ a `hotPrefixLen` head int), a format change requiring a reindex/header rewrite. A1 is the
+  read-side, no-reindex ~2× down-payment; A2 is the rest.
+
 ## Remaining levers
 
-- **Cold `open` (42% of the 8.4s cold path)**: the per-segment first touch — range-fetching the `.tip` term index +
-  parsing the index structure — paid once per segment. Warm eliminates it (reader memoized), so it only bites the
-  first query after a (re)deploy or eviction. Prefetching / a smaller `.tip` footprint would help cold.
+- **Cold `open`** — largely addressed by **A1** above (open-phase run coalescing, −54% cold GETs, no reindex); **A2**
+  (contiguous small-file layout, 1 GET/segment) is the follow-up for the rest. Warm still eliminates open entirely
+  (reader memoized), so open only bites the first query after a (re)deploy or eviction.
 - **Fewer, larger segments** (merge 1670 → hundreds): the per-segment open + first-touch fetch is a multiplier, so
   merging attacks the cold floor directly (and shrinks the warm search setup).
 
@@ -151,5 +187,6 @@ the `maxQueryParallelism` fan-out cap.
 - `processing/.../column/ColumnBuilder.java` — carries the range mapper + column name to the deserializer.
 - `processing/.../ContainerHeader.java` — head-fetch for lucene index-only columns.
 - `extensions-core/lucene-common/.../org/apache/lucene/store/RangeFetchIndexInput.java` — the range-fetching input.
-- `extensions-core/lucene-common/.../lucene/Lucenes.java` — `parseRangeTable`, `rangeReader`, coalescing, open timing.
+- `extensions-core/lucene-common/.../lucene/Lucenes.java` — `parseRangeTable`, `rangeReader`, coalescing, open timing,
+  `prefetchSmallFiles` (A1 open-phase run coalescing).
 - `extensions-core/lucene-common/.../lucene/LuceneIndexingSpec.java` — range branch, reader memoization, search timing.

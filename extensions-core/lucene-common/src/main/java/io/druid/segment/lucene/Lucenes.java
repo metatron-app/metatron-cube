@@ -156,6 +156,7 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -575,6 +576,62 @@ public class Lucenes
   }
 
   /**
+   * A1 open-time GET coalescing. {@code DirectoryReader.open} reads many small (&le; {@link #WHOLE_FILE_THRESHOLD})
+   * metadata / term-index files (.si/.fnm/.tip/.tmd/norms/segments_N), each previously its own GET — measured ~32
+   * GETs and ~8MB/segment on a cold range scan, ~94% of the whole scan's GETs and latency-bound (per-GET round-trip,
+   * not bytes). The files are laid out gaplessly in {@link #writeTo} order, but big term-dict/postings files are
+   * interleaved by name, so we prefetch only maximal CONTIGUOUS RUNS of small files — one GET per run, sliced per
+   * file — and never pull a big file. The per-file slices are retained for the reader's (segment's) life so re-opens
+   * during open/search are free; big files stay lazy ({@link RangeFetchIndexInput}). Best-effort: a run whose fetch
+   * fails or short-reads is left out and {@code openInput} falls back to a per-file GET for those names.
+   */
+  private static Map<String, ByteBuffer> prefetchSmallFiles(
+      final Map<String, int[]> dataOffsets,
+      final long datumBase,
+      final RangeFetchIndexInput.RangeSource source
+  )
+  {
+    final List<Map.Entry<String, int[]>> small = Lists.newArrayList();
+    for (Map.Entry<String, int[]> e : dataOffsets.entrySet()) {
+      if (e.getValue()[1] <= WHOLE_FILE_THRESHOLD) {
+        small.add(e);
+      }
+    }
+    small.sort(Comparator.comparingInt(e -> e.getValue()[0]));   // by data offset: adjacent == contiguous (gapless)
+    final Map<String, ByteBuffer> prefetched = Maps.newHashMapWithExpectedSize(small.size());
+    int i = 0;
+    while (i < small.size()) {
+      final int runStart = small.get(i).getValue()[0];
+      int runEnd = runStart + small.get(i).getValue()[1];
+      int j = i + 1;
+      // extend the run while the next small file abuts the current end; a gap means a big file sits between them
+      while (j < small.size() && small.get(j).getValue()[0] == runEnd) {
+        runEnd += small.get(j).getValue()[1];
+        j++;
+      }
+      final int runLen = runEnd - runStart;
+      try {
+        final ByteBuffer run = source.fetch(datumBase + runStart, runLen);
+        if (run != null && run.remaining() == runLen) {
+          final int base = run.position();
+          for (int k = i; k < j; k++) {
+            final int[] off = small.get(k).getValue();
+            final int pos = base + (off[0] - runStart);
+            final ByteBuffer slice = run.duplicate();
+            slice.limit(pos + off[1]).position(pos);
+            prefetched.put(small.get(k).getKey(), slice.slice());
+          }
+        }
+      }
+      catch (IOException ignored) {
+        // leave this run unfetched; openInput GETs each of its files on demand
+      }
+      i = j;
+    }
+    return prefetched;
+  }
+
+  /**
    * Range-served twin of {@link #readFrom}: open a {@link DirectoryReader} whose index files are range-read on demand
    * via {@code source} (each file opened as a {@link RangeFetchIndexInput} over its column-relative extent) instead of
    * a whole-index buffer, so opening + searching pulls only the term dictionary block + a term's postings.
@@ -583,6 +640,8 @@ public class Lucenes
   {
     final Map<String, int[]> dataOffsets = table.dataOffsets;
     final long datumBase = table.datumBase;
+    // A1: coalesce the open-time small-file GET storm into one GET per contiguous run (see prefetchSmallFiles).
+    final Map<String, ByteBuffer> prefetched = prefetchSmallFiles(dataOffsets, datumBase, source);
     final BaseDirectory directory = new BaseDirectory(new SingleInstanceLockFactory())
     {
       @Override
@@ -647,8 +706,10 @@ public class Lucenes
         final long fileBase = datumBase + offsets[0];
         final int len = offsets[1];
         if (len <= WHOLE_FILE_THRESHOLD) {
-          // small file (term index / metadata / norms): one GET, buffer-backed — it's read (near-)fully anyway
-          final ByteBuffer whole = source.fetch(fileBase, len);
+          // small file (term index / metadata / norms): served from the coalesced A1 prefetch (no GET) when present,
+          // else a single whole GET — it's read (near-)fully anyway. duplicate() so each open gets its own cursor.
+          final ByteBuffer pre = prefetched.get(name);
+          final ByteBuffer whole = pre != null ? pre.duplicate() : source.fetch(fileBase, len);
           if (whole == null || whole.remaining() != len) {
             throw new IOException("short whole-file read of " + name + ": wanted " + len);
           }
