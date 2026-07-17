@@ -368,11 +368,32 @@ public class Lucenes
     }
   }
 
+  /**
+   * A2 hot-first layout: order the index files so all small (&le; {@link #WHOLE_FILE_THRESHOLD}) metadata / term-index
+   * files come FIRST and contiguous, the big term-dict/postings files after — each group preserving {@code listAll()}
+   * order. Physical order is transparent to readers (they locate every file by name via the offset table), but it
+   * lays the open-time small files (exactly the set {@link #prefetchSmallFiles} pulls) into ONE contiguous span, so
+   * the read-side coalescing fetches them in a SINGLE GET per segment instead of one per interleaved run. Same
+   * {@code WHOLE_FILE_THRESHOLD} on both sides (same class) keeps the write partition and read partition identical.
+   * Backward/forward compatible — old readers still work (name lookup), and the benefit is realized on rewrite only.
+   */
+  static String[] hotFirstOrder(final Directory directory, final String[] files) throws IOException   // package-private for test
+  {
+    final List<String> hot = Lists.newArrayListWithCapacity(files.length);
+    final List<String> cold = Lists.newArrayList();
+    for (String file : files) {
+      (directory.fileLength(file) <= WHOLE_FILE_THRESHOLD ? hot : cold).add(file);
+    }
+    hot.addAll(cold);
+    return hot.toArray(new String[0]);
+  }
+
   @SuppressWarnings("unchecked")
   public static long writeTo(IndexWriter writer, WritableByteChannel channel) throws IOException
   {
     Directory directory = writer.getDirectory();
-    String[] files = directory.listAll();
+    // A2: small files first + contiguous so the read-side open (prefetchSmallFiles) coalesces them into one GET.
+    String[] files = hotFirstOrder(directory, directory.listAll());
 
     int headerOffset = Integer.BYTES;  // number of files
     int dataOffset = 0;
