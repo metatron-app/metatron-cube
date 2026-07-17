@@ -61,24 +61,29 @@ public class AttachmentVirtualColumn implements VirtualColumn
   {
     if (column.equals(outputName) && factory instanceof Cursor) {
       final Cursor cursor = (Cursor) factory;
-      final IntFunction attachment = cursor.attachment(outputName);
-      if (attachment != null) {
-        return new ObjectColumnSelector()
-        {
-          @Override
-          public Object get()
-          {
-            return attachment.apply(cursor.offset());
-          }
+      // Resolve the attachment LAZILY at read time, not here. The filter attaches the score mapping onto the
+      // FilterContext while computing its bitmap; depending on the engine, a column selector can be built before
+      // that runs (e.g. select.stream sets up all selectors up front, then caches them), so capturing it here
+      // would pin a null and yield null for every row. Reading it per-get (memoized once non-null) is timing-safe.
+      return new ObjectColumnSelector()
+      {
+        private IntFunction attachment;
 
-          @Override
-          public ValueDesc type()
-          {
-            return columnType;
+        @Override
+        public Object get()
+        {
+          if (attachment == null) {
+            attachment = cursor.attachment(outputName);
           }
-        };
-      }
-      return null;
+          return attachment == null ? null : attachment.apply(cursor.offset());
+        }
+
+        @Override
+        public ValueDesc type()
+        {
+          return columnType;
+        }
+      };
     }
 
     return factory.makeObjectColumnSelector(outputName);
