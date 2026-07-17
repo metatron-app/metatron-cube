@@ -47,6 +47,13 @@ public class RangeFetchIndexInput extends BufferedIndexInput
   public interface RangeSource
   {
     ByteBuffer fetch(long offset, int length) throws IOException;
+
+    /**
+     * Optional async hint that a {@link #fetch} of the same {@code (offset, length)} is imminent: warm that range in
+     * the background so the upcoming fetch is cheap. Default no-op. Implementations MUST coalesce a hint with the real
+     * fetch (and with each other) so a warmed-then-read range costs ONE deep-storage GET, not two.
+     */
+    default void prefetch(long offset, int length) {}
   }
 
   private final RangeSource source;
@@ -107,15 +114,21 @@ public class RangeFetchIndexInput extends BufferedIndexInput
     }
   }
 
-  // Measurement-only override: Lucene's postings/term-dict readers call prefetch(fp, 1) to hint an upcoming read. The
-  // base impl is a no-op; we keep it a no-op (no behavior change) and only record the hint so we can see, against the
-  // read stream above, how often a prefetch precedes its read and whether hints arrive in overlappable batches.
+  // Lucene's postings/term-dict readers call prefetch(fp, 1) to hint an upcoming read (the length arg is nominal, not
+  // the real read size). We forward it to the source as an async warm, sized to MIRROR what the following read will
+  // actually request so the warmed range's (offset,length) key matches and coalesces into one GET: a buffer refill
+  // reads min(bufferSize, remaining) at the offset; a bulk read past the buffer reads its exact length. The source's
+  // prefetch is a no-op unless range-prefetch is enabled (then it warms in the background with in-flight coalescing).
   @Override
   public void prefetch(long offset, long length) throws IOException
   {
     RangeProf.prefetchCount.incrementAndGet();
     if (PROBE_LOG) {
       LOG.info("[range-probe] prefetch %s off=%d len=%d", this, base + offset, length);
+    }
+    final int size = length > bufferSize ? (int) length : (int) Math.min(bufferSize, this.length - offset);
+    if (size > 0) {
+      source.prefetch(base + offset, size);
     }
   }
 

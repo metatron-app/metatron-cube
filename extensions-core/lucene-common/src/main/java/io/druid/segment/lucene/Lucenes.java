@@ -162,6 +162,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -560,6 +568,93 @@ public class Lucenes
   // point where reads would start to span. Override with -Ddruid.lucene.rangeBufferSize=<bytes> (no rebuild).
   private static final int RANGE_BUFFER_SIZE = Integer.getInteger("druid.lucene.rangeBufferSize", 32 * 1024);
 
+  // Range-prefetch: forward Lucene's prefetch(fp) hints (term-dict/postings) to an async warm so a cold scan's
+  // latency-bound GETs overlap instead of running one at a time on the query's critical path. Off by default; enable
+  // with -Ddruid.lucene.rangePrefetch=true. REQUIRES the range disk cache to be on (the coalescing relies on the
+  // fetch write-through) — without it, a hint that lands after its read would re-fetch from deep storage.
+  private static final boolean RANGE_PREFETCH = Boolean.getBoolean("druid.lucene.rangePrefetch");
+  private static final int PREFETCH_THREADS = Integer.getInteger("druid.lucene.rangePrefetchThreads", 16);
+  private static final ExecutorService PREFETCH_POOL = RANGE_PREFETCH ? newPrefetchPool() : null;
+
+  private static ExecutorService newPrefetchPool()
+  {
+    final ThreadFactory tf = new ThreadFactory()
+    {
+      private final AtomicInteger n = new AtomicInteger();
+
+      @Override
+      public Thread newThread(Runnable r)
+      {
+        final Thread t = new Thread(r, "lucene-range-prefetch-" + n.getAndIncrement());
+        t.setDaemon(true);
+        return t;
+      }
+    };
+    // Bounded queue + discard: a saturated pool DROPS the hint (the read then does its own GET) rather than block the
+    // query thread or let warm work pile up unboundedly behind the reads it's meant to get ahead of.
+    return new ThreadPoolExecutor(
+        PREFETCH_THREADS, PREFETCH_THREADS, 60L, TimeUnit.SECONDS,
+        new ArrayBlockingQueue<>(4096), tf, new ThreadPoolExecutor.DiscardPolicy()
+    );
+  }
+
+  private record RangeKey(long offset, int length) {}
+
+  /**
+   * Wrap a range source so a {@code prefetch()} hint warms its {@code (offset,length)} range in the background and
+   * coalesces with the subsequent synchronous {@code fetch}: at most ONE deep-storage GET per range. A caller that
+   * finds a range already in flight waits for it, then re-reads the range — a local disk-cache hit, since the fetch
+   * write-through completes before the latch opens — so no ByteBuffer is shared across threads. Degrades to at-worst-
+   * neutral: if a read claims a range before its prefetch task runs, it fetches synchronously as it would have anyway,
+   * and the late prefetch task then serves from the disk cache the read just populated (still no second GET).
+   */
+  private static RangeFetchIndexInput.RangeSource prefetchingSource(final RangeFetchIndexInput.RangeSource delegate)
+  {
+    final ConcurrentHashMap<RangeKey, CountDownLatch> inflight = new ConcurrentHashMap<>();
+    return new RangeFetchIndexInput.RangeSource()
+    {
+      @Override
+      public ByteBuffer fetch(long offset, int length) throws IOException
+      {
+        final RangeKey key = new RangeKey(offset, length);
+        final CountDownLatch mine = new CountDownLatch(1);
+        final CountDownLatch running = inflight.putIfAbsent(key, mine);
+        if (running != null) {
+          try {
+            running.await(10, TimeUnit.SECONDS);   // wait out the in-flight fetch, then read its disk-cached result
+          }
+          catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          return delegate.fetch(offset, length);
+        }
+        try {
+          return delegate.fetch(offset, length);
+        }
+        finally {
+          inflight.remove(key, mine);
+          mine.countDown();
+        }
+      }
+
+      @Override
+      public void prefetch(long offset, int length)
+      {
+        if (PREFETCH_POOL == null || inflight.containsKey(new RangeKey(offset, length))) {
+          return;
+        }
+        PREFETCH_POOL.execute(() -> {
+          try {
+            fetch(offset, length);
+          }
+          catch (Throwable ignored) {
+            // best-effort warm; a failure just resurfaces as the real read's own fetch
+          }
+        });
+      }
+    };
+  }
+
   // Files at or below this size are fetched WHOLE in a single GET (buffer-backed) instead of sub-ranged: the term
   // index (.tip FST), field infos, segment info, norms etc. are read (near-)fully anyway, so one coarse GET beats
   // many latency-bound small ones. Only the genuinely large term-dict/postings files get the range-read treatment.
@@ -660,8 +755,11 @@ public class Lucenes
    * via {@code source} (each file opened as a {@link RangeFetchIndexInput} over its column-relative extent) instead of
    * a whole-index buffer, so opening + searching pulls only the term dictionary block + a term's postings.
    */
-  public static DirectoryReader rangeReader(final RangeTable table, final RangeFetchIndexInput.RangeSource source)
+  public static DirectoryReader rangeReader(final RangeTable table, final RangeFetchIndexInput.RangeSource rawSource)
   {
+    // One coalescing wrapper per column (shared across all this reader's clones/slices), so a prefetch hint and its
+    // read collapse to one GET. No-op wrapper when range-prefetch is off — the raw source is used directly.
+    final RangeFetchIndexInput.RangeSource source = RANGE_PREFETCH ? prefetchingSource(rawSource) : rawSource;
     final Map<String, int[]> dataOffsets = table.dataOffsets;
     final long datumBase = table.datumBase;
     // A1: coalesce the open-time small-file GET storm into one GET per contiguous run (see prefetchSmallFiles).
