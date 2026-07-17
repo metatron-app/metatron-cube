@@ -1021,11 +1021,20 @@ public class Lucenes
     return new TermRangeQuery(column, new BytesRef((String) value1), new BytesRef((String) value2), true, true);
   }
 
+  // Analyzers are thread-safe and designed for reuse (they keep per-thread TokenStreamComponents via a reuse
+  // strategy), and IndexWriter.close() does not close its analyzer — so one instance per name is safe to share across
+  // every query and segment build. Caching avoids rebuilding the expensive ones (icu/ngram/multilang each load
+  // resources) on every getBitmapIndex call. Keyed by the raw name so a custom Class.forName analyzer keeps its case;
+  // the distinct-name set is tiny, so the map needs no eviction.
+  private static final ConcurrentHashMap<String, Analyzer> ANALYZER_CACHE = new ConcurrentHashMap<>();
+
   public static Analyzer createAnalyzer(String analyzer)
   {
-    if (analyzer == null) {
-      return new StandardAnalyzer();
-    }
+    return ANALYZER_CACHE.computeIfAbsent(analyzer == null ? "standard" : analyzer, Lucenes::newAnalyzer);
+  }
+
+  private static Analyzer newAnalyzer(String analyzer)
+  {
     switch (analyzer.toLowerCase()) {
       case "simple": return new SimpleAnalyzer();
       case "standard": return new StandardAnalyzer();
