@@ -552,12 +552,13 @@ public class Lucenes
 
   // Read-ahead window for a range-served BIG lucene file (term dict / postings), sub-ranged to pull only the term's
   // block + postings. Amortizes per-GET round-trip latency (seaweed ~5ms/GET dominated the first cut — 94k tiny GETs)
-  // while staying tiny vs the whole ~tens-of-MB file. 256KB was over-tuned: lucene's access is largely RANDOM (FST
-  // traversal + seeks), which read-ahead can't coalesce, so a large window mostly just over-fetched (256KB fill for a
-  // few needed bytes -> 9x the bytes for only 34% fewer GETs). 64KB keeps GET count ~the same but cuts over-fetch.
-  // Override with -Ddruid.lucene.rangeBufferSize=<bytes> to sweep the read-ahead window without a rebuild; pair with
-  // the RangeProf buffer-fill probe ([buf ...] in [lucene-prof]) to read off GET-count vs over-fetch at each size.
-  private static final int RANGE_BUFFER_SIZE = Integer.getInteger("druid.lucene.rangeBufferSize", 64 * 1024);
+  // while staying tiny vs the whole ~tens-of-MB file. lucene's access here is 100% RANDOM (FST traversal + seeks),
+  // which read-ahead can't coalesce, so a bigger window only over-fetches. A 2279-seg cold sweep (RangeProf buffer-fill
+  // probe) measured the range-read GET count PERFECTLY INVARIANT across 16/32/64/128K (23,670 every time — reads never
+  // span the buffer), while fetched bytes scaled linearly with the window: 64K over-fetched ~2x the bytes of 32K for
+  // zero fewer GETs and no measurable latency change. 32K is the knee — halves 64K's over-fetch with margin above the
+  // point where reads would start to span. Override with -Ddruid.lucene.rangeBufferSize=<bytes> (no rebuild).
+  private static final int RANGE_BUFFER_SIZE = Integer.getInteger("druid.lucene.rangeBufferSize", 32 * 1024);
 
   // Files at or below this size are fetched WHOLE in a single GET (buffer-backed) instead of sub-ranged: the term
   // index (.tip FST), field infos, segment info, norms etc. are read (near-)fully anyway, so one coarse GET beats
