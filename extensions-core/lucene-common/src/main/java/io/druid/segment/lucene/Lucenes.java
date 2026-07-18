@@ -921,6 +921,40 @@ public class Lucenes
     return factory.makeImmutableBitmap(bitmap);
   }
 
+  /**
+   * Collect ALL docs matching {@code query} WITH scores into a bitmap, attaching a doc-&gt;score mapping under
+   * {@code scoreField} — the scored counterpart of {@link #collectAll}. Same idea: iterate each segment's
+   * {@link Scorer} directly (here under {@link ScoreMode#COMPLETE} so scores ARE computed) instead of going through
+   * {@code search(query, numRows)}, which builds and sifts a numRows-sized top-N priority queue whose RANKING this
+   * path then discards — {@link #toBitmap} dumps every hit into the bitmap + score map regardless of order. When every
+   * match is wanted (an unlimited filter that also requests a scoreField), that heap is pure waste; skipping it leaves
+   * only the unavoidable per-doc score computation. Use {@link #collectAll} instead when no scoreField is needed.
+   */
+  public static ImmutableBitmap collectAllScored(
+      IndexSearcher searcher, Query query, FilterContext context, String scoreField
+  ) throws IOException
+  {
+    final BitmapFactory factory = context.bitmapFactory();
+    final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+    final Int2FloatRBTreeMap mapping = new Int2FloatRBTreeMap();
+    final Weight weight = searcher.createWeight(searcher.rewrite(query), ScoreMode.COMPLETE, 1f);
+    for (LeafReaderContext leaf : searcher.getIndexReader().leaves()) {
+      final Scorer scorer = weight.scorer(leaf);
+      if (scorer == null) {
+        continue;   // no match in this segment
+      }
+      final int base = leaf.docBase;
+      final DocIdSetIterator it = scorer.iterator();
+      for (int doc = it.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = it.nextDoc()) {
+        final int global = base + doc;   // search() returns global ids; keep the bitmap + score keys global too
+        bitmap.add(global);
+        mapping.put(global, scorer.score());
+      }
+    }
+    context.attach(scoreField, index -> mapping.getOrDefault(index, Float.NaN));
+    return factory.makeImmutableBitmap(bitmap);
+  }
+
   public static ImmutableBitmap toBitmap(TopDocs searched, FilterContext context, String scoreField)
   {
     final BitmapFactory factory = context.bitmapFactory();
