@@ -124,23 +124,51 @@ public class ResolveResource
     final Object interval = request.get("interval");
     final List<String> intervals = Lists.newArrayList(intervalOf(interval));
 
+    // Score mode: return the max relevance score per key (ranked), not just the distinct keys. Needs a lucene.query
+    // filter to score against; the connector cannot do this itself since the score lives in the lucene scan.
+    final boolean scored = asBool(request.get("score"));
+
     final Map<String, Object> out = Maps.newLinkedHashMap();
     out.put("dataSource", dataSource);
     // Distinct keys — the core; its failure IS the resolve's failure (nothing useful without them).
     if (keyColumns != null && !keyColumns.isEmpty()) {
+      final Object scoredFilter = scored ? withScoreField(filter) : null;
+      if (scored && scoredFilter == null) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                       .entity(ImmutableMap.of("error", "score requires a lucene.query filter")).build();
+      }
       try {
         // The caller speaks in SOURCE column names; the datasource's source time column (from the timeColumns config)
         // is Druid's __time, so translate it for the internal query. The response echoes the caller's names as-is.
         final List<String> queryColumns = toInternal(keyColumns, catalog.getTimeColumns().get(dataSource));
-        final List<Object[]> rows = run(streamQuery(dataSource, intervals, filter, queryColumns, limit), remoteAddr);
-        final boolean scalar = keyColumns.size() == 1;   // single key -> flat values; multiple -> tuples
-        final List<Object> values = Lists.newArrayListWithCapacity(rows.size());
-        for (Object[] row : rows) {
-          values.add(scalar ? row[0] : java.util.Arrays.asList(row));
+        final List<Object> values;
+        if (scored) {
+          // groupBy: one group per key, doubleMax(_score); ranked score desc, capped to `limit` keys. Each returned
+          // tuple is [keyColumns..., score]. Filter scores ALL matches (no per-segment cap) so max-per-key is exact.
+          final List<io.druid.data.input.Row> rows = run(scoredQuery(dataSource, intervals, scoredFilter, queryColumns, limit), remoteAddr);
+          values = Lists.newArrayListWithCapacity(rows.size());
+          for (io.druid.data.input.Row row : rows) {
+            final List<Object> tuple = Lists.newArrayListWithCapacity(queryColumns.size() + 1);
+            for (String col : queryColumns) {
+              tuple.add(row.getRaw(col));
+            }
+            tuple.add(row.getRaw("score"));   // appended relevance score
+            values.add(tuple);
+          }
+        } else {
+          final List<Object[]> rows = run(streamQuery(dataSource, intervals, filter, queryColumns, limit), remoteAddr);
+          final boolean scalar = keyColumns.size() == 1;   // single key -> flat values; multiple -> tuples
+          values = Lists.newArrayListWithCapacity(rows.size());
+          for (Object[] row : rows) {
+            values.add(scalar ? row[0] : java.util.Arrays.asList(row));
+          }
         }
         out.put("key", keyObj);
+        if (scored) {
+          out.put("scored", true);   // values are [keyColumns..., score] tuples, ordered by score desc
+        }
         out.put("count", values.size());
-        out.put("capped", values.size() >= limit);   // hit the cap -> connector should skip pushdown
+        out.put("capped", values.size() >= limit);   // hit the cap -> distinct: skip pushdown; scored: top-`limit` keys
         out.put("values", values);
       }
       catch (Exception e) {
@@ -187,6 +215,51 @@ public class ResolveResource
     q.put("limitSpec", ImmutableMap.of("type", "default", "limit", limit));
     q.put("context", ImmutableMap.of("dedup", true, "timeout", TIMEOUT_MS, "queryId", newId()));
     return q;
+  }
+
+  // Score mode: group by the key column(s), take doubleMax of the per-row lucene score (attached under _score by the
+  // scoreField on the filter, surfaced as a virtual column), rank keys by that max, and keep the top-`limit`. Groups
+  // are the distinct keys (thousands, well under the groupBy merge cap), so groupBy is fine here.
+  private Map<String, Object> scoredQuery(String ds, List<String> intervals, Object filter, List<String> dimensions, int limit)
+  {
+    final Map<String, Object> q = Maps.newLinkedHashMap();
+    q.put("queryType", "groupBy");
+    q.put("dataSource", ds);
+    q.put("intervals", intervals);
+    q.put("granularity", "all");
+    q.put("filter", filter);   // already carries scoreField=_score (see withScoreField)
+    q.put("virtualColumns", Lists.newArrayList(
+        ImmutableMap.of("type", "$attachment", "outputName", "_score", "columnType", "FLOAT")
+    ));
+    q.put("dimensions", dimensions);
+    q.put("aggregations", Lists.newArrayList(
+        ImmutableMap.of("type", "doubleMax", "name", "score", "fieldName", "_score")
+    ));
+    q.put("limitSpec", ImmutableMap.of(
+        "type", "default",
+        "columns", Lists.newArrayList(ImmutableMap.of("dimension", "score", "direction", "descending")),
+        "limit", limit
+    ));
+    q.put("context", ImmutableMap.of("timeout", TIMEOUT_MS, "queryId", newId()));
+    return q;
+  }
+
+  private static boolean asBool(Object v)
+  {
+    return v instanceof Boolean ? (Boolean) v : "true".equalsIgnoreCase(String.valueOf(v));
+  }
+
+  // Copy the caller's filter with scoreField=_score added so the lucene scan attaches a per-doc score. Only a
+  // top-level lucene.query is scorable here; anything else returns null (score mode then 400s).
+  @SuppressWarnings("unchecked")
+  private static Object withScoreField(Object filter)
+  {
+    if (filter instanceof Map && "lucene.query".equals(((Map<String, Object>) filter).get("type"))) {
+      final Map<String, Object> copy = Maps.newLinkedHashMap((Map<String, Object>) filter);
+      copy.put("scoreField", "_score");
+      return copy;
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")

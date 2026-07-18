@@ -23,17 +23,19 @@ Content-Type: application/json
   "key": "source_sha256",                        // required: column, OR ["source_sha256","timestamp_trigger"] for tuples
   "interval": ["2026-04-20T00:00:00Z",           // optional [start,end); omit = all time
                "2026-07-10T00:00:00Z"],
-  "limit": 100000                                // optional cap on distinct values (default 100000)
+  "limit": 100000,                               // optional cap on distinct values (default 100000)
+  "score": false                                 // optional; true = rank keys by max relevance score (see below)
 }
 ```
 
 | field        | type                  | notes |
 |--------------|-----------------------|-------|
 | `dataSource` | string                | required |
-| `filter`     | object                | any Druid DimFilter; typically `lucene.query` on `raw`. Omit → all rows |
+| `filter`     | object                | any Druid DimFilter; typically `lucene.query` on `raw`. Omit → all rows. **Required (and must be a `lucene.query`) when `score:true`** |
 | `key`        | string \| string[]    | one column → flat values; a list → tuples (rows). Use `["source_sha256","timestamp_trigger"]` to get each key's trigger time. Use SOURCE column names; the server maps the source time column to Druid's `__time` (which is also accepted as an alias) |
 | `interval`   | [start, end] \| string| optional time bound; ISO-8601. Omit → eternity |
-| `limit`      | int                   | stop after this many distinct values; drives `capped` |
+| `limit`      | int                   | distinct mode: stop after this many distinct values; score mode: keep the top-`limit` keys by score. Drives `capped` |
+| `score`      | bool                  | when `true`, return the **max relevance score per key** (ranked). Server-side aggregation — the connector cannot do this itself. See *Score mode* below |
 
 ## Response
 
@@ -61,9 +63,40 @@ Content-Type: application/json
 - **Time pruning:** the source is 1:1 on `(source_sha256, timestamp_trigger)`. Requesting `["source_sha256","timestamp_trigger"]` returns each key's exact trigger time (epoch millis) from the same scan — push `WHERE source_sha256 IN (...) AND timestamp_trigger IN (...)` (or a min/max range over the returned times) to prune time partitions. No separate call.
 - **Empty filter match** → `count:0`, `values:[]` (valid; nothing matched).
 
+## Score mode (`score:true`) — rank keys by relevance
+
+With `score:true` the endpoint returns, per key, the **maximum lucene relevance score** of that key's matching rows,
+ranked score-descending and capped to the top-`limit` keys. This is `dimensions:[key] + doubleMax(_score)` server-side
+— the connector can't compute it, because the score only exists inside the lucene scan.
+
+```jsonc
+// key = "source_sha256", score:true
+{ "dataSource":"analysis_omg", "key":"source_sha256", "scored":true,
+  "count": 4, "capped": false,
+  "values": [ ["9f3d…0869a1", 5.3686], ["28d7…f6e4", 5.2192], ["bcc9…feece", 4.2225], … ] }
+```
+
+- **`values` are always tuples `[keyColumns…, score]`** (score last), ordered by score DESC — even for a scalar `key`.
+  `"scored":true` in the response flags this shape.
+- **`filter` must be a `lucene.query`** (top-level); otherwise `400 {"error":"score requires a lucene.query filter"}`.
+  The server injects `scoreField:_score` into it and attaches the per-row score via a `$attachment` virtual column.
+- **Exact max:** the filter scores *every* match (no per-segment cap), so each key's `score` is its true maximum; then
+  `limitSpec` keeps the top-`limit` keys. Scoring the full match set is cheap (single-scan, no priority queue — see
+  *Performance* above).
+- **`capped`:** in score mode `capped=true` means "these are the top-`limit` keys by score, more exist" (intended for
+  a top-K ranking) — NOT the distinct-mode "list incomplete, skip pushdown" signal.
+- Scores are **per-segment** (each segment's own IDF), so the cross-segment ranking is approximate — fine for
+  relevance ordering, not a metric.
+- Runs as one `groupBy` (groups = distinct keys, well under the merge cap); logged like any resolve subquery.
+
+This is distinct from the [connector-side `_score` on `select.stream`](#relevance-score-_score-for-the-trino-connector)
+below: use **`/resolve` score mode** to rank the KEYS you inject as `IN (…)`; use the stream `_score` to return a
+per-row score in a normal projection.
+
 ## Errors
 
 - Missing `dataSource` → `400` `{"error":"dataSource is required"}`.
+- `score:true` without a `lucene.query` filter → `400` `{"error":"score requires a lucene.query filter"}`.
 - Query failure → `500` `{"error":"<message>"}`.
 - All subqueries are logged to Druid's RequestLogger (`success`, `query/time`, `query/rows` + query JSON).
 
