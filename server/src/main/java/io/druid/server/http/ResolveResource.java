@@ -132,7 +132,7 @@ public class ResolveResource
     out.put("dataSource", dataSource);
     // Distinct keys — the core; its failure IS the resolve's failure (nothing useful without them).
     if (keyColumns != null && !keyColumns.isEmpty()) {
-      final Object scoredFilter = scored ? withScoreField(filter) : null;
+      final Object scoredFilter = scored ? withScoreField(filter, limit) : null;
       if (scored && scoredFilter == null) {
         return Response.status(Response.Status.BAD_REQUEST)
                        .entity(ImmutableMap.of("error", "score requires a lucene.query filter")).build();
@@ -143,18 +143,12 @@ public class ResolveResource
         final List<String> queryColumns = toInternal(keyColumns, catalog.getTimeColumns().get(dataSource));
         final List<Object> values;
         if (scored) {
-          // groupBy: one group per key, doubleMax(_score); ranked score desc, capped to `limit` keys. Each returned
-          // tuple is [keyColumns..., score]. Filter scores ALL matches (no per-segment cap) so max-per-key is exact.
-          final List<io.druid.data.input.Row> rows = run(scoredQuery(dataSource, intervals, scoredFilter, queryColumns, limit), remoteAddr);
-          values = Lists.newArrayListWithCapacity(rows.size());
-          for (io.druid.data.input.Row row : rows) {
-            final List<Object> tuple = Lists.newArrayListWithCapacity(queryColumns.size() + 1);
-            for (String col : queryColumns) {
-              tuple.add(row.getRaw(col));
-            }
-            tuple.add(row.getRaw("score"));   // appended relevance score
-            values.add(tuple);
-          }
+          // Stream the per-segment top-`limit` rows by score (bounded by the filter's `limit`), then keep the max
+          // score per key: a no-op collapse when the key is row-unique (e.g. file_id+line — nothing to aggregate, and
+          // groupBy would blow the merge cap on the high cardinality), a real max-per-key when the key is coarse (e.g.
+          // source_sha256). Ranked score-desc, top-`limit`. Approximate globally (per-segment top-N cutoff).
+          final List<Object[]> rows = run(scoredStreamQuery(dataSource, intervals, scoredFilter, queryColumns, limit), remoteAddr);
+          values = scoreDedup(rows, queryColumns.size(), limit);
         } else {
           final List<Object[]> rows = run(streamQuery(dataSource, intervals, filter, queryColumns, limit), remoteAddr);
           final boolean scalar = keyColumns.size() == 1;   // single key -> flat values; multiple -> tuples
@@ -217,31 +211,52 @@ public class ResolveResource
     return q;
   }
 
-  // Score mode: group by the key column(s), take doubleMax of the per-row lucene score (attached under _score by the
-  // scoreField on the filter, surfaced as a virtual column), rank keys by that max, and keep the top-`limit`. Groups
-  // are the distinct keys (thousands, well under the groupBy merge cap), so groupBy is fine here.
-  private Map<String, Object> scoredQuery(String ds, List<String> intervals, Object filter, List<String> dimensions, int limit)
+  // Score mode: stream each matching row's lucene score (attached under _score by the scoreField on the filter,
+  // surfaced as a virtual column). The filter's per-segment `limit` keeps only the top-N rows by score per segment, so
+  // the stream is bounded (~limit x segments rows) — no groupBy, no merge cap, whatever the key's cardinality. The
+  // max-per-key collapse then happens in scoreDedup. NOT deduped in the engine (we need the score, not just the key).
+  private Map<String, Object> scoredStreamQuery(String ds, List<String> intervals, Object filter, List<String> keyColumns, int limit)
   {
+    final List<String> columns = Lists.newArrayList(keyColumns);
+    columns.add("_score");   // appended per-row score
     final Map<String, Object> q = Maps.newLinkedHashMap();
-    q.put("queryType", "groupBy");
+    q.put("queryType", "select.stream");
     q.put("dataSource", ds);
     q.put("intervals", intervals);
-    q.put("granularity", "all");
-    q.put("filter", filter);   // already carries scoreField=_score (see withScoreField)
+    q.put("filter", filter);   // already carries scoreField=_score + per-segment `limit` (see withScoreField)
     q.put("virtualColumns", Lists.newArrayList(
         ImmutableMap.of("type", "$attachment", "outputName", "_score", "columnType", "FLOAT")
     ));
-    q.put("dimensions", dimensions);
-    q.put("aggregations", Lists.newArrayList(
-        ImmutableMap.of("type", "doubleMax", "name", "score", "fieldName", "_score")
-    ));
-    q.put("limitSpec", ImmutableMap.of(
-        "type", "default",
-        "columns", Lists.newArrayList(ImmutableMap.of("dimension", "score", "direction", "descending")),
-        "limit", limit
-    ));
+    q.put("columns", columns);
+    // the filter's per-segment limit bounds the rows; keep the stream unbounded here and take the global top-N in Java.
+    q.put("limitSpec", ImmutableMap.of("type", "default", "limit", Integer.MAX_VALUE));
     q.put("context", ImmutableMap.of("timeout", TIMEOUT_MS, "queryId", newId()));
     return q;
+  }
+
+  // Max score per key over the streamed (per-segment top-N) rows: rows are [keyColumns..., score]. A row-unique key
+  // collapses to itself; a coarse key keeps its best-scoring occurrence. Rank score-desc, keep the top-`limit`, and
+  // emit [keyColumns..., score] tuples.
+  private static List<Object> scoreDedup(List<Object[]> rows, int keyLen, int limit)
+  {
+    final Map<List<Object>, Double> best = Maps.newHashMap();
+    for (Object[] row : rows) {
+      if (!(row[keyLen] instanceof Number)) {
+        continue;   // no score attached (shouldn't happen for a matched row) — skip
+      }
+      final List<Object> key = java.util.Arrays.asList(java.util.Arrays.copyOf(row, keyLen));
+      final double score = ((Number) row[keyLen]).doubleValue();
+      best.merge(key, score, Math::max);
+    }
+    final List<Map.Entry<List<Object>, Double>> ranked = Lists.newArrayList(best.entrySet());
+    ranked.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));   // score desc
+    final List<Object> values = Lists.newArrayListWithCapacity(Math.min(ranked.size(), limit));
+    for (int i = 0; i < ranked.size() && i < limit; i++) {
+      final List<Object> tuple = Lists.newArrayList(ranked.get(i).getKey());
+      tuple.add(ranked.get(i).getValue());
+      values.add(tuple);
+    }
+    return values;
   }
 
   private static boolean asBool(Object v)
@@ -249,14 +264,18 @@ public class ResolveResource
     return v instanceof Boolean ? (Boolean) v : "true".equalsIgnoreCase(String.valueOf(v));
   }
 
-  // Copy the caller's filter with scoreField=_score added so the lucene scan attaches a per-doc score. Only a
-  // top-level lucene.query is scorable here; anything else returns null (score mode then 400s).
+  // Copy the caller's filter with scoreField=_score (so the lucene scan attaches a per-doc score) and a per-segment
+  // `limit` = top-N rows by score (which bounds the scored stream). Only a top-level lucene.query is scorable here;
+  // anything else returns null (score mode then 400s).
   @SuppressWarnings("unchecked")
-  private static Object withScoreField(Object filter)
+  private static Object withScoreField(Object filter, int limit)
   {
     if (filter instanceof Map && "lucene.query".equals(((Map<String, Object>) filter).get("type"))) {
       final Map<String, Object> copy = Maps.newLinkedHashMap((Map<String, Object>) filter);
       copy.put("scoreField", "_score");
+      if (limit > 0) {
+        copy.put("limit", limit);   // per-segment top-N by score -> bounds the stream
+      }
       return copy;
     }
     return null;

@@ -66,28 +66,37 @@ Content-Type: application/json
 ## Score mode (`score:true`) — rank keys by relevance
 
 With `score:true` the endpoint returns, per key, the **maximum lucene relevance score** of that key's matching rows,
-ranked score-descending and capped to the top-`limit` keys. This is `dimensions:[key] + doubleMax(_score)` server-side
-— the connector can't compute it, because the score only exists inside the lucene scan.
+ranked score-descending and capped to the top-`limit` keys — the connector can't compute it, since the score only
+exists inside the lucene scan.
 
 ```jsonc
-// key = "source_sha256", score:true
-{ "dataSource":"analysis_omg", "key":"source_sha256", "scored":true,
-  "count": 4, "capped": false,
-  "values": [ ["9f3d…0869a1", 5.3686], ["28d7…f6e4", 5.2192], ["bcc9…feece", 4.2225], … ] }
+// key = "source_sha256"                              // coarse key: many rows per key -> collapse to max
+{ "dataSource":"analysis_omg", "key":"source_sha256", "scored":true, "count":4, "capped":false,
+  "values": [ ["9f3d…0869a1", 5.3686], ["28d7…f6e4", 5.2192], ["4bad…6fdd0", 4.8430], … ] }
+
+// key = ["file_sha256","line_no"]                    // row-unique key: no aggregation, top rows by score
+{ "dataSource":"analysis_omg", "key":["file_sha256","line_no"], "scored":true, "count":5, "capped":true,
+  "values": [ ["9f3d…0869a1", 6103095, 5.3686], ["28d7…f6e4", 6118708, 5.2192], … ] }
 ```
 
 - **`values` are always tuples `[keyColumns…, score]`** (score last), ordered by score DESC — even for a scalar `key`.
   `"scored":true` in the response flags this shape.
 - **`filter` must be a `lucene.query`** (top-level); otherwise `400 {"error":"score requires a lucene.query filter"}`.
-  The server injects `scoreField:_score` into it and attaches the per-row score via a `$attachment` virtual column.
-- **Exact max:** the filter scores *every* match (no per-segment cap), so each key's `score` is its true maximum; then
-  `limitSpec` keeps the top-`limit` keys. Scoring the full match set is cheap (single-scan, no priority queue — see
-  *Performance* above).
+  The server injects `scoreField:_score` + a per-segment `limit` into it and attaches the per-row score via a
+  `$attachment` virtual column.
+- **How it runs (one `select.stream`, no `groupBy`):** the filter's per-segment `limit` keeps the top-`limit` rows by
+  score *per segment*, so the stream is bounded (~`limit`×segments rows) whatever the key's cardinality; the server
+  then keeps the **max score per key** and takes the global top-`limit`. This works for **both** a coarse key (e.g.
+  `source_sha256` — the collapse is a real max-per-key) and a **row-unique** key (e.g. `["file_sha256","line_no"]` —
+  the collapse is a no-op, so you just get the top rows by score). A `groupBy` here would be pointless for a unique
+  key and would blow the merge cap on its high cardinality.
+- **Approximate ranking:** because each segment contributes only its top-`limit` by score, a key whose best row falls
+  below every segment's cutoff can be missed. The top keys are captured; raise `limit` for more recall (especially for
+  a skewed coarse key where a few keys dominate each segment's top-N).
 - **`capped`:** in score mode `capped=true` means "these are the top-`limit` keys by score, more exist" (intended for
   a top-K ranking) — NOT the distinct-mode "list incomplete, skip pushdown" signal.
 - Scores are **per-segment** (each segment's own IDF), so the cross-segment ranking is approximate — fine for
-  relevance ordering, not a metric.
-- Runs as one `groupBy` (groups = distinct keys, well under the merge cap); logged like any resolve subquery.
+  relevance ordering, not a metric. Logged like any resolve subquery.
 
 This is distinct from the [connector-side `_score` on `select.stream`](#relevance-score-_score-for-the-trino-connector)
 below: use **`/resolve` score mode** to rank the KEYS you inject as `IN (…)`; use the stream `_score` to return a
