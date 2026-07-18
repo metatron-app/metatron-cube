@@ -154,6 +154,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.text.DecimalFormat;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -922,20 +923,24 @@ public class Lucenes
   }
 
   /**
-   * Collect ALL docs matching {@code query} WITH scores into a bitmap, attaching a doc-&gt;score mapping under
-   * {@code scoreField} — the scored counterpart of {@link #collectAll}. Same idea: iterate each segment's
-   * {@link Scorer} directly (here under {@link ScoreMode#COMPLETE} so scores ARE computed) instead of going through
-   * {@code search(query, numRows)}, which builds and sifts a numRows-sized top-N priority queue whose RANKING this
-   * path then discards — {@link #toBitmap} dumps every hit into the bitmap + score map regardless of order. When every
-   * match is wanted (an unlimited filter that also requests a scoreField), that heap is pure waste; skipping it leaves
-   * only the unavoidable per-doc score computation. Use {@link #collectAll} instead when no scoreField is needed.
+   * Collect docs matching {@code query} WITH scores, attaching a doc-&gt;score mapping under {@code scoreField} — the
+   * scored counterpart of {@link #collectAll}. Iterate each segment's {@link Scorer} directly (under
+   * {@link ScoreMode#COMPLETE} so scores ARE computed) instead of {@code search(query, k)}, which builds and sifts a
+   * k-sized top-N priority queue for EVERY matching doc. We score each match exactly once with no queue, then:
+   * <ul>
+   *   <li>{@code limit <= 0} (or {@code limit >= matches}): keep every match — an unlimited scored filter;</li>
+   *   <li>{@code 0 < limit < matches}: keep the top-{@code limit} by (score desc, docId asc) — the same selection a
+   *       {@code TopScoreDocCollector} would make — chosen over the collected scores, still without a per-doc heap.</li>
+   * </ul>
+   * Trade-off vs the collector: {@code ScoreMode.COMPLETE} scores every match, so this forgoes the collector's
+   * dynamic (block-max WAND) pruning that can skip low-scoring docs on multi-term queries — a win only when that
+   * pruning would have outweighed the per-doc heap it costs. Use {@link #collectAll} when no scoreField is needed.
    */
   public static ImmutableBitmap collectAllScored(
-      IndexSearcher searcher, Query query, FilterContext context, String scoreField
+      IndexSearcher searcher, Query query, FilterContext context, String scoreField, int limit
   ) throws IOException
   {
     final BitmapFactory factory = context.bitmapFactory();
-    final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
     final Int2FloatRBTreeMap mapping = new Int2FloatRBTreeMap();
     final Weight weight = searcher.createWeight(searcher.rewrite(query), ScoreMode.COMPLETE, 1f);
     for (LeafReaderContext leaf : searcher.getIndexReader().leaves()) {
@@ -946,12 +951,28 @@ public class Lucenes
       final int base = leaf.docBase;
       final DocIdSetIterator it = scorer.iterator();
       for (int doc = it.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = it.nextDoc()) {
-        final int global = base + doc;   // search() returns global ids; keep the bitmap + score keys global too
-        bitmap.add(global);
-        mapping.put(global, scorer.score());
+        mapping.put(base + doc, scorer.score());   // global ids: attach + bitmap keys stay global
       }
     }
-    context.attach(scoreField, index -> mapping.getOrDefault(index, Float.NaN));
+    if (scoreField != null) {
+      context.attach(scoreField, index -> mapping.getOrDefault(index, Float.NaN));
+    }
+    final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+    if (limit <= 0 || mapping.size() <= limit) {
+      for (final int doc : mapping.keySet()) {
+        bitmap.add(doc);
+      }
+    } else {
+      // top-`limit` by (score desc, docId asc) selected over the already-scored matches — no priority queue.
+      final Integer[] docs = mapping.keySet().toArray(new Integer[0]);
+      Arrays.sort(docs, (a, b) -> {
+        final int c = Float.compare(mapping.get((int) b), mapping.get((int) a));   // higher score first
+        return c != 0 ? c : Integer.compare(a, b);                                 // ties: lower docId first
+      });
+      for (int i = 0; i < limit; i++) {
+        bitmap.add(docs[i]);
+      }
+    }
     return factory.makeImmutableBitmap(bitmap);
   }
 

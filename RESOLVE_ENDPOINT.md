@@ -72,3 +72,90 @@ Content-Type: application/json
 - One lucene scan; DISTINCT is deduped in parallel across segments (no groupBy 500k merge cap).
 - A capped lookup short-circuits — `limit:2000` returns in ~1–2s even against hundreds of millions of matches.
 - `queryId` is assigned server-side per subquery (`resolve-<uuid>`), visible in the request log.
+
+---
+
+# Relevance score `_score` (for the Trino connector)
+
+Separate capability from `/resolve`: expose the lucene query **relevance score** as a column the connector can
+`SELECT` and `ORDER BY`. The score rides along per row in a normal `select.stream`; the connector discovers the
+wiring from `GET /druid/v2/datasources/{ds}/schema` and does the ordering itself.
+
+## What `/schema` advertises
+
+When the datasource has a lucene-indexed column, the schema gains a synthetic `_score` column, a `scoring` block,
+and a `${virtualColumns}` slot in `queryTemplate`:
+
+```jsonc
+{
+  "columns": [ …, { "name": "_score", "type": "DOUBLE", "relevanceScore": true } ],
+  "queryTemplate": { …, "virtualColumns": "${virtualColumns}", "limitSpec": {"type":"default","limit":"${limit}"} },
+  "scoring": {
+    "column": "_score",
+    "from": "lucene.query",                         // score is produced by this filter type — it must be in the query
+    "scoreField": "_score",                          // add this key to the lucene.query filter fragment to emit scores
+    "limitField": "limit",                           // add to that fragment: per-segment top-N docs by score (do set it)
+    "virtualColumn": { "type": "$attachment", "outputName": "_score", "columnType": "FLOAT" },
+    "pushOrdering": false                            // ORDER BY _score is NOT pushed to Druid — sort connector/Trino-side
+  }
+}
+```
+
+`_score` is synthetic (`relevanceScore:true`) — not a stored column; it materializes only in a query that carries a
+lucene filter **and** opts into scoring.
+
+## Connector recipe (when the query references `_score`)
+
+1. add `"scoreField":"_score"` (and `"limit":N` = per-segment top-N by score) to the `lucene.query` filter fragment
+   it already emits for the `match` pushdown;
+2. add `scoring.virtualColumn` to the query's `virtualColumns` (the `${virtualColumns}` slot), and `_score` to `columns`;
+3. do any `ORDER BY _score` **itself** (`pushOrdering:false`) — Druid does not sort the score.
+
+Filled query and the rows the connector receives (positional `Object[]`, `_score` at its `columns` position):
+
+```jsonc
+{ "queryType":"select.stream", "dataSource":"analysis_omg", "intervals":["2026-07-01/2026-07-02"],
+  "filter":{"type":"lucene.query","field":"raw","expression":"google","scoreField":"_score","limit":50},
+  "virtualColumns":[{"type":"$attachment","outputName":"_score","columnType":"FLOAT"}],
+  "columns":["__time","source_sha256","_score"],
+  "limitSpec":{"type":"default","limit":100000} }
+
+// → [ [1782877077581, "9f3d…0869a1", 4.8970275], [1782877098309, "28d7…f6e4", 4.393729], … ]
+```
+
+## Why ordering is connector-side
+
+The **ordered** `select.stream` path re-plans the query and skips the per-segment scoring pass entirely, so `_score`
+comes back `null` when `orderingSpecs` is present. The score is materialized per row only on the **non-ordered**
+stream — so fetch the scored rows and let Trino do `ORDER BY _score DESC LIMIT k`. For a global top-K, bound each
+segment with the filter `limit` (`limitField`) and set the query `limitSpec.limit` **≥** what Trino needs — Druid does
+not order, so a low `limitSpec.limit` truncates arbitrarily and can drop high-score rows.
+
+## Performance
+
+Enabling scoring adds only the **per-doc score computation** to the per-segment scan: matches are scored once by
+iterating the `Scorer` directly (no `TopScoreDocCollector` priority queue), and a per-segment `limit` selects the
+top-N over the collected scores afterward. So the search cost is **comparable to the non-scored scan regardless of
+`limit`** — a bounded `limit` and `limit:0` cost essentially the same (both score every match once; the difference is
+only how many rows the segment then contributes). Measured warm on a ~2150-match / 43-segment query, scored and
+non-scored search compute land in the same band; the earlier maxDoc-sized-heap penalty on the unlimited path is gone.
+
+Set a per-segment `limit` to **bound the rows** streamed to Trino (fewer rows to sort), not for search speed. Wall-clock
+is far smaller than the summed per-segment compute anyway (search runs parallel across segments; row streaming
+dominates).
+
+Scores are **per-segment** (each segment's own IDF), so a cross-segment global order is approximate.
+
+## Alternative: server-side ranking via `groupBy`
+
+If Trino-side sorting is undesirable, `groupBy` ranks server-side and returns only the top rows (unaffected by the
+ordered-stream limitation):
+
+```jsonc
+{ "queryType":"groupBy", "dataSource":"analysis_omg", "intervals":[…], "granularity":"all",
+  "filter":{"type":"lucene.query","field":"raw","expression":"google","scoreField":"_score","limit":200},
+  "virtualColumns":[{"type":"$attachment","outputName":"_score","columnType":"FLOAT"}],
+  "dimensions":["source_sha256"],
+  "aggregations":[{"type":"doubleMax","name":"score","fieldName":"_score"}],
+  "limitSpec":{"type":"default","columns":[{"dimension":"score","direction":"descending"}],"limit":50} }
+```

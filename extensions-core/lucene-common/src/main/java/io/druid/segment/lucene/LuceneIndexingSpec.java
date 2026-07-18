@@ -416,13 +416,10 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                           // pure filter/count: collect every match, NO scoring — skips the maxDoc-sized
                           // TopScoreDocCollector heap + norms that dominated per-segment CPU on a wide filter.
                           bitmap = Lucenes.collectAll(searcher, query, context);
-                        } else if (limit <= 0) {
-                          // scores for ALL matches (scoreField, no top-N ranking): compute scores while iterating,
-                          // still skipping the numRows-sized priority queue whose ordering this path throws away.
-                          bitmap = Lucenes.collectAllScored(searcher, query, context, attachment);
                         } else {
-                          // genuine top-`limit` by score: keep the scoring collector (its heap + dynamic pruning pay off).
-                          bitmap = Lucenes.toBitmap(searcher.search(query, Math.min(limit, numRows)), context, attachment);
+                          // scored path: score every match once (no priority queue), attach scores, and when limit>0
+                          // keep the per-segment top-`limit` by selecting over the collected scores (see collectAllScored).
+                          bitmap = Lucenes.collectAllScored(searcher, query, context, attachment, limit);
                         }
                         io.druid.java.util.common.RangeProf.searchNanos.addAndGet(System.nanoTime() - _t0);
                         io.druid.java.util.common.RangeProf.searchCount.incrementAndGet();
