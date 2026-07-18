@@ -81,18 +81,24 @@ exists inside the lucene scan.
 
 - **`values` are always tuples `[keyColumns…, score]`** (score last), ordered by score DESC — even for a scalar `key`.
   `"scored":true` in the response flags this shape.
+- **The connector passes only `limit`** — the final top-K. The per-segment scan fan-out (how many candidates each
+  segment contributes) is an **internal** server knob, not a connector concern; there is no `segmentLimit`-style
+  parameter to reason about.
 - **`filter` must be a `lucene.query`** (top-level); otherwise `400 {"error":"score requires a lucene.query filter"}`.
-  The server injects `scoreField:_score` + a per-segment `limit` into it and attaches the per-row score via a
-  `$attachment` virtual column.
-- **How it runs (one `select.stream`, no `groupBy`):** the filter's per-segment `limit` keeps the top-`limit` rows by
-  score *per segment*, so the stream is bounded (~`limit`×segments rows) whatever the key's cardinality; the server
-  then keeps the **max score per key** and takes the global top-`limit`. This works for **both** a coarse key (e.g.
-  `source_sha256` — the collapse is a real max-per-key) and a **row-unique** key (e.g. `["file_sha256","line_no"]` —
-  the collapse is a no-op, so you just get the top rows by score). A `groupBy` here would be pointless for a unique
-  key and would blow the merge cap on its high cardinality.
-- **Approximate ranking:** because each segment contributes only its top-`limit` by score, a key whose best row falls
-  below every segment's cutoff can be missed. The top keys are captured; raise `limit` for more recall (especially for
-  a skewed coarse key where a few keys dominate each segment's top-N).
+  The server injects `scoreField:_score` + the internal per-segment scan limit into it and attaches the per-row score
+  via a `$attachment` virtual column.
+- **How it runs (one `select.stream`, no `groupBy`):** each segment returns its top `limit`×fanout rows by score (a
+  server constant, currently ×4), so the stream is bounded whatever the key's cardinality; the server then keeps the
+  **max score per key** and takes the global top-`limit`. This works for **both** a coarse key (e.g. `source_sha256` —
+  the collapse is a real max-per-key) and a **row-unique** key (e.g. `["file_sha256","line_no"]` — the collapse is a
+  no-op, so you just get the top rows by score). A `groupBy` here would be pointless for a unique key and would blow
+  the merge cap on its high cardinality.
+- **Approximate ranking:** because each segment contributes only its top rows by score, a key whose best row falls
+  below every segment's cutoff can be missed. For a **row-unique** key the fan-out makes this exact (a global top-K
+  row has &lt;K rows above it, so it survives its segment's top-K); for a **skewed coarse** key where a few keys
+  dominate a segment, the fan-out (×4) captures the top keys but extreme skew still can't be fully guaranteed — this
+  is a ranking, not an exact aggregate. Scoring cost is independent of the fan-out (every match is scored regardless;
+  the limit only selects which rows stream up), so the fan-out only trades a few more streamed rows for recall.
 - **`capped`:** in score mode `capped=true` means "these are the top-`limit` keys by score, more exist" (intended for
   a top-K ranking) — NOT the distinct-mode "list incomplete, skip pushdown" signal.
 - Scores are **per-segment** (each segment's own IDF), so the cross-segment ranking is approximate — fine for

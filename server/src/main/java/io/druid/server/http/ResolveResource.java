@@ -132,7 +132,9 @@ public class ResolveResource
     out.put("dataSource", dataSource);
     // Distinct keys — the core; its failure IS the resolve's failure (nothing useful without them).
     if (keyColumns != null && !keyColumns.isEmpty()) {
-      final Object scoredFilter = scored ? withScoreField(filter, limit) : null;
+      // The caller asks for the final top-`limit` only; the per-segment scan fan-out is an internal recall knob
+      // (a key's best row must survive its segment's cutoff), NOT something the connector should reason about.
+      final Object scoredFilter = scored ? withScoreField(filter, scanLimitFor(limit)) : null;
       if (scored && scoredFilter == null) {
         return Response.status(Response.Status.BAD_REQUEST)
                        .entity(ImmutableMap.of("error", "score requires a lucene.query filter")).build();
@@ -257,6 +259,19 @@ public class ResolveResource
       values.add(tuple);
     }
     return values;
+  }
+
+  // Per-segment scan limit for score mode, derived from the caller's final top-K. Each segment returns its top
+  // (K x fanout) rows by score so a global top-K key whose best row is crowded low in one segment still survives to
+  // the merge; the fanout is a server-side recall knob, not exposed to the connector. Scoring cost is independent of
+  // this (collectAllScored scores every match regardless — the limit only selects), so it only trades a few more
+  // streamed rows for recall. Capped so a huge `limit` can't stream unbounded rows into the resolve resource.
+  private static final int SCORE_FANOUT = 4;
+  private static final int SCORE_SCAN_CAP = 200_000;
+
+  private static int scanLimitFor(int topK)
+  {
+    return (int) Math.min((long) topK * SCORE_FANOUT, SCORE_SCAN_CAP);
   }
 
   private static boolean asBool(Object v)
