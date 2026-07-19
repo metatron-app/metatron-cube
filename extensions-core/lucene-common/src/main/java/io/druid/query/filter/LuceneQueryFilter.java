@@ -52,6 +52,13 @@ import java.util.Objects;
 @JsonTypeName("lucene.query")
 public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInflator
 {
+  // A bare fuzzy term (term~) over a huge free-text term dictionary (e.g. the credential-dump `raw` field) walks a
+  // Levenshtein automaton across a large fraction of the .tim term dictionary — measured ~672x the term-dict reads of
+  // a plain term (133,857 vs 199 .tim GETs/100-segs), enough to time a wide scan out. Requiring the first N chars to
+  // match exactly bounds the automaton's entry into the term dict, pruning that scan by orders of magnitude. Override
+  // with -Ddruid.lucene.fuzzyPrefixLength (0 restores stock Lucene behavior).
+  private static final int FUZZY_PREFIX_LENGTH = Integer.getInteger("druid.lucene.fuzzyPrefixLength", 2);
+
   public static LuceneQueryFilter of(String field, String expression, String scoreField)
   {
     return new LuceneQueryFilter(field, null, expression, null, scoreField, 0, false);
@@ -174,6 +181,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
           } else {
             StandardQueryParser parser = new StandardQueryParser(Lucenes.createAnalyzer(analyzer));
             parser.setAllowLeadingWildcard(true);   // permit *term* substring queries
+            parser.setFuzzyPrefixLength(FUZZY_PREFIX_LENGTH);   // guard against fuzzy term-dict scan blowup (see const)
             Map<String, PointsConfig> configMap = Lucenes.asPointConfig(types);
             if (!configMap.isEmpty()) {
               parser.setPointsConfigMap(configMap);
