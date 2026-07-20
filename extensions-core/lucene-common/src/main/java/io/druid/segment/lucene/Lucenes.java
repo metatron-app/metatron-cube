@@ -935,9 +935,14 @@ public class Lucenes
    * Trade-off vs the collector: {@code ScoreMode.COMPLETE} scores every match, so this forgoes the collector's
    * dynamic (block-max WAND) pruning that can skip low-scoring docs on multi-term queries — a win only when that
    * pruning would have outweighed the per-doc heap it costs. Use {@link #collectAll} when no scoreField is needed.
+   *
+   * <p>{@code minScore} gates the bitmap to docs scoring {@code >= minScore} (below-threshold docs are neither
+   * attached nor added). {@code Float.NaN} disables the gate ({@code s < NaN} is always false). This lets a caller
+   * that already knows the global top-N cutoff materialize only the docs that can survive it (see the two-pass
+   * /resolve score path). Docs are still scored — the gate only prunes what enters the result.
    */
   public static ImmutableBitmap collectAllScored(
-      IndexSearcher searcher, Query query, FilterContext context, String scoreField, int limit
+      IndexSearcher searcher, Query query, FilterContext context, String scoreField, int limit, float minScore
   ) throws IOException
   {
     final BitmapFactory factory = context.bitmapFactory();
@@ -951,7 +956,11 @@ public class Lucenes
       final int base = leaf.docBase;
       final DocIdSetIterator it = scorer.iterator();
       for (int doc = it.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = it.nextDoc()) {
-        mapping.put(base + doc, scorer.score());   // global ids: attach + bitmap keys stay global
+        final float score = scorer.score();
+        if (score < minScore) {
+          continue;   // below the caller's threshold (NaN minScore never trips this)
+        }
+        mapping.put(base + doc, score);   // global ids: attach + bitmap keys stay global
       }
     }
     if (scoreField != null) {

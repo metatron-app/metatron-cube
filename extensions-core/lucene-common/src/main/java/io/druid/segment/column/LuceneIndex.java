@@ -42,6 +42,14 @@ public interface LuceneIndex extends SecondaryIndex<Query>
   // Underlying reader, exposed so a segment merge can physically combine indexes via addIndexes.
   DirectoryReader getReader();
 
+  // Scored filter with a relevance floor: only docs scoring >= minScore enter the bitmap (Float.NaN = no floor).
+  // Lucene-only overload so the shared SecondaryIndex.filterFor arity is untouched; the default drops the floor for
+  // impls that don't apply it (the lucene impl overrides this to honor it). See the two-pass /resolve score path.
+  default BitmapHolder filterFor(Query query, FilterContext context, String attachment, int limit, float minScore)
+  {
+    return filterFor(query, context, attachment, limit);
+  }
+
   @Override
   default BitmapHolder compare(String op, boolean withNot, String column, Comparable constant, FilterContext context)
   {

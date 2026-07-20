@@ -408,6 +408,12 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                     @Override
                     public BitmapHolder filterFor(Query query, FilterContext context, String attachment, int limit)
                     {
+                      return filterFor(query, context, attachment, limit, Float.NaN);
+                    }
+
+                    @Override
+                    public BitmapHolder filterFor(Query query, FilterContext context, String attachment, int limit, float minScore)
+                    {
                       try {
                         final IndexSearcher searcher = createIndexSearcher(reader);
                         final long _t0 = System.nanoTime();
@@ -417,9 +423,9 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
                           // TopScoreDocCollector heap + norms that dominated per-segment CPU on a wide filter.
                           bitmap = Lucenes.collectAll(searcher, query, context);
                         } else {
-                          // scored path: score every match once (no priority queue), attach scores, and when limit>0
-                          // keep the per-segment top-`limit` by selecting over the collected scores (see collectAllScored).
-                          bitmap = Lucenes.collectAllScored(searcher, query, context, attachment, limit);
+                          // scored path: score every match once (no priority queue), attach scores, keep the top-`limit`
+                          // by selecting over the collected scores, and drop docs below minScore (see collectAllScored).
+                          bitmap = Lucenes.collectAllScored(searcher, query, context, attachment, limit, minScore);
                         }
                         io.druid.java.util.common.RangeProf.searchNanos.addAndGet(System.nanoTime() - _t0);
                         io.druid.java.util.common.RangeProf.searchCount.incrementAndGet();

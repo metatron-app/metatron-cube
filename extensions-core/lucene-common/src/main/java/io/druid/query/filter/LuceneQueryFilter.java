@@ -61,7 +61,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
 
   public static LuceneQueryFilter of(String field, String expression, String scoreField)
   {
-    return new LuceneQueryFilter(field, null, expression, null, scoreField, 0, false);
+    return new LuceneQueryFilter(field, null, expression, null, scoreField, 0, false, null);
   }
 
   private final String analyzer;
@@ -71,6 +71,9 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
   // treat `expression` as a literal keyword (analyze + phrase) instead of query-parser syntax, so
   // keyword chars like @ : . _ never trip the parser or collapse into a match-all/OR query.
   private final boolean literal;
+  // relevance floor: only docs scoring >= minScore enter the bitmap (NaN = no floor). Set by the two-pass /resolve
+  // score path (pass 1 finds the global top-N cutoff, pass 2 replays with it so only ~N docs materialize).
+  private final float minScore;
 
   @JsonCreator
   public LuceneQueryFilter(
@@ -80,7 +83,8 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
       @JsonProperty("types") Map<String, String> types,
       @JsonProperty("scoreField") String scoreField,
       @JsonProperty("limit") Integer limit,
-      @JsonProperty("literal") Boolean literal
+      @JsonProperty("literal") Boolean literal,
+      @JsonProperty("minScore") Float minScore
   )
   {
     super(field, scoreField);
@@ -89,6 +93,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
     this.types = types == null ? ImmutableMap.of() : types;
     this.limit = limit == null ? 0 : limit;
     this.literal = literal != null && literal;
+    this.minScore = minScore == null ? Float.NaN : minScore;
   }
 
   @JsonProperty
@@ -124,6 +129,13 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
     return literal;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public Float getMinScore()
+  {
+    return Float.isNaN(minScore) ? null : minScore;   // omit from JSON when unset -> old spec unchanged
+  }
+
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
@@ -134,7 +146,8 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
                   .append(types).sp()
                   .append(scoreField).sp()
                   .append(limit).sp()
-                  .append(literal);
+                  .append(literal).sp()
+                  .append(Float.floatToIntBits(minScore));
   }
 
   @Override
@@ -144,13 +157,13 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneQueryFilter(replaced, analyzer, expression, types, scoreField, limit, literal);
+    return new LuceneQueryFilter(replaced, analyzer, expression, types, scoreField, limit, literal, getMinScore());
   }
 
   @Override
   protected Object[] params()
   {
-    return new Object[]{field, analyzer, expression, types, scoreField, limit, literal};
+    return new Object[]{field, analyzer, expression, types, scoreField, limit, literal, minScore};
   }
 
   @Override
@@ -188,7 +201,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
             }
             query = parser.parse(expression, luceneField.getKey());
           }
-          return lucene.filterFor(query, context, scoreField, limit);
+          return lucene.filterFor(query, context, scoreField, limit, minScore);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -214,13 +227,14 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
            (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            (limit == 0 ? "" : ", limit=" + limit) +
            (literal ? ", literal=true" : "") +
+           (Float.isNaN(minScore) ? "" : ", minScore=" + minScore) +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, analyzer, expression, types, scoreField, limit, literal);
+    return Objects.hash(field, analyzer, expression, types, scoreField, limit, literal, minScore);
   }
 
   @Override
@@ -254,6 +268,9 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
       return false;
     }
     if (literal != that.literal) {
+      return false;
+    }
+    if (Float.compare(minScore, that.minScore) != 0) {
       return false;
     }
 
