@@ -24,11 +24,15 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.Row;
 import io.druid.guice.annotations.Json;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.sketch.QuantileOperation;
+import io.druid.query.sketch.TypedSketch;
 import io.druid.server.QueryManager;
 import io.druid.server.QueryStats;
 import io.druid.server.RequestLogLine;
@@ -74,6 +78,9 @@ import java.util.concurrent.TimeUnit;
 @Path("/druid/v2/resolve")
 public class ResolveResource
 {
+  private static final io.druid.java.util.common.logger.Logger LOG =
+      new io.druid.java.util.common.logger.Logger(ResolveResource.class);
+
   private static final int DEFAULT_LIMIT = 100_000;
   private static final long TIMEOUT_MS = 900_000L;
   private static final String ETERNITY = "1000-01-01/3000-01-01";
@@ -112,6 +119,9 @@ public class ResolveResource
       req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
     }
     final String remoteAddr = req == null ? "" : Strings.nullToEmpty(req.getRemoteAddr());
+    // Dump the connector's request verbatim so we can see exactly what it sent (filter, key, limit, score) — pins
+    // whether an over-fetch is the connector's `limit`/`score` or something the resolve endpoint derives.
+    LOG.info("[resolve-req] from[%s] %s", remoteAddr, request);
     final String dataSource = (String) request.get("dataSource");
     if (dataSource == null) {
       return Response.status(Response.Status.BAD_REQUEST)
@@ -134,7 +144,7 @@ public class ResolveResource
     if (keyColumns != null && !keyColumns.isEmpty()) {
       // The caller asks for the final top-`limit` only; the per-segment scan fan-out is an internal recall knob
       // (a key's best row must survive its segment's cutoff), NOT something the connector should reason about.
-      final Object scoredFilter = scored ? withScoreField(filter, scanLimitFor(limit)) : null;
+      final Object scoredFilter = scored ? withScoreField(filter, scanLimitFor(limit), null) : null;
       if (scored && scoredFilter == null) {
         return Response.status(Response.Status.BAD_REQUEST)
                        .entity(ImmutableMap.of("error", "score requires a lucene.query filter")).build();
@@ -145,11 +155,17 @@ public class ResolveResource
         final List<String> queryColumns = toInternal(keyColumns, catalog.getTimeColumns().get(dataSource));
         final List<Object> values;
         if (scored) {
-          // Stream the per-segment top-`limit` rows by score (bounded by the filter's `limit`), then keep the max
-          // score per key: a no-op collapse when the key is row-unique (e.g. file_id+line — nothing to aggregate, and
-          // groupBy would blow the merge cap on the high cardinality), a real max-per-key when the key is coarse (e.g.
-          // source_sha256). Ranked score-desc, top-`limit`. Approximate globally (per-segment top-N cutoff).
-          final List<Object[]> rows = run(scoredStreamQuery(dataSource, intervals, scoredFilter, queryColumns, limit), remoteAddr);
+          // Two-pass to avoid materializing every candidate row (the key columns — e.g. a 64-char file_sha256 — cost
+          // far more than the score). PASS 1 (scoreThreshold): a score-only scan finds the global top-`limit` cutoff
+          // score T. PASS 2: replay the same scan with minScore=T so only docs that can make the global top-N enter
+          // the bitmap -> the select.stream cursor materializes ~limit rows, not the whole match set. scoreDedup then
+          // ranks ~limit and keeps the max score per key (a no-op for a row-unique key like file_sha256+line_no, a
+          // real collapse for a coarse key). Exact for row-unique keys; approximate for coarse (as before).
+          final float threshold = scoreThreshold(dataSource, intervals, scoredFilter, limit, remoteAddr);
+          final Object scoredFilter2 = threshold == Float.NEGATIVE_INFINITY
+                                       ? scoredFilter   // fewer matches than `limit` -> no floor, take them all
+                                       : withScoreField(filter, scanLimitFor(limit), threshold);
+          final List<Object[]> rows = run(scoredStreamQuery(dataSource, intervals, scoredFilter2, queryColumns, limit), remoteAddr);
           values = scoreDedup(rows, queryColumns.size(), limit);
         } else {
           final List<Object[]> rows = run(streamQuery(dataSource, intervals, filter, queryColumns, limit), remoteAddr);
@@ -236,6 +252,61 @@ public class ResolveResource
     return q;
   }
 
+  // PASS 1 of score mode: a score-only scan that returns the global top-`limit` cutoff score T (docs below T can't
+  // make the final top-N, so PASS 2 skips materializing them). Projects only __time (a cheap resident long) + _score,
+  // NOT the key columns, so it reads no expensive output columns — the scan still scores every match (~the same cost
+  // as the old single pass minus the column materialization). row = [__time, score]. Returns NEGATIVE_INFINITY when
+  // there are fewer than `limit` rows (no floor -> PASS 2 returns them all). T is exact for a row-unique key; for a
+  // coarse key the row-level cutoff can admit slightly fewer distinct keys — within the pre-existing approximation.
+  private float scoreThreshold(String ds, List<String> intervals, Object scoredFilter, int limit, String remoteAddr)
+  {
+    // PASS 1: find the floor score T = the scanN-th largest _score, via a SERVER-SIDE aggregation instead of streaming
+    // every match's score up to here. A `timeseries` with a `count` + a QUANTILE `sketch` over the _score attachment
+    // ingests scores in-engine (per segment, merged at the broker); only the count + a KB sketch flow back — no row
+    // streaming. T is read as the scanN-th-largest quantile. Margin note: scanN = scanLimitFor(limit) (the 4x recall
+    // knob), so PASS 2 admits the top ~scanN rows and scoreDedup trims to exactly `limit`, and T is biased low enough
+    // that a key repeating across rows still leaves >= limit distinct keys. The sketch is APPROXIMATE, but because T
+    // only needs to be <= the true limit-th key score (a low bias over-admits, harmlessly), the final top-N stays exact.
+    final int scanN = scanLimitFor(limit);
+    final List<Row> rows = run(scoreSketchQuery(ds, intervals, scoredFilter), remoteAddr);
+    if (rows.isEmpty()) {
+      return Float.NEGATIVE_INFINITY;
+    }
+    final Row row = rows.get(0);
+    final Object cntRaw = row.getRaw("cnt");
+    final long count = cntRaw instanceof Number ? ((Number) cntRaw).longValue() : 0L;
+    final Object skRaw = row.getRaw("score_sketch");
+    if (count <= scanN || !(skRaw instanceof TypedSketch)) {
+      return Float.NEGATIVE_INFINITY;   // fewer matches than the margin (or no sketch) -> no floor, PASS 2 takes all
+    }
+    final ItemsSketch sketch = (ItemsSketch) ((TypedSketch) skRaw).value();
+    // ascending sketch: getQuantile(f) = value at normalized rank f from the smallest, so 1 - scanN/count = scanN-th largest
+    final Object t = QuantileOperation.QUANTILES.calculate(sketch, 1.0 - (double) scanN / count);
+    return t instanceof Number ? ((Number) t).floatValue() : Float.NEGATIVE_INFINITY;
+  }
+
+  // PASS 1 query: aggregate the _score attachment server-side (count + QUANTILE sketch) — NO key columns, NO row
+  // output. The lucene filter attaches _score during bitmap extraction; the $attachment VC surfaces it, and the
+  // aggregation cursor reads it per matched row to feed the sketch.
+  private Map<String, Object> scoreSketchQuery(String ds, List<String> intervals, Object filter)
+  {
+    final Map<String, Object> q = Maps.newLinkedHashMap();
+    q.put("queryType", "timeseries");
+    q.put("dataSource", ds);
+    q.put("intervals", intervals);
+    q.put("granularity", "all");
+    q.put("filter", filter);
+    q.put("virtualColumns", Lists.newArrayList(
+        ImmutableMap.of("type", "$attachment", "outputName", "_score", "columnType", "FLOAT")
+    ));
+    q.put("aggregations", Lists.newArrayList(
+        ImmutableMap.of("type", "count", "name", "cnt"),
+        ImmutableMap.of("type", "sketch", "name", "score_sketch", "fieldName", "_score", "inputType", "float", "sketchOp", "QUANTILE")
+    ));
+    q.put("context", ImmutableMap.of("timeout", TIMEOUT_MS, "queryId", newId()));
+    return q;
+  }
+
   // Max score per key over the streamed (per-segment top-N) rows: rows are [keyColumns..., score]. A row-unique key
   // collapses to itself; a coarse key keeps its best-scoring occurrence. Rank score-desc, keep the top-`limit`, and
   // emit [keyColumns..., score] tuples.
@@ -280,16 +351,20 @@ public class ResolveResource
   }
 
   // Copy the caller's filter with scoreField=_score (so the lucene scan attaches a per-doc score) and a per-segment
-  // `limit` = top-N rows by score (which bounds the scored stream). Only a top-level lucene.query is scorable here;
-  // anything else returns null (score mode then 400s).
+  // `limit` = top-N rows by score (which bounds the scored stream). When {@code minScore} is non-null, also inject it
+  // as a relevance floor so only docs scoring >= minScore enter the bitmap (PASS 2 of the two-pass). Only a top-level
+  // lucene.query is scorable here; anything else returns null (score mode then 400s).
   @SuppressWarnings("unchecked")
-  private static Object withScoreField(Object filter, int limit)
+  private static Object withScoreField(Object filter, int limit, Float minScore)
   {
     if (filter instanceof Map && "lucene.query".equals(((Map<String, Object>) filter).get("type"))) {
       final Map<String, Object> copy = Maps.newLinkedHashMap((Map<String, Object>) filter);
       copy.put("scoreField", "_score");
       if (limit > 0) {
         copy.put("limit", limit);   // per-segment top-N by score -> bounds the stream
+      }
+      if (minScore != null) {
+        copy.put("minScore", minScore);   // relevance floor -> gates which docs materialize (PASS 2)
       }
       return copy;
     }
