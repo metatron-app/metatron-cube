@@ -95,6 +95,7 @@ import org.apache.lucene.analysis.sv.SwedishAnalyzer;
 import org.apache.lucene.analysis.th.ThaiAnalyzer;
 import org.apache.lucene.analysis.tr.TurkishAnalyzer;
 import org.apache.lucene.sandbox.document.BigIntegerPoint;
+import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FloatPoint;
@@ -125,6 +126,7 @@ import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.store.BaseDirectory;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
@@ -167,6 +169,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -181,7 +185,7 @@ public class Lucenes
   private static final Logger LOGGER = new Logger(Lucenes.class);
   private static final int IO_BUFFER = 65536;
 
-  public static IndexWriter buildRamWriter(File file, String analyzer, List<LuceneIndexingStrategy> strategies)
+  private static IndexWriterConfig ramWriterConfig(String analyzer, List<LuceneIndexingStrategy> strategies)
   {
     IndexWriterConfig config = new IndexWriterConfig(Lucenes.createAnalyzer(analyzer));
     config.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
@@ -194,12 +198,162 @@ public class Lucenes
     for (LuceneIndexingStrategy strategy : strategies) {
       config = strategy.configure(config);
     }
+    return config;
+  }
+
+  public static IndexWriter buildRamWriter(File file, String analyzer, List<LuceneIndexingStrategy> strategies)
+  {
     try {
-      return new IndexWriter(new MMapDirectory(file.toPath()), config);
+      return new IndexWriter(new MMapDirectory(file.toPath()), ramWriterConfig(analyzer, strategies));
     }
     catch (IOException e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  // Persist-lever B (parallel raw-index build), opt-in. When on, LuceneIndexingSpec buffers the column's Documents and
+  // calls buildParallel instead of the streaming single-writer path.
+  public static final boolean PARALLEL_BUILD = Boolean.getBoolean("druid.lucene.parallelBuild");
+  // Derived, not tuned: parallelism = cores; block count = clamp(rows / MIN_ROWS, 1, parallelism) -> ~= that many
+  // segments, each rows/blocks docs. MIN_ROWS is a soft floor so small shards aren't over-segmented.
+  private static final int BUILD_PARALLELISM =
+      Integer.getInteger("druid.lucene.buildParallelism", Runtime.getRuntime().availableProcessors());
+  private static final int BUILD_MIN_ROWS = Integer.getInteger("druid.lucene.buildMinRowsPerBlock", 100_000);
+  // true = forceMerge(1) the blocks into ONE segment (no size/leaf cost, lower build speedup); false = verbatim
+  // multi-segment (max build speedup, +12% size + N leaves). Default single-segment: read-bound needs only "enough".
+  public static final boolean BUILD_MERGE = Boolean.parseBoolean(System.getProperty("druid.lucene.buildMerge", "true"));
+  private static volatile ExecutorService BUILD_POOL;
+
+  // one shared, bounded pool across ALL concurrent persists -> total lucene-build threads <= BUILD_PARALLELISM (cores),
+  // however many shards persist at once.
+  private static ExecutorService buildPool()
+  {
+    if (BUILD_POOL == null) {
+      synchronized (Lucenes.class) {
+        if (BUILD_POOL == null) {
+          final ThreadFactory factory = r -> {
+            final Thread t = new Thread(r, "lucene-build");
+            t.setDaemon(true);
+            return t;
+          };
+          BUILD_POOL = Executors.newFixedThreadPool(Math.max(1, BUILD_PARALLELISM), factory);
+        }
+      }
+    }
+    return BUILD_POOL;
+  }
+
+  /**
+   * Build a lucene index over `docs` (already in row order) using up to {@link #BUILD_PARALLELISM} threads, preserving
+   * docID == row ordinal. Splits docs into contiguous blocks, builds each block's segment concurrently (in-memory),
+   * then addIndexes(verbatim, in block order) into the final on-disk index — so block k's docs land at
+   * [k*blockSize, ...) and global docID == the docs-list index == row ordinal. Multi-segment (no forceMerge) keeps the
+   * concat cheap; the serde ({@link #writeTo}) and read handle any segment count. Returns the OPEN final writer (the
+   * caller's getSerde reads its directory). Small inputs fall back to a single serial writer.
+   */
+  public static IndexWriter buildParallel(
+      File finalFile, String analyzer, List<LuceneIndexingStrategy> strategies, List<Document> docs
+  ) throws IOException
+  {
+    final int total = docs.size();
+    final int blocks = Math.max(1, Math.min(BUILD_PARALLELISM, total / Math.max(1, BUILD_MIN_ROWS)));
+    if (blocks <= 1) {
+      final IndexWriter writer = buildRamWriter(finalFile, analyzer, strategies);
+      for (Document doc : docs) {
+        writer.addDocument(doc);
+      }
+      writer.commit();
+      return writer;
+    }
+    final int blockSize = (total + blocks - 1) / blocks;
+    final ByteBuffersDirectory[] dirs = new ByteBuffersDirectory[blocks];
+    final List<Future<?>> futures = Lists.newArrayList();
+    final ExecutorService pool = buildPool();
+    for (int b = 0; b < blocks; b++) {
+      final int from = b * blockSize;
+      final int to = Math.min(from + blockSize, total);
+      final ByteBuffersDirectory dir = new ByteBuffersDirectory();
+      dirs[b] = dir;
+      futures.add(pool.submit(() -> {
+        try (IndexWriter blockWriter = new IndexWriter(dir, ramWriterConfig(analyzer, strategies))) {
+          for (int i = from; i < to; i++) {
+            blockWriter.addDocument(docs.get(i));
+          }
+          blockWriter.commit();
+        }
+        return null;
+      }));
+    }
+    for (Future<?> future : futures) {
+      try {
+        future.get();
+      }
+      catch (Exception e) {
+        throw new IOException("parallel lucene build failed", e);
+      }
+    }
+    // ordered concat (no re-analysis) -> global docID == row ordinal either way.
+    final IndexWriter writer;
+    if (BUILD_MERGE) {
+      // merge blocks into ONE segment. addIndexes(CodecReader...) merges IN ARGUMENT ORDER (so docID stays == ordinal);
+      // forceMerge(1) is then the belt-and-suspenders single-segment guarantee. No size/leaf cost, lower speedup —
+      // the right default when read-bound (persist only needs to exceed read). NB: addIndexes(Directory[])+forceMerge
+      // does NOT preserve order (a default-policy merge reorders the copied segments), so we go via CodecReader.
+      final List<DirectoryReader> readers = Lists.newArrayList();
+      for (ByteBuffersDirectory dir : dirs) {
+        readers.add(DirectoryReader.open(dir));
+      }
+      writer = buildMergeConcatWriter(finalFile);
+      final List<CodecReader> codecs = Lists.newArrayList();
+      for (DirectoryReader reader : readers) {
+        for (LeafReaderContext leaf : reader.leaves()) {
+          codecs.add(SlowCodecReaderWrapper.wrap(leaf.reader()));
+        }
+      }
+      writer.addIndexes(codecs.toArray(new CodecReader[0]));
+      writer.forceMerge(1);
+      writer.commit();
+      for (DirectoryReader reader : readers) {
+        reader.close();
+      }
+    } else {
+      // verbatim addIndexes(Directory[]) -> keeps N segments (cheap concat, ~linear speedup, +12% size + N leaves)
+      writer = buildConcatWriter(finalFile);
+      writer.addIndexes((Directory[]) dirs);
+      writer.commit();
+    }
+    for (ByteBuffersDirectory dir : dirs) {
+      dir.close();
+    }
+    LOGGER.debug("parallel lucene build: %,d docs -> %d blocks (parallelism %d, merge=%s)",
+                 total, blocks, BUILD_PARALLELISM, BUILD_MERGE);
+    return writer;
+  }
+
+  // A writer that CONCATENATES verbatim: default codec, NoMergePolicy so addIndexes(Directory...) copies each block's
+  // segments as-is (keeps N segments, no re-merge). No analyzer needed — addIndexes copies, never re-analyzes.
+  private static IndexWriter buildConcatWriter(File file) throws IOException
+  {
+    IndexWriterConfig config = new IndexWriterConfig();
+    config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    config.setUseCompoundFile(false);
+    config.setCommitOnClose(true);
+    config.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+    config.setMergePolicy(NoMergePolicy.INSTANCE);
+    config.setMergeScheduler(NoMergeScheduler.INSTANCE);
+    return new IndexWriter(new MMapDirectory(file.toPath()), config);
+  }
+
+  // Like buildConcatWriter but with the DEFAULT merge policy so a following forceMerge(1) actually merges the copied
+  // block segments into ONE (no index sort / no deletions -> merged docIDs stay in addIndexes order == row ordinal).
+  private static IndexWriter buildMergeConcatWriter(File file) throws IOException
+  {
+    IndexWriterConfig config = new IndexWriterConfig();
+    config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+    config.setUseCompoundFile(false);
+    config.setCommitOnClose(true);
+    config.setIndexDeletionPolicy(NoDeletionPolicy.INSTANCE);
+    return new IndexWriter(new MMapDirectory(file.toPath()), config);
   }
 
   // Physically merge existing lucene indexes (no re-analysis): addIndexes the source readers in order,

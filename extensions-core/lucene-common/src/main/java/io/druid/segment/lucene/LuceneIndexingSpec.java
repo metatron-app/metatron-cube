@@ -154,12 +154,23 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
 
     return new MetricColumnSerializer()
     {
-      private IndexWriter writer;
+      // Lever B (opt-in -Ddruid.lucene.parallelBuild): buffer this column's Documents, then at close() build them in
+      // parallel contiguous blocks + verbatim ordered concat (Lucenes.buildParallel) — docID stays == row ordinal.
+      // OFF (default): the original streaming single-writer path, unchanged.
+      private final boolean parallel = Lucenes.PARALLEL_BUILD;
+      private IndexWriter writer;          // streaming path, or the final concatenated writer (parallel path, set at close)
+      private java.io.File luceneFile;     // parallel path: the final index location
+      private java.util.List<Document> buffered;   // parallel path: this column's Documents, in row order
 
       @Override
       public void open(IOPeon ioPeon)
       {
-        writer = Lucenes.buildRamWriter(ioPeon.makeOutputFile(columnName + ".lucene"), textAnalyzer, replaced);
+        if (parallel) {
+          luceneFile = ioPeon.makeOutputFile(columnName + ".lucene");
+          buffered = Lists.newArrayList();
+        } else {
+          writer = Lucenes.buildRamWriter(ioPeon.makeOutputFile(columnName + ".lucene"), textAnalyzer, replaced);
+        }
       }
 
       @Override
@@ -174,13 +185,22 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
             }
           }
         }
-        writer.addDocument(doc);
+        if (parallel) {
+          buffered.add(doc);   // built now (captures immutable field values); analyzed in parallel at close()
+        } else {
+          writer.addDocument(doc);
+        }
       }
 
       @Override
       public void close() throws IOException
       {
-        writer.commit();
+        if (parallel) {
+          writer = Lucenes.buildParallel(luceneFile, textAnalyzer, replaced, buffered);
+          buffered = null;
+        } else {
+          writer.commit();
+        }
         for (LuceneFieldGenerator generator : generators) {
           CloseQuietly.close(generator);
         }
